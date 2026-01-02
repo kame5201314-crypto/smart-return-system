@@ -22,9 +22,15 @@ interface ReturnAnalysisData {
   }[];
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client lazily to avoid build-time errors
+const getOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +43,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Check for OpenAI API key
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: 'OpenAI API key is not configured' },
+        { status: 500 }
+      );
+    }
+
+    const openai = getOpenAIClient();
 
     const supabase = createAdminClient();
 
