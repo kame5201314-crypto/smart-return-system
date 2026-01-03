@@ -2,23 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle, Package, Upload, Camera, Info } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ImageUploader } from '@/components/upload/image-uploader';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-import { getOrderForReturn, submitReturnApplication } from '@/lib/actions/return.actions';
-import { returnApplySchema, type ReturnApplyInput } from '@/lib/validations/return.schema';
-import { RETURN_REASONS, RETURN_SHIPPING_METHODS, IMAGE_UPLOAD_CONFIG, ERROR_MESSAGES } from '@/config/constants';
-import type { CustomerSession, OrderWithItems } from '@/types';
+import { IMAGE_UPLOAD_CONFIG } from '@/config/constants';
+
+interface ReturnFormData {
+  accountId: string;
+  orderNumber: string;
+  ordererName: string;
+  receiverName?: string;
+  phone: string;
+  channelSource: string;
+  returnReason: string;
+  productSuggestion?: string;
+  submittedAt: string;
+}
 
 interface UploadedImage {
   id: string;
@@ -27,121 +32,87 @@ interface UploadedImage {
   type: string;
 }
 
+const channelLabels: Record<string, string> = {
+  shopee: '蝦皮',
+  ruten: '露天',
+  official: '官網',
+  momo: 'Momo',
+  pchome: 'PChome',
+  other: '其他',
+};
+
 export default function ReturnApplyPage() {
   const router = useRouter();
-  const [session, setSession] = useState<CustomerSession | null>(null);
-  const [order, setOrder] = useState<OrderWithItems | null>(null);
+  const [formData, setFormData] = useState<ReturnFormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [images, setImages] = useState<UploadedImage[]>([]);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
-  const form = useForm<ReturnApplyInput>({
-    resolver: zodResolver(returnApplySchema),
-    defaultValues: {
-      orderId: '',
-      reasonCategory: '',
-      reasonDetail: '',
-      returnShippingMethod: undefined,
-      selectedItems: [],
-    },
-  });
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('customerSession');
+    const stored = sessionStorage.getItem('returnFormData');
     if (!stored) {
       router.push('/portal');
       return;
     }
 
-    const sessionData = JSON.parse(stored) as CustomerSession;
-    setSession(sessionData);
+    const data = JSON.parse(stored) as ReturnFormData;
+    setFormData(data);
+    setLoading(false);
+  }, [router]);
 
-    if (!sessionData.canApplyReturn || !sessionData.isReturnEligible) {
-      toast.error('此訂單無法申請退貨');
-      router.push('/portal/dashboard');
-      return;
-    }
-
-    form.setValue('orderId', sessionData.orderId);
-
-    // Fetch order details
-    getOrderForReturn(sessionData.orderId).then((res) => {
-      const result = res as { success: boolean; data?: OrderWithItems; error?: string };
-      if (result.success && result.data) {
-        setOrder(result.data);
-      }
-      setLoading(false);
-    });
-  }, [router, form]);
-
-  const toggleItem = (itemId: string) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
-    } else {
-      newSelected.add(itemId);
-    }
-    setSelectedItems(newSelected);
-  };
-
-  async function onSubmit(data: ReturnApplyInput) {
+  async function handleSubmit() {
     // Validate images
     if (images.length < IMAGE_UPLOAD_CONFIG.MIN_REQUIRED) {
-      toast.error(ERROR_MESSAGES.INSUFFICIENT_IMAGES);
+      toast.error(`請上傳至少 ${IMAGE_UPLOAD_CONFIG.MIN_REQUIRED} 張照片`);
       return;
     }
 
-    // Validate selected items
-    if (selectedItems.size === 0) {
-      toast.error('請選擇至少一項要退貨的商品');
+    if (images.length > IMAGE_UPLOAD_CONFIG.MAX_ALLOWED) {
+      toast.error(`最多只能上傳 ${IMAGE_UPLOAD_CONFIG.MAX_ALLOWED} 張照片`);
       return;
     }
-
-    // Build selected items array
-    const items = Array.from(selectedItems).map((itemId) => {
-      const item = order?.order_items?.find((i) => i.id === itemId);
-      return {
-        orderItemId: itemId,
-        quantity: item?.quantity || 1,
-        reason: data.reasonCategory,
-      };
-    });
 
     try {
       setSubmitting(true);
 
-      // In a real implementation, upload images to Supabase Storage first
-      // For now, we'll simulate the upload
-      const imageUrls = images.map((img) => ({
-        url: img.preview, // Would be actual URL after upload
-        type: img.type,
-        storagePath: `returns/${session?.orderId}/${img.id}`,
-      }));
+      // Generate a request number
+      const requestNumber = `RET-${Date.now().toString(36).toUpperCase()}`;
 
-      const result = await submitReturnApplication(
-        { ...data, selectedItems: items },
-        imageUrls
-      );
+      // In a real implementation, this would:
+      // 1. Upload images to storage
+      // 2. Create return request in database
+      // For demo purposes, we simulate success
 
-      if (result.success && result.data) {
-        setSuccess(result.data.requestNumber);
-        toast.success('退貨申請已送出');
-      } else {
-        toast.error(result.error || ERROR_MESSAGES.GENERIC);
-      }
+      // Store the complete submission
+      const submission = {
+        ...formData,
+        images: images.map(img => ({
+          type: img.type,
+          preview: img.preview,
+        })),
+        requestNumber,
+        submittedAt: new Date().toISOString(),
+      };
+
+      sessionStorage.setItem('lastSubmission', JSON.stringify(submission));
+
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      setSuccess(requestNumber);
+      toast.success('退貨申請已送出成功！');
     } catch {
-      toast.error(ERROR_MESSAGES.GENERIC);
+      toast.error('送出失敗，請稍後再試');
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading || !session) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-pulse text-muted-foreground">載入中...</div>
+      <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 flex items-center justify-center">
+        <div className="animate-pulse text-white">載入中...</div>
       </div>
     );
   }
@@ -149,183 +120,189 @@ export default function ReturnApplyPage() {
   // Success state
   if (success) {
     return (
-      <Card className="text-center">
-        <CardContent className="pt-8 pb-8">
-          <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">申請成功</h2>
-          <p className="text-muted-foreground mb-4">
-            您的退貨申請編號為：<span className="font-mono font-bold">{success}</span>
-          </p>
-          <p className="text-sm text-muted-foreground mb-6">
-            請保留此編號以便查詢退貨進度
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Button variant="outline" onClick={() => router.push('/portal/dashboard')}>
-              返回首頁
-            </Button>
-            <Button onClick={() => router.push(`/portal/track/${success}`)}>
-              查看進度
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 py-8 px-4">
+        <div className="max-w-xl mx-auto">
+          <Card className="text-center shadow-xl">
+            <CardContent className="pt-12 pb-12">
+              <div className="mx-auto mb-6 w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3 text-green-700">退貨申請成功！</h2>
+              <p className="text-gray-600 mb-2">
+                您的退貨申請編號為：
+              </p>
+              <p className="text-2xl font-mono font-bold text-purple-700 mb-4">{success}</p>
+              <p className="text-sm text-gray-500 mb-8">
+                請保留此編號以便查詢退貨進度<br />
+                我們將盡快為您處理
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    sessionStorage.removeItem('returnFormData');
+                    router.push('/portal');
+                  }}
+                >
+                  返回首頁
+                </Button>
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700"
+                  onClick={() => router.push('/portal/track/query')}
+                >
+                  查詢進度
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Back button */}
-      <Button variant="ghost" onClick={() => router.back()}>
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        返回
-      </Button>
+    <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 py-8 px-4">
+      <div className="max-w-xl mx-auto">
+        {/* Back button */}
+        <Button
+          variant="ghost"
+          className="text-white hover:bg-white/20 mb-4"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          返回修改表單
+        </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>退貨申請</CardTitle>
-          <CardDescription>
-            訂單編號：{session.orderNumber}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Select items to return */}
-              <div className="space-y-3">
-                <FormLabel>選擇退貨商品 *</FormLabel>
-                {order?.order_items?.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors
-                      ${selectedItems.has(item.id) ? 'border-primary bg-primary/5' : 'hover:bg-gray-50'}
-                    `}
-                    onClick={() => toggleItem(item.id)}
-                  >
-                    <Checkbox
-                      checked={selectedItems.has(item.id)}
-                      onCheckedChange={() => toggleItem(item.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium">{item.product_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        SKU: {item.sku || 'N/A'} × {item.quantity}
-                      </p>
-                    </div>
-                    {item.unit_price && (
-                      <p className="font-medium">
-                        NT$ {(item.unit_price * item.quantity).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                {selectedItems.size === 0 && (
-                  <p className="text-sm text-red-500">請選擇至少一項商品</p>
-                )}
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="mx-auto mb-4 w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+            <Package className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">退貨申請確認</h1>
+          <p className="text-purple-200 mt-2">請確認資料並上傳照片</p>
+        </div>
+
+        {/* Form Data Summary */}
+        <Card className="shadow-xl mb-6">
+          <CardHeader className="bg-purple-600 text-white rounded-t-lg">
+            <CardTitle className="text-lg">申請資料確認</CardTitle>
+            <CardDescription className="text-purple-200">
+              請確認以下資料是否正確
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">購買通路</p>
+                <Badge variant="secondary" className="mt-1">
+                  {channelLabels[formData?.channelSource || ''] || formData?.channelSource}
+                </Badge>
               </div>
-
-              {/* Reason category */}
-              <FormField
-                control={form.control}
-                name="reasonCategory"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>退貨原因 *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="請選擇退貨原因" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(RETURN_REASONS).map((reason) => (
-                          <SelectItem key={reason.key} value={reason.key}>
-                            {reason.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Reason detail */}
-              <FormField
-                control={form.control}
-                name="reasonDetail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>詳細說明 *</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="請詳細說明退貨原因（至少10字）"
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Return shipping method */}
-              <FormField
-                control={form.control}
-                name="returnShippingMethod"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>退回方式 *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="請選擇退回方式" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.values(RETURN_SHIPPING_METHODS).map((method) => (
-                          <SelectItem key={method.key} value={method.key}>
-                            <div>
-                              <p>{method.label}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {method.description}
-                              </p>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Image upload */}
-              <div className="space-y-2">
-                <FormLabel>
-                  上傳照片 * ({IMAGE_UPLOAD_CONFIG.MIN_REQUIRED}-{IMAGE_UPLOAD_CONFIG.MAX_ALLOWED} 張)
-                </FormLabel>
-                <ImageUploader
-                  images={images}
-                  onImagesChange={setImages}
-                  disabled={submitting}
-                />
+              <div>
+                <p className="text-sm text-gray-500">訂單編號</p>
+                <p className="font-medium">{formData?.orderNumber}</p>
               </div>
+              <div>
+                <p className="text-sm text-gray-500">帳號</p>
+                <p className="font-medium">{formData?.accountId}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">訂購人</p>
+                <p className="font-medium">{formData?.ordererName}</p>
+              </div>
+              {formData?.receiverName && (
+                <div>
+                  <p className="text-sm text-gray-500">收件人</p>
+                  <p className="font-medium">{formData.receiverName}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-gray-500">聯絡電話</p>
+                <p className="font-medium">{formData?.phone}</p>
+              </div>
+            </div>
 
-              {/* Submit */}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={submitting || images.length < IMAGE_UPLOAD_CONFIG.MIN_REQUIRED || selectedItems.size === 0}
-              >
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                提交退貨申請
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            <div className="pt-4 border-t">
+              <p className="text-sm text-gray-500">退換貨原因</p>
+              <p className="mt-1 text-gray-800">{formData?.returnReason}</p>
+            </div>
+
+            {formData?.productSuggestion && (
+              <div className="pt-4 border-t">
+                <p className="text-sm text-gray-500">產品建議</p>
+                <p className="mt-1 text-gray-800">{formData.productSuggestion}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Image Upload */}
+        <Card className="shadow-xl mb-6">
+          <CardHeader className="bg-purple-600 text-white rounded-t-lg">
+            <div className="flex items-center gap-2">
+              <Camera className="w-5 h-5" />
+              <CardTitle className="text-lg">上傳照片</CardTitle>
+            </div>
+            <CardDescription className="text-purple-200">
+              請上傳 {IMAGE_UPLOAD_CONFIG.MIN_REQUIRED}-{IMAGE_UPLOAD_CONFIG.MAX_ALLOWED} 張照片
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <Alert className="mb-4 border-purple-200 bg-purple-50">
+              <Info className="h-4 w-4 text-purple-600" />
+              <AlertDescription className="text-purple-700">
+                <strong>必須上傳的照片：</strong>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>物流面單（貨運單或包裹標籤）</li>
+                  <li>商品狀況（商品正面、背面）</li>
+                  <li>外箱狀況（包裝外觀）</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+
+            <ImageUploader
+              images={images}
+              onImagesChange={setImages}
+              disabled={submitting}
+            />
+
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <span className="text-gray-500">
+                已上傳 {images.length} / {IMAGE_UPLOAD_CONFIG.MAX_ALLOWED} 張
+              </span>
+              {images.length < IMAGE_UPLOAD_CONFIG.MIN_REQUIRED && (
+                <span className="text-red-500">
+                  還需上傳 {IMAGE_UPLOAD_CONFIG.MIN_REQUIRED - images.length} 張
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Submit Button */}
+        <Button
+          onClick={handleSubmit}
+          className="w-full bg-white text-purple-700 hover:bg-gray-100 py-6 text-lg font-medium shadow-lg"
+          disabled={submitting || images.length < IMAGE_UPLOAD_CONFIG.MIN_REQUIRED}
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              送出中...
+            </>
+          ) : (
+            <>
+              <Upload className="mr-2 h-5 w-5" />
+              確認送出退貨申請
+            </>
+          )}
+        </Button>
+
+        {/* Notice */}
+        <p className="text-center text-purple-200 text-sm mt-4">
+          送出後，我們將盡快審核您的申請
+        </p>
+      </div>
     </div>
   );
 }
