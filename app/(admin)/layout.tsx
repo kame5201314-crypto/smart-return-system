@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,16 +11,16 @@ import {
   Brain,
   Settings,
   Menu,
-  X,
   LogOut,
-  User,
+  Loader2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/sonner';
+import { getCurrentUser, signOut } from '@/lib/actions/auth';
+import { toast } from 'sonner';
 
 const navItems = [
   { href: '/dashboard', label: '總覽', icon: LayoutDashboard },
@@ -31,6 +31,13 @@ const navItems = [
   { href: '/settings', label: '系統設定', icon: Settings },
 ];
 
+interface UserInfo {
+  id: string;
+  email: string | undefined;
+  name: string;
+  role: string;
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -38,6 +45,28 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    async function loadUser() {
+      const userData = await getCurrentUser();
+      setUser(userData);
+    }
+    loadUser();
+  }, []);
+
+  async function handleLogout() {
+    try {
+      setIsLoggingOut(true);
+      await signOut();
+    } catch {
+      toast.error('登出失敗');
+      setIsLoggingOut(false);
+    }
+  }
+
+  const userInitial = user?.name?.charAt(0).toUpperCase() || 'A';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,14 +108,26 @@ export default function AdminLayout({
           <div className="p-4 border-t">
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarFallback>A</AvatarFallback>
+                <AvatarFallback className="bg-purple-100 text-purple-600">
+                  {userInitial}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">管理員</p>
-                <p className="text-xs text-muted-foreground truncate">admin@example.com</p>
+                <p className="text-sm font-medium truncate">{user?.name || '載入中...'}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email || ''}</p>
               </div>
-              <Button variant="ghost" size="icon">
-                <LogOut className="w-4 h-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                title="登出"
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <LogOut className="w-4 h-4" />
+                )}
               </Button>
             </div>
           </div>
@@ -136,6 +177,33 @@ export default function AdminLayout({
                     );
                   })}
                 </nav>
+                {/* Mobile User Section */}
+                <div className="p-4 border-t">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Avatar>
+                      <AvatarFallback className="bg-purple-100 text-purple-600">
+                        {userInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{user?.name || '載入中...'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user?.email || ''}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                  >
+                    {isLoggingOut ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <LogOut className="w-4 h-4 mr-2" />
+                    )}
+                    登出
+                  </Button>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

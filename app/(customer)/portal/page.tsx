@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Loader2, Package, ArrowRight } from 'lucide-react';
+import { Loader2, Package, Send, CheckCircle, Camera } from 'lucide-react';
 import { z } from 'zod';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SimpleImageUploader } from '@/components/upload/simple-image-uploader';
+
+interface UploadedImage {
+  id: string;
+  file: File;
+  preview: string;
+}
 
 // Form validation schema
 const returnFormSchema = z.object({
@@ -30,8 +37,13 @@ const returnFormSchema = z.object({
 type ReturnFormInput = z.infer<typeof returnFormSchema>;
 
 export default function CustomerPortalPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedData, setSubmittedData] = useState<{
+    orderNumber: string;
+    requestNumber: string;
+  } | null>(null);
+  const [images, setImages] = useState<UploadedImage[]>([]);
 
   const form = useForm<ReturnFormInput>({
     resolver: zodResolver(returnFormSchema),
@@ -48,24 +60,90 @@ export default function CustomerPortalPage() {
   });
 
   async function onSubmit(data: ReturnFormInput) {
+    // Validate at least one image
+    if (images.length === 0) {
+      toast.error('請至少上傳一張照片');
+      return;
+    }
+
     try {
       setIsLoading(true);
 
-      // Store form data in session storage for the apply page
-      sessionStorage.setItem('returnFormData', JSON.stringify({
-        ...data,
-        submittedAt: new Date().toISOString(),
-      }));
+      // Generate a random request number
+      const requestNumber = `RET-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
 
-      toast.success('表單已送出，請繼續填寫退貨申請');
+      // In real implementation, upload images and submit form to API
+      // For demo, simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Redirect to detailed return application page
-      router.push('/portal/apply');
+      // Store data for confirmation
+      setSubmittedData({
+        orderNumber: data.orderNumber,
+        requestNumber,
+      });
+
+      // Show success state
+      setIsSubmitted(true);
+      toast.success('退貨申請已成功送出！');
+
     } catch {
       toast.error('送出失敗，請稍後再試');
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Success state after submission
+  if (isSubmitted && submittedData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 py-8 px-4">
+        <div className="max-w-xl mx-auto">
+          <Card className="shadow-xl">
+            <CardContent className="pt-10 pb-10 text-center">
+              <div className="mx-auto mb-6 w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-12 h-12 text-green-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                退貨申請已送出
+              </h1>
+              <p className="text-gray-600 mb-6">
+                我們已收到您的退貨申請，將盡快為您處理
+              </p>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="text-sm text-gray-500 mb-1">退貨單號</div>
+                <div className="text-xl font-bold text-purple-600">
+                  {submittedData.requestNumber}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  請妥善保存此單號，以便查詢退貨進度
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Link href="/portal/track/query">
+                  <Button className="w-full bg-purple-600 hover:bg-purple-700">
+                    查詢退貨進度
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setIsSubmitted(false);
+                    setSubmittedData(null);
+                    setImages([]);
+                    form.reset();
+                  }}
+                >
+                  繼續申請其他退貨
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -77,7 +155,7 @@ export default function CustomerPortalPage() {
             <Package className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">產品退、換貨表單</h1>
-          <p className="text-purple-200 mt-2">請填寫以下資料以申請退換貨</p>
+          <p className="text-purple-200 mt-2">請填寫以下資料並上傳照片</p>
         </div>
 
         {/* Form Card */}
@@ -281,17 +359,42 @@ export default function CustomerPortalPage() {
                   )}
                 />
 
+                {/* Image Upload Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-purple-600" />
+                    <FormLabel className="text-purple-700 font-medium text-base">
+                      上傳照片 <span className="text-red-500">*</span>
+                    </FormLabel>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    請上傳產品照片及外箱照片（最多 5 張）
+                  </p>
+                  <SimpleImageUploader
+                    images={images}
+                    onImagesChange={setImages}
+                    disabled={isLoading}
+                    maxImages={5}
+                    maxFileSizeMB={10}
+                  />
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg"
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      送出中...
+                    </>
                   ) : (
-                    <ArrowRight className="mr-2 h-5 w-5" />
+                    <>
+                      <Send className="mr-2 h-5 w-5" />
+                      送出退貨申請
+                    </>
                   )}
-                  送出並繼續申請退貨
                 </Button>
               </form>
             </Form>
@@ -305,11 +408,21 @@ export default function CustomerPortalPage() {
           </CardHeader>
           <CardContent className="text-sm text-gray-600 space-y-2">
             <p>1. 商品需於收貨後 7 天內申請退貨</p>
-            <p>2. 請準備 3-5 張照片（物流面單、商品狀況、外箱）</p>
+            <p>2. 請上傳產品照片及外箱照片（最多 5 張）</p>
             <p>3. 蝦皮訂單請透過蝦皮 App 申請退貨</p>
             <p>4. 退款將於驗貨完成後 7 個工作天內處理</p>
           </CardContent>
         </Card>
+
+        {/* Track Query Link */}
+        <div className="text-center mt-6">
+          <Link
+            href="/portal/track/query"
+            className="text-white/80 hover:text-white text-sm underline"
+          >
+            已申請過？查詢退貨進度
+          </Link>
+        </div>
       </div>
     </div>
   );

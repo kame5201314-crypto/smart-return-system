@@ -35,8 +35,10 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session if expired
+  let user = null;
   try {
-    await supabase.auth.getUser();
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
   } catch {
     // Ignore auth errors when Supabase is not fully configured
   }
@@ -49,14 +51,21 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/analytics') ||
     request.nextUrl.pathname.startsWith('/settings');
 
-  // For now, we allow access without auth for demo purposes
-  // In production, uncomment below to enforce auth:
+  const isLoginPage = request.nextUrl.pathname === '/login';
 
-  // if (isAdminRoute && !user) {
-  //   const url = request.nextUrl.clone();
-  //   url.pathname = '/login';
-  //   return NextResponse.redirect(url);
-  // }
+  // Redirect to login if accessing admin routes without auth
+  if (isAdminRoute && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect to dashboard if already logged in and accessing login page
+  if (isLoginPage && user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
