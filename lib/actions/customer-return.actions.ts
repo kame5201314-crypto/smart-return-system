@@ -215,13 +215,44 @@ export async function submitCustomerReturn(
   }
 }
 
+interface ReturnListResult {
+  id: string;
+  request_number: string;
+  status: string;
+  channel_source: string | null;
+  reason_detail: string | null;
+  created_at: string;
+  approved_at?: string | null;
+  shipped_at?: string | null;
+  received_at?: string | null;
+  refunded_at?: string | null;
+  closed_at?: string | null;
+  order?: {
+    order_number: string;
+    customer_name: string | null;
+  } | null;
+}
+
 /**
  * Search return requests by phone number
  */
-export async function searchReturnsByPhone(phone: string) {
+export async function searchReturnsByPhone(phone: string): Promise<{ success: boolean; data?: ReturnListResult[]; error?: string }> {
   try {
     const adminClient = createAdminClient();
 
+    // First find orders with this phone number
+    const { data: orders, error: ordersError } = await adminClient
+      .from('orders')
+      .select('id')
+      .eq('customer_phone', phone) as { data: { id: string }[] | null; error: Error | null };
+
+    if (ordersError || !orders || orders.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const orderIds = orders.map(o => o.id);
+
+    // Then find return requests for these orders
     const { data, error } = await adminClient
       .from('return_requests')
       .select(`
@@ -231,31 +262,58 @@ export async function searchReturnsByPhone(phone: string) {
         channel_source,
         reason_detail,
         created_at,
-        order:orders!inner (
+        approved_at,
+        shipped_at,
+        received_at,
+        refunded_at,
+        closed_at,
+        order:orders (
           order_number,
-          customer_phone,
           customer_name
         )
       `)
-      .eq('orders.customer_phone', phone)
-      .order('created_at', { ascending: false });
+      .in('order_id', orderIds)
+      .order('created_at', { ascending: false }) as { data: ReturnListResult[] | null; error: Error | null };
 
     if (error) {
       console.error('Search returns by phone error:', error);
       return { success: false, error: '查詢失敗' };
     }
 
-    return { success: true, data };
+    return { success: true, data: data || [] };
   } catch (error) {
     console.error('Search returns by phone error:', error);
     return { success: false, error: '系統錯誤' };
   }
 }
 
+interface ReturnSearchResult {
+  id: string;
+  request_number: string;
+  status: string;
+  channel_source: string | null;
+  reason_detail: string | null;
+  created_at: string;
+  approved_at?: string | null;
+  shipped_at?: string | null;
+  received_at?: string | null;
+  refunded_at?: string | null;
+  closed_at?: string | null;
+  order?: {
+    order_number: string;
+    customer_name: string | null;
+  } | null;
+  return_images?: {
+    id: string;
+    image_url: string;
+    image_type: string | null;
+  }[];
+}
+
 /**
  * Search return request by request number
  */
-export async function searchReturnByNumber(requestNumber: string) {
+export async function searchReturnByNumber(requestNumber: string): Promise<{ success: boolean; data?: ReturnSearchResult; error?: string }> {
   try {
     const adminClient = createAdminClient();
 
@@ -284,7 +342,7 @@ export async function searchReturnByNumber(requestNumber: string) {
         )
       `)
       .eq('request_number', requestNumber)
-      .single();
+      .single() as { data: ReturnSearchResult | null; error: Error | null };
 
     if (error || !data) {
       return { success: false, error: '找不到此退貨單號' };
