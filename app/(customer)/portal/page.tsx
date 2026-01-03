@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SimpleImageUploader } from '@/components/upload/simple-image-uploader';
+import { submitCustomerReturn } from '@/lib/actions/customer-return.actions';
 
 interface UploadedImage {
   id: string;
@@ -35,6 +36,16 @@ const returnFormSchema = z.object({
 });
 
 type ReturnFormInput = z.infer<typeof returnFormSchema>;
+
+// Helper to convert File to base64
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+}
 
 export default function CustomerPortalPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -69,24 +80,50 @@ export default function CustomerPortalPage() {
     try {
       setIsLoading(true);
 
-      // Generate a random request number
-      const requestNumber = `RET-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      // Convert images to base64 for server action
+      const imageFilesData = await Promise.all(
+        images.map(async (img) => ({
+          name: img.file.name,
+          type: img.file.type,
+          base64: await fileToBase64(img.file),
+        }))
+      );
 
-      // In real implementation, upload images and submit form to API
-      // For demo, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Submit to server
+      const result = await submitCustomerReturn(
+        {
+          channelSource: data.channelSource,
+          accountId: data.accountId,
+          orderNumber: data.orderNumber,
+          ordererName: data.ordererName,
+          receiverName: data.receiverName,
+          phone: data.phone,
+          returnReason: data.returnReason,
+          productSuggestion: data.productSuggestion,
+        },
+        imageFilesData
+      );
+
+      if (!result.success) {
+        toast.error(result.error || '送出失敗，請稍後再試');
+        return;
+      }
 
       // Store data for confirmation
       setSubmittedData({
         orderNumber: data.orderNumber,
-        requestNumber,
+        requestNumber: result.data?.requestNumber || '',
       });
+
+      // Cleanup image previews
+      images.forEach((img) => URL.revokeObjectURL(img.preview));
 
       // Show success state
       setIsSubmitted(true);
       toast.success('退貨申請已成功送出！');
 
-    } catch {
+    } catch (error) {
+      console.error('Submit error:', error);
       toast.error('送出失敗，請稍後再試');
     } finally {
       setIsLoading(false);
