@@ -54,34 +54,34 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
+    const fetchOrders = async () => {
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            id,
+            product_name,
+            sku,
+            quantity,
+            unit_price
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('Fetch orders error:', error);
+      } else {
+        setOrders((data as Order[]) || []);
+      }
+      setLoading(false);
+    };
+
     fetchOrders();
   }, []);
-
-  const fetchOrders = async () => {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items (
-          id,
-          product_name,
-          sku,
-          quantity,
-          unit_price
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (error) {
-      console.error('Fetch orders error:', error);
-    } else {
-      setOrders((data as Order[]) || []);
-    }
-    setLoading(false);
-  };
 
   const filteredOrders = orders.filter((order) => {
     const search = searchTerm.toLowerCase();

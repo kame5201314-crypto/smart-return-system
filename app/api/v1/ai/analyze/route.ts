@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { format } from 'date-fns';
 
@@ -22,14 +22,12 @@ interface ReturnAnalysisData {
   }[];
 }
 
-// Initialize OpenAI client lazily to avoid build-time errors
-const getOpenAIClient = () => {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
+// Initialize Gemini client lazily
+const getGeminiClient = () => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not configured');
   }
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 };
 
 export async function POST(request: NextRequest) {
@@ -44,15 +42,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for OpenAI API key
-    if (!process.env.OPENAI_API_KEY) {
+    // Check for Gemini API key
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'OpenAI API key is not configured' },
+        { success: false, error: 'Gemini API key is not configured' },
         { status: 500 }
       );
     }
 
-    const openai = getOpenAIClient();
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const supabase = createAdminClient();
 
@@ -162,26 +161,12 @@ ${JSON.stringify(analysisData, null, 2)}
   ]
 }
 
-請用繁體中文回覆，並確保建議具有可執行性。`;
+請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
 
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: '你是專業的電商營運分析師，擅長從退貨數據中發現問題並提供可執行的改善建議。',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-    });
-
-    const aiResponse = completion.choices[0]?.message?.content;
+    // Call Gemini API
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let aiResponse = response.text();
 
     if (!aiResponse) {
       return NextResponse.json(
@@ -189,6 +174,9 @@ ${JSON.stringify(analysisData, null, 2)}
         { status: 500 }
       );
     }
+
+    // Clean up response (remove markdown code blocks if present)
+    aiResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     // Parse AI response
     let analysisResult;

@@ -161,13 +161,37 @@ export const USER_ROLES = {
 // Kanban Board Configuration
 // =====================================================
 export const KANBAN_COLUMNS = [
-  { id: RETURN_STATUS.PENDING_REVIEW, title: '待審核', color: 'border-yellow-400' },
-  { id: RETURN_STATUS.APPROVED_WAITING_SHIPPING, title: '待寄回', color: 'border-blue-400' },
-  { id: RETURN_STATUS.SHIPPING_IN_TRANSIT, title: '運輸中', color: 'border-purple-400' },
-  { id: RETURN_STATUS.RECEIVED_INSPECTING, title: '驗收中', color: 'border-orange-400' },
-  { id: RETURN_STATUS.REFUND_PROCESSING, title: '退款中', color: 'border-indigo-400' },
-  { id: RETURN_STATUS.COMPLETED, title: '已結案', color: 'border-green-400' },
-] as const;
+  {
+    id: 'pending',
+    title: '待處理',
+    color: 'border-yellow-400',
+    statuses: [RETURN_STATUS.PENDING_REVIEW, RETURN_STATUS.APPROVED_WAITING_SHIPPING]
+  },
+  {
+    id: RETURN_STATUS.SHIPPING_IN_TRANSIT,
+    title: '運輸中',
+    color: 'border-purple-400',
+    statuses: [RETURN_STATUS.SHIPPING_IN_TRANSIT]
+  },
+  {
+    id: RETURN_STATUS.RECEIVED_INSPECTING,
+    title: '驗收中',
+    color: 'border-orange-400',
+    statuses: [RETURN_STATUS.RECEIVED_INSPECTING]
+  },
+  {
+    id: RETURN_STATUS.REFUND_PROCESSING,
+    title: '退款中',
+    color: 'border-indigo-400',
+    statuses: [RETURN_STATUS.REFUND_PROCESSING]
+  },
+  {
+    id: RETURN_STATUS.COMPLETED,
+    title: '已結案',
+    color: 'border-green-400',
+    statuses: [RETURN_STATUS.COMPLETED]
+  },
+];
 
 // =====================================================
 // AI Analysis Configuration

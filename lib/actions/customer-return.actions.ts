@@ -225,7 +225,7 @@ interface ReturnListResult {
   approved_at?: string | null;
   shipped_at?: string | null;
   received_at?: string | null;
-  refunded_at?: string | null;
+  refund_processed_at?: string | null;
   closed_at?: string | null;
   order?: {
     order_number: string;
@@ -265,7 +265,7 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
         approved_at,
         shipped_at,
         received_at,
-        refunded_at,
+        refund_processed_at,
         closed_at,
         order:orders (
           order_number,
@@ -297,7 +297,7 @@ interface ReturnSearchResult {
   approved_at?: string | null;
   shipped_at?: string | null;
   received_at?: string | null;
-  refunded_at?: string | null;
+  refund_processed_at?: string | null;
   closed_at?: string | null;
   order?: {
     order_number: string;
@@ -329,7 +329,7 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
         approved_at,
         shipped_at,
         received_at,
-        refunded_at,
+        refund_processed_at,
         closed_at,
         order:orders (
           order_number,

@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Package,
-  TrendingUp,
-  DollarSign,
   Clock,
   AlertTriangle,
   ArrowRight,
@@ -26,7 +24,6 @@ interface DashboardStats {
   pendingReview: number;
   inProgress: number;
   abnormal: number;
-  totalRefundAmount: number;
 }
 
 export default function AdminDashboardPage() {
@@ -58,17 +55,12 @@ export default function AdminDashboardPage() {
           const abnormal = data.filter(
             (r: unknown) => (r as { status: string }).status === RETURN_STATUS.ABNORMAL_DISPUTED
           ).length;
-          const totalRefundAmount = data.reduce(
-            (sum: number, r: unknown) => sum + ((r as { refund_amount: number | null }).refund_amount || 0),
-            0
-          );
 
           setStats({
             totalReturns: data.length,
             pendingReview,
             inProgress,
             abnormal,
-            totalRefundAmount,
           });
 
           // Get recent 5 returns
@@ -93,7 +85,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <StatCard
           title="總退貨單數"
           value={stats?.totalReturns}
@@ -101,7 +93,7 @@ export default function AdminDashboardPage() {
           loading={loading}
         />
         <StatCard
-          title="待審核"
+          title="待處理"
           value={stats?.pendingReview}
           icon={<Clock className="w-5 h-5" />}
           loading={loading}
@@ -113,13 +105,6 @@ export default function AdminDashboardPage() {
           icon={<AlertTriangle className="w-5 h-5" />}
           loading={loading}
           variant="danger"
-        />
-        <StatCard
-          title="退款總額"
-          value={stats?.totalRefundAmount}
-          icon={<DollarSign className="w-5 h-5" />}
-          loading={loading}
-          format="currency"
         />
       </div>
 
@@ -210,16 +195,9 @@ export default function AdminDashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      {r.refund_amount && (
-                        <span className="text-sm font-medium">
-                          NT$ {r.refund_amount.toLocaleString()}
-                        </span>
-                      )}
-                      <Badge className={RETURN_STATUS_COLORS[r.status]}>
-                        {RETURN_STATUS_LABELS[r.status]}
-                      </Badge>
-                    </div>
+                    <Badge className={RETURN_STATUS_COLORS[r.status]}>
+                      {RETURN_STATUS_LABELS[r.status]}
+                    </Badge>
                   </Link>
                 );
               })}

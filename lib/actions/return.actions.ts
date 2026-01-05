@@ -261,6 +261,7 @@ export async function getReturnRequests(filters?: {
         order:orders (
           order_number,
           customer_name,
+          customer_phone,
           channel_source
         ),
         return_items (
@@ -561,8 +562,8 @@ export async function processRefund(
         refund_method: refundData.refundMethod,
         refund_number: refundNumber,
         refund_notes: refundData.notes,
-        refunded_at: new Date().toISOString(),
-        refunded_by: userId,
+        refund_processed_at: new Date().toISOString(),
+        refund_processed_by: userId,
         closed_at: new Date().toISOString(),
       } as never)
       .eq('id', returnRequestId);
@@ -661,7 +662,7 @@ export async function getReturnsForExport(filters?: {
         created_at,
         approved_at,
         received_at,
-        refunded_at,
+        refund_processed_at,
         closed_at,
         order:orders (
           order_number,
@@ -712,7 +713,7 @@ export async function getReturnsForExport(filters?: {
       '申請時間': r.created_at,
       '核准時間': r.approved_at,
       '收貨時間': r.received_at,
-      '退款時間': r.refunded_at,
+      '退款時間': r.refund_processed_at,
       '結案時間': r.closed_at,
     }));
 

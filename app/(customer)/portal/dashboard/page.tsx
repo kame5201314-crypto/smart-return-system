@@ -22,23 +22,27 @@ export default function CustomerDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('customerSession');
-    if (!stored) {
-      router.push('/portal');
-      return;
-    }
+    const loadData = async () => {
+      const stored = sessionStorage.getItem('customerSession');
+      if (!stored) {
+        router.push('/portal');
+        return;
+      }
 
-    const sessionData = JSON.parse(stored) as CustomerSession;
-    setSession(sessionData);
+      const sessionData = JSON.parse(stored) as CustomerSession;
 
-    // Fetch order details
-    getOrderForReturn(sessionData.orderId).then((res) => {
+      // Fetch order details
+      const res = await getOrderForReturn(sessionData.orderId);
       const result = res as { success: boolean; data?: OrderWithItems; error?: string };
+
       if (result.success && result.data) {
         setOrder(result.data);
       }
+      setSession(sessionData);
       setLoading(false);
-    });
+    };
+
+    loadData();
   }, [router]);
 
   if (loading || !session) {

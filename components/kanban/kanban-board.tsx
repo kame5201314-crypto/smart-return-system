@@ -42,7 +42,9 @@ export function KanbanBoard({ items, onStatusChange }: KanbanBoardProps) {
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {KANBAN_COLUMNS.map((column) => {
-        const columnItems = items.filter((item) => item.status === column.id);
+        // Filter items by statuses array (supports multiple statuses per column)
+        const columnStatuses = (column.statuses || [column.id]) as string[];
+        const columnItems = items.filter((item) => columnStatuses.includes(item.status));
 
         return (
           <div
@@ -135,12 +137,6 @@ function KanbanCard({ item }: { item: KanbanItem }) {
             </Badge>
           )}
         </div>
-
-        {item.refund_amount && (
-          <p className="text-sm font-medium text-green-600 mt-2">
-            NT$ {item.refund_amount.toLocaleString()}
-          </p>
-        )}
       </CardContent>
     </Card>
   );

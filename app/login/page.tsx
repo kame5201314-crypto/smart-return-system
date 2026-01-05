@@ -149,7 +149,7 @@ export default function LoginPage() {
             <div className="mt-6 p-4 bg-purple-50 rounded-lg">
               <p className="text-sm text-purple-700 font-medium mb-2">測試帳號：</p>
               <p className="text-sm text-purple-600">Email: admin@example.com</p>
-              <p className="text-sm text-purple-600">Password: admin123</p>
+              <p className="text-sm text-purple-600">Password: admin888</p>
             </div>
           </CardContent>
         </Card>

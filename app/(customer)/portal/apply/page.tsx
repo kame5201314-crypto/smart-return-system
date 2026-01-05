@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { IMAGE_UPLOAD_CONFIG } from '@/config/constants';
+import { submitCustomerReturn } from '@/lib/actions/customer-return.actions';
 
 interface ReturnFormData {
   accountId: string;
@@ -73,36 +74,64 @@ export default function ReturnApplyPage() {
       return;
     }
 
+    if (!formData) {
+      toast.error('表單資料遺失，請重新填寫');
+      return;
+    }
+
     try {
       setSubmitting(true);
 
-      // Generate a request number
-      const requestNumber = `RET-${Date.now().toString(36).toUpperCase()}`;
+      // Convert images to base64 for server action
+      const imageFiles = await Promise.all(
+        images.map(async (img) => {
+          // Read file as base64
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(img.file);
+          });
 
-      // In a real implementation, this would:
-      // 1. Upload images to storage
-      // 2. Create return request in database
-      // For demo purposes, we simulate success
+          return {
+            name: img.file.name,
+            type: img.file.type,
+            base64,
+          };
+        })
+      );
 
-      // Store the complete submission
-      const submission = {
+      // Call server action to submit return request
+      const result = await submitCustomerReturn(
+        {
+          channelSource: formData.channelSource,
+          accountId: formData.accountId,
+          orderNumber: formData.orderNumber,
+          ordererName: formData.ordererName,
+          receiverName: formData.receiverName,
+          phone: formData.phone,
+          returnReason: formData.returnReason,
+          productSuggestion: formData.productSuggestion,
+        },
+        imageFiles
+      );
+
+      if (!result.success) {
+        toast.error(result.error || '送出失敗，請稍後再試');
+        return;
+      }
+
+      // Store the submission info for reference
+      sessionStorage.setItem('lastSubmission', JSON.stringify({
         ...formData,
-        images: images.map(img => ({
-          type: img.type,
-          preview: img.preview,
-        })),
-        requestNumber,
+        requestNumber: result.data?.requestNumber,
         submittedAt: new Date().toISOString(),
-      };
+      }));
 
-      sessionStorage.setItem('lastSubmission', JSON.stringify(submission));
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      setSuccess(requestNumber);
+      setSuccess(result.data?.requestNumber || '');
       toast.success('退貨申請已送出成功！');
-    } catch {
+    } catch (error) {
+      console.error('Submit error:', error);
       toast.error('送出失敗，請稍後再試');
     } finally {
       setSubmitting(false);

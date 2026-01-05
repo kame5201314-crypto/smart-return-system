@@ -1,15 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
-  TrendingUp,
-  TrendingDown,
   Package,
-  DollarSign,
   Brain,
-  Download,
+  Calendar,
+  Filter,
 } from 'lucide-react';
 import {
   BarChart,
@@ -29,119 +27,64 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import { getReturnRequests } from '@/lib/actions/return.actions';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-interface AnalyticsData {
-  totalReturns: number;
-  totalRefundAmount: number;
-  avgRefundAmount: number;
-  byStatus: { name: string; value: number }[];
-  byChannel: { name: string; value: number }[];
-  byReason: { name: string; value: number }[];
-  monthlyTrend: { month: string; returns: number; amount: number }[];
+interface ReturnData {
+  status: string;
+  channel_source: string | null;
+  reason_category: string | null;
+  created_at: string;
 }
 
 export default function AnalyticsPage() {
-  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [allReturns, setAllReturns] = useState<ReturnData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedChannel, setSelectedChannel] = useState<string>('all');
 
-  useEffect(() => {
-    fetchAnalytics();
+  // Generate year options (last 3 years)
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return [currentYear, currentYear - 1, currentYear - 2].map(y => y.toString());
   }, []);
 
-  async function fetchAnalytics() {
+  // Month options
+  const monthOptions = [
+    { value: '01', label: '1月' },
+    { value: '02', label: '2月' },
+    { value: '03', label: '3月' },
+    { value: '04', label: '4月' },
+    { value: '05', label: '5月' },
+    { value: '06', label: '6月' },
+    { value: '07', label: '7月' },
+    { value: '08', label: '8月' },
+    { value: '09', label: '9月' },
+    { value: '10', label: '10月' },
+    { value: '11', label: '11月' },
+    { value: '12', label: '12月' },
+  ];
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
     try {
       const result = await getReturnRequests();
-
       if (result.success && result.data) {
-        const returns = result.data as {
-          status: string;
-          channel_source: string | null;
-          reason_category: string | null;
-          refund_amount: number | null;
-          created_at: string;
-        }[];
-
-        // Calculate statistics
-        const totalReturns = returns.length;
-        const totalRefundAmount = returns.reduce(
-          (sum, r) => sum + (r.refund_amount || 0),
-          0
-        );
-        const avgRefundAmount =
-          totalReturns > 0 ? totalRefundAmount / totalReturns : 0;
-
-        // By status
-        const statusCounts: Record<string, number> = {};
-        returns.forEach((r) => {
-          const label = RETURN_STATUS_LABELS[r.status] || r.status;
-          statusCounts[label] = (statusCounts[label] || 0) + 1;
-        });
-        const byStatus = Object.entries(statusCounts).map(([name, value]) => ({
-          name,
-          value,
-        }));
-
-        // By channel
-        const channelCounts: Record<string, number> = {};
-        returns.forEach((r) => {
-          const channel = CHANNEL_LIST.find(
-            (c) => c.key === r.channel_source
-          )?.label || r.channel_source || '未知';
-          channelCounts[channel] = (channelCounts[channel] || 0) + 1;
-        });
-        const byChannel = Object.entries(channelCounts).map(([name, value]) => ({
-          name,
-          value,
-        }));
-
-        // By reason
-        const reasonCounts: Record<string, number> = {};
-        returns.forEach((r) => {
-          const reason =
-            Object.values(RETURN_REASONS).find(
-              (re) => re.key === r.reason_category
-            )?.label || r.reason_category || '其他';
-          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
-        });
-        const byReason = Object.entries(reasonCounts)
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 6);
-
-        // Monthly trend (last 6 months)
-        const monthlyData: Record<string, { returns: number; amount: number }> = {};
-        returns.forEach((r) => {
-          const month = r.created_at.substring(0, 7); // YYYY-MM
-          if (!monthlyData[month]) {
-            monthlyData[month] = { returns: 0, amount: 0 };
-          }
-          monthlyData[month].returns += 1;
-          monthlyData[month].amount += r.refund_amount || 0;
-        });
-        const monthlyTrend = Object.entries(monthlyData)
-          .map(([month, data]) => ({
-            month,
-            returns: data.returns,
-            amount: data.amount,
-          }))
-          .sort((a, b) => a.month.localeCompare(b.month))
-          .slice(-6);
-
-        setData({
-          totalReturns,
-          totalRefundAmount,
-          avgRefundAmount,
-          byStatus,
-          byChannel,
-          byReason,
-          monthlyTrend,
-        });
+        setAllReturns(result.data as ReturnData[]);
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
@@ -149,6 +92,67 @@ export default function AnalyticsPage() {
       setLoading(false);
     }
   }
+
+  // Filter data based on selections
+  const filteredReturns = useMemo(() => {
+    return allReturns.filter(r => {
+      const date = new Date(r.created_at);
+      const year = date.getFullYear().toString();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+
+      if (selectedYear !== 'all' && year !== selectedYear) return false;
+      if (selectedMonth !== 'all' && month !== selectedMonth) return false;
+      if (selectedChannel !== 'all' && r.channel_source !== selectedChannel) return false;
+
+      return true;
+    });
+  }, [allReturns, selectedYear, selectedMonth, selectedChannel]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalReturns = filteredReturns.length;
+
+    // By channel
+    const channelCounts: Record<string, number> = {};
+    filteredReturns.forEach(r => {
+      const channel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
+      channelCounts[channel] = (channelCounts[channel] || 0) + 1;
+    });
+    const byChannel = Object.entries(channelCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // By reason
+    const reasonCounts: Record<string, number> = {};
+    filteredReturns.forEach(r => {
+      const reason = Object.values(RETURN_REASONS).find(re => re.key === r.reason_category)?.label || r.reason_category || '其他';
+      reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+    });
+    const byReason = Object.entries(reasonCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // By status
+    const statusCounts: Record<string, number> = {};
+    filteredReturns.forEach(r => {
+      const label = RETURN_STATUS_LABELS[r.status] || r.status;
+      statusCounts[label] = (statusCounts[label] || 0) + 1;
+    });
+    const byStatus = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+
+    // Monthly trend
+    const monthlyData: Record<string, number> = {};
+    filteredReturns.forEach(r => {
+      const month = r.created_at.substring(0, 7);
+      monthlyData[month] = (monthlyData[month] || 0) + 1;
+    });
+    const monthlyTrend = Object.entries(monthlyData)
+      .map(([month, returns]) => ({ month, returns }))
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-12);
+
+    return { totalReturns, byChannel, byReason, byStatus, monthlyTrend };
+  }, [filteredReturns]);
 
   return (
     <div className="space-y-6">
@@ -169,66 +173,94 @@ export default function AnalyticsPage() {
         </Link>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">總退貨單數</p>
-                {loading ? (
-                  <Skeleton className="h-8 w-20 mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold">{data?.totalReturns || 0}</p>
-                )}
-              </div>
-              <div className="p-3 bg-blue-50 rounded-full text-blue-600">
-                <Package className="w-5 h-5" />
-              </div>
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">篩選條件：</span>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">總退款金額</p>
-                {loading ? (
-                  <Skeleton className="h-8 w-32 mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold text-green-600">
-                    NT$ {(data?.totalRefundAmount || 0).toLocaleString()}
-                  </p>
-                )}
-              </div>
-              <div className="p-3 bg-green-50 rounded-full text-green-600">
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Year filter */}
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="選擇年度" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部年度</SelectItem>
+                {yearOptions.map(year => (
+                  <SelectItem key={year} value={year}>{year}年</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">平均退款金額</p>
-                {loading ? (
-                  <Skeleton className="h-8 w-28 mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold">
-                    NT$ {Math.round(data?.avgRefundAmount || 0).toLocaleString()}
-                  </p>
-                )}
-              </div>
-              <div className="p-3 bg-purple-50 rounded-full text-purple-600">
-                <TrendingUp className="w-5 h-5" />
-              </div>
+            {/* Month filter */}
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="選擇月份" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部月份</SelectItem>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Channel filter */}
+            <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="選擇通路" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部通路</SelectItem>
+                {CHANNEL_LIST.map(channel => (
+                  <SelectItem key={channel.key} value={channel.key}>{channel.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Reset button */}
+            {(selectedYear !== 'all' || selectedMonth !== 'all' || selectedChannel !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedYear('all');
+                  setSelectedMonth('all');
+                  setSelectedChannel('all');
+                }}
+              >
+                重置篩選
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary card */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                {selectedYear !== 'all' || selectedMonth !== 'all' || selectedChannel !== 'all'
+                  ? '篩選後退貨單數'
+                  : '總退貨單數'}
+              </p>
+              {loading ? (
+                <Skeleton className="h-10 w-24 mt-1" />
+              ) : (
+                <p className="text-3xl font-bold">{stats.totalReturns}</p>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="p-4 bg-blue-50 rounded-full text-blue-600">
+              <Package className="w-6 h-6" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -236,32 +268,28 @@ export default function AnalyticsPage() {
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>月度趨勢</CardTitle>
-            <CardDescription>退貨數量與金額變化趨勢</CardDescription>
+            <CardDescription>退貨數量變化趨勢</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-[300px] w-full" />
+            ) : stats.monthlyTrend.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                無數據
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data?.monthlyTrend || []}>
+                <LineChart data={stats.monthlyTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <YAxis />
                   <Tooltip />
                   <Line
-                    yAxisId="left"
                     type="monotone"
                     dataKey="returns"
                     stroke="#3b82f6"
+                    strokeWidth={2}
                     name="退貨數量"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="amount"
-                    stroke="#10b981"
-                    name="退款金額"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -278,11 +306,15 @@ export default function AnalyticsPage() {
           <CardContent>
             {loading ? (
               <Skeleton className="h-[300px] w-full" />
+            ) : stats.byChannel.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                無數據
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={data?.byChannel || []}
+                    data={stats.byChannel}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
@@ -292,11 +324,8 @@ export default function AnalyticsPage() {
                       `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
                     }
                   >
-                    {data?.byChannel?.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
+                    {stats.byChannel.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -315,9 +344,13 @@ export default function AnalyticsPage() {
           <CardContent>
             {loading ? (
               <Skeleton className="h-[300px] w-full" />
+            ) : stats.byReason.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                無數據
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data?.byReason || []} layout="vertical">
+                <BarChart data={stats.byReason} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="name" width={100} />
@@ -330,6 +363,54 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
+      {/* Channel breakdown table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>各通路詳細統計</CardTitle>
+          <CardDescription>各通路的退貨數量與退貨原因分佈</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-[200px] w-full" />
+          ) : stats.byChannel.length === 0 ? (
+            <div className="h-[100px] flex items-center justify-center text-muted-foreground">
+              無數據
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">通路</th>
+                    <th className="text-right py-3 px-4 font-medium">退貨數量</th>
+                    <th className="text-right py-3 px-4 font-medium">佔比</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.byChannel.map((channel, index) => (
+                    <tr key={channel.name} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4 flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        />
+                        {channel.name}
+                      </td>
+                      <td className="text-right py-3 px-4 font-medium">{channel.value}</td>
+                      <td className="text-right py-3 px-4 text-muted-foreground">
+                        {stats.totalReturns > 0
+                          ? ((channel.value / stats.totalReturns) * 100).toFixed(1)
+                          : 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Status distribution */}
       <Card>
         <CardHeader>
@@ -339,9 +420,13 @@ export default function AnalyticsPage() {
         <CardContent>
           {loading ? (
             <Skeleton className="h-[200px] w-full" />
+          ) : stats.byStatus.length === 0 ? (
+            <div className="h-[100px] flex items-center justify-center text-muted-foreground">
+              無數據
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data?.byStatus || []}>
+              <BarChart data={stats.byStatus}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />

@@ -29,6 +29,7 @@ interface ReturnItem {
   channel_source: string | null;
   order?: {
     customer_name: string | null;
+    customer_phone: string | null;
     order_number: string;
   } | null;
   return_items?: {
@@ -69,14 +70,15 @@ export default function ReturnsPage() {
   function filterReturns() {
     let filtered = [...returns];
 
-    // Search filter
+    // Search filter (supports phone number search)
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase().replace(/[-\s]/g, '');
       filtered = filtered.filter(
         (r) =>
           r.request_number.toLowerCase().includes(query) ||
           r.order?.customer_name?.toLowerCase().includes(query) ||
-          r.order?.order_number?.toLowerCase().includes(query)
+          r.order?.order_number?.toLowerCase().includes(query) ||
+          r.order?.customer_phone?.replace(/[-\s]/g, '').includes(query)
       );
     }
 
@@ -135,7 +137,7 @@ export default function ReturnsPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="搜尋退貨單號、客戶名稱..."
+                placeholder="搜尋退貨單號、客戶名稱、電話..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"

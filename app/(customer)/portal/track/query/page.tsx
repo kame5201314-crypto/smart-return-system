@@ -35,7 +35,7 @@ interface ReturnResult {
   approved_at?: string | null;
   shipped_at?: string | null;
   received_at?: string | null;
-  refunded_at?: string | null;
+  refund_processed_at?: string | null;
   closed_at?: string | null;
   order?: {
     order_number: string;
@@ -273,10 +273,10 @@ export default function TrackQueryPage() {
                               <span>{formatDate(item.received_at)}</span>
                             </div>
                           )}
-                          {item.refunded_at && (
+                          {item.refund_processed_at && (
                             <div className="flex justify-between">
                               <span className="text-gray-500">退款時間</span>
-                              <span>{formatDate(item.refunded_at)}</span>
+                              <span>{formatDate(item.refund_processed_at)}</span>
                             </div>
                           )}
                           {item.closed_at && (
