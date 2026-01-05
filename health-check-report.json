@@ -1,0 +1,123 @@
+{
+  "timestamp": "2026-01-05T05:49:55.133Z",
+  "project": "Smart Return System",
+  "results": [
+    {
+      "name": "SUPABASE_URL",
+      "status": "pass",
+      "message": "已配置"
+    },
+    {
+      "name": "SUPABASE_ANON_KEY",
+      "status": "pass",
+      "message": "已配置"
+    },
+    {
+      "name": "SUPABASE_SERVICE_ROLE_KEY",
+      "status": "pass",
+      "message": "已配置"
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "status": "warning",
+      "message": "未配置 (AI 分析功能將無法使用)"
+    },
+    {
+      "name": "Supabase 連線",
+      "status": "pass",
+      "message": "連線成功"
+    },
+    {
+      "name": "infringement_system Schema",
+      "status": "warning",
+      "message": "無法驗證 Schema (可能權限不足)",
+      "details": "Could not find the table 'public.information_schema.tables' in the schema cache"
+    },
+    {
+      "name": "資料表: customers",
+      "status": "pass",
+      "message": "正常 (1 筆資料)"
+    },
+    {
+      "name": "資料表: orders",
+      "status": "pass",
+      "message": "正常 (1 筆資料)"
+    },
+    {
+      "name": "資料表: return_requests",
+      "status": "pass",
+      "message": "正常 (1 筆資料)"
+    },
+    {
+      "name": "資料表: return_items",
+      "status": "pass",
+      "message": "正常 (1 筆資料)"
+    },
+    {
+      "name": "資料表: return_images",
+      "status": "pass",
+      "message": "正常 (1 筆資料)"
+    },
+    {
+      "name": "檔案: Admin Dashboard",
+      "status": "pass",
+      "message": "app/(admin)/dashboard/page.tsx"
+    },
+    {
+      "name": "檔案: Returns Management",
+      "status": "pass",
+      "message": "app/(admin)/returns/page.tsx"
+    },
+    {
+      "name": "檔案: Orders Management",
+      "status": "pass",
+      "message": "app/(admin)/orders/page.tsx"
+    },
+    {
+      "name": "檔案: Analytics",
+      "status": "pass",
+      "message": "app/(admin)/analytics/page.tsx"
+    },
+    {
+      "name": "檔案: Settings",
+      "status": "pass",
+      "message": "app/(admin)/settings/page.tsx"
+    },
+    {
+      "name": "檔案: Customer Portal",
+      "status": "pass",
+      "message": "app/(customer)/portal/page.tsx"
+    },
+    {
+      "name": "檔案: Login Page",
+      "status": "pass",
+      "message": "app/login/page.tsx"
+    },
+    {
+      "name": "檔案: Supabase Client",
+      "status": "pass",
+      "message": "lib/supabase/client.ts"
+    },
+    {
+      "name": "檔案: Auth Actions",
+      "status": "pass",
+      "message": "lib/actions/auth.ts"
+    },
+    {
+      "name": "檔案: Return Actions",
+      "status": "pass",
+      "message": "lib/actions/return.actions.ts"
+    },
+    {
+      "name": "檔案: Middleware",
+      "status": "pass",
+      "message": "middleware.ts"
+    },
+    {
+      "name": "Gemini API",
+      "status": "fail",
+      "message": "API 錯誤: 404",
+      "details": "models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods."
+    }
+  ]
+}
