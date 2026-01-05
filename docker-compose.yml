@@ -1,0 +1,90 @@
+# ============================================
+# AI Visual QC Automator - Docker Compose
+# 本地開發環境配置
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # FastAPI 後端服務
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: qc-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=true
+      - ALLOWED_ORIGINS=http://localhost:3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - REDIS_URL=redis://redis:6379/0
+      - API_SECRET_KEY=${API_SECRET_KEY}
+    depends_on:
+      - redis
+    networks:
+      - qc-network
+    restart: unless-stopped
+
+  # ============================================
+  # Redis (Celery 背景任務)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: qc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - qc-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Celery Worker (背景任務處理)
+  # ============================================
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: qc-celery-worker
+    command: celery -A app.worker worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - API_SECRET_KEY=${API_SECRET_KEY}
+    depends_on:
+      - redis
+      - backend
+    networks:
+      - qc-network
+    restart: unless-stopped
+
+networks:
+  qc-network:
+    driver: bridge
+
+volumes:
+  redis-data:

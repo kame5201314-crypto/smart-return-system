@@ -1,0 +1,40 @@
+# FastAPI 核心
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# 非同步處理
+httpx==0.28.1
+aiofiles==24.1.0
+celery==5.4.0
+redis==5.2.1
+
+# AI 服務
+openai==1.59.3
+Pillow==11.0.0
+
+# 影片處理
+moviepy==2.1.1
+openai-whisper==20240930
+
+# Google Drive API
+google-api-python-client==2.159.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
+
+# Supabase
+supabase==2.11.0
+
+# 資料驗證與安全
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# 工具
+python-dotenv==1.0.1
+tenacity==9.0.0
+
+# 測試
+pytest==8.3.4
+pytest-asyncio==0.25.0
