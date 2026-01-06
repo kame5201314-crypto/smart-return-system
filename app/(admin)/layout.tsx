@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   BarChart3,
   Brain,
-  Settings,
   Menu,
   LogOut,
   Loader2,
@@ -26,9 +25,8 @@ const navItems = [
   { href: '/dashboard', label: '總覽', icon: LayoutDashboard },
   { href: '/returns', label: '退貨管理', icon: Package },
   { href: '/orders', label: '訂單查詢', icon: ShoppingCart },
-  { href: '/analytics', label: '數據中心', icon: BarChart3 },
+  { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
-  { href: '/settings', label: '系統設定', icon: Settings },
 ];
 
 interface UserInfo {
@@ -82,7 +80,9 @@ export default function AdminLayout({
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              const isActive = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + '/');
               const Icon = item.icon;
 
               return (
@@ -155,7 +155,9 @@ export default function AdminLayout({
                 </div>
                 <nav className="flex-1 px-4 py-4 space-y-1">
                   {navItems.map((item) => {
-                    const isActive = pathname === item.href;
+                    const isActive = item.exact
+                      ? pathname === item.href
+                      : pathname === item.href || pathname.startsWith(item.href + '/');
                     const Icon = item.icon;
 
                     return (
