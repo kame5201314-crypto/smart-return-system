@@ -1,21 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, Eye, Edit, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { KANBAN_COLUMNS, RETURN_STATUS_COLORS } from '@/config/constants';
+import { KANBAN_COLUMNS } from '@/config/constants';
 
 interface KanbanItem {
   id: string;
@@ -85,59 +77,35 @@ function KanbanCard({ item }: { item: KanbanItem }) {
       : '無商品資訊';
 
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <Link
-              href={`/returns/${item.id}`}
-              className="font-medium text-sm hover:text-primary"
-            >
-              {item.request_number}
-            </Link>
-            <p className="text-xs text-muted-foreground">
-              {item.order?.customer_name || '未知客戶'}
-            </p>
+    <Link href={`/returns/${item.id}`} className="block">
+      <Card className="cursor-pointer hover:shadow-md hover:border-primary/50 transition-all">
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <p className="font-medium text-sm">{item.request_number}</p>
+              <p className="text-xs text-muted-foreground">
+                {item.order?.customer_name || '未知客戶'}
+              </p>
+            </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/returns/${item.id}`}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  查看詳情
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/returns/inspection/${item.id}`}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  驗貨
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
 
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-          {productSummary}
-        </p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+            {productSummary}
+          </p>
 
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Clock className="w-3 h-3" />
-            {format(new Date(item.created_at), 'MM/dd', { locale: zhTW })}
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              {format(new Date(item.created_at), 'MM/dd', { locale: zhTW })}
+            </div>
+            {item.channel_source && (
+              <Badge variant="outline" className="text-xs">
+                {item.channel_source}
+              </Badge>
+            )}
           </div>
-          {item.channel_source && (
-            <Badge variant="outline" className="text-xs">
-              {item.channel_source}
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

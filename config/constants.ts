@@ -170,34 +170,28 @@ export const USER_ROLES = {
 // =====================================================
 export const KANBAN_COLUMNS = [
   {
-    id: 'pending',
-    title: '待處理',
+    id: 'pending_inspection',
+    title: '待驗收',
     color: 'border-yellow-400',
-    statuses: [RETURN_STATUS.PENDING_REVIEW, RETURN_STATUS.APPROVED_WAITING_SHIPPING]
-  },
-  {
-    id: RETURN_STATUS.SHIPPING_IN_TRANSIT,
-    title: '運輸中',
-    color: 'border-purple-400',
-    statuses: [RETURN_STATUS.SHIPPING_IN_TRANSIT]
-  },
-  {
-    id: RETURN_STATUS.RECEIVED_INSPECTING,
-    title: '驗收中',
-    color: 'border-orange-400',
-    statuses: [RETURN_STATUS.RECEIVED_INSPECTING]
-  },
-  {
-    id: RETURN_STATUS.REFUND_PROCESSING,
-    title: '退款中',
-    color: 'border-indigo-400',
-    statuses: [RETURN_STATUS.REFUND_PROCESSING]
+    statuses: [
+      RETURN_STATUS.PENDING_REVIEW,
+      RETURN_STATUS.APPROVED_WAITING_SHIPPING,
+      RETURN_STATUS.SHIPPING_IN_TRANSIT,
+      RETURN_STATUS.RECEIVED_INSPECTING,
+      RETURN_STATUS.REFUND_PROCESSING
+    ]
   },
   {
     id: RETURN_STATUS.COMPLETED,
     title: '已結案',
     color: 'border-green-400',
     statuses: [RETURN_STATUS.COMPLETED]
+  },
+  {
+    id: RETURN_STATUS.ABNORMAL_DISPUTED,
+    title: '驗收異常',
+    color: 'border-red-400',
+    statuses: [RETURN_STATUS.ABNORMAL_DISPUTED]
   },
 ];
 
