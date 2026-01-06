@@ -455,14 +455,19 @@ export default function CustomerPortalPage() {
         </Card>
 
         {/* Track Query Link */}
-        <div className="text-center mt-6">
-          <Link
-            href="/portal/track/query"
-            className="text-teal-600 hover:text-teal-700 text-sm underline font-medium"
-          >
-            已申請過？查詢退貨進度
-          </Link>
-        </div>
+        <Card className="mt-6 bg-teal-50 border-teal-200 shadow-md">
+          <CardContent className="p-4">
+            <Link href="/portal/track/query" className="flex items-center justify-between group">
+              <div>
+                <p className="font-medium text-teal-800">已申請過？</p>
+                <p className="text-sm text-teal-600">點此查詢退貨進度</p>
+              </div>
+              <div className="bg-teal-600 text-white px-4 py-2 rounded-lg group-hover:bg-teal-700 transition-colors">
+                查詢進度
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
