@@ -144,9 +144,9 @@ export default function CustomerPortalPage() {
   // Success state after submission
   if (isSubmitted && submittedData) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 py-8 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 py-8 px-4">
         <div className="max-w-xl mx-auto">
-          <Card className="shadow-xl">
+          <Card className="shadow-lg border-0">
             <CardContent className="pt-10 pb-10 text-center">
               <div className="mx-auto mb-6 w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
                 <CheckCircle className="w-12 h-12 text-green-600" />
@@ -158,9 +158,9 @@ export default function CustomerPortalPage() {
                 我們已收到您的退貨申請，將盡快為您處理
               </p>
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="bg-slate-50 rounded-lg p-4 mb-6">
                 <div className="text-sm text-gray-500 mb-1">退貨單號</div>
-                <div className="text-xl font-bold text-purple-600">
+                <div className="text-xl font-bold text-teal-600">
                   {submittedData.requestNumber}
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -170,7 +170,7 @@ export default function CustomerPortalPage() {
 
               <div className="space-y-3">
                 <Link href="/portal/track/query">
-                  <Button className="w-full bg-purple-600 hover:bg-purple-700">
+                  <Button className="w-full bg-teal-600 hover:bg-teal-700">
                     查詢退貨進度
                   </Button>
                 </Link>
@@ -196,23 +196,23 @@ export default function CustomerPortalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 py-8 px-4">
       <div className="max-w-xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="mx-auto mb-4 w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+          <div className="mx-auto mb-4 w-16 h-16 bg-teal-600 rounded-full flex items-center justify-center shadow-lg">
             <Package className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">產品退、換貨表單</h1>
-          <p className="text-purple-200 mt-2">請填寫以下資料並上傳照片</p>
+          <h1 className="text-2xl font-bold text-gray-800">產品退、換貨表單</h1>
+          <p className="text-gray-500 mt-2">請填寫以下資料並上傳照片</p>
         </div>
 
         {/* Form Card */}
-        <Card className="shadow-xl">
-          <CardHeader className="bg-purple-600 text-white rounded-t-lg">
+        <Card className="shadow-lg border-0 overflow-hidden">
+          <CardHeader className="bg-teal-600 text-white">
             <CardTitle className="text-lg">退換貨申請資料</CardTitle>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 bg-white">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
@@ -222,7 +222,7 @@ export default function CustomerPortalPage() {
                   name="channelSource"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         購買通路 <span className="text-red-500">*</span>
                       </FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -248,13 +248,13 @@ export default function CustomerPortalPage() {
                   name="accountId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         您的帳號 (官網 / 蝦皮) <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0"
+                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
                           {...field}
                           disabled={isLoading}
                         />
@@ -270,13 +270,13 @@ export default function CustomerPortalPage() {
                   name="orderNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         訂單編號 <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0"
+                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
                           {...field}
                           disabled={isLoading}
                         />
@@ -292,7 +292,7 @@ export default function CustomerPortalPage() {
                   name="ordererName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         訂購人 <span className="text-red-500">*</span>
                       </FormLabel>
                       <p className="text-sm text-gray-500 mb-2">
@@ -301,7 +301,7 @@ export default function CustomerPortalPage() {
                       <FormControl>
                         <Input
                           placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0"
+                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
                           {...field}
                           disabled={isLoading}
                         />
@@ -317,13 +317,13 @@ export default function CustomerPortalPage() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         您的電話 <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="09xxxxxxxx"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0"
+                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
                           {...field}
                           disabled={isLoading}
                         />
@@ -339,7 +339,7 @@ export default function CustomerPortalPage() {
                   name="returnReason"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         退、換貨原因 <span className="text-red-500">*</span>
                       </FormLabel>
                       <p className="text-sm text-gray-500 mb-2">
@@ -348,7 +348,7 @@ export default function CustomerPortalPage() {
                       <FormControl>
                         <Textarea
                           placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0 min-h-[100px]"
+                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0 min-h-[100px]"
                           {...field}
                           disabled={isLoading}
                         />
@@ -364,13 +364,13 @@ export default function CustomerPortalPage() {
                   name="productSuggestion"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
+                      <FormLabel className="text-teal-700 font-medium">
                         對產品有什麼建議？
                       </FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0 min-h-[100px]"
+                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0 min-h-[100px]"
                           {...field}
                           disabled={isLoading}
                         />
@@ -383,8 +383,8 @@ export default function CustomerPortalPage() {
                 {/* Image Upload Section - Product Photos */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center gap-2">
-                    <Camera className="w-5 h-5 text-purple-600" />
-                    <FormLabel className="text-purple-700 font-medium text-base">
+                    <Camera className="w-5 h-5 text-teal-600" />
+                    <FormLabel className="text-teal-700 font-medium text-base">
                       上傳產品照片 <span className="text-red-500">*</span>
                     </FormLabel>
                   </div>
@@ -403,8 +403,8 @@ export default function CustomerPortalPage() {
                 {/* Image Upload Section - Shipping Label */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center gap-2">
-                    <Camera className="w-5 h-5 text-purple-600" />
-                    <FormLabel className="text-purple-700 font-medium text-base">
+                    <Camera className="w-5 h-5 text-teal-600" />
+                    <FormLabel className="text-teal-700 font-medium text-base">
                       上傳寄件單照片
                     </FormLabel>
                   </div>
@@ -422,7 +422,7 @@ export default function CustomerPortalPage() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg"
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -443,9 +443,9 @@ export default function CustomerPortalPage() {
         </Card>
 
         {/* Notice */}
-        <Card className="mt-6 bg-white/90">
-          <CardHeader>
-            <CardTitle className="text-lg text-purple-700">退貨須知</CardTitle>
+        <Card className="mt-6 bg-white shadow-md border-0">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-teal-700">退貨須知</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-gray-600 space-y-2">
             <p>1. 商品退貨需於鑑賞期內申請退貨。</p>
@@ -458,7 +458,7 @@ export default function CustomerPortalPage() {
         <div className="text-center mt-6">
           <Link
             href="/portal/track/query"
-            className="text-white/80 hover:text-white text-sm underline"
+            className="text-teal-600 hover:text-teal-700 text-sm underline font-medium"
           >
             已申請過？查詢退貨進度
           </Link>
