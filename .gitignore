@@ -69,3 +69,10 @@ supabase/.temp
 # OS
 Thumbs.db
 Desktop.ini
+
+# TypeScript build artifacts
+*.tsbuildinfo
+next-env.d.ts
+health-check-report.json
+
+.env*.local
