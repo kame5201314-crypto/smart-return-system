@@ -50,14 +50,22 @@ export const RETURN_STATUS_ORDER = [
 // Channel Sources
 // =====================================================
 export const CHANNELS = {
-  SHOPEE: { key: 'shopee', label: '蝦皮', canApplyReturn: false },
   OFFICIAL: { key: 'official', label: '官網', canApplyReturn: true },
-  MOMO: { key: 'momo', label: 'Momo', canApplyReturn: true },
-  DEALER: { key: 'dealer', label: '經銷商', canApplyReturn: true },
+  SHOPEE: { key: 'shopee', label: '蝦皮', canApplyReturn: false },
   OTHER: { key: 'other', label: '其他', canApplyReturn: true },
 } as const;
 
 export const CHANNEL_LIST = Object.values(CHANNELS);
+
+// =====================================================
+// Logistics Tracking Links
+// =====================================================
+export const LOGISTICS_PROVIDERS = [
+  { key: '711', label: '7-11 交貨便', url: 'https://eservice.7-11.com.tw/e-tracking/search.aspx', icon: '🏪' },
+  { key: 'family', label: '全家店到店', url: 'https://fme.famiport.com.tw/EC/QueryBox', icon: '🏬' },
+  { key: 'hct', label: '新竹物流', url: 'https://www.hct.com.tw/search/searchgoods_n.aspx', icon: '🚛' },
+  { key: 'post', label: '中華郵政', url: 'https://postserv.post.gov.tw/pstmail/main_mail.html', icon: '📮' },
+] as const;
 
 // =====================================================
 // Refund Types (Strategy: Guide to store credit)
