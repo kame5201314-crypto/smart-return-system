@@ -28,7 +28,6 @@ const returnFormSchema = z.object({
   accountId: z.string().min(1, '請填寫您的帳號'),
   orderNumber: z.string().min(1, '請填寫訂單編號'),
   ordererName: z.string().min(1, '請填寫訂購人姓名'),
-  receiverName: z.string().optional(),
   phone: z.string().regex(/^09\d{8}$/, '請輸入有效的手機號碼'),
   channelSource: z.string().min(1, '請選擇購買通路'),
   returnReason: z.string().min(1, '請填寫退換貨原因'),
@@ -55,6 +54,7 @@ export default function CustomerPortalPage() {
     requestNumber: string;
   } | null>(null);
   const [images, setImages] = useState<UploadedImage[]>([]);
+  const [shippingLabelImages, setShippingLabelImages] = useState<UploadedImage[]>([]);
 
   const form = useForm<ReturnFormInput>({
     resolver: zodResolver(returnFormSchema),
@@ -62,7 +62,6 @@ export default function CustomerPortalPage() {
       accountId: '',
       orderNumber: '',
       ordererName: '',
-      receiverName: '',
       phone: '',
       channelSource: '',
       returnReason: '',
@@ -89,6 +88,18 @@ export default function CustomerPortalPage() {
         }))
       );
 
+      // Convert shipping label images to base64
+      const shippingLabelFilesData = await Promise.all(
+        shippingLabelImages.map(async (img) => ({
+          name: img.file.name,
+          type: img.file.type,
+          base64: await fileToBase64(img.file),
+        }))
+      );
+
+      // Combine all images
+      const allImagesData = [...imageFilesData, ...shippingLabelFilesData];
+
       // Submit to server
       const result = await submitCustomerReturn(
         {
@@ -96,12 +107,11 @@ export default function CustomerPortalPage() {
           accountId: data.accountId,
           orderNumber: data.orderNumber,
           ordererName: data.ordererName,
-          receiverName: data.receiverName,
           phone: data.phone,
           returnReason: data.returnReason,
           productSuggestion: data.productSuggestion,
         },
-        imageFilesData
+        allImagesData
       );
 
       if (!result.success) {
@@ -117,6 +127,7 @@ export default function CustomerPortalPage() {
 
       // Cleanup image previews
       images.forEach((img) => URL.revokeObjectURL(img.preview));
+      shippingLabelImages.forEach((img) => URL.revokeObjectURL(img.preview));
 
       // Show success state
       setIsSubmitted(true);
@@ -170,6 +181,7 @@ export default function CustomerPortalPage() {
                     setIsSubmitted(false);
                     setSubmittedData(null);
                     setImages([]);
+                    setShippingLabelImages([]);
                     form.reset();
                   }}
                 >
@@ -220,11 +232,8 @@ export default function CustomerPortalPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="shopee">蝦皮</SelectItem>
-                          <SelectItem value="ruten">露天</SelectItem>
                           <SelectItem value="official">官網</SelectItem>
-                          <SelectItem value="momo">Momo</SelectItem>
-                          <SelectItem value="pchome">PChome</SelectItem>
+                          <SelectItem value="shopee">蝦皮</SelectItem>
                           <SelectItem value="other">其他</SelectItem>
                         </SelectContent>
                       </Select>
@@ -240,11 +249,8 @@ export default function CustomerPortalPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-purple-700 font-medium">
-                        您的帳號 (蝦皮/露天/官網帳號) <span className="text-red-500">*</span>
+                        您的帳號 (官網 / 蝦皮) <span className="text-red-500">*</span>
                       </FormLabel>
-                      <p className="text-sm text-gray-500 mb-2">
-                        (官網帳號請填 E-mail 或手機號碼)
-                      </p>
                       <FormControl>
                         <Input
                           placeholder="您的回答"
@@ -292,28 +298,6 @@ export default function CustomerPortalPage() {
                       <p className="text-sm text-gray-500 mb-2">
                         (請填寫訂單上的名字，收件人若有不同也請一起填寫)
                       </p>
-                      <FormControl>
-                        <Input
-                          placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-purple-500 focus:ring-0"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Receiver Name (Optional) */}
-                <FormField
-                  control={form.control}
-                  name="receiverName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-purple-700 font-medium">
-                        收件人姓名（若與訂購人不同）
-                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="您的回答"
@@ -396,12 +380,12 @@ export default function CustomerPortalPage() {
                   )}
                 />
 
-                {/* Image Upload Section */}
+                {/* Image Upload Section - Product Photos */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center gap-2">
                     <Camera className="w-5 h-5 text-purple-600" />
                     <FormLabel className="text-purple-700 font-medium text-base">
-                      上傳照片 <span className="text-red-500">*</span>
+                      上傳產品照片 <span className="text-red-500">*</span>
                     </FormLabel>
                   </div>
                   <p className="text-sm text-gray-500">
@@ -412,6 +396,26 @@ export default function CustomerPortalPage() {
                     onImagesChange={setImages}
                     disabled={isLoading}
                     maxImages={5}
+                    maxFileSizeMB={10}
+                  />
+                </div>
+
+                {/* Image Upload Section - Shipping Label */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-purple-600" />
+                    <FormLabel className="text-purple-700 font-medium text-base">
+                      上傳寄件單照片
+                    </FormLabel>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    請上傳寄件單照片（最多 2 張）
+                  </p>
+                  <SimpleImageUploader
+                    images={shippingLabelImages}
+                    onImagesChange={setShippingLabelImages}
+                    disabled={isLoading}
+                    maxImages={2}
                     maxFileSizeMB={10}
                   />
                 </div>
@@ -444,10 +448,9 @@ export default function CustomerPortalPage() {
             <CardTitle className="text-lg text-purple-700">退貨須知</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-gray-600 space-y-2">
-            <p>1. 商品需於收貨後 7 天內申請退貨</p>
-            <p>2. 請上傳產品照片及外箱照片（最多 5 張）</p>
-            <p>3. 蝦皮訂單請透過蝦皮 App 申請退貨</p>
-            <p>4. 退款將於驗貨完成後 7 個工作天內處理</p>
+            <p>1. 商品退貨需於鑑賞期內申請退貨。</p>
+            <p>2. 請上傳產品照片及外箱照片、寄件單號，將能加快處理速度。</p>
+            <p>3. 退貨流程約 9~12 天內完成，請耐心等候。</p>
           </CardContent>
         </Card>
 
