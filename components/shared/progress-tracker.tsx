@@ -1,19 +1,38 @@
 'use client';
 
-import { Check } from 'lucide-react';
-import { RETURN_STATUS_ORDER, RETURN_STATUS_LABELS, RETURN_STATUS } from '@/config/constants';
+import { Check, AlertTriangle } from 'lucide-react';
+import { RETURN_STATUS } from '@/config/constants';
 
 interface ProgressTrackerProps {
   currentStatus: string;
   className?: string;
 }
 
-export function ProgressTracker({ currentStatus, className = '' }: ProgressTrackerProps) {
-  // RETURN_STATUS_ORDER already excludes abnormal status
-  const steps = RETURN_STATUS_ORDER;
+// Simplified 3-step progress: 待驗收 → 已結案, with 驗收異常 as separate state
+const SIMPLIFIED_STEPS = [
+  { key: 'pending_inspection', label: '待驗收' },
+  { key: 'completed', label: '已結案' },
+  { key: 'abnormal', label: '驗收異常' },
+];
 
-  const currentIndex = steps.indexOf(currentStatus as typeof steps[number]);
+// Statuses that count as "待驗收"
+const PENDING_INSPECTION_STATUSES = [
+  RETURN_STATUS.PENDING_REVIEW,
+  RETURN_STATUS.APPROVED_WAITING_SHIPPING,
+  RETURN_STATUS.SHIPPING_IN_TRANSIT,
+  RETURN_STATUS.RECEIVED_INSPECTING,
+  RETURN_STATUS.REFUND_PROCESSING,
+];
+
+export function ProgressTracker({ currentStatus, className = '' }: ProgressTrackerProps) {
   const isAbnormal = currentStatus === RETURN_STATUS.ABNORMAL_DISPUTED;
+  const isCompleted = currentStatus === RETURN_STATUS.COMPLETED;
+  const isPendingInspection = PENDING_INSPECTION_STATUSES.includes(currentStatus as typeof RETURN_STATUS[keyof typeof RETURN_STATUS]);
+
+  // Determine current step index (0: 待驗收, 1: 已結案, 2: 驗收異常)
+  let currentIndex = 0;
+  if (isCompleted) currentIndex = 1;
+  if (isAbnormal) currentIndex = 2;
 
   return (
     <div className={`${className}`}>
@@ -30,38 +49,61 @@ export function ProgressTracker({ currentStatus, className = '' }: ProgressTrack
       <div className="relative">
         {/* Progress line */}
         <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200" />
-        <div
-          className="absolute top-5 left-0 h-0.5 bg-primary transition-all duration-500"
-          style={{
-            width: `${Math.max(0, (currentIndex / (steps.length - 1)) * 100)}%`,
-          }}
-        />
+        {!isAbnormal && (
+          <div
+            className="absolute top-5 left-0 h-0.5 bg-primary transition-all duration-500"
+            style={{
+              width: isCompleted ? '50%' : '0%',
+            }}
+          />
+        )}
 
         {/* Steps */}
         <div className="relative flex justify-between">
-          {steps.map((status, index) => {
-            const isCompleted = index < currentIndex;
-            const isCurrent = index === currentIndex;
-            const isPending = index > currentIndex;
+          {SIMPLIFIED_STEPS.map((step, index) => {
+            // For normal flow (待驗收 → 已結案)
+            let isStepCompleted = false;
+            let isStepCurrent = false;
+            let isStepPending = true;
+
+            if (isAbnormal) {
+              // If abnormal, only step 3 is current
+              isStepCurrent = index === 2;
+              isStepPending = index !== 2;
+            } else if (isCompleted) {
+              // If completed, step 1 is done, step 2 is current
+              isStepCompleted = index === 0;
+              isStepCurrent = index === 1;
+              isStepPending = index === 2;
+            } else {
+              // If pending inspection, step 1 is current
+              isStepCurrent = index === 0;
+              isStepPending = index > 0;
+            }
+
+            const isAbnormalStep = index === 2;
 
             return (
               <div
-                key={status}
+                key={step.key}
                 className="flex flex-col items-center"
-                style={{ width: `${100 / steps.length}%` }}
+                style={{ width: '33.33%' }}
               >
                 {/* Circle */}
                 <div
                   className={`
                     w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium
                     transition-all duration-300 z-10
-                    ${isCompleted ? 'bg-primary text-white' : ''}
-                    ${isCurrent ? 'bg-primary text-white ring-4 ring-primary/20' : ''}
-                    ${isPending ? 'bg-gray-200 text-gray-500' : ''}
+                    ${isStepCompleted ? 'bg-primary text-white' : ''}
+                    ${isStepCurrent && !isAbnormalStep ? 'bg-primary text-white ring-4 ring-primary/20' : ''}
+                    ${isStepCurrent && isAbnormalStep ? 'bg-red-500 text-white ring-4 ring-red-200' : ''}
+                    ${isStepPending ? 'bg-gray-200 text-gray-500' : ''}
                   `}
                 >
-                  {isCompleted ? (
+                  {isStepCompleted ? (
                     <Check className="w-5 h-5" />
+                  ) : isAbnormalStep && isStepCurrent ? (
+                    <AlertTriangle className="w-5 h-5" />
                   ) : (
                     <span>{index + 1}</span>
                   )}
@@ -71,10 +113,12 @@ export function ProgressTracker({ currentStatus, className = '' }: ProgressTrack
                 <p
                   className={`
                     mt-2 text-xs text-center max-w-[80px]
-                    ${isCurrent ? 'font-medium text-primary' : 'text-muted-foreground'}
+                    ${isStepCurrent && !isAbnormalStep ? 'font-medium text-primary' : ''}
+                    ${isStepCurrent && isAbnormalStep ? 'font-medium text-red-600' : ''}
+                    ${!isStepCurrent ? 'text-muted-foreground' : ''}
                   `}
                 >
-                  {RETURN_STATUS_LABELS[status]}
+                  {step.label}
                 </p>
               </div>
             );
