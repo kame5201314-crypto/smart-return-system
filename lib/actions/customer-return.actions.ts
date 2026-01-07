@@ -68,14 +68,10 @@ export async function submitCustomerReturn(
       orderId = existingOrder.id;
     } else {
       // Create order record for tracking
-      const channelMap: Record<string, string> = {
-        shopee: 'shopee',
-        ruten: 'other',
-        official: 'official',
-        momo: 'momo',
-        pchome: 'other',
-        other: 'other',
-      };
+      // Map to valid channel values
+      const orderChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
+        ? formData.channelSource
+        : 'other';
 
       const { data: newOrder, error: orderError } = await adminClient
         .from('orders')
@@ -84,11 +80,10 @@ export async function submitCustomerReturn(
           customer_id: customerId,
           customer_phone: formData.phone,
           customer_name: formData.ordererName,
-          channel_source: channelMap[formData.channelSource] || 'other',
+          channel_source: orderChannelSource,
           status: 'delivered',
           metadata: {
             account_id: formData.accountId,
-            receiver_name: formData.receiverName,
             source_channel_raw: formData.channelSource,
           },
         } as never)
@@ -110,14 +105,19 @@ export async function submitCustomerReturn(
     }
 
     // 3. Create return request
+    // Map channel source to valid enum values
+    const validChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
+      ? formData.channelSource
+      : 'other';
+
     const { data: returnRequest, error: returnError } = await adminClient
       .from('return_requests')
       .insert({
         order_id: orderId,
         customer_id: customerId,
-        channel_source: formData.channelSource as 'shopee' | 'official' | 'momo' | 'dealer' | 'other',
+        channel_source: validChannelSource,
         status: 'pending_review',
-        reason_category: '客戶自助申請',
+        reason_category: 'other',
         reason_detail: formData.returnReason,
         review_notes: formData.productSuggestion || null,
       } as never)
