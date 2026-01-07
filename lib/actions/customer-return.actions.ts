@@ -92,7 +92,7 @@ export async function submitCustomerReturn(
 
       if (orderError) {
         console.error('Create order error:', orderError);
-        return { success: false, error: '建立訂單記錄失敗' };
+        return { success: false, error: `建立訂單記錄失敗: ${orderError?.message || '未知錯誤'}` };
       }
 
       if (newOrder) {
@@ -126,7 +126,7 @@ export async function submitCustomerReturn(
 
     if (returnError || !returnRequest) {
       console.error('Create return request error:', returnError);
-      return { success: false, error: '建立退貨申請失敗' };
+      return { success: false, error: `建立退貨申請失敗: ${returnError?.message || '未知錯誤'}` };
     }
 
     // 4. Upload images to Supabase Storage and create records
@@ -211,7 +211,8 @@ export async function submitCustomerReturn(
     };
   } catch (error) {
     console.error('Submit customer return error:', error);
-    return { success: false, error: '系統錯誤，請稍後再試' };
+    const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+    return { success: false, error: `系統錯誤: ${errorMessage}` };
   }
 }
 
