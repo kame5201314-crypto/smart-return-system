@@ -32,7 +32,7 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ items, onStatusChange }: KanbanBoardProps) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="flex gap-4 pb-4">
       {KANBAN_COLUMNS.map((column) => {
         // Filter items by statuses array (supports multiple statuses per column)
         const columnStatuses = (column.statuses || [column.id]) as string[];
@@ -41,7 +41,7 @@ export function KanbanBoard({ items, onStatusChange }: KanbanBoardProps) {
         return (
           <div
             key={column.id}
-            className="flex-shrink-0 w-80 bg-gray-50 rounded-lg"
+            className="flex-1 min-w-0 bg-gray-50 rounded-lg"
           >
             {/* Column header */}
             <div className={`p-3 border-l-4 ${column.color} bg-white rounded-t-lg`}>
