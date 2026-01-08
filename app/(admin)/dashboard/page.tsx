@@ -7,8 +7,6 @@ import {
   Clock,
   AlertTriangle,
   ArrowRight,
-  ExternalLink,
-  Truck,
 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { getReturnRequests } from '@/lib/actions/return.actions';
-import { RETURN_STATUS, RETURN_STATUS_LABELS, RETURN_STATUS_COLORS, KANBAN_COLUMNS, LOGISTICS_PROVIDERS } from '@/config/constants';
+import { RETURN_STATUS, RETURN_STATUS_LABELS, RETURN_STATUS_COLORS, KANBAN_COLUMNS } from '@/config/constants';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 
@@ -146,36 +144,6 @@ export default function AdminDashboardPage() {
           </Card>
         </Link>
       </div>
-
-      {/* Logistics quick check */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Truck className="w-5 h-5" />
-            物流快查
-          </CardTitle>
-          <CardDescription>快速查詢各物流商包裹狀態</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {LOGISTICS_PROVIDERS.map((provider) => (
-              <a
-                key={provider.key}
-                href={provider.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
-              >
-                <span className="text-2xl">{provider.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{provider.label}</p>
-                </div>
-                <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Recent returns */}
       <Card>
