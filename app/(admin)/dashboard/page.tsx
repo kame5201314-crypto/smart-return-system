@@ -213,10 +213,12 @@ export default function AdminDashboardPage() {
           <CardDescription>退貨單當前狀態分佈</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             {KANBAN_COLUMNS.map((col) => {
+              // Count items that match any of the statuses in this column
+              const columnStatuses = (col.statuses || [col.id]) as string[];
               const count = recentReturns.filter(
-                (r: unknown) => (r as { status: string }).status === col.id
+                (r: unknown) => columnStatuses.includes((r as { status: string }).status)
               ).length;
               return (
                 <div
