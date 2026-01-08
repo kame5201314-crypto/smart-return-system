@@ -24,9 +24,9 @@ import { toast } from 'sonner';
 const navItems = [
   { href: '/dashboard', label: '總覽', icon: LayoutDashboard },
   { href: '/returns', label: '退貨管理', icon: Package },
-  { href: '/logistics', label: '物流快查', icon: Truck },
   { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
+  { href: '/logistics', label: '物流快查', icon: Truck },
 ];
 
 interface UserInfo {
@@ -72,10 +72,10 @@ export default function AdminLayout({
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r">
           {/* Logo */}
-          <div className="flex items-center h-16 px-6 border-b">
+          <Link href="/dashboard" className="flex items-center h-16 px-6 border-b hover:bg-gray-50 transition-colors">
             <Package className="w-8 h-8 text-primary" />
             <span className="ml-2 text-lg font-bold">退貨管理系統</span>
-          </div>
+          </Link>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1">
@@ -149,10 +149,10 @@ export default function AdminLayout({
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <div className="flex flex-col h-full">
-                <div className="flex items-center h-16 px-6 border-b">
+                <Link href="/dashboard" className="flex items-center h-16 px-6 border-b hover:bg-gray-50 transition-colors" onClick={() => setMobileOpen(false)}>
                   <Package className="w-6 h-6 text-primary" />
                   <span className="ml-2 font-bold">退貨管理系統</span>
-                </div>
+                </Link>
                 <nav className="flex-1 px-4 py-4 space-y-1">
                   {navItems.map((item) => {
                     const isActive = item.exact

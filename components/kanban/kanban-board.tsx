@@ -7,7 +7,14 @@ import { zhTW } from 'date-fns/locale';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { KANBAN_COLUMNS } from '@/config/constants';
+import { KANBAN_COLUMNS, CHANNEL_LIST } from '@/config/constants';
+
+// Helper to get channel label
+function getChannelLabel(channelSource: string | null): string {
+  if (!channelSource) return '';
+  const channel = CHANNEL_LIST.find(c => c.key === channelSource);
+  return channel?.label || channelSource;
+}
 
 interface KanbanItem {
   id: string;
@@ -100,7 +107,7 @@ function KanbanCard({ item }: { item: KanbanItem }) {
             </div>
             {item.channel_source && (
               <Badge variant="outline" className="text-xs">
-                {item.channel_source}
+                {getChannelLabel(item.channel_source)}
               </Badge>
             )}
           </div>
