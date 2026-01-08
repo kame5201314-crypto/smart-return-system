@@ -453,6 +453,44 @@ export async function submitInspection(
 }
 
 /**
+ * Update return request info (tracking number, refund amount)
+ */
+export async function updateReturnInfo(
+  returnRequestId: string,
+  data: {
+    trackingNumber?: string;
+    refundAmount?: number;
+  }
+): Promise<ApiResponse> {
+  try {
+    const adminClient = createAdminClient();
+
+    const updateData: Record<string, unknown> = {};
+    if (data.trackingNumber !== undefined) {
+      updateData.tracking_number = data.trackingNumber;
+    }
+    if (data.refundAmount !== undefined) {
+      updateData.refund_amount = data.refundAmount;
+    }
+
+    const { error } = await adminClient
+      .from('return_requests')
+      .update(updateData)
+      .eq('id', returnRequestId);
+
+    if (error) {
+      console.error('Update return info error:', error);
+      return { success: false, error: ERROR_MESSAGES.GENERIC };
+    }
+
+    return { success: true, message: '資訊更新成功' };
+  } catch (error) {
+    console.error('Update return info error:', error);
+    return { success: false, error: ERROR_MESSAGES.GENERIC };
+  }
+}
+
+/**
  * Get return request detail by ID (for admin)
  */
 export async function getReturnRequestDetail(id: string) {

@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/dialog';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
 
-import { getReturnRequestDetail, updateReturnStatus } from '@/lib/actions/return.actions';
+import { getReturnRequestDetail, updateReturnStatus, updateReturnInfo } from '@/lib/actions/return.actions';
 import {
   RETURN_STATUS,
   RETURN_STATUS_LABELS,
@@ -122,9 +122,12 @@ export default function ReturnDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [editInfoDialogOpen, setEditInfoDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [notes, setNotes] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [editTrackingNumber, setEditTrackingNumber] = useState('');
+  const [editRefundAmount, setEditRefundAmount] = useState('');
 
   useEffect(() => {
     fetchDetail();
@@ -171,6 +174,36 @@ export default function ReturnDetailPage() {
     } finally {
       setUpdating(false);
     }
+  }
+
+  async function handleInfoUpdate() {
+    if (!returnData) return;
+
+    try {
+      setUpdating(true);
+      const result = await updateReturnInfo(returnData.id, {
+        trackingNumber: editTrackingNumber || undefined,
+        refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
+      });
+
+      if (result.success) {
+        toast.success('資訊更新成功');
+        setEditInfoDialogOpen(false);
+        fetchDetail();
+      } else {
+        toast.error(result.error || '更新失敗');
+      }
+    } catch {
+      toast.error('更新失敗');
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  function openEditInfoDialog() {
+    setEditTrackingNumber(returnData?.tracking_number || '');
+    setEditRefundAmount(returnData?.refund_amount?.toString() || '');
+    setEditInfoDialogOpen(true);
   }
 
   if (loading) {
@@ -244,25 +277,12 @@ export default function ReturnDetailPage() {
                       <SelectValue placeholder="選擇狀態" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(RETURN_STATUS).map(([key, value]) => (
-                        <SelectItem key={key} value={value}>
-                          {RETURN_STATUS_LABELS[value]}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="pending_review">待驗收</SelectItem>
+                      <SelectItem value="completed">已結案</SelectItem>
+                      <SelectItem value="abnormal_disputed">驗收異常</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                {newStatus === RETURN_STATUS.SHIPPING_IN_TRANSIT && (
-                  <div className="space-y-2">
-                    <Label>物流單號</Label>
-                    <Input
-                      value={trackingNumber}
-                      onChange={(e) => setTrackingNumber(e.target.value)}
-                      placeholder="輸入物流單號"
-                    />
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label>備註</Label>
@@ -340,11 +360,15 @@ export default function ReturnDetailPage() {
 
           {/* Return info */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Package className="w-5 h-5" />
                 退貨資訊
               </CardTitle>
+              <Button variant="outline" size="sm" onClick={openEditInfoDialog}>
+                <Edit className="w-4 h-4 mr-1" />
+                編輯
+              </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -379,16 +403,53 @@ export default function ReturnDetailPage() {
                 </div>
               )}
 
-              {returnData.tracking_number && (
-                <div>
-                  <p className="text-muted-foreground text-sm mb-1">物流單號</p>
-                  <p className="font-mono bg-gray-50 p-2 rounded">
-                    {returnData.tracking_number}
-                  </p>
-                </div>
-              )}
+              <div>
+                <p className="text-muted-foreground text-sm mb-1">物流單號</p>
+                <p className="font-mono bg-gray-50 p-2 rounded">
+                  {returnData.tracking_number || '尚未填寫'}
+                </p>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Edit Info Dialog */}
+          <Dialog open={editInfoDialogOpen} onOpenChange={setEditInfoDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>編輯退貨資訊</DialogTitle>
+                <DialogDescription>
+                  更新物流單號和退款金額
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>物流單號</Label>
+                  <Input
+                    value={editTrackingNumber}
+                    onChange={(e) => setEditTrackingNumber(e.target.value)}
+                    placeholder="輸入物流單號"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>退款金額 (NT$)</Label>
+                  <Input
+                    type="number"
+                    value={editRefundAmount}
+                    onChange={(e) => setEditRefundAmount(e.target.value)}
+                    placeholder="輸入退款金額"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditInfoDialogOpen(false)}>
+                  取消
+                </Button>
+                <Button onClick={handleInfoUpdate} disabled={updating}>
+                  {updating ? '更新中...' : '確認更新'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Return items */}
           <Card>
