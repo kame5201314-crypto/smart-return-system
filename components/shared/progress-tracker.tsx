@@ -15,19 +15,9 @@ const SIMPLIFIED_STEPS = [
   { key: 'abnormal', label: '驗收異常' },
 ];
 
-// Statuses that count as "待驗收"
-const PENDING_INSPECTION_STATUSES = [
-  RETURN_STATUS.PENDING_REVIEW,
-  RETURN_STATUS.APPROVED_WAITING_SHIPPING,
-  RETURN_STATUS.SHIPPING_IN_TRANSIT,
-  RETURN_STATUS.RECEIVED_INSPECTING,
-  RETURN_STATUS.REFUND_PROCESSING,
-];
-
 export function ProgressTracker({ currentStatus, className = '' }: ProgressTrackerProps) {
   const isAbnormal = currentStatus === RETURN_STATUS.ABNORMAL_DISPUTED;
   const isCompleted = currentStatus === RETURN_STATUS.COMPLETED;
-  const isPendingInspection = PENDING_INSPECTION_STATUSES.includes(currentStatus as typeof RETURN_STATUS[keyof typeof RETURN_STATUS]);
 
   // Determine current step index (0: 待驗收, 1: 已結案, 2: 驗收異常)
   let currentIndex = 0;
