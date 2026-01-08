@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 import { getReturnRequestDetail, submitInspection } from '@/lib/actions/return.actions';
+import { getCurrentUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import { INSPECTION_GRADES, INSPECTION_CHECKLIST, ERROR_MESSAGES } from '@/config/constants';
 
@@ -90,7 +91,15 @@ export default function InspectionPage() {
   async function onSubmit(data: InspectionInput) {
     try {
       setSubmitting(true);
-      const result = await submitInspection(data, 'current-user-id'); // TODO: Get from auth
+
+      // Get current user
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('請先登入');
+        return;
+      }
+
+      const result = await submitInspection(data, user.id);
 
       if (result.success) {
         toast.success('驗貨結果已提交');
