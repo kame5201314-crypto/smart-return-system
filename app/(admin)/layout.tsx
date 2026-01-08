@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Package,
-  ShoppingCart,
   BarChart3,
   Brain,
   Menu,
@@ -24,7 +23,6 @@ import { toast } from 'sonner';
 const navItems = [
   { href: '/dashboard', label: '總覽', icon: LayoutDashboard },
   { href: '/returns', label: '退貨管理', icon: Package },
-  { href: '/orders', label: '訂單查詢', icon: ShoppingCart },
   { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
 ];
