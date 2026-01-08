@@ -475,7 +475,7 @@ export async function updateReturnInfo(
 
     const { error } = await adminClient
       .from('return_requests')
-      .update(updateData)
+      .update(updateData as never)
       .eq('id', returnRequestId);
 
     if (error) {
