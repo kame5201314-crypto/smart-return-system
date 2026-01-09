@@ -383,6 +383,14 @@ export default function ReturnDetailPage() {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
+                  <p className="text-muted-foreground">商品名稱</p>
+                  <p className="font-medium">{returnData.return_items?.[0]?.product_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">商品貨號</p>
+                  <p className="font-medium">{returnData.return_items?.[0]?.sku || '-'}</p>
+                </div>
+                <div>
                   <p className="text-muted-foreground">退貨原因</p>
                   <p className="font-medium">{reason?.label || returnData.reason_category || '-'}</p>
                 </div>
