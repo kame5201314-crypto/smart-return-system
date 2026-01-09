@@ -453,34 +453,51 @@ export async function submitInspection(
 }
 
 /**
- * Update return request info (tracking number, refund amount)
+ * Update return request info (product name, SKU, refund amount)
  */
 export async function updateReturnInfo(
   returnRequestId: string,
   data: {
-    trackingNumber?: string;
+    productName?: string;
+    productSku?: string;
     refundAmount?: number;
   }
 ): Promise<ApiResponse> {
   try {
     const adminClient = createAdminClient();
 
-    const updateData: Record<string, unknown> = {};
-    if (data.trackingNumber !== undefined) {
-      updateData.tracking_number = data.trackingNumber;
-    }
+    // Update refund amount in return_requests
     if (data.refundAmount !== undefined) {
-      updateData.refund_amount = data.refundAmount;
+      const { error: requestError } = await adminClient
+        .from('return_requests')
+        .update({ refund_amount: data.refundAmount } as never)
+        .eq('id', returnRequestId);
+
+      if (requestError) {
+        console.error('Update return request error:', requestError);
+        return { success: false, error: ERROR_MESSAGES.GENERIC };
+      }
     }
 
-    const { error } = await adminClient
-      .from('return_requests')
-      .update(updateData as never)
-      .eq('id', returnRequestId);
+    // Update product info in return_items
+    if (data.productName !== undefined || data.productSku !== undefined) {
+      const itemUpdateData: Record<string, unknown> = {};
+      if (data.productName !== undefined) {
+        itemUpdateData.product_name = data.productName;
+      }
+      if (data.productSku !== undefined) {
+        itemUpdateData.sku = data.productSku;
+      }
 
-    if (error) {
-      console.error('Update return info error:', error);
-      return { success: false, error: ERROR_MESSAGES.GENERIC };
+      const { error: itemError } = await adminClient
+        .from('return_items')
+        .update(itemUpdateData as never)
+        .eq('return_request_id', returnRequestId);
+
+      if (itemError) {
+        console.error('Update return items error:', itemError);
+        return { success: false, error: ERROR_MESSAGES.GENERIC };
+      }
     }
 
     return { success: true, message: '資訊更新成功' };

@@ -133,8 +133,8 @@ export default function ReturnDetailPage() {
   const [editInfoDialogOpen, setEditInfoDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [notes, setNotes] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [editTrackingNumber, setEditTrackingNumber] = useState('');
+  const [editProductName, setEditProductName] = useState('');
+  const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
 
   useEffect(() => {
@@ -165,7 +165,6 @@ export default function ReturnDetailPage() {
           returnRequestId: returnData.id,
           newStatus: newStatus as typeof RETURN_STATUS[keyof typeof RETURN_STATUS],
           notes,
-          trackingNumber: trackingNumber || undefined,
         },
         'current-user-id' // TODO: Get from auth
       );
@@ -190,7 +189,8 @@ export default function ReturnDetailPage() {
     try {
       setUpdating(true);
       const result = await updateReturnInfo(returnData.id, {
-        trackingNumber: editTrackingNumber || undefined,
+        productName: editProductName || undefined,
+        productSku: editProductSku || undefined,
         refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
       });
 
@@ -209,7 +209,9 @@ export default function ReturnDetailPage() {
   }
 
   function openEditInfoDialog() {
-    setEditTrackingNumber(returnData?.tracking_number || '');
+    const firstItem = returnData?.return_items?.[0];
+    setEditProductName(firstItem?.product_name || '');
+    setEditProductSku(firstItem?.sku || '');
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
     setEditInfoDialogOpen(true);
   }
@@ -411,12 +413,6 @@ export default function ReturnDetailPage() {
                 </div>
               )}
 
-              <div>
-                <p className="text-muted-foreground text-sm mb-1">物流單號</p>
-                <p className="font-mono bg-gray-50 p-2 rounded">
-                  {returnData.tracking_number || '尚未填寫'}
-                </p>
-              </div>
             </CardContent>
           </Card>
 
@@ -426,16 +422,24 @@ export default function ReturnDetailPage() {
               <DialogHeader>
                 <DialogTitle>編輯退貨資訊</DialogTitle>
                 <DialogDescription>
-                  更新物流單號和退款金額
+                  更新商品資訊和退款金額
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>物流單號</Label>
+                  <Label>商品名稱</Label>
                   <Input
-                    value={editTrackingNumber}
-                    onChange={(e) => setEditTrackingNumber(e.target.value)}
-                    placeholder="輸入物流單號"
+                    value={editProductName}
+                    onChange={(e) => setEditProductName(e.target.value)}
+                    placeholder="輸入商品名稱"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>商品貨號</Label>
+                  <Input
+                    value={editProductSku}
+                    onChange={(e) => setEditProductSku(e.target.value)}
+                    placeholder="輸入商品貨號"
                   />
                 </div>
                 <div className="space-y-2">
@@ -459,34 +463,6 @@ export default function ReturnDetailPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Return items */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">退貨商品</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {returnData.return_items?.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{item.product_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        SKU: {item.sku || 'N/A'} × {item.quantity}
-                      </p>
-                    </div>
-                    {item.unit_price && (
-                      <p className="font-medium">
-                        NT$ {(item.unit_price * item.quantity).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Right column */}
