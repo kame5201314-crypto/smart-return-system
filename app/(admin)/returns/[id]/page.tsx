@@ -472,7 +472,7 @@ export default function ReturnDetailPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <ImageIcon className="w-5 h-5" />
-                照片證據
+                退貨照片
               </CardTitle>
             </CardHeader>
             <CardContent>
