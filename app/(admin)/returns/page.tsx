@@ -84,7 +84,13 @@ export default function ReturnsPage() {
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter((r) => r.status === statusFilter);
+      if (statusFilter === 'pending_inspection') {
+        // 待驗收 includes multiple statuses
+        const pendingStatuses = ['pending_review', 'approved_waiting_shipping', 'shipping_in_transit', 'received_inspecting', 'refund_processing'];
+        filtered = filtered.filter((r) => pendingStatuses.includes(r.status));
+      } else {
+        filtered = filtered.filter((r) => r.status === statusFilter);
+      }
     }
 
     // Channel filter
@@ -162,21 +168,19 @@ export default function ReturnsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">所有狀態</SelectItem>
-                {Object.entries(RETURN_STATUS).map(([key, value]) => (
-                  <SelectItem key={key} value={value}>
-                    {RETURN_STATUS_LABELS[value]}
-                  </SelectItem>
-                ))}
+                <SelectItem value="pending_inspection">待驗收</SelectItem>
+                <SelectItem value="completed">已結案</SelectItem>
+                <SelectItem value="abnormal_disputed">驗收異常</SelectItem>
               </SelectContent>
             </Select>
 
             {/* Channel filter */}
             <Select value={channelFilter} onValueChange={setChannelFilter}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="所有通路" />
+                <SelectValue placeholder="所有來源" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">所有通路</SelectItem>
+                <SelectItem value="all">所有來源</SelectItem>
                 {CHANNEL_LIST.map((channel) => (
                   <SelectItem key={channel.key} value={channel.key}>
                     {channel.label}

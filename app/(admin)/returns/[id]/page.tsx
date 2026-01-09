@@ -52,7 +52,15 @@ import {
   RETURN_REASONS,
   RETURN_SHIPPING_METHODS,
   REFUND_TYPES,
+  CHANNEL_LIST,
 } from '@/config/constants';
+
+// Helper to get channel label in Chinese
+function getChannelLabel(channelSource: string | null): string {
+  if (!channelSource) return '-';
+  const channel = CHANNEL_LIST.find(c => c.key === channelSource);
+  return channel?.label || channelSource;
+}
 
 interface ReturnDetail {
   id: string;
@@ -351,8 +359,8 @@ export default function ReturnDetailPage() {
                   <p className="font-medium">{returnData.order?.order_number || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">通路來源</p>
-                  <Badge variant="outline">{returnData.channel_source || '-'}</Badge>
+                  <p className="text-muted-foreground">退貨來源</p>
+                  <Badge variant="outline">{getChannelLabel(returnData.channel_source)}</Badge>
                 </div>
               </div>
             </CardContent>
