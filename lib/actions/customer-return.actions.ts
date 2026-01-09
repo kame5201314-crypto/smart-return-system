@@ -16,7 +16,7 @@ export interface CustomerReturnFormData {
 
 /**
  * Submit customer return request from the simplified portal form
- * This creates all necessary records in one transaction
+ * Optimized for speed with parallel operations
  */
 export async function submitCustomerReturn(
   formData: CustomerReturnFormData,
@@ -25,20 +25,28 @@ export async function submitCustomerReturn(
   try {
     const adminClient = createAdminClient();
 
-    // 1. Find or create customer
-    let customerId: string | null = null;
+    // 1. Find or create customer and order in parallel
+    const [customerResult, orderResult] = await Promise.all([
+      // Find existing customer
+      adminClient
+        .from('customers')
+        .select('id')
+        .eq('phone', formData.phone)
+        .single() as Promise<{ data: { id: string } | null; error: Error | null }>,
+      // Find existing order
+      adminClient
+        .from('orders')
+        .select('id')
+        .eq('order_number', formData.orderNumber)
+        .single() as Promise<{ data: { id: string } | null; error: Error | null }>,
+    ]);
 
-    const { data: existingCustomer } = await adminClient
-      .from('customers')
-      .select('id')
-      .eq('phone', formData.phone)
-      .single() as { data: { id: string } | null; error: Error | null };
+    let customerId: string | null = customerResult.data?.id || null;
+    let orderId: string | null = orderResult.data?.id || null;
 
-    if (existingCustomer) {
-      customerId = existingCustomer.id;
-    } else {
-      // Create new customer
-      const { data: newCustomer, error: customerError } = await adminClient
+    // Create customer if not exists
+    if (!customerId) {
+      const { data: newCustomer } = await adminClient
         .from('customers')
         .insert({
           phone: formData.phone,
@@ -46,29 +54,11 @@ export async function submitCustomerReturn(
         } as never)
         .select('id')
         .single() as { data: { id: string } | null; error: Error | null };
-
-      if (customerError) {
-        console.error('Create customer error:', customerError);
-      } else if (newCustomer) {
-        customerId = newCustomer.id;
-      }
+      customerId = newCustomer?.id || null;
     }
 
-    // 2. Find or create order
-    let orderId: string | null = null;
-
-    // Check if order exists
-    const { data: existingOrder } = await adminClient
-      .from('orders')
-      .select('id')
-      .eq('order_number', formData.orderNumber)
-      .single() as { data: { id: string } | null; error: Error | null };
-
-    if (existingOrder) {
-      orderId = existingOrder.id;
-    } else {
-      // Create order record for tracking
-      // Map to valid channel values
+    // Create order if not exists
+    if (!orderId) {
       const orderChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
         ? formData.channelSource
         : 'other';
@@ -90,22 +80,13 @@ export async function submitCustomerReturn(
         .select('id')
         .single() as { data: { id: string } | null; error: Error | null };
 
-      if (orderError) {
-        console.error('Create order error:', orderError);
+      if (orderError || !newOrder) {
         return { success: false, error: `建立訂單記錄失敗: ${orderError?.message || '未知錯誤'}` };
       }
-
-      if (newOrder) {
-        orderId = newOrder.id;
-      }
+      orderId = newOrder.id;
     }
 
-    if (!orderId) {
-      return { success: false, error: '無法建立訂單記錄' };
-    }
-
-    // 3. Create return request
-    // Map channel source to valid enum values
+    // 2. Create return request
     const validChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
       ? formData.channelSource
       : 'other';
@@ -125,15 +106,11 @@ export async function submitCustomerReturn(
       .single() as { data: { id: string; request_number: string } | null; error: Error | null };
 
     if (returnError || !returnRequest) {
-      console.error('Create return request error:', returnError);
       return { success: false, error: `建立退貨申請失敗: ${returnError?.message || '未知錯誤'}` };
     }
 
-    // 4. Upload images to Supabase Storage and create records
-    const uploadedImages: { url: string; storagePath: string }[] = [];
-
-    for (let i = 0; i < imageFiles.length; i++) {
-      const file = imageFiles[i];
+    // 3. Upload images in PARALLEL (major speed improvement)
+    const uploadPromises = imageFiles.map(async (file, i) => {
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${returnRequest.id}/${Date.now()}_${i}.${fileExt}`;
 
@@ -151,8 +128,7 @@ export async function submitCustomerReturn(
 
       if (uploadError) {
         console.error('Upload image error:', uploadError);
-        // Continue with other images even if one fails
-        continue;
+        return null;
       }
 
       // Get public URL
@@ -160,13 +136,20 @@ export async function submitCustomerReturn(
         .from('return-images')
         .getPublicUrl(fileName);
 
-      uploadedImages.push({
+      return {
         url: urlData.publicUrl,
         storagePath: fileName,
-      });
-    }
+      };
+    });
 
-    // 5. Create image records in database
+    // Wait for all uploads to complete in parallel
+    const uploadResults = await Promise.all(uploadPromises);
+    const uploadedImages = uploadResults.filter((img): img is { url: string; storagePath: string } => img !== null);
+
+    // 4. Create all remaining records in parallel
+    const dbOperations: Promise<unknown>[] = [];
+
+    // Image records
     if (uploadedImages.length > 0) {
       const imageRecords = uploadedImages.map((img) => ({
         return_request_id: returnRequest.id,
@@ -175,34 +158,40 @@ export async function submitCustomerReturn(
         image_type: 'product_damage' as const,
         uploaded_by: 'customer' as const,
       }));
-
-      await adminClient.from('return_images').insert(imageRecords as never);
+      dbOperations.push(adminClient.from('return_images').insert(imageRecords as never));
     }
 
-    // 6. Create a return item record (generic since we don't have specific product info)
-    await adminClient.from('return_items').insert({
-      return_request_id: returnRequest.id,
-      product_name: `訂單 ${formData.orderNumber} 商品`,
-      quantity: 1,
-      reason: formData.returnReason,
-    } as never);
-
-    // 7. Log activity
-    await adminClient.from('activity_logs').insert({
-      entity_type: 'return_request',
-      entity_id: returnRequest.id,
-      action: 'created',
-      actor_type: 'customer',
-      description: `客戶自助退貨申請: ${returnRequest.request_number}`,
-      new_value: {
-        channel: formData.channelSource,
-        order_number: formData.orderNumber,
-        customer_name: formData.ordererName,
-        phone: formData.phone,
+    // Return item record
+    dbOperations.push(
+      adminClient.from('return_items').insert({
+        return_request_id: returnRequest.id,
+        product_name: `訂單 ${formData.orderNumber} 商品`,
+        quantity: 1,
         reason: formData.returnReason,
-        images_count: uploadedImages.length,
-      },
-    } as never);
+      } as never)
+    );
+
+    // Activity log
+    dbOperations.push(
+      adminClient.from('activity_logs').insert({
+        entity_type: 'return_request',
+        entity_id: returnRequest.id,
+        action: 'created',
+        actor_type: 'customer',
+        description: `客戶自助退貨申請: ${returnRequest.request_number}`,
+        new_value: {
+          channel: formData.channelSource,
+          order_number: formData.orderNumber,
+          customer_name: formData.ordererName,
+          phone: formData.phone,
+          reason: formData.returnReason,
+          images_count: uploadedImages.length,
+        },
+      } as never)
+    );
+
+    // Execute all DB operations in parallel
+    await Promise.all(dbOperations);
 
     return {
       success: true,
