@@ -249,6 +249,31 @@ export default function ReturnDetailPage() {
     setEditInfoDialogOpen(true);
   }
 
+  async function handleInspectionSubmit(data: InspectionInput) {
+    try {
+      setSubmittingInspection(true);
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('請先登入');
+        return;
+      }
+
+      const result = await submitInspection(data, user.id);
+      if (result.success) {
+        toast.success('驗貨結果已提交');
+        setShowInspectionForm(false);
+        inspectionForm.reset();
+        fetchDetail();
+      } else {
+        toast.error(result.error || ERROR_MESSAGES.GENERIC);
+      }
+    } catch {
+      toast.error(ERROR_MESSAGES.GENERIC);
+    } finally {
+      setSubmittingInspection(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -348,12 +373,22 @@ export default function ReturnDetailPage() {
             </DialogContent>
           </Dialog>
 
-          <Link href={`/returns/inspection/${returnData.id}`}>
-            <Button variant="outline">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              驗貨
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            onClick={() => setShowInspectionForm(!showInspectionForm)}
+          >
+            {showInspectionForm ? (
+              <>
+                <ChevronUp className="w-4 h-4 mr-2" />
+                收起驗貨
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                驗貨
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
@@ -366,6 +401,178 @@ export default function ReturnDetailPage() {
           <ProgressTracker currentStatus={returnData.status} />
         </CardContent>
       </Card>
+
+      {/* Inspection Form */}
+      {showInspectionForm && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              驗貨表單
+            </CardTitle>
+            <CardDescription>
+              請根據實際收貨情況填寫驗貨結果
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...inspectionForm}>
+              <form onSubmit={inspectionForm.handleSubmit(handleInspectionSubmit)} className="space-y-6">
+                {/* Result */}
+                <FormField
+                  control={inspectionForm.control}
+                  name="result"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>驗貨結果 *</FormLabel>
+                      <div className="grid grid-cols-3 gap-3">
+                        <Button
+                          type="button"
+                          variant={field.value === 'passed' ? 'default' : 'outline'}
+                          className={field.value === 'passed' ? 'bg-green-600 hover:bg-green-700' : ''}
+                          onClick={() => field.onChange('passed')}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          通過
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={field.value === 'partial' ? 'default' : 'outline'}
+                          className={field.value === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                          onClick={() => field.onChange('partial')}
+                        >
+                          部分通過
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={field.value === 'failed' ? 'default' : 'outline'}
+                          className={field.value === 'failed' ? 'bg-red-600 hover:bg-red-700' : ''}
+                          onClick={() => field.onChange('failed')}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          異常
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Condition Grade */}
+                <FormField
+                  control={inspectionForm.control}
+                  name="conditionGrade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>商品狀態等級 *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="選擇等級" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.values(INSPECTION_GRADES).map((grade) => (
+                            <SelectItem key={grade.key} value={grade.key}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold">{grade.key}</span>
+                                <span>- {grade.label}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  ({grade.description})
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Checklist */}
+                <div className="space-y-3">
+                  <FormLabel>檢查項目</FormLabel>
+                  {INSPECTION_CHECKLIST.map((item) => (
+                    <FormField
+                      key={item.key}
+                      control={inspectionForm.control}
+                      name={`checklist.${item.key}` as const}
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value === true}
+                              onCheckedChange={(checked) => field.onChange(checked)}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal cursor-pointer">
+                            {item.label}
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+
+                {/* Notes */}
+                <FormField
+                  control={inspectionForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>內部備註</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="輸入驗貨過程的內部備註..."
+                          rows={3}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Inspector Comment */}
+                <FormField
+                  control={inspectionForm.control}
+                  name="inspectorComment"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>驗貨評語</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="輸入可顯示給客戶的驗貨評語..."
+                          rows={3}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Submit */}
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowInspectionForm(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={submittingInspection}
+                  >
+                    {submittingInspection ? '提交中...' : '提交驗貨結果'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main content */}
       <div className="grid gap-6 md:grid-cols-2">
