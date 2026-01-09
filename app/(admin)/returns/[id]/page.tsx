@@ -2,27 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import {
   ArrowLeft,
   Package,
   User,
-  Truck,
-  Clock,
   Edit,
   CheckCircle,
   XCircle,
   Image as ImageIcon,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -33,6 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -42,9 +42,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
 
-import { getReturnRequestDetail, updateReturnStatus, updateReturnInfo } from '@/lib/actions/return.actions';
+import { getReturnRequestDetail, updateReturnStatus, updateReturnInfo, submitInspection } from '@/lib/actions/return.actions';
+import { getCurrentUser } from '@/lib/actions/auth';
+import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import {
   RETURN_STATUS,
   RETURN_STATUS_LABELS,
@@ -53,6 +63,9 @@ import {
   RETURN_SHIPPING_METHODS,
   REFUND_TYPES,
   CHANNEL_LIST,
+  INSPECTION_GRADES,
+  INSPECTION_CHECKLIST,
+  ERROR_MESSAGES,
 } from '@/config/constants';
 
 // Helper to get channel label in Chinese
@@ -136,6 +149,26 @@ export default function ReturnDetailPage() {
   const [editProductName, setEditProductName] = useState('');
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
+  const [showInspectionForm, setShowInspectionForm] = useState(false);
+  const [submittingInspection, setSubmittingInspection] = useState(false);
+
+  const inspectionForm = useForm<InspectionInput>({
+    resolver: zodResolver(inspectionSchema),
+    defaultValues: {
+      returnRequestId: params.id as string,
+      result: undefined,
+      conditionGrade: undefined,
+      checklist: {
+        packaging_intact: null,
+        product_intact: null,
+        accessories_complete: null,
+        matches_photos: null,
+        resellable: null,
+      },
+      notes: '',
+      inspectorComment: '',
+    },
+  });
 
   useEffect(() => {
     fetchDetail();

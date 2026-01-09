@@ -7,7 +7,9 @@ import {
   Package,
   Brain,
   Calendar,
-  Filter,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
 } from 'lucide-react';
 import {
   BarChart,
@@ -40,11 +42,19 @@ import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/con
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
+interface ReturnItem {
+  id: string;
+  product_name: string;
+  sku: string | null;
+  quantity: number;
+}
+
 interface ReturnData {
   status: string;
   channel_source: string | null;
   reason_category: string | null;
   created_at: string;
+  return_items?: ReturnItem[];
 }
 
 export default function AnalyticsPage() {
@@ -53,6 +63,7 @@ export default function AnalyticsPage() {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
+  const [showAllProducts, setShowAllProducts] = useState(false);
 
   // Generate year options (last 3 years)
   const yearOptions = useMemo(() => {
@@ -151,7 +162,21 @@ export default function AnalyticsPage() {
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);
 
-    return { totalReturns, byChannel, byReason, byStatus, monthlyTrend };
+    // Product ranking - aggregate by product name + sku
+    const productCounts: Record<string, { name: string; sku: string | null; quantity: number }> = {};
+    filteredReturns.forEach(r => {
+      r.return_items?.forEach(item => {
+        const key = `${item.product_name}||${item.sku || ''}`;
+        if (!productCounts[key]) {
+          productCounts[key] = { name: item.product_name, sku: item.sku, quantity: 0 };
+        }
+        productCounts[key].quantity += item.quantity;
+      });
+    });
+    const productRanking = Object.values(productCounts)
+      .sort((a, b) => b.quantity - a.quantity);
+
+    return { totalReturns, byChannel, byReason, byStatus, monthlyTrend, productRanking };
   }, [filteredReturns]);
 
   return (
@@ -259,6 +284,86 @@ export default function AnalyticsPage() {
               <Package className="w-6 h-6" />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Product Ranking */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            退貨商品排名
+          </CardTitle>
+          <CardDescription>
+            {selectedYear !== 'all' || selectedMonth !== 'all'
+              ? '篩選期間內退貨數量最多的商品'
+              : '全部期間退貨數量最多的商品'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-[200px] w-full" />
+          ) : stats.productRanking.length === 0 ? (
+            <div className="h-[100px] flex items-center justify-center text-muted-foreground">
+              無數據
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium w-12">排名</th>
+                      <th className="text-left py-3 px-4 font-medium">商品名稱</th>
+                      <th className="text-left py-3 px-4 font-medium">商品貨號</th>
+                      <th className="text-right py-3 px-4 font-medium">退貨數量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(showAllProducts ? stats.productRanking : stats.productRanking.slice(0, 5)).map((product, index) => (
+                      <tr key={`${product.name}-${product.sku}`} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                            index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                            index === 1 ? 'bg-gray-100 text-gray-800' :
+                            index === 2 ? 'bg-orange-100 text-orange-800' :
+                            'bg-gray-50 text-gray-600'
+                          }`}>
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-medium">{product.name}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{product.sku || '-'}</td>
+                        <td className="text-right py-3 px-4 font-medium">{product.quantity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {stats.productRanking.length > 5 && (
+                <div className="flex justify-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAllProducts(!showAllProducts)}
+                    className="text-muted-foreground"
+                  >
+                    {showAllProducts ? (
+                      <>
+                        <ChevronUp className="w-4 h-4 mr-1" />
+                        收起
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4 mr-1" />
+                        查看更多 ({stats.productRanking.length - 5} 項)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

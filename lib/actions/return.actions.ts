@@ -267,6 +267,7 @@ export async function getReturnRequests(filters?: {
         return_items (
           id,
           product_name,
+          sku,
           quantity
         )
       `)
