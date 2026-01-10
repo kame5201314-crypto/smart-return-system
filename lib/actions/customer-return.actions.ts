@@ -149,53 +149,46 @@ export async function submitCustomerReturn(
     const uploadedImages = uploadResults.filter((img): img is { url: string; storagePath: string } => img !== null);
 
     // 4. Create all remaining records in parallel
-    const dbOperations: Promise<unknown>[] = [];
-
     // Image records
-    if (uploadedImages.length > 0) {
-      const imageRecords = uploadedImages.map((img) => ({
-        return_request_id: returnRequest.id,
-        image_url: img.url,
-        storage_path: img.storagePath,
-        image_type: 'product_damage' as const,
-        uploaded_by: 'customer' as const,
-      }));
-      dbOperations.push(
-        adminClient.from('return_images').insert(imageRecords as never).then(() => {})
-      );
-    }
+    const insertImagesPromise = uploadedImages.length > 0
+      ? adminClient.from('return_images').insert(
+          uploadedImages.map((img) => ({
+            return_request_id: returnRequest.id,
+            image_url: img.url,
+            storage_path: img.storagePath,
+            image_type: 'product_damage' as const,
+            uploaded_by: 'customer' as const,
+          })) as never
+        )
+      : Promise.resolve();
 
     // Return item record
-    dbOperations.push(
-      adminClient.from('return_items').insert({
-        return_request_id: returnRequest.id,
-        product_name: `訂單 ${formData.orderNumber} 商品`,
-        quantity: 1,
-        reason: formData.returnReason,
-      } as never).then(() => {})
-    );
+    const insertItemPromise = adminClient.from('return_items').insert({
+      return_request_id: returnRequest.id,
+      product_name: `訂單 ${formData.orderNumber} 商品`,
+      quantity: 1,
+      reason: formData.returnReason,
+    } as never);
 
     // Activity log
-    dbOperations.push(
-      adminClient.from('activity_logs').insert({
-        entity_type: 'return_request',
-        entity_id: returnRequest.id,
-        action: 'created',
-        actor_type: 'customer',
-        description: `客戶自助退貨申請: ${returnRequest.request_number}`,
-        new_value: {
-          channel: formData.channelSource,
-          order_number: formData.orderNumber,
-          customer_name: formData.ordererName,
-          phone: formData.phone,
-          reason: formData.returnReason,
-          images_count: uploadedImages.length,
-        },
-      } as never).then(() => {})
-    );
+    const insertLogPromise = adminClient.from('activity_logs').insert({
+      entity_type: 'return_request',
+      entity_id: returnRequest.id,
+      action: 'created',
+      actor_type: 'customer',
+      description: `客戶自助退貨申請: ${returnRequest.request_number}`,
+      new_value: {
+        channel: formData.channelSource,
+        order_number: formData.orderNumber,
+        customer_name: formData.ordererName,
+        phone: formData.phone,
+        reason: formData.returnReason,
+        images_count: uploadedImages.length,
+      },
+    } as never);
 
     // Execute all DB operations in parallel
-    await Promise.all(dbOperations);
+    await Promise.all([insertImagesPromise, insertItemPromise, insertLogPromise]);
 
     return {
       success: true,
