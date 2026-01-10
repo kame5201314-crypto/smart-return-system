@@ -32,13 +32,15 @@ export async function submitCustomerReturn(
         .from('customers')
         .select('id')
         .eq('phone', formData.phone)
-        .single() as Promise<{ data: { id: string } | null; error: Error | null }>,
+        .single()
+        .then(res => res as { data: { id: string } | null; error: Error | null }),
       // Find existing order
       adminClient
         .from('orders')
         .select('id')
         .eq('order_number', formData.orderNumber)
-        .single() as Promise<{ data: { id: string } | null; error: Error | null }>,
+        .single()
+        .then(res => res as { data: { id: string } | null; error: Error | null }),
     ]);
 
     let customerId: string | null = customerResult.data?.id || null;
