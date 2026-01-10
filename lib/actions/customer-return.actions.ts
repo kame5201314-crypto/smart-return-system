@@ -160,7 +160,9 @@ export async function submitCustomerReturn(
         image_type: 'product_damage' as const,
         uploaded_by: 'customer' as const,
       }));
-      dbOperations.push(adminClient.from('return_images').insert(imageRecords as never));
+      dbOperations.push(
+        adminClient.from('return_images').insert(imageRecords as never).then(() => {})
+      );
     }
 
     // Return item record
@@ -170,7 +172,7 @@ export async function submitCustomerReturn(
         product_name: `訂單 ${formData.orderNumber} 商品`,
         quantity: 1,
         reason: formData.returnReason,
-      } as never)
+      } as never).then(() => {})
     );
 
     // Activity log
@@ -189,7 +191,7 @@ export async function submitCustomerReturn(
           reason: formData.returnReason,
           images_count: uploadedImages.length,
         },
-      } as never)
+      } as never).then(() => {})
     );
 
     // Execute all DB operations in parallel
