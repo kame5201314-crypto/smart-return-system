@@ -42,6 +42,37 @@ const channelLabels: Record<string, string> = {
   other: '其他',
 };
 
+// Compress image to reduce upload size (target: ~200KB)
+async function compressImage(file: File, maxWidth = 1200, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      // Calculate new dimensions
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Draw and compress
+      ctx?.drawImage(img, 0, 0, width, height);
+      const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedBase64);
+    };
+
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function ReturnApplyPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<ReturnFormData | null>(null);
@@ -82,21 +113,16 @@ export default function ReturnApplyPage() {
     try {
       setSubmitting(true);
 
-      // Convert images to base64 for server action
+      // Compress and convert images to base64 (parallel processing)
       const imageFiles = await Promise.all(
         images.map(async (img) => {
-          // Read file as base64
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(img.file);
-          });
+          // Compress image to reduce size (~3MB -> ~200KB)
+          const compressedBase64 = await compressImage(img.file);
 
           return {
-            name: img.file.name,
-            type: img.file.type,
-            base64,
+            name: img.file.name.replace(/\.\w+$/, '.jpg'), // Change extension to jpg
+            type: 'image/jpeg',
+            base64: compressedBase64,
           };
         })
       );
