@@ -52,7 +52,7 @@ export default function ReturnsPage() {
 
   useEffect(() => {
     filterReturns();
-  }, [returns, searchQuery, statusFilter, channelFilter]);
+  }, [returns, statusFilter, channelFilter]); // Remove searchQuery - only filter on button click
 
   async function fetchReturns() {
     try {

@@ -63,7 +63,7 @@ export const CHANNEL_LIST = Object.values(CHANNELS);
 // =====================================================
 export const LOGISTICS_PROVIDERS = [
   { key: '711', label: '7-11 交貨便', url: 'https://eservice.7-11.com.tw/e-tracking/search.aspx', icon: '🏪' },
-  { key: 'family', label: '全家店到店', url: 'https://www.famiport.com.tw/Web_Famiport/page/process.aspx', icon: '🏬' },
+  { key: 'family', label: '全家店到店', url: 'https://fmec.famiport.com.tw/FP_Entrance/QueryBox', icon: '🏬' },
   { key: 'hct', label: '新竹物流', url: 'https://www.hct.com.tw/search/searchgoods_n.aspx', icon: '🚛' },
   { key: 'post', label: '中華郵政', url: 'https://postserv.post.gov.tw/pstmail/main_mail.html', icon: '📮' },
   { key: 'tcat', label: '黑貓宅急便', url: 'https://www.t-cat.com.tw/inquire/trace.aspx', icon: '🐱' },

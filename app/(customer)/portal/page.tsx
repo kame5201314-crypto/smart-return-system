@@ -267,27 +267,27 @@ export default function CustomerPortalPage() {
           <p className="text-gray-500 mt-2">請填寫以下資料並上傳照片</p>
         </div>
 
-        {/* Help Message & Tutorial Link */}
-        <Card className="shadow-lg border-0 mb-6 overflow-hidden">
-          <CardContent className="p-4 bg-gradient-to-r from-slate-800 to-slate-700">
-            <p className="text-white text-center font-medium mb-4">
-              遇到產品問題想退貨? 請給我們一分鐘協助您解決問題!
+        {/* Help Message & Tutorial Link - Simple White Version */}
+        <Card className="shadow-sm border border-gray-200 mb-6 bg-white">
+          <CardContent className="p-5">
+            <p className="text-gray-700 text-sm mb-4">
+              💡 遇到產品問題想退貨? 請給我們一分鐘協助您解決問題!
             </p>
             <a
               href="/tutorial/lens"
               target="_blank"
               rel="noopener noreferrer"
-              className="block"
+              className="block border border-gray-200 rounded-lg p-4 hover:border-teal-400 hover:shadow-sm transition-all"
             >
-              <div className="bg-slate-900 rounded-lg p-4 flex items-center justify-between hover:bg-slate-800 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="text-4xl">📷</div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">📷</span>
                   <div>
-                    <h3 className="text-white text-xl font-bold">鏡頭組裝教學</h3>
-                    <p className="text-gray-300 text-sm">APEXEL 手機鏡頭安裝指南</p>
+                    <h3 className="text-gray-900 font-semibold">鏡頭組裝教學</h3>
+                    <p className="text-gray-500 text-sm">APEXEL 手機鏡頭安裝指南</p>
                   </div>
                 </div>
-                <div className="bg-teal-600 text-white px-4 py-2 rounded-lg font-medium">
+                <div className="text-teal-600 font-medium whitespace-nowrap">
                   了解更多 ▶
                 </div>
               </div>

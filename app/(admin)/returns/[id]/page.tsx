@@ -14,8 +14,6 @@ import {
   CheckCircle,
   XCircle,
   Image as ImageIcon,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -149,7 +147,6 @@ export default function ReturnDetailPage() {
   const [editProductName, setEditProductName] = useState('');
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
-  const [showInspectionForm, setShowInspectionForm] = useState(false);
   const [submittingInspection, setSubmittingInspection] = useState(false);
 
   const inspectionForm = useForm<InspectionInput>({
@@ -266,7 +263,6 @@ export default function ReturnDetailPage() {
       const result = await submitInspection(data, user.id);
       if (result.success) {
         toast.success('驗貨結果已提交');
-        setShowInspectionForm(false);
         inspectionForm.reset();
         fetchDetail();
       } else {
@@ -323,29 +319,9 @@ export default function ReturnDetailPage() {
             {format(new Date(returnData.applied_at), 'yyyy/MM/dd HH:mm', { locale: zhTW })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className={RETURN_STATUS_COLORS[returnData.status]} variant="outline">
-            {RETURN_STATUS_LABELS[returnData.status]}
-          </Badge>
-
-          <Button
-            size="lg"
-            className="text-lg px-6"
-            onClick={() => setShowInspectionForm(!showInspectionForm)}
-          >
-            {showInspectionForm ? (
-              <>
-                <ChevronUp className="w-5 h-5 mr-2" />
-                收起驗貨
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-5 h-5 mr-2" />
-                驗貨
-              </>
-            )}
-          </Button>
-        </div>
+        <Badge className={RETURN_STATUS_COLORS[returnData.status]} variant="outline">
+          {RETURN_STATUS_LABELS[returnData.status]}
+        </Badge>
       </div>
 
       {/* Progress */}
@@ -357,146 +333,6 @@ export default function ReturnDetailPage() {
           <ProgressTracker currentStatus={returnData.status} />
         </CardContent>
       </Card>
-
-      {/* Inspection Form */}
-      {showInspectionForm && (
-        <Card className="border-primary">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
-              驗貨表單
-            </CardTitle>
-            <CardDescription>
-              請根據實際收貨情況填寫驗貨結果
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...inspectionForm}>
-              <form onSubmit={inspectionForm.handleSubmit(handleInspectionSubmit)} className="space-y-6">
-                {/* Result */}
-                <FormField
-                  control={inspectionForm.control}
-                  name="result"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>驗貨結果 *</FormLabel>
-                      <div className="grid grid-cols-3 gap-3">
-                        <Button
-                          type="button"
-                          variant={field.value === 'passed' ? 'default' : 'outline'}
-                          className={field.value === 'passed' ? 'bg-green-600 hover:bg-green-700' : ''}
-                          onClick={() => field.onChange('passed')}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          通過
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={field.value === 'partial' ? 'default' : 'outline'}
-                          className={field.value === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
-                          onClick={() => field.onChange('partial')}
-                        >
-                          部分通過
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={field.value === 'failed' ? 'default' : 'outline'}
-                          className={field.value === 'failed' ? 'bg-red-600 hover:bg-red-700' : ''}
-                          onClick={() => field.onChange('failed')}
-                        >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          異常
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Checklist */}
-                <div className="space-y-3">
-                  <FormLabel>檢查項目</FormLabel>
-                  {INSPECTION_CHECKLIST.map((item) => (
-                    <FormField
-                      key={item.key}
-                      control={inspectionForm.control}
-                      name={`checklist.${item.key}` as const}
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value === true}
-                              onCheckedChange={(checked) => field.onChange(checked)}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal cursor-pointer">
-                            {item.label}
-                          </FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
-
-                {/* Notes */}
-                <FormField
-                  control={inspectionForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>內部備註</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="輸入驗貨過程的內部備註..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Inspector Comment */}
-                <FormField
-                  control={inspectionForm.control}
-                  name="inspectorComment"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>驗貨評語</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="輸入可顯示給客戶的驗貨評語..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Submit */}
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowInspectionForm(false)}
-                  >
-                    取消
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={submittingInspection}
-                  >
-                    {submittingInspection ? '提交中...' : '提交驗貨結果'}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Main content */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -585,6 +421,135 @@ export default function ReturnDetailPage() {
                 </div>
               )}
 
+            </CardContent>
+          </Card>
+
+          {/* Inspection Form - Always visible */}
+          <Card className="border-teal-200 bg-teal-50/30">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-teal-800">
+                <CheckCircle className="w-5 h-5" />
+                驗貨表單
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...inspectionForm}>
+                <form onSubmit={inspectionForm.handleSubmit(handleInspectionSubmit)} className="space-y-5">
+                  {/* Result */}
+                  <FormField
+                    control={inspectionForm.control}
+                    name="result"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>驗貨結果 *</FormLabel>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            type="button"
+                            variant={field.value === 'passed' ? 'default' : 'outline'}
+                            className={field.value === 'passed' ? 'bg-green-600 hover:bg-green-700' : ''}
+                            onClick={() => field.onChange('passed')}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            通過
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === 'partial' ? 'default' : 'outline'}
+                            className={field.value === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                            onClick={() => field.onChange('partial')}
+                          >
+                            部分通過
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === 'failed' ? 'default' : 'outline'}
+                            className={field.value === 'failed' ? 'bg-red-600 hover:bg-red-700' : ''}
+                            onClick={() => field.onChange('failed')}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            異常
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Checklist */}
+                  <div className="space-y-2">
+                    <FormLabel>檢查項目</FormLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      {INSPECTION_CHECKLIST.map((item) => (
+                        <FormField
+                          key={item.key}
+                          control={inspectionForm.control}
+                          name={`checklist.${item.key}` as const}
+                          render={({ field }) => (
+                            <FormItem className="flex items-center gap-2 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value === true}
+                                  onCheckedChange={(checked) => field.onChange(checked)}
+                                />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer text-sm">
+                                {item.label}
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <FormField
+                    control={inspectionForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>內部備註</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="輸入驗貨過程的內部備註..."
+                            rows={2}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Inspector Comment */}
+                  <FormField
+                    control={inspectionForm.control}
+                    name="inspectorComment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>驗貨評語</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="輸入可顯示給客戶的驗貨評語..."
+                            rows={2}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Submit */}
+                  <Button
+                    type="submit"
+                    className="w-full bg-teal-600 hover:bg-teal-700"
+                    disabled={submittingInspection}
+                  >
+                    {submittingInspection ? '提交中...' : '提交驗貨結果'}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
 

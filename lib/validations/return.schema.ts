@@ -67,9 +67,7 @@ export const inspectionSchema = z.object({
   result: z.enum(['passed', 'failed', 'partial'], {
     message: '請選擇驗貨結果',
   }),
-  conditionGrade: z.enum(['A', 'B', 'C', 'D', 'F'], {
-    message: '請選擇商品狀態等級',
-  }),
+  conditionGrade: z.enum(['A', 'B', 'C', 'D', 'F']).optional(),
   checklist: z.object({
     packaging_intact: z.boolean().nullable(),
     product_intact: z.boolean().nullable(),
