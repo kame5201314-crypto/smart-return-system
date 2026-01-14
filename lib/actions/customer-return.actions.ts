@@ -11,6 +11,7 @@ export interface CustomerReturnFormData {
   receiverName?: string;
   phone: string;
   returnProducts?: string[];
+  reasonCategory?: string;
   returnReason: string;
   productSuggestion?: string;
 }
@@ -94,6 +95,12 @@ export async function submitCustomerReturn(
       ? formData.channelSource
       : 'other';
 
+    // Map reason category to valid database values
+    const validReasonCategories = ['quality_issue', 'wrong_item', 'damaged_in_transit', 'not_as_described', 'change_of_mind', 'installation_issue', 'defective', 'size_not_fit', 'other'];
+    const reasonCategory = validReasonCategories.includes(formData.reasonCategory || '')
+      ? formData.reasonCategory
+      : 'other';
+
     const { data: returnRequest, error: returnError } = await adminClient
       .from('return_requests')
       .insert({
@@ -101,7 +108,7 @@ export async function submitCustomerReturn(
         customer_id: customerId,
         channel_source: validChannelSource,
         status: 'pending_review',
-        reason_category: 'other',
+        reason_category: reasonCategory,
         reason_detail: formData.returnReason,
         review_notes: formData.productSuggestion || null,
       } as never)

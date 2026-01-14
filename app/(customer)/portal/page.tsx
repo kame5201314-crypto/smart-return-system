@@ -31,7 +31,7 @@ const returnFormSchema = z.object({
   ordererName: z.string().min(1, '請填寫訂購人姓名'),
   phone: z.string().regex(/^09\d{8}$/, '請輸入有效的手機號碼'),
   channelSource: z.string().min(1, '請選擇購買通路'),
-  returnReason: z.string().min(1, '請填寫退換貨原因'),
+  returnReason: z.string().optional(), // Now using checkbox selection
   productSuggestion: z.string().optional(),
 });
 
@@ -57,11 +57,23 @@ export default function CustomerPortalPage() {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [shippingLabelImages, setShippingLabelImages] = useState<UploadedImage[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
+  const [otherReasonText, setOtherReasonText] = useState('');
 
   // Product options for checkbox selection
   const productOptions = [
     { id: 'mefu', label: 'MEFU 自拍棒 / 行動電源 / 充電頭 系列' },
     { id: 'apexel', label: 'APEXEL 鏡頭系統' },
+    { id: 'other', label: '其他' },
+  ];
+
+  // Return reason options (6 options + other)
+  const reasonOptions = [
+    { id: 'quality_issue', label: '品質問題' },
+    { id: 'defective', label: '商品故障' },
+    { id: 'damaged_in_transit', label: '運送損壞' },
+    { id: 'not_as_described', label: '與描述不符' },
+    { id: 'change_of_mind', label: '改變心意' },
     { id: 'other', label: '其他' },
   ];
 
@@ -82,6 +94,18 @@ export default function CustomerPortalPage() {
     // Validate at least one product selected
     if (selectedProducts.length === 0) {
       toast.error('請至少選擇一項退貨商品');
+      return;
+    }
+
+    // Validate at least one reason selected
+    if (selectedReasons.length === 0) {
+      toast.error('請至少選擇一項退貨原因');
+      return;
+    }
+
+    // Validate other reason text if "other" is selected
+    if (selectedReasons.includes('other') && !otherReasonText.trim()) {
+      toast.error('請填寫其他原因說明');
       return;
     }
 
@@ -120,6 +144,17 @@ export default function CustomerPortalPage() {
         (id) => productOptions.find((opt) => opt.id === id)?.label || id
       );
 
+      // Get selected reason labels for submission
+      const selectedReasonLabels = selectedReasons.map(
+        (id) => reasonOptions.find((opt) => opt.id === id)?.label || id
+      );
+
+      // Build combined reason text
+      let combinedReason = selectedReasonLabels.join('、');
+      if (selectedReasons.includes('other') && otherReasonText.trim()) {
+        combinedReason += `（${otherReasonText.trim()}）`;
+      }
+
       // Submit to server
       const result = await submitCustomerReturn(
         {
@@ -129,7 +164,8 @@ export default function CustomerPortalPage() {
           ordererName: data.ordererName,
           phone: data.phone,
           returnProducts: selectedProductLabels,
-          returnReason: data.returnReason,
+          reasonCategory: selectedReasons[0], // Primary reason for analytics
+          returnReason: combinedReason,
           productSuggestion: data.productSuggestion,
         },
         allImagesData
@@ -204,6 +240,8 @@ export default function CustomerPortalPage() {
                     setImages([]);
                     setShippingLabelImages([]);
                     setSelectedProducts([]);
+                    setSelectedReasons([]);
+                    setOtherReasonText('');
                     form.reset();
                   }}
                 >
@@ -418,30 +456,57 @@ export default function CustomerPortalPage() {
                   </div>
                 </div>
 
-                {/* Return Reason */}
-                <FormField
-                  control={form.control}
-                  name="returnReason"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
-                        退、換貨原因 <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <p className="text-sm text-gray-500 mb-2">
-                        覺得產品哪個部分不適合？
-                      </p>
-                      <FormControl>
-                        <Textarea
-                          placeholder="您的回答"
-                          className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0 min-h-[100px]"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Return Reason - Checkbox Selection */}
+                <div className="space-y-3">
+                  <FormLabel className="text-teal-700 font-medium">
+                    退、換貨原因 <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <p className="text-sm text-gray-500">
+                    請選擇退貨原因（可複選）
+                  </p>
+                  <div className="space-y-3">
+                    {reasonOptions.map((option) => (
+                      <div key={option.id}>
+                        <div className="flex items-center space-x-3">
+                          <Checkbox
+                            id={`reason-${option.id}`}
+                            checked={selectedReasons.includes(option.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedReasons([...selectedReasons, option.id]);
+                              } else {
+                                setSelectedReasons(selectedReasons.filter((r) => r !== option.id));
+                                if (option.id === 'other') {
+                                  setOtherReasonText('');
+                                }
+                              }
+                            }}
+                            disabled={isLoading}
+                            className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
+                          />
+                          <label
+                            htmlFor={`reason-${option.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {option.label}
+                          </label>
+                        </div>
+                        {/* Show text input when "其他" is selected */}
+                        {option.id === 'other' && selectedReasons.includes('other') && (
+                          <div className="mt-2 ml-7">
+                            <Input
+                              placeholder="請填寫其他原因"
+                              value={otherReasonText}
+                              onChange={(e) => setOtherReasonText(e.target.value)}
+                              disabled={isLoading}
+                              className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Product Suggestion */}
                 <FormField
