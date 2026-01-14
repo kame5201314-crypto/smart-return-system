@@ -64,7 +64,7 @@ export const imagesValidationSchema = z
 // Inspection form validation
 export const inspectionSchema = z.object({
   returnRequestId: z.string().uuid('無效的退貨單ID'),
-  result: z.enum(['passed', 'failed', 'partial'], {
+  result: z.enum(['passed', 'failed'], {
     message: '請選擇驗貨結果',
   }),
   conditionGrade: z.enum(['A', 'B', 'C', 'D', 'F']).optional(),

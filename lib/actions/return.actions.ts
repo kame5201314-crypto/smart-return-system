@@ -419,8 +419,9 @@ export async function submitInspection(
     }
 
     // Update return request status
+    // passed -> completed (直接結案), failed -> abnormal_disputed (驗收異常)
     const newStatus =
-      validated.result === 'failed' ? 'abnormal_disputed' : 'refund_processing';
+      validated.result === 'failed' ? 'abnormal_disputed' : 'completed';
 
     await adminClient
       .from('return_requests')
