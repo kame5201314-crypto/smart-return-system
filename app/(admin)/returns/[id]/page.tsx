@@ -193,13 +193,18 @@ export default function ReturnDetailPage() {
 
     try {
       setUpdating(true);
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('請先登入');
+        return;
+      }
       const result = await updateReturnStatus(
         {
           returnRequestId: returnData.id,
           newStatus: newStatus as typeof RETURN_STATUS[keyof typeof RETURN_STATUS],
           notes,
         },
-        'current-user-id' // TODO: Get from auth
+        user.id
       );
 
       if (result.success) {
@@ -323,68 +328,19 @@ export default function ReturnDetailPage() {
             {RETURN_STATUS_LABELS[returnData.status]}
           </Badge>
 
-          <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Edit className="w-4 h-4 mr-2" />
-                更新狀態
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>更新退貨單狀態</DialogTitle>
-                <DialogDescription>
-                  選擇新狀態並填寫備註
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>新狀態</Label>
-                  <Select value={newStatus} onValueChange={setNewStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="選擇狀態" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending_review">待驗收</SelectItem>
-                      <SelectItem value="completed">已結案</SelectItem>
-                      <SelectItem value="abnormal_disputed">驗收異常</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>備註</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="輸入備註..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
-                  取消
-                </Button>
-                <Button onClick={handleStatusUpdate} disabled={!newStatus || updating}>
-                  {updating ? '更新中...' : '確認更新'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           <Button
-            variant="outline"
+            size="lg"
+            className="text-lg px-6"
             onClick={() => setShowInspectionForm(!showInspectionForm)}
           >
             {showInspectionForm ? (
               <>
-                <ChevronUp className="w-4 h-4 mr-2" />
+                <ChevronUp className="w-5 h-5 mr-2" />
                 收起驗貨
               </>
             ) : (
               <>
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="w-5 h-5 mr-2" />
                 驗貨
               </>
             )}
@@ -452,38 +408,6 @@ export default function ReturnDetailPage() {
                           異常
                         </Button>
                       </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Condition Grade */}
-                <FormField
-                  control={inspectionForm.control}
-                  name="conditionGrade"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>商品狀態等級 *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="選擇等級" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.values(INSPECTION_GRADES).map((grade) => (
-                            <SelectItem key={grade.key} value={grade.key}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold">{grade.key}</span>
-                                <span>- {grade.label}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  ({grade.description})
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -10,6 +10,7 @@ export interface CustomerReturnFormData {
   ordererName: string;
   receiverName?: string;
   phone: string;
+  returnProducts?: string[];
   returnReason: string;
   productSuggestion?: string;
 }
@@ -162,10 +163,14 @@ export async function submitCustomerReturn(
         )
       : Promise.resolve();
 
-    // Return item record
+    // Return item record - use selected products or default to order number
+    const productName = formData.returnProducts && formData.returnProducts.length > 0
+      ? formData.returnProducts.join(', ')
+      : `訂單 ${formData.orderNumber} 商品`;
+
     const insertItemPromise = adminClient.from('return_items').insert({
       return_request_id: returnRequest.id,
-      product_name: `訂單 ${formData.orderNumber} 商品`,
+      product_name: productName,
       quantity: 1,
       reason: formData.returnReason,
     } as never);
@@ -182,6 +187,7 @@ export async function submitCustomerReturn(
         order_number: formData.orderNumber,
         customer_name: formData.ordererName,
         phone: formData.phone,
+        return_products: formData.returnProducts || [],
         reason: formData.returnReason,
         images_count: uploadedImages.length,
       },

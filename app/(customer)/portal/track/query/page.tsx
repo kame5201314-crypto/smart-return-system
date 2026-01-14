@@ -112,12 +112,12 @@ export default function TrackQueryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-xl mx-auto">
         {/* Back button */}
         <Link
           href="/portal"
-          className="inline-flex items-center text-sm text-white/80 hover:text-white mb-6"
+          className="inline-flex items-center text-sm text-teal-600 hover:text-teal-700 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           返回首頁
@@ -125,21 +125,21 @@ export default function TrackQueryPage() {
 
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="mx-auto mb-4 w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+          <div className="mx-auto mb-4 w-16 h-16 bg-teal-600 rounded-full flex items-center justify-center shadow-lg">
             <Package className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">查詢退貨進度</h1>
-          <p className="text-purple-200 mt-2">輸入手機號碼或退貨單號查詢</p>
+          <h1 className="text-2xl font-bold text-gray-800">查詢退貨進度</h1>
+          <p className="text-gray-500 mt-2">輸入手機號碼或退貨單號查詢</p>
         </div>
 
-        <Card className="shadow-xl">
-          <CardHeader className="bg-purple-600 text-white rounded-t-lg">
+        <Card className="shadow-lg border-0">
+          <CardHeader className="bg-teal-600 text-white rounded-t-lg">
             <CardTitle className="text-lg">查詢方式</CardTitle>
-            <CardDescription className="text-purple-200">
+            <CardDescription className="text-teal-100">
               請選擇以下任一方式查詢您的退貨進度
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 bg-white">
             <Tabs value={searchType} onValueChange={(v) => setSearchType(v as 'phone' | 'order')}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="phone" className="flex items-center gap-2">
@@ -155,7 +155,7 @@ export default function TrackQueryPage() {
               <form onSubmit={handleSubmit}>
                 <TabsContent value="phone" className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-purple-700 font-medium">
+                    <Label htmlFor="phone" className="text-teal-700 font-medium">
                       手機號碼
                     </Label>
                     <Input
@@ -175,7 +175,7 @@ export default function TrackQueryPage() {
 
                 <TabsContent value="order" className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="requestNumber" className="text-purple-700 font-medium">
+                    <Label htmlFor="requestNumber" className="text-teal-700 font-medium">
                       退貨單號
                     </Label>
                     <Input
@@ -194,7 +194,7 @@ export default function TrackQueryPage() {
 
                 <Button
                   type="submit"
-                  className="w-full mt-6 bg-purple-600 hover:bg-purple-700 py-6 text-lg"
+                  className="w-full mt-6 bg-teal-600 hover:bg-teal-700 py-6 text-lg"
                   disabled={loading}
                 >
                   {loading ? (
@@ -218,12 +218,12 @@ export default function TrackQueryPage() {
               results.map((item) => {
                 const statusInfo = STATUS_LABELS[item.status] || { label: item.status, color: 'bg-gray-100 text-gray-800', icon: null };
                 return (
-                  <Card key={item.id} className="shadow-lg">
+                  <Card key={item.id} className="shadow-lg border-0 bg-white">
                     <CardContent className="pt-6">
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <p className="text-sm text-gray-500">退貨單號</p>
-                          <p className="font-bold text-purple-600">{item.request_number}</p>
+                          <p className="font-bold text-teal-600">{item.request_number}</p>
                         </div>
                         <Badge className={`${statusInfo.color} flex items-center gap-1`}>
                           {statusInfo.icon}
@@ -292,7 +292,7 @@ export default function TrackQueryPage() {
                 );
               })
             ) : (
-              <Card className="bg-white/90">
+              <Card className="bg-white border-0 shadow-lg">
                 <CardContent className="pt-6">
                   <div className="text-center text-gray-600">
                     <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
@@ -309,7 +309,7 @@ export default function TrackQueryPage() {
 
         {/* Help Card */}
         {!searched && (
-          <Card className="mt-6 bg-white/90">
+          <Card className="mt-6 bg-white border-0 shadow-md">
             <CardContent className="pt-6">
               <div className="text-center text-sm text-gray-600 space-y-2">
                 <p>找不到您的退貨記錄？</p>

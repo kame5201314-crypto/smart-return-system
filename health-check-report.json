@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-05T05:49:55.133Z",
+  "timestamp": "2026-01-12T06:32:00.419Z",
   "project": "Smart Return System",
   "results": [
     {
@@ -41,22 +41,22 @@
     {
       "name": "資料表: orders",
       "status": "pass",
-      "message": "正常 (1 筆資料)"
+      "message": "正常 (0 筆資料)"
     },
     {
       "name": "資料表: return_requests",
       "status": "pass",
-      "message": "正常 (1 筆資料)"
+      "message": "正常 (0 筆資料)"
     },
     {
       "name": "資料表: return_items",
       "status": "pass",
-      "message": "正常 (1 筆資料)"
+      "message": "正常 (0 筆資料)"
     },
     {
       "name": "資料表: return_images",
       "status": "pass",
-      "message": "正常 (1 筆資料)"
+      "message": "正常 (0 筆資料)"
     },
     {
       "name": "檔案: Admin Dashboard",
@@ -115,9 +115,8 @@
     },
     {
       "name": "Gemini API",
-      "status": "fail",
-      "message": "API 錯誤: 404",
-      "details": "models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods."
+      "status": "pass",
+      "message": "連線正常"
     }
   ]
 }

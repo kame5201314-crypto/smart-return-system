@@ -43,27 +43,29 @@ export async function middleware(request: NextRequest) {
     // Ignore auth errors when Supabase is not fully configured
   }
 
-  // Protected admin routes
-  const isAdminRoute =
-    request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/returns') ||
-    request.nextUrl.pathname.startsWith('/orders') ||
-    request.nextUrl.pathname.startsWith('/analytics') ||
-    request.nextUrl.pathname.startsWith('/settings');
+  const pathname = request.nextUrl.pathname;
 
-  const isLoginPage = request.nextUrl.pathname === '/login';
+  // Public routes - no authentication required
+  const isPublicRoute =
+    pathname.startsWith('/portal') ||  // Customer portal (public)
+    pathname === '/login';              // Login page
 
-  // Redirect to login if accessing admin routes without auth
-  if (isAdminRoute && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+  // If it's a public route, allow access
+  if (isPublicRoute) {
+    // But if user is logged in and accessing login page, redirect to dashboard
+    if (pathname === '/login' && user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
   }
 
-  // Redirect to dashboard if already logged in and accessing login page
-  if (isLoginPage && user) {
+  // All other routes require authentication (admin routes)
+  // This includes: /, /dashboard, /returns, /orders, /analytics, /settings, /logistics
+  if (!user) {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
@@ -78,7 +80,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - api routes (handled separately)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

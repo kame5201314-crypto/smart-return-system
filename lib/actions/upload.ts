@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { ReturnImage } from '@/types/database.types';
 
 export interface UploadResult {
   success: boolean;
@@ -189,7 +190,7 @@ export async function deleteImage(
 // 取得退貨申請的所有圖片
 export async function getReturnImages(
   returnRequestId: string
-): Promise<{ success: boolean; images?: any[]; error?: string }> {
+): Promise<{ success: boolean; images?: ReturnImage[]; error?: string }> {
   try {
     const supabase = createAdminClient();
 

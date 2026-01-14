@@ -162,13 +162,14 @@ export default function AnalyticsPage() {
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);
 
-    // Product ranking - aggregate by product name + sku
-    const productCounts: Record<string, { name: string; sku: string | null; quantity: number }> = {};
+    // Product ranking - aggregate by product name + sku + channel
+    const productCounts: Record<string, { name: string; sku: string | null; channel: string; quantity: number }> = {};
     filteredReturns.forEach(r => {
+      const channelLabel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
       r.return_items?.forEach(item => {
-        const key = `${item.product_name}||${item.sku || ''}`;
+        const key = `${item.product_name}||${item.sku || ''}||${channelLabel}`;
         if (!productCounts[key]) {
-          productCounts[key] = { name: item.product_name, sku: item.sku, quantity: 0 };
+          productCounts[key] = { name: item.product_name, sku: item.sku, channel: channelLabel, quantity: 0 };
         }
         productCounts[key].quantity += item.quantity;
       });
@@ -316,12 +317,13 @@ export default function AnalyticsPage() {
                       <th className="text-left py-3 px-4 font-medium w-12">排名</th>
                       <th className="text-left py-3 px-4 font-medium">商品名稱</th>
                       <th className="text-left py-3 px-4 font-medium">商品貨號</th>
+                      <th className="text-left py-3 px-4 font-medium">退貨平台</th>
                       <th className="text-right py-3 px-4 font-medium">退貨數量</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(showAllProducts ? stats.productRanking : stats.productRanking.slice(0, 5)).map((product, index) => (
-                      <tr key={`${product.name}-${product.sku}`} className="border-b hover:bg-gray-50">
+                      <tr key={`${product.name}-${product.sku}-${product.channel}`} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                             index === 0 ? 'bg-yellow-100 text-yellow-800' :
@@ -334,6 +336,7 @@ export default function AnalyticsPage() {
                         </td>
                         <td className="py-3 px-4 font-medium">{product.name}</td>
                         <td className="py-3 px-4 text-muted-foreground">{product.sku || '-'}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{product.channel}</td>
                         <td className="text-right py-3 px-4 font-medium">{product.quantity}</td>
                       </tr>
                     ))}
