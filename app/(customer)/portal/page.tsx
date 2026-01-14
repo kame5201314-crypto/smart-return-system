@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { SimpleImageUploader } from '@/components/upload/simple-image-uploader';
 import { submitCustomerReturn } from '@/lib/actions/customer-return.actions';
 
@@ -55,6 +56,14 @@ export default function CustomerPortalPage() {
   } | null>(null);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [shippingLabelImages, setShippingLabelImages] = useState<UploadedImage[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+
+  // Product options for checkbox selection
+  const productOptions = [
+    { id: 'mefu', label: 'MEFU 自拍棒 / 行動電源 / 充電頭 系列' },
+    { id: 'apexel', label: 'APEXEL 鏡頭系統' },
+    { id: 'other', label: '其他' },
+  ];
 
   const form = useForm<ReturnFormInput>({
     resolver: zodResolver(returnFormSchema),
@@ -70,6 +79,12 @@ export default function CustomerPortalPage() {
   });
 
   async function onSubmit(data: ReturnFormInput) {
+    // Validate at least one product selected
+    if (selectedProducts.length === 0) {
+      toast.error('請至少選擇一項退貨商品');
+      return;
+    }
+
     // Validate at least one image
     if (images.length === 0) {
       toast.error('請至少上傳一張照片');
@@ -100,6 +115,11 @@ export default function CustomerPortalPage() {
       // Combine all images
       const allImagesData = [...imageFilesData, ...shippingLabelFilesData];
 
+      // Get selected product labels for submission
+      const selectedProductLabels = selectedProducts.map(
+        (id) => productOptions.find((opt) => opt.id === id)?.label || id
+      );
+
       // Submit to server
       const result = await submitCustomerReturn(
         {
@@ -108,6 +128,7 @@ export default function CustomerPortalPage() {
           orderNumber: data.orderNumber,
           ordererName: data.ordererName,
           phone: data.phone,
+          returnProducts: selectedProductLabels,
           returnReason: data.returnReason,
           productSuggestion: data.productSuggestion,
         },
@@ -182,6 +203,7 @@ export default function CustomerPortalPage() {
                     setSubmittedData(null);
                     setImages([]);
                     setShippingLabelImages([]);
+                    setSelectedProducts([]);
                     form.reset();
                   }}
                 >
@@ -206,6 +228,34 @@ export default function CustomerPortalPage() {
           <h1 className="text-2xl font-bold text-gray-800">產品退、換貨表單</h1>
           <p className="text-gray-500 mt-2">請填寫以下資料並上傳照片</p>
         </div>
+
+        {/* Help Message & Tutorial Link */}
+        <Card className="shadow-lg border-0 mb-6 overflow-hidden">
+          <CardContent className="p-4 bg-gradient-to-r from-slate-800 to-slate-700">
+            <p className="text-white text-center font-medium mb-4">
+              遇到產品問題想退貨? 請給我們一分鐘協助您解決問題!
+            </p>
+            <a
+              href="/tutorial/lens"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <div className="bg-slate-900 rounded-lg p-4 flex items-center justify-between hover:bg-slate-800 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl">📷</div>
+                  <div>
+                    <h3 className="text-white text-xl font-bold">鏡頭組裝教學</h3>
+                    <p className="text-gray-300 text-sm">APEXEL 手機鏡頭安裝指南</p>
+                  </div>
+                </div>
+                <div className="bg-teal-600 text-white px-4 py-2 rounded-lg font-medium">
+                  了解更多 ▶
+                </div>
+              </div>
+            </a>
+          </CardContent>
+        </Card>
 
         {/* Form Card */}
         <Card className="shadow-lg border-0 overflow-hidden">
@@ -332,6 +382,41 @@ export default function CustomerPortalPage() {
                     </FormItem>
                   )}
                 />
+
+                {/* Return Products - Checkbox Selection */}
+                <div className="space-y-3">
+                  <FormLabel className="text-teal-700 font-medium">
+                    退貨商品 <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <p className="text-sm text-gray-500">
+                    請選擇您要退貨的商品類型（可複選）
+                  </p>
+                  <div className="space-y-3">
+                    {productOptions.map((option) => (
+                      <div key={option.id} className="flex items-center space-x-3">
+                        <Checkbox
+                          id={option.id}
+                          checked={selectedProducts.includes(option.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedProducts([...selectedProducts, option.id]);
+                            } else {
+                              setSelectedProducts(selectedProducts.filter((p) => p !== option.id));
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
+                        />
+                        <label
+                          htmlFor={option.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {option.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Return Reason */}
                 <FormField
