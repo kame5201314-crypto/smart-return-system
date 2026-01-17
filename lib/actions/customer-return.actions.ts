@@ -28,22 +28,28 @@ export async function submitCustomerReturn(
     const adminClient = createAdminClient();
 
     // 1. Find or create customer and order in parallel
-    const [customerResult, orderResult] = await Promise.all([
-      // Find existing customer
-      adminClient
-        .from('customers')
-        .select('id')
-        .eq('phone', formData.phone)
-        .single()
-        .then(res => res as { data: { id: string } | null; error: Error | null }),
-      // Find existing order
-      adminClient
-        .from('orders')
-        .select('id')
-        .eq('order_number', formData.orderNumber)
-        .single()
-        .then(res => res as { data: { id: string } | null; error: Error | null }),
-    ]);
+    let customerResult, orderResult;
+    try {
+      [customerResult, orderResult] = await Promise.all([
+        // Find existing customer
+        adminClient
+          .from('customers')
+          .select('id')
+          .eq('phone', formData.phone)
+          .single()
+          .then(res => res as { data: { id: string } | null; error: Error | null }),
+        // Find existing order
+        adminClient
+          .from('orders')
+          .select('id')
+          .eq('order_number', formData.orderNumber)
+          .single()
+          .then(res => res as { data: { id: string } | null; error: Error | null }),
+      ]);
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      return { success: false, error: '資料庫連線失敗，請稍後再試' };
+    }
 
     let customerId: string | null = customerResult.data?.id || null;
     let orderId: string | null = orderResult.data?.id || null;
@@ -211,6 +217,13 @@ export async function submitCustomerReturn(
   } catch (error) {
     console.error('Submit customer return error:', error);
     const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+    // Check for common database errors
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
+      return { success: false, error: '資料庫表格尚未建立，請聯繫管理員' };
+    }
+    if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
+      return { success: false, error: '資料庫權限不足，請聯繫管理員' };
+    }
     return { success: false, error: `系統錯誤: ${errorMessage}` };
   }
 }
