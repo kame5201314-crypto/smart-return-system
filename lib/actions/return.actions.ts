@@ -406,11 +406,9 @@ export async function submitInspection(
       .from('inspection_records')
       .insert({
         return_request_id: validated.returnRequestId,
-        inspector_id: userId,
+        inspected_by: userId,
         result: validated.result,
         condition_grade: validated.conditionGrade,
-        checklist: validated.checklist,
-        notes: validated.notes,
         inspector_comment: validated.inspectorComment,
       } as never);
 
@@ -428,9 +426,7 @@ export async function submitInspection(
       .from('return_requests')
       .update({
         status: newStatus,
-        inspected_at: new Date().toISOString(),
-        inspected_by: userId,
-        inspection_notes: validated.notes,
+        closed_at: new Date().toISOString(),
       } as never)
       .eq('id', validated.returnRequestId);
 
