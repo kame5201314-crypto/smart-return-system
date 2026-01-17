@@ -107,6 +107,7 @@ export default function ShopeeReturnsPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const html5QrCodeRef = useRef<unknown>(null);
@@ -124,10 +125,18 @@ export default function ShopeeReturnsPage() {
     }
   }, [scannerOpen]);
 
-  // Initialize camera scanner
+  // Initialize camera scanner with delay for DOM readiness
   useEffect(() => {
-    if (scannerOpen && videoContainerRef.current) {
-      initializeScanner();
+    if (scannerOpen) {
+      setCameraError(null);
+      // Add delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        initializeScanner();
+      }, 500);
+      return () => {
+        clearTimeout(timer);
+        stopScanner();
+      };
     }
     return () => {
       stopScanner();
@@ -136,26 +145,36 @@ export default function ShopeeReturnsPage() {
 
   async function initializeScanner() {
     setCameraLoading(true);
+    setCameraError(null);
+
     try {
-      // Request camera permission first on mobile
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-          });
-          // Stop the stream immediately, we just wanted to trigger permission
-          stream.getTracks().forEach(track => track.stop());
-        } catch (permError) {
-          console.error('Camera permission error:', permError);
-          const errMsg = permError instanceof Error ? permError.message : String(permError);
-          if (errMsg.includes('Permission') || errMsg.includes('NotAllowed') || errMsg.includes('denied')) {
-            toast.error('請在瀏覽器設定中允許相機權限');
-          } else {
-            toast.error('無法存取相機，請使用手動輸入');
-          }
-          setCameraLoading(false);
-          return;
-        }
+      // Check if mediaDevices is available
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError('您的瀏覽器不支援相機功能');
+        setCameraLoading(false);
+        return;
+      }
+
+      // Request camera permission
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }
+        });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permError) {
+        console.error('Camera permission error:', permError);
+        setCameraError('無法存取相機，請確認已允許相機權限');
+        setCameraLoading(false);
+        return;
+      }
+
+      // Wait for container to be ready
+      const container = document.getElementById('scanner-video');
+      if (!container) {
+        setCameraError('相機容器載入失敗');
+        setCameraLoading(false);
+        return;
       }
 
       const { Html5Qrcode } = await import('html5-qrcode');
@@ -171,34 +190,22 @@ export default function ShopeeReturnsPage() {
       const html5QrCode = new Html5Qrcode('scanner-video');
       html5QrCodeRef.current = html5QrCode;
 
-      // Calculate responsive qrbox size based on container
-      const container = document.getElementById('scanner-video');
-      const containerWidth = container?.clientWidth || 300;
-      const qrboxWidth = Math.min(250, containerWidth - 40);
-      const qrboxHeight = Math.min(100, qrboxWidth * 0.4);
+      const containerWidth = container.clientWidth || 280;
+      const qrboxWidth = Math.min(220, containerWidth - 60);
+      const qrboxHeight = Math.min(80, qrboxWidth * 0.35);
 
       await html5QrCode.start(
-        { facingMode: 'environment' },
+        { facingMode: { ideal: 'environment' } },
         {
           fps: 10,
           qrbox: { width: qrboxWidth, height: qrboxHeight },
         },
         handleScanSuccess,
-        () => {} // Ignore scan errors
+        () => {}
       );
     } catch (error) {
       console.error('Failed to initialize scanner:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (errorMessage.includes('Permission') || errorMessage.includes('NotAllowed')) {
-        toast.error('請允許相機權限後重試');
-      } else if (errorMessage.includes('NotFound') || errorMessage.includes('no camera')) {
-        toast.error('找不到相機，請確認裝置有相機');
-      } else if (errorMessage.includes('NotReadable') || errorMessage.includes('in use')) {
-        toast.error('相機被其他應用程式使用中');
-      } else {
-        toast.error('無法啟動相機，請使用下方輸入框');
-      }
+      setCameraError('相機啟動失敗，請使用手動輸入');
     } finally {
       setCameraLoading(false);
     }
@@ -754,12 +761,37 @@ export default function ShopeeReturnsPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Manual Input - Always shown prominently */}
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-700 mb-2 font-medium">手動輸入訂單編號：</p>
+              <div className="flex gap-2">
+                <Input
+                  ref={scanInputRef}
+                  value={scanInput}
+                  onChange={(e) => setScanInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleManualScan();
+                    }
+                  }}
+                  placeholder="輸入訂單編號後按 Enter..."
+                  className="flex-1 bg-white"
+                  disabled={isScanning}
+                  autoFocus
+                />
+                <Button onClick={handleManualScan} disabled={isScanning || !scanInput.trim()}>
+                  {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : '比對'}
+                </Button>
+              </div>
+            </div>
+
             {/* Camera Scanner */}
             <div className="relative">
               <div
                 id="scanner-video"
                 ref={videoContainerRef}
-                className="w-full aspect-video bg-black rounded-lg overflow-hidden"
+                className="w-full aspect-video bg-gray-900 rounded-lg overflow-hidden"
               />
               {cameraLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
@@ -769,27 +801,15 @@ export default function ShopeeReturnsPage() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Manual Input */}
-            <div className="flex gap-2">
-              <Input
-                ref={scanInputRef}
-                value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleManualScan();
-                  }
-                }}
-                placeholder="輸入或掃描訂單編號..."
-                className="flex-1"
-                disabled={isScanning}
-              />
-              <Button onClick={handleManualScan} disabled={isScanning || !scanInput.trim()}>
-                {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : '比對'}
-              </Button>
+              {cameraError && !cameraLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg">
+                  <div className="text-center text-white p-4">
+                    <Camera className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-gray-300">{cameraError}</p>
+                    <p className="text-xs text-gray-400 mt-2">請使用上方輸入框手動輸入</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Scan Result */}
