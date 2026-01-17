@@ -18,6 +18,9 @@ import {
   Volume2,
   XCircle,
   CheckCircle2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -93,6 +96,9 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '退款數量': 'returnQuantity',
 };
 
+type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
+type SortDirection = 'asc' | 'desc';
+
 export default function ShopeeReturnsPage() {
   const [returns, setReturns] = useState<ShopeeReturn[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ShopeeReturn[]>([]);
@@ -108,6 +114,8 @@ export default function ShopeeReturnsPage() {
   const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const html5QrCodeRef = useRef<unknown>(null);
@@ -328,7 +336,7 @@ export default function ShopeeReturnsPage() {
     setIsLoading(false);
   }
 
-  // Filter returns
+  // Filter and sort returns
   useEffect(() => {
     let filtered = [...returns];
 
@@ -358,8 +366,52 @@ export default function ShopeeReturnsPage() {
       );
     }
 
+    // Sorting
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+
+        if (sortField === 'order_date') {
+          const dateA = a.order_date ? new Date(a.order_date).getTime() : 0;
+          const dateB = b.order_date ? new Date(b.order_date).getTime() : 0;
+          comparison = dateA - dateB;
+        } else if (sortField === 'is_processed') {
+          comparison = (a.is_processed ? 1 : 0) - (b.is_processed ? 1 : 0);
+        } else if (sortField === 'is_scanned') {
+          comparison = (a.is_scanned ? 1 : 0) - (b.is_scanned ? 1 : 0);
+        }
+
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
     setFilteredReturns(filtered);
-  }, [returns, searchQuery, statusFilter, scanFilter]);
+  }, [returns, searchQuery, statusFilter, scanFilter, sortField, sortDirection]);
+
+  // Handle column sort
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      // Toggle direction or clear
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else {
+        setSortField(null);
+      }
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  }
+
+  // Get sort icon for column
+  function getSortIcon(field: SortField) {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'desc'
+      ? <ArrowDown className="w-3 h-3 ml-1" />
+      : <ArrowUp className="w-3 h-3 ml-1" />;
+  }
 
   function formatOrderDate(dateStr: string | null): string {
     if (!dateStr) return '-';
@@ -976,11 +1028,35 @@ export default function ShopeeReturnsPage() {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
-                    <TableHead className="w-[60px]">掃描</TableHead>
-                    <TableHead className="w-[60px]">狀態</TableHead>
+                    <TableHead
+                      className="w-[60px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('is_scanned')}
+                    >
+                      <div className="flex items-center">
+                        掃描
+                        {getSortIcon('is_scanned')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="w-[60px] cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('is_processed')}
+                    >
+                      <div className="flex items-center">
+                        狀態
+                        {getSortIcon('is_processed')}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
-                    <TableHead className="w-[80px] hidden md:table-cell">日期</TableHead>
+                    <TableHead
+                      className="w-[80px] hidden md:table-cell cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('order_date')}
+                    >
+                      <div className="flex items-center">
+                        日期
+                        {getSortIcon('order_date')}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-[70px] hidden lg:table-cell">總價</TableHead>
                     <TableHead className="hidden lg:table-cell">商品</TableHead>
                     <TableHead className="w-[80px] hidden xl:table-cell">貨號</TableHead>
