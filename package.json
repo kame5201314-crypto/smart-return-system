@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify-env": "npx dotenv -e .env.local -- npx ts-node --esm scripts/verify-env.ts",
+    "prebuild:check": "node -e \"const id='fdzfnenizyppxglypden'; const url=process.env.NEXT_PUBLIC_SUPABASE_URL||''; if(!url.includes(id)){console.error('ERROR: Wrong Supabase project! Expected:',id);process.exit(1)}else{console.log('Supabase project verified:',id)}\""
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
