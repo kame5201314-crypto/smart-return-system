@@ -529,7 +529,7 @@ export async function getReturnRequestDetail(id: string) {
           customer_phone,
           channel_source,
           total_amount,
-          order_date
+          created_at
         ),
         customer:customers (
           id,
@@ -556,8 +556,6 @@ export async function getReturnRequestDetail(id: string) {
           id,
           result,
           condition_grade,
-          checklist,
-          notes,
           inspector_comment,
           inspected_at
         )
