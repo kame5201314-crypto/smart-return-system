@@ -1,0 +1,307 @@
+'use server';
+
+import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import type { ApiResponse } from '@/types';
+
+export interface ShopeeReturn {
+  id: string;
+  order_number: string;
+  order_date: string | null;
+  total_price: number;
+  product_name: string | null;
+  option_name: string | null;
+  activity_price: number;
+  option_sku: string | null;
+  return_quantity: number;
+  is_processed: boolean;
+  is_printed: boolean;
+  is_scanned: boolean;
+  scanned_at: string | null;
+  note: string | null;
+  imported_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShopeeReturnInput {
+  orderNumber: string;
+  orderDate: string;
+  totalPrice: number;
+  productName: string;
+  optionName: string;
+  activityPrice: number;
+  optionSku: string;
+  returnQuantity: number;
+}
+
+/**
+ * Get all shopee returns
+ */
+export async function getShopeeReturns(): Promise<ApiResponse<ShopeeReturn[]>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { data, error } = await supabase
+      .from('shopee_returns')
+      .select('*')
+      .order('imported_at', { ascending: false });
+
+    if (error) {
+      console.error('Get shopee returns error:', error);
+      return { success: false, error: `載入失敗: ${error.message}` };
+    }
+
+    return { success: true, data: (data as ShopeeReturn[]) || [] };
+  } catch (error) {
+    console.error('Get shopee returns error:', error);
+    const msg = error instanceof Error ? error.message : '未知錯誤';
+    return { success: false, error: `載入失敗: ${msg}` };
+  }
+}
+
+/**
+ * Import shopee returns (batch upsert)
+ */
+export async function importShopeeReturns(
+  items: ShopeeReturnInput[]
+): Promise<ApiResponse<{ imported: number; duplicates: number }>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    // Deduplicate items within the input file (keep first occurrence)
+    const seenOrderNumbers = new Set<string>();
+    const deduplicatedItems: ShopeeReturnInput[] = [];
+    let fileDuplicates = 0;
+
+    for (const item of items) {
+      if (!seenOrderNumbers.has(item.orderNumber)) {
+        seenOrderNumbers.add(item.orderNumber);
+        deduplicatedItems.push(item);
+      } else {
+        fileDuplicates++;
+      }
+    }
+
+    // Get existing order numbers to check for duplicates in database
+    const { data: existing } = await supabase
+      .from('shopee_returns')
+      .select('order_number');
+
+    const existingOrderNumbers = new Set(
+      (existing as { order_number: string }[] | null)?.map((r) => r.order_number) || []
+    );
+
+    // Filter out items that already exist in database
+    const newItems = deduplicatedItems.filter((item) => !existingOrderNumbers.has(item.orderNumber));
+    const dbDuplicates = deduplicatedItems.length - newItems.length;
+    const totalDuplicates = fileDuplicates + dbDuplicates;
+
+    if (newItems.length === 0) {
+      return {
+        success: true,
+        data: { imported: 0, duplicates: totalDuplicates },
+      };
+    }
+
+    // Insert new items using upsert to handle any race conditions
+    const insertData = newItems.map((item) => ({
+      order_number: item.orderNumber,
+      order_date: item.orderDate || null,
+      total_price: item.totalPrice,
+      product_name: item.productName,
+      option_name: item.optionName,
+      activity_price: item.activityPrice,
+      option_sku: item.optionSku,
+      return_quantity: item.returnQuantity || 1,
+      is_processed: false,
+      is_printed: false,
+      note: '',
+    }));
+
+    const { error } = await supabase
+      .from('shopee_returns')
+      .upsert(insertData as never, {
+        onConflict: 'order_number',
+        ignoreDuplicates: true,
+      });
+
+    if (error) {
+      console.error('Import shopee returns error:', error);
+      return { success: false, error: `匯入失敗: ${error.message}` };
+    }
+
+    return {
+      success: true,
+      data: { imported: newItems.length, duplicates: totalDuplicates },
+    };
+  } catch (error) {
+    console.error('Import shopee returns error:', error);
+    const msg = error instanceof Error ? error.message : '未知錯誤';
+    return { success: false, error: `匯入失敗: ${msg}` };
+  }
+}
+
+/**
+ * Update shopee return status (processed/printed)
+ */
+export async function updateShopeeReturnStatus(
+  id: string,
+  updates: { is_processed?: boolean; is_printed?: boolean; note?: string }
+): Promise<ApiResponse<void>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { error } = await supabase
+      .from('shopee_returns')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Update shopee return error:', error);
+      return { success: false, error: `更新失敗: ${error.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update shopee return error:', error);
+    return { success: false, error: '更新失敗' };
+  }
+}
+
+/**
+ * Batch update shopee returns
+ */
+export async function batchUpdateShopeeReturns(
+  ids: string[],
+  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean }
+): Promise<ApiResponse<void>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { error } = await supabase
+      .from('shopee_returns')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .in('id', ids);
+
+    if (error) {
+      console.error('Batch update shopee returns error:', error);
+      return { success: false, error: `批次更新失敗: ${error.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Batch update shopee returns error:', error);
+    return { success: false, error: '批次更新失敗' };
+  }
+}
+
+/**
+ * Delete shopee returns
+ */
+export async function deleteShopeeReturns(ids: string[]): Promise<ApiResponse<void>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { error } = await supabase
+      .from('shopee_returns')
+      .delete()
+      .in('id', ids);
+
+    if (error) {
+      console.error('Delete shopee returns error:', error);
+      return { success: false, error: `刪除失敗: ${error.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete shopee returns error:', error);
+    return { success: false, error: '刪除失敗' };
+  }
+}
+
+/**
+ * Scan and match shopee return by order number (barcode)
+ * Supports partial matching for different barcode formats
+ */
+export async function scanShopeeReturn(
+  scannedCode: string
+): Promise<ApiResponse<{ matched: ShopeeReturn; alreadyScanned: boolean } | null>> {
+  try {
+    const supabase = createUntypedAdminClient();
+    const cleanCode = scannedCode.trim();
+
+    if (!cleanCode) {
+      return { success: false, error: '請掃描有效的條碼' };
+    }
+
+    // Search for matching order
+    const { data: allReturns, error: fetchError } = await supabase
+      .from('shopee_returns')
+      .select('*');
+
+    if (fetchError) {
+      console.error('Fetch returns error:', fetchError);
+      return { success: false, error: '讀取資料失敗' };
+    }
+
+    if (!allReturns || allReturns.length === 0) {
+      return { success: false, error: '找不到任何退貨資料' };
+    }
+
+    // Try to find a match - check if scanned code contains or is contained in order_number
+    const matched = (allReturns as ShopeeReturn[]).find((r) => {
+      const orderNum = r.order_number.toUpperCase();
+      const scanned = cleanCode.toUpperCase();
+      return orderNum === scanned ||
+             orderNum.includes(scanned) ||
+             scanned.includes(orderNum);
+    });
+
+    if (!matched) {
+      return {
+        success: false,
+        error: `找不到符合的訂單：${cleanCode.substring(0, 20)}${cleanCode.length > 20 ? '...' : ''}`
+      };
+    }
+
+    // Check if already scanned
+    if (matched.is_scanned) {
+      return {
+        success: true,
+        data: { matched, alreadyScanned: true }
+      };
+    }
+
+    // Update as scanned
+    const { error: updateError } = await supabase
+      .from('shopee_returns')
+      .update({
+        is_scanned: true,
+        scanned_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq('id', matched.id);
+
+    if (updateError) {
+      console.error('Update scan status error:', updateError);
+      return { success: false, error: '更新掃描狀態失敗' };
+    }
+
+    return {
+      success: true,
+      data: {
+        matched: { ...matched, is_scanned: true, scanned_at: new Date().toISOString() },
+        alreadyScanned: false
+      }
+    };
+  } catch (error) {
+    console.error('Scan shopee return error:', error);
+    return { success: false, error: '掃描比對失敗' };
+  }
+}

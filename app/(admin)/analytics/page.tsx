@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select';
 
 import { getReturnRequests } from '@/lib/actions/return.actions';
+import { getShopeeReturns, type ShopeeReturn } from '@/lib/actions/shopee-returns.actions';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
@@ -57,8 +58,11 @@ interface ReturnData {
   return_items?: ReturnItem[];
 }
 
+// ShopeeReturn type is now imported from server actions
+
 export default function AnalyticsPage() {
   const [allReturns, setAllReturns] = useState<ReturnData[]>([]);
+  const [shopeeReturns, setShopeeReturns] = useState<ShopeeReturn[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
@@ -89,6 +93,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchData();
+    loadShopeeReturns();
   }, []);
 
   async function fetchData() {
@@ -101,6 +106,17 @@ export default function AnalyticsPage() {
       console.error('Failed to fetch analytics:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadShopeeReturns() {
+    try {
+      const result = await getShopeeReturns();
+      if (result.success && result.data) {
+        setShopeeReturns(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load shopee returns:', error);
     }
   }
 
@@ -119,16 +135,41 @@ export default function AnalyticsPage() {
     });
   }, [allReturns, selectedYear, selectedMonth, selectedChannel]);
 
+  // Filter shopee returns based on selections
+  const filteredShopeeReturns = useMemo(() => {
+    // If channel filter is set and not 蝦皮, exclude shopee returns
+    if (selectedChannel !== 'all' && selectedChannel !== 'shopee') {
+      return [];
+    }
+
+    return shopeeReturns.filter(r => {
+      if (!r.order_date) return selectedYear === 'all' && selectedMonth === 'all';
+      const date = new Date(r.order_date);
+      const year = date.getFullYear().toString();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+
+      if (selectedYear !== 'all' && year !== selectedYear) return false;
+      if (selectedMonth !== 'all' && month !== selectedMonth) return false;
+
+      return true;
+    });
+  }, [shopeeReturns, selectedYear, selectedMonth, selectedChannel]);
+
   // Calculate statistics
   const stats = useMemo(() => {
-    const totalReturns = filteredReturns.length;
+    // Include both database returns and shopee returns in total count
+    const totalReturns = filteredReturns.length + filteredShopeeReturns.length;
 
-    // By channel
+    // By channel - include shopee returns
     const channelCounts: Record<string, number> = {};
     filteredReturns.forEach(r => {
       const channel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
       channelCounts[channel] = (channelCounts[channel] || 0) + 1;
     });
+    // Add shopee returns count
+    if (filteredShopeeReturns.length > 0) {
+      channelCounts['蝦皮'] = (channelCounts['蝦皮'] || 0) + filteredShopeeReturns.length;
+    }
     const byChannel = Object.entries(channelCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
@@ -151,10 +192,17 @@ export default function AnalyticsPage() {
     });
     const byStatus = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
-    // Monthly trend
+    // Monthly trend - include shopee returns
     const monthlyData: Record<string, number> = {};
     filteredReturns.forEach(r => {
       const month = r.created_at.substring(0, 7);
+      monthlyData[month] = (monthlyData[month] || 0) + 1;
+    });
+    // Add shopee returns to monthly trend
+    filteredShopeeReturns.forEach(r => {
+      if (!r.order_date) return;
+      const date = new Date(r.order_date);
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       monthlyData[month] = (monthlyData[month] || 0) + 1;
     });
     const monthlyTrend = Object.entries(monthlyData)
@@ -174,11 +222,20 @@ export default function AnalyticsPage() {
         productCounts[key].quantity += item.quantity;
       });
     });
+    // Add shopee returns to product ranking
+    filteredShopeeReturns.forEach(r => {
+      if (!r.product_name) return;
+      const key = `${r.product_name}||${r.option_sku || ''}||蝦皮`;
+      if (!productCounts[key]) {
+        productCounts[key] = { name: r.product_name, sku: r.option_sku || null, channel: '蝦皮', quantity: 0 };
+      }
+      productCounts[key].quantity += r.return_quantity;
+    });
     const productRanking = Object.values(productCounts)
       .sort((a, b) => b.quantity - a.quantity);
 
     return { totalReturns, byChannel, byReason, byStatus, monthlyTrend, productRanking };
-  }, [filteredReturns]);
+  }, [filteredReturns, filteredShopeeReturns]);
 
   return (
     <div className="space-y-6">

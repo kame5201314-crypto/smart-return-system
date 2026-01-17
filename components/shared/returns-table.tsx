@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { Eye, Edit } from 'lucide-react';
+import { Eye, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 import {
   Table,
@@ -33,11 +33,42 @@ interface ReturnItem {
   }[];
 }
 
+export type SortField = 'status' | 'created_at' | 'channel_source' | null;
+export type SortDirection = 'asc' | 'desc';
+
 interface ReturnsTableProps {
   items: ReturnItem[];
+  sortField?: SortField;
+  sortDirection?: SortDirection;
+  onSort?: (field: SortField) => void;
 }
 
-export function ReturnsTable({ items }: ReturnsTableProps) {
+export function ReturnsTable({ items, sortField, sortDirection, onSort }: ReturnsTableProps) {
+  // Helper to render sort icon
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="w-3 h-3 ml-1" />
+    ) : (
+      <ArrowDown className="w-3 h-3 ml-1" />
+    );
+  }
+
+  // Sortable header component
+  function SortableHeader({ field, children }: { field: SortField; children: React.ReactNode }) {
+    return (
+      <button
+        onClick={() => onSort?.(field)}
+        className="flex items-center hover:text-primary transition-colors cursor-pointer"
+      >
+        {children}
+        <SortIcon field={field} />
+      </button>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -54,10 +85,16 @@ export function ReturnsTable({ items }: ReturnsTableProps) {
             <TableHead>退貨單號</TableHead>
             <TableHead>客戶</TableHead>
             <TableHead>訂單編號</TableHead>
-            <TableHead>通路</TableHead>
-            <TableHead>狀態</TableHead>
+            <TableHead>
+              <SortableHeader field="channel_source">通路</SortableHeader>
+            </TableHead>
+            <TableHead>
+              <SortableHeader field="status">狀態</SortableHeader>
+            </TableHead>
             <TableHead>退款金額</TableHead>
-            <TableHead>建立時間</TableHead>
+            <TableHead>
+              <SortableHeader field="created_at">建立時間</SortableHeader>
+            </TableHead>
             <TableHead className="text-right">操作</TableHead>
           </TableRow>
         </TableHeader>

@@ -148,6 +148,8 @@ export default function ReturnDetailPage() {
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
+  const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, 'full' | 'partial'>>({});
+  const [invoiceNumber, setInvoiceNumber] = useState('');
 
   const inspectionForm = useForm<InspectionInput>({
     resolver: zodResolver(inspectionSchema),
@@ -380,16 +382,70 @@ export default function ReturnDetailPage() {
                 編輯
               </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">商品名稱</p>
-                  <p className="font-medium">{returnData.return_items?.[0]?.product_name || '-'}</p>
+            <CardContent className="space-y-4">
+              {/* Return Items with Refund Type Selection */}
+              {returnData.return_items && returnData.return_items.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">退貨商品</p>
+                  <div className="space-y-3">
+                    {returnData.return_items.map((item) => (
+                      <div key={item.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium">{item.product_name}</p>
+                            {item.sku && (
+                              <p className="text-sm text-muted-foreground">貨號：{item.sku}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              數量：{item.quantity} {item.unit_price && `/ 單價：NT$ ${item.unit_price.toLocaleString()}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 pt-2 border-t">
+                          <span className="text-sm text-muted-foreground">退款方式：</span>
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={itemRefundTypes[item.id] === 'full' || (!itemRefundTypes[item.id])}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setItemRefundTypes(prev => ({ ...prev, [item.id]: 'full' }));
+                                  }
+                                }}
+                              />
+                              <span className="text-sm">全額退款</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={itemRefundTypes[item.id] === 'partial'}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setItemRefundTypes(prev => ({ ...prev, [item.id]: 'partial' }));
+                                  }
+                                }}
+                              />
+                              <span className="text-sm">部分退款</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">商品貨號</p>
-                  <p className="font-medium">{returnData.return_items?.[0]?.sku || '-'}</p>
-                </div>
+              )}
+
+              {/* Invoice Number */}
+              <div className="space-y-2">
+                <Label htmlFor="invoice-number">發票號碼</Label>
+                <Input
+                  id="invoice-number"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="輸入發票號碼"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm pt-2 border-t">
                 <div>
                   <p className="text-muted-foreground">退貨原因</p>
                   <p className="font-medium">{reason?.label || returnData.reason_category || '-'}</p>

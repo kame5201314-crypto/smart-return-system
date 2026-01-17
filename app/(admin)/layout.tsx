@@ -11,6 +11,8 @@ import {
   LogOut,
   Loader2,
   Truck,
+  ClipboardList,
+  Printer,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -23,8 +25,10 @@ import { toast } from 'sonner';
 const navItems = [
   { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
   { href: '/returns', label: '退貨管理', icon: Package },
-  { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
+  { href: '/shopee-returns', label: '蝦皮退貨', icon: Printer },
+  { href: '/pickup', label: '派車收件', icon: ClipboardList },
   { href: '/logistics', label: '物流快查', icon: Truck },
+  { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
 ];
 
 interface UserInfo {

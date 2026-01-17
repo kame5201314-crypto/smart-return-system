@@ -272,7 +272,7 @@ export default function InspectionPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>驗貨結果 *</FormLabel>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         <Button
                           type="button"
                           variant={field.value === 'passed' ? 'default' : 'outline'}
@@ -280,15 +280,7 @@ export default function InspectionPage() {
                           onClick={() => field.onChange('passed')}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
-                          通過
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={field.value === 'partial' ? 'default' : 'outline'}
-                          className={field.value === 'partial' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
-                          onClick={() => field.onChange('partial')}
-                        >
-                          部分通過
+                          通過（直接結案）
                         </Button>
                         <Button
                           type="button"
@@ -297,7 +289,7 @@ export default function InspectionPage() {
                           onClick={() => field.onChange('failed')}
                         >
                           <XCircle className="w-4 h-4 mr-2" />
-                          異常
+                          異常（驗收異常）
                         </Button>
                       </div>
                       <FormMessage />

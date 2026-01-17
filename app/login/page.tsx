@@ -45,7 +45,7 @@ export default function LoginPage() {
       }
 
       toast.success('登入成功！');
-      router.push('/dashboard');
+      router.push('/analytics');
       router.refresh();
     } catch {
       toast.error('登入失敗，請稍後再試');
@@ -55,19 +55,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="mx-auto mb-4 w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center">
-            <Package className="w-8 h-8 text-white" />
+          <div className="mx-auto mb-4 w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
+            <Package className="w-8 h-8 text-purple-600" />
           </div>
-          <h1 className="text-2xl font-bold text-white">退換貨管理系統</h1>
-          <p className="text-purple-200 mt-2">管理員登入</p>
+          <h1 className="text-2xl font-bold text-gray-900">退換貨管理系統</h1>
+          <p className="text-gray-500 mt-2">管理員登入</p>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur">
+        <Card className="shadow-lg border bg-white">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl">歡迎回來</CardTitle>
             <CardDescription>請輸入您的帳號密碼登入系統</CardDescription>
@@ -155,7 +155,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Footer */}
-        <p className="text-center text-purple-200/60 text-sm mt-6">
+        <p className="text-center text-gray-400 text-sm mt-6">
           © 2024 Smart Return System. All rights reserved.
         </p>
       </div>

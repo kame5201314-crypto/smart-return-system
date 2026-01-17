@@ -52,10 +52,10 @@ export async function middleware(request: NextRequest) {
 
   // If it's a public route, allow access
   if (isPublicRoute) {
-    // But if user is logged in and accessing login page, redirect to dashboard
+    // But if user is logged in and accessing login page, redirect to analytics
     if (pathname === '/login' && user) {
       const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
+      url.pathname = '/analytics';
       return NextResponse.redirect(url);
     }
     return supabaseResponse;

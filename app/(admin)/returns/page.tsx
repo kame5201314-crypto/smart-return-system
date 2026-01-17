@@ -15,10 +15,21 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KanbanBoard } from '@/components/kanban/kanban-board';
-import { ReturnsTable } from '@/components/shared/returns-table';
+import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
 
 import { getReturnRequests } from '@/lib/actions/return.actions';
 import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST } from '@/config/constants';
+
+// Status order for sorting
+const STATUS_ORDER: Record<string, number> = {
+  'pending_review': 1,
+  'approved_waiting_shipping': 2,
+  'shipping_in_transit': 3,
+  'received_inspecting': 4,
+  'refund_processing': 5,
+  'abnormal_disputed': 6,
+  'completed': 7,
+};
 
 interface ReturnItem {
   id: string;
@@ -45,6 +56,8 @@ export default function ReturnsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   useEffect(() => {
     fetchReturns();
@@ -52,7 +65,7 @@ export default function ReturnsPage() {
 
   useEffect(() => {
     filterReturns();
-  }, [returns, statusFilter, channelFilter]); // Remove searchQuery - only filter on button click
+  }, [returns, statusFilter, channelFilter, sortField, sortDirection]); // Remove searchQuery - only filter on button click
 
   async function fetchReturns() {
     try {
@@ -98,27 +111,87 @@ export default function ReturnsPage() {
       filtered = filtered.filter((r) => r.channel_source === channelFilter);
     }
 
+    // Apply sorting
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+
+        switch (sortField) {
+          case 'status':
+            const statusA = STATUS_ORDER[a.status] ?? 99;
+            const statusB = STATUS_ORDER[b.status] ?? 99;
+            comparison = statusA - statusB;
+            break;
+          case 'created_at':
+            comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            break;
+          case 'channel_source':
+            const channelA = a.channel_source || '';
+            const channelB = b.channel_source || '';
+            comparison = channelA.localeCompare(channelB);
+            break;
+        }
+
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
     setFilteredReturns(filtered);
   }
 
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default desc direction
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  }
+
   async function handleExport() {
-    // In production, this would generate and download an Excel file
-    const { utils, writeFile } = await import('xlsx');
+    const ExcelJS = (await import('exceljs')).default;
 
-    const data = filteredReturns.map((r) => ({
-      退貨單號: r.request_number,
-      客戶名稱: r.order?.customer_name || '',
-      訂單編號: r.order?.order_number || '',
-      狀態: RETURN_STATUS_LABELS[r.status] || r.status,
-      通路: r.channel_source || '',
-      退款金額: r.refund_amount || 0,
-      建立時間: r.created_at,
-    }));
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('退貨單');
 
-    const ws = utils.json_to_sheet(data);
-    const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, '退貨單');
-    writeFile(wb, `退貨單_${new Date().toISOString().split('T')[0]}.xlsx`);
+    // Define columns
+    worksheet.columns = [
+      { header: '退貨單號', key: 'request_number', width: 18 },
+      { header: '客戶名稱', key: 'customer_name', width: 15 },
+      { header: '訂單編號', key: 'order_number', width: 18 },
+      { header: '狀態', key: 'status', width: 12 },
+      { header: '通路', key: 'channel', width: 10 },
+      { header: '退款金額', key: 'refund_amount', width: 10 },
+      { header: '建立時間', key: 'created_at', width: 18 },
+    ];
+
+    // Style header
+    worksheet.getRow(1).font = { bold: true };
+
+    // Add data
+    filteredReturns.forEach((r) => {
+      worksheet.addRow({
+        request_number: r.request_number,
+        customer_name: r.order?.customer_name || '',
+        order_number: r.order?.order_number || '',
+        status: RETURN_STATUS_LABELS[r.status] || r.status,
+        channel: r.channel_source || '',
+        refund_amount: r.refund_amount || 0,
+        created_at: r.created_at,
+      });
+    });
+
+    // Generate and download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `退貨單_${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -218,7 +291,12 @@ export default function ReturnsPage() {
       ) : view === 'kanban' ? (
         <KanbanBoard items={filteredReturns} />
       ) : (
-        <ReturnsTable items={filteredReturns} />
+        <ReturnsTable
+          items={filteredReturns}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+        />
       )}
     </div>
   );

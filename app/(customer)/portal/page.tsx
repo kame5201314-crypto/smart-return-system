@@ -59,6 +59,9 @@ export default function CustomerPortalPage() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [otherReasonText, setOtherReasonText] = useState('');
+  const [notAsDescribedText, setNotAsDescribedText] = useState('');
+  const [selectedApexelIssues, setSelectedApexelIssues] = useState<string[]>([]);
+  const [apexelOtherIssueText, setApexelOtherIssueText] = useState('');
 
   // Product options for checkbox selection
   const productOptions = [
@@ -67,15 +70,28 @@ export default function CustomerPortalPage() {
     { id: 'other', label: '其他' },
   ];
 
-  // Return reason options (6 options + other)
+  // Return reason options (7 options + other)
   const reasonOptions = [
     { id: 'quality_issue', label: '品質問題' },
     { id: 'defective', label: '商品故障' },
     { id: 'damaged_in_transit', label: '運送損壞' },
     { id: 'not_as_described', label: '與描述不符' },
+    { id: 'wrong_item', label: '送錯商品' },
     { id: 'change_of_mind', label: '改變心意' },
     { id: 'other', label: '其他' },
   ];
+
+  // APEXEL specific issue options (shown when APEXEL + quality/defective)
+  const apexelIssueOptions = [
+    { id: 'cannot_install', label: '手機無法安裝' },
+    { id: 'blurry_focus', label: '鏡頭模糊 無法對焦' },
+    { id: 'apexel_other', label: '其他' },
+  ];
+
+  // Check if APEXEL issues should be shown
+  const shouldShowApexelIssues =
+    selectedProducts.includes('apexel') &&
+    (selectedReasons.includes('quality_issue') || selectedReasons.includes('defective'));
 
   const form = useForm<ReturnFormInput>({
     resolver: zodResolver(returnFormSchema),
@@ -106,6 +122,24 @@ export default function CustomerPortalPage() {
     // Validate other reason text if "other" is selected
     if (selectedReasons.includes('other') && !otherReasonText.trim()) {
       toast.error('請填寫其他原因說明');
+      return;
+    }
+
+    // Validate "與描述不符" detail text
+    if (selectedReasons.includes('not_as_described') && !notAsDescribedText.trim()) {
+      toast.error('請填寫與描述不符的詳細說明');
+      return;
+    }
+
+    // Validate APEXEL issues if conditions are met
+    if (shouldShowApexelIssues && selectedApexelIssues.length === 0) {
+      toast.error('請選擇 APEXEL 鏡頭的具體問題');
+      return;
+    }
+
+    // Validate APEXEL other issue text
+    if (selectedApexelIssues.includes('apexel_other') && !apexelOtherIssueText.trim()) {
+      toast.error('請填寫 APEXEL 其他問題說明');
       return;
     }
 
@@ -152,7 +186,21 @@ export default function CustomerPortalPage() {
       // Build combined reason text
       let combinedReason = selectedReasonLabels.join('、');
       if (selectedReasons.includes('other') && otherReasonText.trim()) {
-        combinedReason += `（${otherReasonText.trim()}）`;
+        combinedReason += `（其他：${otherReasonText.trim()}）`;
+      }
+      if (selectedReasons.includes('not_as_described') && notAsDescribedText.trim()) {
+        combinedReason += `（與描述不符說明：${notAsDescribedText.trim()}）`;
+      }
+      // Add APEXEL specific issues
+      if (shouldShowApexelIssues && selectedApexelIssues.length > 0) {
+        const apexelIssueLabels = selectedApexelIssues.map(
+          (id) => apexelIssueOptions.find((opt) => opt.id === id)?.label || id
+        );
+        let apexelIssueText = apexelIssueLabels.join('、');
+        if (selectedApexelIssues.includes('apexel_other') && apexelOtherIssueText.trim()) {
+          apexelIssueText += `：${apexelOtherIssueText.trim()}`;
+        }
+        combinedReason += `【APEXEL問題：${apexelIssueText}】`;
       }
 
       // Submit to server
@@ -242,6 +290,9 @@ export default function CustomerPortalPage() {
                     setSelectedProducts([]);
                     setSelectedReasons([]);
                     setOtherReasonText('');
+                    setNotAsDescribedText('');
+                    setSelectedApexelIssues([]);
+                    setApexelOtherIssueText('');
                     form.reset();
                   }}
                 >
@@ -274,7 +325,7 @@ export default function CustomerPortalPage() {
               💡 遇到產品問題想退貨? 請給我們一分鐘協助您解決問題!
             </p>
             <a
-              href="/tutorial/lens"
+              href="https://mefu.s3.ap-southeast-1.amazonaws.com/_MEFU%E5%AE%98%E7%B6%B2/APEXEL%E6%89%8B%E6%A9%9F%E9%8F%A1%E9%A0%AD%E7%B5%84%E8%A3%9D%E6%95%99%E5%AD%B8.html"
               target="_blank"
               rel="noopener noreferrer"
               className="block border border-gray-200 rounded-lg p-4 hover:border-teal-400 hover:shadow-sm transition-all"
@@ -479,6 +530,17 @@ export default function CustomerPortalPage() {
                                 if (option.id === 'other') {
                                   setOtherReasonText('');
                                 }
+                                if (option.id === 'not_as_described') {
+                                  setNotAsDescribedText('');
+                                }
+                                // Clear APEXEL issues if quality/defective is unchecked
+                                if (option.id === 'quality_issue' || option.id === 'defective') {
+                                  const remainingReasons = selectedReasons.filter((r) => r !== option.id);
+                                  if (!remainingReasons.includes('quality_issue') && !remainingReasons.includes('defective')) {
+                                    setSelectedApexelIssues([]);
+                                    setApexelOtherIssueText('');
+                                  }
+                                }
                               }
                             }}
                             disabled={isLoading}
@@ -491,6 +553,18 @@ export default function CustomerPortalPage() {
                             {option.label}
                           </label>
                         </div>
+                        {/* Show text input when "與描述不符" is selected */}
+                        {option.id === 'not_as_described' && selectedReasons.includes('not_as_described') && (
+                          <div className="mt-2 ml-7">
+                            <Input
+                              placeholder="請填寫與描述不符的詳細說明"
+                              value={notAsDescribedText}
+                              onChange={(e) => setNotAsDescribedText(e.target.value)}
+                              disabled={isLoading}
+                              className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
+                            />
+                          </div>
+                        )}
                         {/* Show text input when "其他" is selected */}
                         {option.id === 'other' && selectedReasons.includes('other') && (
                           <div className="mt-2 ml-7">
@@ -507,6 +581,60 @@ export default function CustomerPortalPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* APEXEL Specific Issues - Show when APEXEL + quality_issue/defective */}
+                {shouldShowApexelIssues && (
+                  <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <FormLabel className="text-blue-700 font-medium">
+                      APEXEL 鏡頭問題 <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <p className="text-sm text-blue-600">
+                      請選擇具體的問題類型（可複選）
+                    </p>
+                    <div className="space-y-3">
+                      {apexelIssueOptions.map((option) => (
+                        <div key={option.id}>
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              id={`apexel-${option.id}`}
+                              checked={selectedApexelIssues.includes(option.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedApexelIssues([...selectedApexelIssues, option.id]);
+                                } else {
+                                  setSelectedApexelIssues(selectedApexelIssues.filter((i) => i !== option.id));
+                                  if (option.id === 'apexel_other') {
+                                    setApexelOtherIssueText('');
+                                  }
+                                }
+                              }}
+                              disabled={isLoading}
+                              className="border-blue-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                            />
+                            <label
+                              htmlFor={`apexel-${option.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {option.label}
+                            </label>
+                          </div>
+                          {/* Show text input when "其他" is selected */}
+                          {option.id === 'apexel_other' && selectedApexelIssues.includes('apexel_other') && (
+                            <div className="mt-2 ml-7">
+                              <Input
+                                placeholder="請填寫其他問題說明"
+                                value={apexelOtherIssueText}
+                                onChange={(e) => setApexelOtherIssueText(e.target.value)}
+                                disabled={isLoading}
+                                className="border-0 border-b-2 border-blue-300 rounded-none focus:border-blue-500 focus:ring-0 bg-white"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Product Suggestion */}
                 <FormField
