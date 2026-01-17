@@ -137,6 +137,27 @@ export default function ShopeeReturnsPage() {
   async function initializeScanner() {
     setCameraLoading(true);
     try {
+      // Request camera permission first on mobile
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+          });
+          // Stop the stream immediately, we just wanted to trigger permission
+          stream.getTracks().forEach(track => track.stop());
+        } catch (permError) {
+          console.error('Camera permission error:', permError);
+          const errMsg = permError instanceof Error ? permError.message : String(permError);
+          if (errMsg.includes('Permission') || errMsg.includes('NotAllowed') || errMsg.includes('denied')) {
+            toast.error('請在瀏覽器設定中允許相機權限');
+          } else {
+            toast.error('無法存取相機，請使用手動輸入');
+          }
+          setCameraLoading(false);
+          return;
+        }
+      }
+
       const { Html5Qrcode } = await import('html5-qrcode');
 
       if (html5QrCodeRef.current) {
@@ -150,9 +171,10 @@ export default function ShopeeReturnsPage() {
       const html5QrCode = new Html5Qrcode('scanner-video');
       html5QrCodeRef.current = html5QrCode;
 
-      // Calculate responsive qrbox size based on screen width
-      const screenWidth = window.innerWidth;
-      const qrboxWidth = Math.min(250, screenWidth - 80);
+      // Calculate responsive qrbox size based on container
+      const container = document.getElementById('scanner-video');
+      const containerWidth = container?.clientWidth || 300;
+      const qrboxWidth = Math.min(250, containerWidth - 40);
       const qrboxHeight = Math.min(100, qrboxWidth * 0.4);
 
       await html5QrCode.start(
@@ -160,7 +182,6 @@ export default function ShopeeReturnsPage() {
         {
           fps: 10,
           qrbox: { width: qrboxWidth, height: qrboxHeight },
-          aspectRatio: screenWidth < 768 ? 1.333 : 1.0,
         },
         handleScanSuccess,
         () => {} // Ignore scan errors
@@ -176,7 +197,7 @@ export default function ShopeeReturnsPage() {
       } else if (errorMessage.includes('NotReadable') || errorMessage.includes('in use')) {
         toast.error('相機被其他應用程式使用中');
       } else {
-        toast.error('無法啟動相機，請使用手動輸入');
+        toast.error('無法啟動相機，請使用下方輸入框');
       }
     } finally {
       setCameraLoading(false);

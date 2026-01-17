@@ -83,15 +83,22 @@ export async function POST(request: NextRequest) {
 
     if (fetchError) {
       console.error('Fetch returns error:', fetchError);
+      // Check if table doesn't exist
+      if (fetchError.message?.includes('does not exist') || fetchError.code === '42P01') {
+        return NextResponse.json(
+          { success: false, error: '退貨資料表尚未建立，請先執行資料庫遷移' },
+          { status: 500 }
+        );
+      }
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch return data' },
+        { success: false, error: `無法取得退貨資料: ${fetchError.message}` },
         { status: 500 }
       );
     }
 
     if (!returns || returns.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'No return data found for this period' },
+        { success: false, error: `${period} 月份沒有退貨資料可分析` },
         { status: 404 }
       );
     }
