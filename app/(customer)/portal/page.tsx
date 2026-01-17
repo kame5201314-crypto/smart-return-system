@@ -240,7 +240,8 @@ export default function CustomerPortalPage() {
 
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('送出失敗，請稍後再試');
+      const errorMsg = error instanceof Error ? error.message : '送出失敗，請稍後再試';
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
