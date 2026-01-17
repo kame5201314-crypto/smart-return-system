@@ -21,6 +21,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -99,6 +101,8 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
 type SortDirection = 'asc' | 'desc';
 
+const ITEMS_PER_PAGE = 50;
+
 export default function ShopeeReturnsPage() {
   const [returns, setReturns] = useState<ShopeeReturn[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ShopeeReturn[]>([]);
@@ -114,8 +118,9 @@ export default function ShopeeReturnsPage() {
   const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortField, setSortField] = useState<SortField>('is_processed');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const html5QrCodeRef = useRef<unknown>(null);
@@ -386,7 +391,15 @@ export default function ShopeeReturnsPage() {
     }
 
     setFilteredReturns(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [returns, searchQuery, statusFilter, scanFilter, sortField, sortDirection]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredReturns.length / ITEMS_PER_PAGE);
+  const paginatedReturns = filteredReturns.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // Handle column sort
   function handleSort(field: SortField) {
@@ -605,10 +618,10 @@ export default function ShopeeReturnsPage() {
   }
 
   function toggleSelectAll() {
-    if (selectedIds.size === filteredReturns.length) {
+    if (selectedIds.size === paginatedReturns.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredReturns.map((r) => r.id)));
+      setSelectedIds(new Set(paginatedReturns.map((r) => r.id)));
     }
   }
 
@@ -1024,7 +1037,7 @@ export default function ShopeeReturnsPage() {
                   <TableRow>
                     <TableHead className="w-[40px] sticky left-0 bg-background">
                       <Checkbox
-                        checked={selectedIds.size === filteredReturns.length && filteredReturns.length > 0}
+                        checked={selectedIds.size === paginatedReturns.length && paginatedReturns.length > 0}
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
@@ -1065,7 +1078,7 @@ export default function ShopeeReturnsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredReturns.map((record) => (
+                  {paginatedReturns.map((record) => (
                     <TableRow
                       key={record.id}
                       className={record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}
@@ -1135,6 +1148,58 @@ export default function ShopeeReturnsPage() {
                   ))}
                 </TableBody>
               </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    顯示 {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredReturns.length)} 筆，共 {filteredReturns.length} 筆
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            className="w-8 h-8 p-0"
+                            onClick={() => setCurrentPage(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
