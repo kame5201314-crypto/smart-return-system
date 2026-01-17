@@ -106,6 +106,7 @@ export default function ShopeeReturnsPage() {
   const [scanInput, setScanInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const html5QrCodeRef = useRef<unknown>(null);
@@ -134,29 +135,51 @@ export default function ShopeeReturnsPage() {
   }, [scannerOpen]);
 
   async function initializeScanner() {
+    setCameraLoading(true);
     try {
       const { Html5Qrcode } = await import('html5-qrcode');
 
       if (html5QrCodeRef.current) {
-        await (html5QrCodeRef.current as { stop: () => Promise<void> }).stop();
+        try {
+          await (html5QrCodeRef.current as { stop: () => Promise<void> }).stop();
+        } catch {
+          // Ignore stop errors
+        }
       }
 
       const html5QrCode = new Html5Qrcode('scanner-video');
       html5QrCodeRef.current = html5QrCode;
 
+      // Calculate responsive qrbox size based on screen width
+      const screenWidth = window.innerWidth;
+      const qrboxWidth = Math.min(250, screenWidth - 80);
+      const qrboxHeight = Math.min(100, qrboxWidth * 0.4);
+
       await html5QrCode.start(
         { facingMode: 'environment' },
         {
           fps: 10,
-          qrbox: { width: 250, height: 100 },
-          aspectRatio: 1.0,
+          qrbox: { width: qrboxWidth, height: qrboxHeight },
+          aspectRatio: screenWidth < 768 ? 1.333 : 1.0,
         },
         handleScanSuccess,
         () => {} // Ignore scan errors
       );
     } catch (error) {
       console.error('Failed to initialize scanner:', error);
-      toast.error('無法啟動相機，請確認已授權相機權限');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (errorMessage.includes('Permission') || errorMessage.includes('NotAllowed')) {
+        toast.error('請允許相機權限後重試');
+      } else if (errorMessage.includes('NotFound') || errorMessage.includes('no camera')) {
+        toast.error('找不到相機，請確認裝置有相機');
+      } else if (errorMessage.includes('NotReadable') || errorMessage.includes('in use')) {
+        toast.error('相機被其他應用程式使用中');
+      } else {
+        toast.error('無法啟動相機，請使用手動輸入');
+      }
+    } finally {
+      setCameraLoading(false);
     }
   }
 
@@ -711,11 +734,21 @@ export default function ShopeeReturnsPage() {
 
           <div className="space-y-4">
             {/* Camera Scanner */}
-            <div
-              id="scanner-video"
-              ref={videoContainerRef}
-              className="w-full aspect-video bg-black rounded-lg overflow-hidden"
-            />
+            <div className="relative">
+              <div
+                id="scanner-video"
+                ref={videoContainerRef}
+                className="w-full aspect-video bg-black rounded-lg overflow-hidden"
+              />
+              {cameraLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
+                  <div className="text-center text-white">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">正在啟動相機...</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Manual Input */}
             <div className="flex gap-2">
