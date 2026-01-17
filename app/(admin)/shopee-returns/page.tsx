@@ -195,11 +195,9 @@ export default function ShopeeReturnsPage() {
       const qrboxHeight = Math.min(120, qrboxWidth * 0.4);
 
       // Try different camera configurations for mobile
-      const cameraConfigs: Array<{ facingMode: string } | { facingMode: { exact: string } } | boolean> = [
-        { facingMode: { exact: 'environment' } },  // Force back camera
+      const cameraConfigs = [
         { facingMode: 'environment' },              // Prefer back camera
         { facingMode: 'user' },                     // Front camera
-        true,                                       // Any available camera
       ];
 
       let started = false;
