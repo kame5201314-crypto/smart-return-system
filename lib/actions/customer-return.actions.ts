@@ -25,7 +25,13 @@ export async function submitCustomerReturn(
   imageFiles: { name: string; type: string; base64: string }[]
 ): Promise<ApiResponse<{ requestNumber: string }>> {
   try {
-    const adminClient = createAdminClient();
+    let adminClient;
+    try {
+      adminClient = createAdminClient();
+    } catch (initError) {
+      console.error('Failed to create admin client:', initError);
+      return { success: false, error: '伺服器設定錯誤，請檢查 SUPABASE_SERVICE_ROLE_KEY 環境變數' };
+    }
 
     // 1. Find or create customer and order in parallel
     let customerResult, orderResult;
@@ -56,7 +62,7 @@ export async function submitCustomerReturn(
 
     // Create customer if not exists
     if (!customerId) {
-      const { data: newCustomer } = await adminClient
+      const { data: newCustomer, error: customerError } = await adminClient
         .from('customers')
         .insert({
           phone: formData.phone,
@@ -64,6 +70,11 @@ export async function submitCustomerReturn(
         } as never)
         .select('id')
         .single() as { data: { id: string } | null; error: Error | null };
+
+      if (customerError) {
+        console.error('Create customer error:', customerError);
+        return { success: false, error: `建立客戶記錄失敗: ${customerError.message}` };
+      }
       customerId = newCustomer?.id || null;
     }
 
@@ -217,12 +228,18 @@ export async function submitCustomerReturn(
   } catch (error) {
     console.error('Submit customer return error:', error);
     const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Error stack:', errorStack);
+
     // Check for common database errors
     if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
       return { success: false, error: '資料庫表格尚未建立，請聯繫管理員' };
     }
     if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
       return { success: false, error: '資料庫權限不足，請聯繫管理員' };
+    }
+    if (errorMessage.includes('Missing Supabase')) {
+      return { success: false, error: '伺服器環境變數未設定，請聯繫管理員' };
     }
     return { success: false, error: `系統錯誤: ${errorMessage}` };
   }
