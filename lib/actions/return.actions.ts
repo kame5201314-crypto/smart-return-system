@@ -268,7 +268,7 @@ export async function getReturnRequests(filters?: {
         return_items (
           id,
           product_name,
-          sku,
+          product_sku,
           quantity
         )
       `)
@@ -489,7 +489,7 @@ export async function updateReturnInfo(
         itemUpdateData.product_name = data.productName;
       }
       if (data.productSku !== undefined) {
-        itemUpdateData.sku = data.productSku;
+        itemUpdateData.product_sku = data.productSku;
       }
 
       const { error: itemError } = await adminClient
@@ -539,7 +539,7 @@ export async function getReturnRequestDetail(id: string) {
         ),
         return_items (
           id,
-          sku,
+          product_sku,
           product_name,
           quantity,
           unit_price,
