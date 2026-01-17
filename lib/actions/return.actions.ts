@@ -252,9 +252,10 @@ export async function getReturnRequests(filters?: {
   dateTo?: string;
 }) {
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const adminClient = createAdminClient();
 
-    let query = supabase
+    let query = adminClient
       .from('return_requests')
       .select(`
         *,
@@ -514,9 +515,10 @@ export async function updateReturnInfo(
  */
 export async function getReturnRequestDetail(id: string) {
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const adminClient = createAdminClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from('return_requests')
       .select(`
         *,
@@ -662,10 +664,11 @@ export async function processRefund(
  */
 export async function getReturnStatistics() {
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const adminClient = createAdminClient();
 
     // Get counts by status
-    const { data: returns, error } = await supabase
+    const { data: returns, error } = await adminClient
       .from('return_requests')
       .select('status, refund_amount');
 
@@ -702,9 +705,10 @@ export async function getReturnsForExport(filters?: {
   dateTo?: string;
 }) {
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const adminClient = createAdminClient();
 
-    let query = supabase
+    let query = adminClient
       .from('return_requests')
       .select(`
         id,
