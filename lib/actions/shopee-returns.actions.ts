@@ -83,9 +83,14 @@ export async function importShopeeReturns(
     }
 
     // Get existing order numbers to check for duplicates in database
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
       .from('shopee_returns')
       .select('order_number');
+
+    if (fetchError) {
+      console.error('Failed to fetch existing records:', fetchError);
+      // Continue anyway, duplicates will be handled by the fallback
+    }
 
     const existingOrderNumbers = new Set(
       (existing as { order_number: string }[] | null)?.map((r) => r.order_number) || []
