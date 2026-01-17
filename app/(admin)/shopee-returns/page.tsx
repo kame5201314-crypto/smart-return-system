@@ -96,6 +96,10 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '退貨數量': 'returnQuantity',
   '數量': 'returnQuantity',
   '退款數量': 'returnQuantity',
+  '寄件編號': 'trackingNumber',
+  '運單編號': 'trackingNumber',
+  '物流單號': 'trackingNumber',
+  '追蹤編號': 'trackingNumber',
 };
 
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
@@ -551,6 +555,7 @@ export default function ShopeeReturnsPage() {
 
         newItems.push({
           orderNumber,
+          trackingNumber: getCellValue('trackingNumber') || undefined,
           orderDate: getCellValue('orderDate'),
           totalPrice: getCellNumber('totalPrice'),
           productName: getCellValue('productName'),

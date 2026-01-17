@@ -6,6 +6,7 @@ import type { ApiResponse } from '@/types';
 export interface ShopeeReturn {
   id: string;
   order_number: string;
+  tracking_number: string | null;
   order_date: string | null;
   total_price: number;
   product_name: string | null;
@@ -25,6 +26,7 @@ export interface ShopeeReturn {
 
 export interface ShopeeReturnInput {
   orderNumber: string;
+  trackingNumber?: string;
   orderDate: string;
   totalPrice: number;
   productName: string;
@@ -111,6 +113,7 @@ export async function importShopeeReturns(
     // Prepare insert data
     const insertData = newItems.map((item) => ({
       order_number: item.orderNumber,
+      tracking_number: item.trackingNumber || null,
       order_date: item.orderDate || null,
       total_price: item.totalPrice,
       product_name: item.productName,
@@ -249,7 +252,7 @@ export async function deleteShopeeReturns(ids: string[]): Promise<ApiResponse<vo
 }
 
 /**
- * Scan and match shopee return by order number (barcode)
+ * Scan and match shopee return by order number or tracking number (barcode)
  * Supports partial matching for different barcode formats
  */
 export async function scanShopeeReturn(
@@ -262,6 +265,9 @@ export async function scanShopeeReturn(
     if (!cleanCode) {
       return { success: false, error: '請掃描有效的條碼' };
     }
+
+    // Check if this looks like a Taiwan shipping/tracking number (寄件編號)
+    const isTrackingNumber = /^TW\d+$/i.test(cleanCode);
 
     // Search for matching order
     const { data: allReturns, error: fetchError } = await supabase
@@ -277,16 +283,33 @@ export async function scanShopeeReturn(
       return { success: false, error: '找不到任何退貨資料' };
     }
 
-    // Try to find a match - check if scanned code contains or is contained in order_number
+    // Try to find a match - check both order_number and tracking_number
     const matched = (allReturns as ShopeeReturn[]).find((r) => {
       const orderNum = r.order_number.toUpperCase();
+      const trackingNum = r.tracking_number?.toUpperCase() || '';
       const scanned = cleanCode.toUpperCase();
-      return orderNum === scanned ||
-             orderNum.includes(scanned) ||
-             scanned.includes(orderNum);
+
+      // Match against order_number
+      if (orderNum === scanned || orderNum.includes(scanned) || scanned.includes(orderNum)) {
+        return true;
+      }
+
+      // Match against tracking_number (if exists)
+      if (trackingNum && (trackingNum === scanned || trackingNum.includes(scanned) || scanned.includes(trackingNum))) {
+        return true;
+      }
+
+      return false;
     });
 
     if (!matched) {
+      // Provide helpful error message based on what was scanned
+      if (isTrackingNumber) {
+        return {
+          success: false,
+          error: `這是寄件編號 (${cleanCode})，請掃描「蝦皮訂單編號」旁的條碼`
+        };
+      }
       return {
         success: false,
         error: `找不到符合的訂單：${cleanCode.substring(0, 20)}${cleanCode.length > 20 ? '...' : ''}`
