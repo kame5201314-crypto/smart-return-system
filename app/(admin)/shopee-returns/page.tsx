@@ -118,8 +118,8 @@ export default function ShopeeReturnsPage() {
   const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<SortField>('is_processed');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortField, setSortField] = useState<SortField>('order_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -163,21 +163,7 @@ export default function ShopeeReturnsPage() {
     try {
       // Check if mediaDevices is available
       if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError('您的瀏覽器不支援相機功能');
-        setCameraLoading(false);
-        return;
-      }
-
-      // Request camera permission
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }
-        });
-        stream.getTracks().forEach(track => track.stop());
-      } catch (permError) {
-        console.error('Camera permission error:', permError);
-        setCameraError('無法存取相機，請確認已允許相機權限');
+        setCameraError('您的瀏覽器不支援相機功能，請使用手動輸入或 USB 掃描器');
         setCameraLoading(false);
         return;
       }
@@ -203,22 +189,57 @@ export default function ShopeeReturnsPage() {
       const html5QrCode = new Html5Qrcode('scanner-video');
       html5QrCodeRef.current = html5QrCode;
 
-      const containerWidth = container.clientWidth || 280;
-      const qrboxWidth = Math.min(220, containerWidth - 60);
-      const qrboxHeight = Math.min(80, qrboxWidth * 0.35);
+      const containerWidth = container.clientWidth || 320;
+      // Larger scanning area for barcodes on mobile
+      const qrboxWidth = Math.min(280, containerWidth - 40);
+      const qrboxHeight = Math.min(120, qrboxWidth * 0.4);
 
-      await html5QrCode.start(
-        { facingMode: { ideal: 'environment' } },
-        {
-          fps: 10,
-          qrbox: { width: qrboxWidth, height: qrboxHeight },
-        },
-        handleScanSuccess,
-        () => {}
-      );
+      // Try different camera configurations for mobile
+      const cameraConfigs: Array<{ facingMode: string } | { facingMode: { exact: string } } | boolean> = [
+        { facingMode: { exact: 'environment' } },  // Force back camera
+        { facingMode: 'environment' },              // Prefer back camera
+        { facingMode: 'user' },                     // Front camera
+        true,                                       // Any available camera
+      ];
+
+      let started = false;
+      let lastError: unknown = null;
+
+      for (const config of cameraConfigs) {
+        try {
+          await html5QrCode.start(
+            config,
+            {
+              fps: 15,  // Higher FPS for smoother scanning
+              qrbox: { width: qrboxWidth, height: qrboxHeight },
+              aspectRatio: 1.777,  // 16:9 aspect ratio
+            },
+            handleScanSuccess,
+            () => {}
+          );
+          started = true;
+          console.log('Camera started with config:', config);
+          break;
+        } catch (err) {
+          console.log(`Camera config ${JSON.stringify(config)} failed:`, err);
+          lastError = err;
+          continue;
+        }
+      }
+
+      if (!started) {
+        throw lastError || new Error('All camera configurations failed');
+      }
     } catch (error) {
       console.error('Failed to initialize scanner:', error);
-      setCameraError('相機啟動失敗，請使用手動輸入');
+      const errorMsg = error instanceof Error ? error.message : '';
+      if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed')) {
+        setCameraError('相機權限被拒絕，請在瀏覽器設定中允許相機存取');
+      } else if (errorMsg.includes('NotFound') || errorMsg.includes('DevicesNotFound')) {
+        setCameraError('找不到相機裝置，請使用手動輸入或 USB 掃描器');
+      } else {
+        setCameraError('相機啟動失敗，請使用手動輸入或 USB 掃描器');
+      }
     } finally {
       setCameraLoading(false);
     }
@@ -821,14 +842,14 @@ export default function ShopeeReturnsPage() {
               掃描條碼
             </DialogTitle>
             <DialogDescription>
-              對準包裹上的條碼，或手動輸入訂單編號
+              使用 USB 掃描器、手機相機，或手動輸入訂單編號
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Manual Input - Always shown prominently */}
+            {/* Manual Input / USB Scanner - Always shown prominently */}
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-700 mb-2 font-medium">手動輸入訂單編號：</p>
+              <p className="text-sm text-blue-700 mb-2 font-medium">USB 掃描器 / 手動輸入：</p>
               <div className="flex gap-2">
                 <Input
                   ref={scanInputRef}
@@ -840,7 +861,7 @@ export default function ShopeeReturnsPage() {
                       handleManualScan();
                     }
                   }}
-                  placeholder="輸入訂單編號後按 Enter..."
+                  placeholder="掃描或輸入訂單編號，按 Enter 比對..."
                   className="flex-1 bg-white"
                   disabled={isScanning}
                   autoFocus
@@ -856,13 +877,14 @@ export default function ShopeeReturnsPage() {
               <div
                 id="scanner-video"
                 ref={videoContainerRef}
-                className="w-full aspect-video bg-gray-900 rounded-lg overflow-hidden"
+                className="w-full aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden min-h-[240px]"
               />
               {cameraLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
                   <div className="text-center text-white">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                     <p className="text-sm">正在啟動相機...</p>
+                    <p className="text-xs text-gray-400 mt-1">請允許相機權限</p>
                   </div>
                 </div>
               )}
@@ -870,8 +892,20 @@ export default function ShopeeReturnsPage() {
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg">
                   <div className="text-center text-white p-4">
                     <Camera className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm text-gray-300">{cameraError}</p>
-                    <p className="text-xs text-gray-400 mt-2">請使用上方輸入框手動輸入</p>
+                    <p className="text-sm text-gray-300 mb-3">{cameraError}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCameraError(null);
+                        initializeScanner();
+                      }}
+                      className="mb-2"
+                    >
+                      <Camera className="w-4 h-4 mr-1" />
+                      重試相機
+                    </Button>
+                    <p className="text-xs text-gray-400">或使用上方輸入框手動輸入</p>
                   </div>
                 </div>
               )}
