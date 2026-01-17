@@ -85,7 +85,7 @@ interface ReturnDetail {
   logistics_company: string | null;
   refund_amount: number | null;
   refund_type: string;
-  applied_at: string;
+  created_at: string;
   approved_at: string | null;
   received_at: string | null;
   inspected_at: string | null;
@@ -100,7 +100,7 @@ interface ReturnDetail {
     customer_phone: string;
     channel_source: string;
     total_amount: number | null;
-    order_date: string | null;
+    created_at: string | null;
   } | null;
   customer?: {
     id: string;
@@ -110,7 +110,7 @@ interface ReturnDetail {
   } | null;
   return_items?: {
     id: string;
-    sku: string | null;
+    product_sku: string | null;
     product_name: string;
     quantity: number;
     unit_price: number | null;
@@ -127,8 +127,6 @@ interface ReturnDetail {
     id: string;
     result: string | null;
     condition_grade: string | null;
-    checklist: Record<string, boolean | null>;
-    notes: string | null;
     inspector_comment: string | null;
     inspected_at: string;
   }[];
@@ -248,7 +246,7 @@ export default function ReturnDetailPage() {
   function openEditInfoDialog() {
     const firstItem = returnData?.return_items?.[0];
     setEditProductName(firstItem?.product_name || '');
-    setEditProductSku(firstItem?.sku || '');
+    setEditProductSku(firstItem?.product_sku || '');
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
     setEditInfoDialogOpen(true);
   }
@@ -318,7 +316,7 @@ export default function ReturnDetailPage() {
           <h1 className="text-2xl font-bold">{returnData.request_number}</h1>
           <p className="text-muted-foreground">
             申請時間：
-            {format(new Date(returnData.applied_at), 'yyyy/MM/dd HH:mm', { locale: zhTW })}
+            {format(new Date(returnData.created_at), 'yyyy/MM/dd HH:mm', { locale: zhTW })}
           </p>
         </div>
         <Badge className={RETURN_STATUS_COLORS[returnData.status]} variant="outline">
@@ -393,8 +391,8 @@ export default function ReturnDetailPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="font-medium">{item.product_name}</p>
-                            {item.sku && (
-                              <p className="text-sm text-muted-foreground">貨號：{item.sku}</p>
+                            {item.product_sku && (
+                              <p className="text-sm text-muted-foreground">貨號：{item.product_sku}</p>
                             )}
                             <p className="text-sm text-muted-foreground">
                               數量：{item.quantity} {item.unit_price && `/ 單價：NT$ ${item.unit_price.toLocaleString()}`}
