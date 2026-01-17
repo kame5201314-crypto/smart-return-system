@@ -103,7 +103,7 @@ export async function importShopeeReturns(
       };
     }
 
-    // Insert new items using upsert to handle any race conditions
+    // Prepare insert data
     const insertData = newItems.map((item) => ({
       order_number: item.orderNumber,
       order_date: item.orderDate || null,
@@ -118,12 +118,30 @@ export async function importShopeeReturns(
       note: '',
     }));
 
+    // Try batch insert first
     const { error } = await supabase
       .from('shopee_returns')
-      .upsert(insertData as never, {
-        onConflict: 'order_number',
-        ignoreDuplicates: true,
-      });
+      .insert(insertData as never);
+
+    // If batch insert fails due to duplicates, insert one by one
+    if (error && error.message.includes('duplicate key')) {
+      let insertedCount = 0;
+      for (const item of insertData) {
+        const { error: singleError } = await supabase
+          .from('shopee_returns')
+          .insert(item as never);
+
+        if (!singleError) {
+          insertedCount++;
+        }
+        // Silently skip duplicates
+      }
+
+      return {
+        success: true,
+        data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount) },
+      };
+    }
 
     if (error) {
       console.error('Import shopee returns error:', error);
