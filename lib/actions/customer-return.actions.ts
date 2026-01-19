@@ -19,10 +19,13 @@ export interface CustomerReturnFormData {
 /**
  * Submit customer return request from the simplified portal form
  * Optimized for speed with parallel operations
+ *
+ * @param formData - Form data from the customer
+ * @param imageFiles - Either base64 encoded images OR already uploaded image URLs
  */
 export async function submitCustomerReturn(
   formData: CustomerReturnFormData,
-  imageFiles: { name: string; type: string; base64: string }[]
+  imageFiles: { name: string; type: string; base64: string }[] | { publicUrl: string; storagePath: string }[]
 ): Promise<ApiResponse<{ requestNumber: string }>> {
   try {
     let adminClient;
@@ -136,42 +139,56 @@ export async function submitCustomerReturn(
       return { success: false, error: `建立退貨申請失敗: ${returnError?.message || '未知錯誤'}` };
     }
 
-    // 3. Upload images in PARALLEL (major speed improvement)
-    const uploadPromises = imageFiles.map(async (file, i) => {
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `${returnRequest.id}/${Date.now()}_${i}.${fileExt}`;
+    // 3. Handle images - either already uploaded URLs or base64 data
+    let uploadedImages: { url: string; storagePath: string }[] = [];
 
-      // Decode base64 to buffer
-      const base64Data = file.base64.replace(/^data:image\/\w+;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
+    // Check if images are already uploaded (have publicUrl) or need to be uploaded (have base64)
+    const isPreUploaded = imageFiles.length > 0 && 'publicUrl' in imageFiles[0];
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await adminClient.storage
-        .from('return-images')
-        .upload(fileName, buffer, {
-          contentType: file.type,
-          upsert: false,
-        });
+    if (isPreUploaded) {
+      // Images are already uploaded to Supabase Storage
+      uploadedImages = (imageFiles as { publicUrl: string; storagePath: string }[]).map((img) => ({
+        url: img.publicUrl,
+        storagePath: img.storagePath,
+      }));
+    } else {
+      // Upload images in PARALLEL (legacy base64 method)
+      const uploadPromises = (imageFiles as { name: string; type: string; base64: string }[]).map(async (file, i) => {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${returnRequest.id}/${Date.now()}_${i}.${fileExt}`;
 
-      if (uploadError) {
-        console.error('Upload image error:', uploadError);
-        return null;
-      }
+        // Decode base64 to buffer
+        const base64Data = file.base64.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
 
-      // Get public URL
-      const { data: urlData } = adminClient.storage
-        .from('return-images')
-        .getPublicUrl(fileName);
+        // Upload to Supabase Storage
+        const { error: uploadError } = await adminClient.storage
+          .from('return-images')
+          .upload(fileName, buffer, {
+            contentType: file.type,
+            upsert: false,
+          });
 
-      return {
-        url: urlData.publicUrl,
-        storagePath: fileName,
-      };
-    });
+        if (uploadError) {
+          console.error('Upload image error:', uploadError);
+          return null;
+        }
 
-    // Wait for all uploads to complete in parallel
-    const uploadResults = await Promise.all(uploadPromises);
-    const uploadedImages = uploadResults.filter((img): img is { url: string; storagePath: string } => img !== null);
+        // Get public URL
+        const { data: urlData } = adminClient.storage
+          .from('return-images')
+          .getPublicUrl(fileName);
+
+        return {
+          url: urlData.publicUrl,
+          storagePath: fileName,
+        };
+      });
+
+      // Wait for all uploads to complete in parallel
+      const uploadResults = await Promise.all(uploadPromises);
+      uploadedImages = uploadResults.filter((img): img is { url: string; storagePath: string } => img !== null);
+    }
 
     // 4. Create all remaining records in parallel
     // Image records
@@ -261,6 +278,11 @@ interface ReturnListResult {
     order_number: string;
     customer_name: string | null;
   } | null;
+  return_images?: {
+    id: string;
+    image_url: string;
+    image_type: string | null;
+  }[];
 }
 
 /**
@@ -300,6 +322,11 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
         order:orders (
           order_number,
           customer_name
+        ),
+        return_images (
+          id,
+          image_url,
+          image_type
         )
       `)
       .in('order_id', orderIds)

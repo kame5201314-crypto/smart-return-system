@@ -15,14 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SimpleImageUploader } from '@/components/upload/simple-image-uploader';
+import { DirectImageUploader, type UploadedImage } from '@/components/upload/direct-image-uploader';
 import { submitCustomerReturn } from '@/lib/actions/customer-return.actions';
-
-interface UploadedImage {
-  id: string;
-  file: File;
-  preview: string;
-}
 
 // Form validation schema
 const returnFormSchema = z.object({
@@ -36,16 +30,6 @@ const returnFormSchema = z.object({
 });
 
 type ReturnFormInput = z.infer<typeof returnFormSchema>;
-
-// Helper to convert File to base64
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-}
 
 export default function CustomerPortalPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -143,35 +127,37 @@ export default function CustomerPortalPage() {
       return;
     }
 
-    // Validate at least one image
-    if (images.length === 0) {
+    // Validate at least one image successfully uploaded
+    const successfulImages = images.filter((img) => img.status === 'success');
+    if (successfulImages.length === 0) {
       toast.error('請至少上傳一張照片');
+      return;
+    }
+
+    // Check if any images are still uploading
+    const uploadingImages = images.filter((img) => img.status === 'uploading');
+    if (uploadingImages.length > 0) {
+      toast.error('請等待圖片上傳完成');
       return;
     }
 
     try {
       setIsLoading(true);
 
-      // Convert images to base64 for server action
-      const imageFilesData = await Promise.all(
-        images.map(async (img) => ({
-          name: img.file.name,
-          type: img.file.type,
-          base64: await fileToBase64(img.file),
-        }))
-      );
+      // Get successfully uploaded images (already uploaded to Supabase)
+      const successfulShippingImages = shippingLabelImages.filter((img) => img.status === 'success');
 
-      // Convert shipping label images to base64
-      const shippingLabelFilesData = await Promise.all(
-        shippingLabelImages.map(async (img) => ({
-          name: img.file.name,
-          type: img.file.type,
-          base64: await fileToBase64(img.file),
-        }))
-      );
-
-      // Combine all images
-      const allImagesData = [...imageFilesData, ...shippingLabelFilesData];
+      // Combine all successfully uploaded images
+      const allImagesData = [
+        ...successfulImages.map((img) => ({
+          publicUrl: img.publicUrl,
+          storagePath: img.storagePath,
+        })),
+        ...successfulShippingImages.map((img) => ({
+          publicUrl: img.publicUrl,
+          storagePath: img.storagePath,
+        })),
+      ];
 
       // Get selected product labels for submission
       const selectedProductLabels = selectedProducts.map(
@@ -670,12 +656,13 @@ export default function CustomerPortalPage() {
                   <p className="text-sm text-gray-500">
                     請上傳產品照片及外箱照片（最多 5 張）
                   </p>
-                  <SimpleImageUploader
+                  <DirectImageUploader
                     images={images}
                     onImagesChange={setImages}
                     disabled={isLoading}
                     maxImages={5}
                     maxFileSizeMB={10}
+                    folder="product-photos"
                   />
                 </div>
 
@@ -690,12 +677,13 @@ export default function CustomerPortalPage() {
                   <p className="text-sm text-gray-500">
                     請上傳寄件單照片（最多 2 張）
                   </p>
-                  <SimpleImageUploader
+                  <DirectImageUploader
                     images={shippingLabelImages}
                     onImagesChange={setShippingLabelImages}
                     disabled={isLoading}
                     maxImages={2}
                     maxFileSizeMB={10}
+                    folder="shipping-labels"
                   />
                 </div>
 

@@ -41,6 +41,11 @@ interface ReturnResult {
     order_number: string;
     customer_name: string | null;
   } | null;
+  return_images?: {
+    id: string;
+    image_url: string;
+    image_type: string | null;
+  }[];
 }
 
 export default function TrackQueryPage() {
@@ -245,6 +250,29 @@ export default function TrackQueryPage() {
                         <div className="mb-4">
                           <p className="text-sm text-gray-500">退貨原因</p>
                           <p className="text-gray-700">{item.reason_detail}</p>
+                        </div>
+                      )}
+
+                      {item.return_images && item.return_images.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 mb-2">上傳的圖片</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {item.return_images.map((img) => (
+                              <a
+                                key={img.id}
+                                href={img.image_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-teal-400 transition-colors"
+                              >
+                                <img
+                                  src={img.image_url}
+                                  alt="退貨圖片"
+                                  className="w-full h-full object-cover"
+                                />
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
 
