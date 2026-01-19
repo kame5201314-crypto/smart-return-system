@@ -168,11 +168,11 @@ export async function importShopeeReturns(
 }
 
 /**
- * Update shopee return status (processed/printed)
+ * Update shopee return status (processed/printed/tracking_number)
  */
 export async function updateShopeeReturnStatus(
   id: string,
-  updates: { is_processed?: boolean; is_printed?: boolean; note?: string }
+  updates: { is_processed?: boolean; is_printed?: boolean; note?: string; tracking_number?: string }
 ): Promise<ApiResponse<void>> {
   try {
     const supabase = createUntypedAdminClient();

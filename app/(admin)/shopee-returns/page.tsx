@@ -131,7 +131,9 @@ export default function ShopeeReturnsPage() {
   const html5QrCodeRef = useRef<unknown>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const trackingTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
+  const [localTrackingNumbers, setLocalTrackingNumbers] = useState<Record<string, string>>({});
 
   // Load from database
   useEffect(() => {
@@ -398,6 +400,7 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter(
         (r) =>
           r.order_number.toLowerCase().includes(query) ||
+          (r.tracking_number?.toLowerCase().includes(query) ?? false) ||
           (r.product_name?.toLowerCase().includes(query) ?? false) ||
           (r.option_sku?.toLowerCase().includes(query) ?? false) ||
           (r.note?.toLowerCase().includes(query) ?? false)
@@ -674,6 +677,37 @@ export default function ShopeeReturnsPage() {
   const getNoteValue = useCallback((record: ShopeeReturn) => {
     return localNotes[record.id] !== undefined ? localNotes[record.id] : (record.note || '');
   }, [localNotes]);
+
+  // Debounced tracking number update
+  const debouncedUpdateTrackingNumber = useCallback((id: string, trackingNumber: string) => {
+    setLocalTrackingNumbers((prev) => ({ ...prev, [id]: trackingNumber }));
+
+    if (trackingTimersRef.current[id]) {
+      clearTimeout(trackingTimersRef.current[id]);
+    }
+
+    trackingTimersRef.current[id] = setTimeout(async () => {
+      const result = await updateShopeeReturnStatus(id, { tracking_number: trackingNumber });
+      if (result.success) {
+        setReturns((prev) =>
+          prev.map((r) =>
+            r.id === id ? { ...r, tracking_number: trackingNumber } : r
+          )
+        );
+        setLocalTrackingNumbers((prev) => {
+          const newTrackingNumbers = { ...prev };
+          delete newTrackingNumbers[id];
+          return newTrackingNumbers;
+        });
+      }
+      delete trackingTimersRef.current[id];
+    }, 500);
+  }, []);
+
+  // Get tracking number value (prefer local state for responsiveness)
+  const getTrackingNumberValue = useCallback((record: ShopeeReturn) => {
+    return localTrackingNumbers[record.id] !== undefined ? localTrackingNumbers[record.id] : (record.tracking_number || '');
+  }, [localTrackingNumbers]);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedReturns.length) {
@@ -998,7 +1032,7 @@ export default function ShopeeReturnsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="搜尋訂單編號、商品名稱、貨號..."
+                placeholder="搜尋訂單編號、寄件編號、商品名稱、貨號..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -1137,6 +1171,7 @@ export default function ShopeeReturnsPage() {
                     <TableHead className="w-[60px]">狀態</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
+                    <TableHead className="min-w-[100px] hidden md:table-cell">寄件編號</TableHead>
                     <TableHead
                       className="w-[80px] hidden md:table-cell cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('order_date')}
@@ -1203,6 +1238,14 @@ export default function ShopeeReturnsPage() {
                         </button>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Input
+                          value={getTrackingNumberValue(record)}
+                          onChange={(e) => debouncedUpdateTrackingNumber(record.id, e.target.value)}
+                          placeholder="寄件編號..."
+                          className="h-7 text-xs font-mono w-[120px]"
+                        />
+                      </TableCell>
                       <TableCell className="text-xs hidden md:table-cell">{formatOrderDate(record.order_date)}</TableCell>
                       <TableCell className="text-center text-xs hidden lg:table-cell">${(record.total_price || 0).toLocaleString()}</TableCell>
                       <TableCell className="hidden lg:table-cell">
