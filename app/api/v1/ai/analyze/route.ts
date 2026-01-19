@@ -286,16 +286,9 @@ ${JSON.stringify(analysisData, null, 2)}
     console.error('AI analysis error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    // 提供更詳細的錯誤訊息
-    let userMessage = `分析失敗: ${errorMessage}`;
-    if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-      userMessage = '模型無法使用，請確認 GEMINI_API_KEY 是否有效且已啟用 Gemini API';
-    } else if (errorMessage.includes('API_KEY') || errorMessage.includes('401')) {
-      userMessage = 'API 金鑰無效，請在 Google AI Studio 重新產生金鑰';
-    }
-
+    // 顯示完整錯誤訊息以便診斷
     return NextResponse.json(
-      { success: false, error: userMessage },
+      { success: false, error: `分析失敗: ${errorMessage}` },
       { status: 500 }
     );
   }
