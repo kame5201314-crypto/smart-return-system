@@ -74,7 +74,12 @@ export async function POST(request: NextRequest) {
       'yyyy-MM-dd'
     );
 
-    const { data: returns, error: fetchError } = await supabase
+    // First try with relations, fallback to basic query if relations fail
+    let returns: ReturnAnalysisData[] | null = null;
+    let fetchError: Error | null = null;
+
+    // Try with full relations first
+    const fullQuery = await supabase
       .from('return_requests')
       .select(`
         *,
@@ -93,15 +98,27 @@ export async function POST(request: NextRequest) {
       .gte('created_at', startDate)
       .lt('created_at', endDate);
 
+    if (fullQuery.error) {
+      console.warn('Full query failed, trying basic query:', fullQuery.error.message);
+      // Fallback to basic query without relations
+      const basicQuery = await supabase
+        .from('return_requests')
+        .select('*')
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+
+      if (basicQuery.error) {
+        console.error('Basic query also failed:', basicQuery.error);
+        fetchError = basicQuery.error;
+      } else {
+        returns = basicQuery.data as ReturnAnalysisData[];
+      }
+    } else {
+      returns = fullQuery.data as ReturnAnalysisData[];
+    }
+
     if (fetchError) {
       console.error('Fetch returns error:', fetchError);
-      // Check if table doesn't exist
-      if (fetchError.message?.includes('does not exist') || fetchError.code === '42P01') {
-        return NextResponse.json(
-          { success: false, error: '退貨資料表尚未建立，請先執行資料庫遷移' },
-          { status: 500 }
-        );
-      }
       return NextResponse.json(
         { success: false, error: `無法取得退貨資料: ${fetchError.message}` },
         { status: 500 }
