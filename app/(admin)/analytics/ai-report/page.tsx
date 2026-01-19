@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Brain,
@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Calendar,
   RefreshCw,
+  History,
 } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 
@@ -66,7 +67,9 @@ export default function AIReportPage() {
     format(new Date(), 'yyyy-MM')
   );
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
+  const [hasExistingReport, setHasExistingReport] = useState(false);
 
   // Generate period options (last 12 months)
   const periodOptions = Array.from({ length: 12 }, (_, i) => {
@@ -76,6 +79,49 @@ export default function AIReportPage() {
       label: format(date, 'yyyy年MM月'),
     };
   });
+
+  // Load existing report for the selected period
+  const loadExistingReport = useCallback(async (period: string) => {
+    try {
+      setLoadingExisting(true);
+      const response = await fetch(`/api/v1/ai/analyze?period=${period}`);
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.length > 0) {
+        // Get the most recent report for this period
+        const report = data.data[0];
+        setResult({
+          id: report.id,
+          period: report.report_period,
+          summary: report.trend_analysis?.summary || '',
+          painPoints: report.pain_points || [],
+          recommendations: report.recommendations || [],
+          skuAnalysis: report.sku_analysis || [],
+          channelAnalysis: report.channel_analysis || [],
+          statistics: {
+            totalReturns: report.total_returns || 0,
+            totalRefundAmount: report.total_refund_amount || 0,
+            storeCreditRate: report.store_credit_rate || 0,
+          },
+        });
+        setHasExistingReport(true);
+      } else {
+        setResult(null);
+        setHasExistingReport(false);
+      }
+    } catch (error) {
+      console.error('Load existing report error:', error);
+      setResult(null);
+      setHasExistingReport(false);
+    } finally {
+      setLoadingExisting(false);
+    }
+  }, []);
+
+  // Load existing report on mount and when period changes
+  useEffect(() => {
+    loadExistingReport(selectedPeriod);
+  }, [selectedPeriod, loadExistingReport]);
 
   async function handleAnalyze() {
     try {
@@ -92,7 +138,8 @@ export default function AIReportPage() {
 
       if (data.success) {
         setResult(data.data);
-        toast.success('分析完成');
+        setHasExistingReport(true);
+        toast.success('分析完成，報告已儲存');
       } else {
         toast.error(data.error || '分析失敗');
       }
@@ -139,11 +186,16 @@ export default function AIReportPage() {
               </Select>
             </div>
 
-            <Button onClick={handleAnalyze} disabled={loading}>
+            <Button onClick={handleAnalyze} disabled={loading || loadingExisting}>
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   分析中...
+                </>
+              ) : hasExistingReport ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  重新分析
                 </>
               ) : (
                 <>
@@ -152,6 +204,13 @@ export default function AIReportPage() {
                 </>
               )}
             </Button>
+
+            {hasExistingReport && !loading && (
+              <Badge variant="outline" className="text-green-600 border-green-300">
+                <History className="w-3 h-3 mr-1" />
+                已有歷史報告
+              </Badge>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -369,8 +428,20 @@ export default function AIReportPage() {
         </div>
       )}
 
+      {/* Loading existing report */}
+      {loadingExisting && !loading && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-muted-foreground" />
+            <p className="text-muted-foreground">
+              載入歷史報告中...
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Empty state */}
-      {!result && !loading && (
+      {!result && !loading && !loadingExisting && (
         <Card>
           <CardContent className="py-12 text-center">
             <Brain className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
