@@ -132,6 +132,7 @@ export default function ShopeeReturnsPage() {
   const html5QrCodeRef = useRef<unknown>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const scanResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
   // Load from database
@@ -270,7 +271,11 @@ export default function ShopeeReturnsPage() {
     if (isScanning || !code.trim()) return;
 
     setIsScanning(true);
-    setLastScanResult(null);
+
+    // Clear existing timer
+    if (scanResultTimerRef.current) {
+      clearTimeout(scanResultTimerRef.current);
+    }
 
     try {
       const result = await scanShopeeReturn(code);
@@ -287,14 +292,12 @@ export default function ShopeeReturnsPage() {
             message: '此訂單已掃描過',
             orderNumber: matched.order_number
           });
-          toast.info(`訂單 ${matched.order_number} 已掃描過`);
         } else {
           setLastScanResult({
             success: true,
             message: '掃描成功！',
             orderNumber: matched.order_number
           });
-          toast.success(`掃描成功：${matched.order_number}`);
 
           // Update local state
           setReturns(prev =>
@@ -309,7 +312,6 @@ export default function ShopeeReturnsPage() {
           success: false,
           message: result.error || '找不到符合的訂單'
         });
-        toast.error(result.error || '找不到符合的訂單');
       }
     } catch (error) {
       console.error('Scan error:', error);
@@ -321,6 +323,11 @@ export default function ShopeeReturnsPage() {
     } finally {
       setIsScanning(false);
       setScanInput('');
+
+      // Auto-dismiss result after 5 seconds
+      scanResultTimerRef.current = setTimeout(() => {
+        setLastScanResult(null);
+      }, 5000);
     }
   }
 
@@ -873,10 +880,14 @@ export default function ShopeeReturnsPage() {
       <Card className="border-orange-200 bg-orange-50/50">
         <CardContent className="p-3">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-orange-700">
-              <ScanLine className="w-5 h-5" />
-              <span className="font-medium text-sm hidden sm:inline">快速掃描</span>
-            </div>
+            <Button
+              onClick={() => setScannerOpen(true)}
+              className="bg-orange-500 hover:bg-orange-600 gap-2"
+            >
+              <Camera className="w-5 h-5" />
+              <span className="hidden sm:inline">開啟相機掃描</span>
+              <span className="sm:hidden">掃描</span>
+            </Button>
             <div className="flex-1 flex gap-2">
               <Input
                 value={scanInput}
@@ -887,29 +898,20 @@ export default function ShopeeReturnsPage() {
                     handleManualScan();
                   }
                 }}
-                placeholder="掃描條碼或輸入訂單編號，按 Enter..."
+                placeholder="或手動輸入訂單編號..."
                 className="flex-1 bg-white"
                 disabled={isScanning}
               />
               <Button
                 onClick={handleManualScan}
                 disabled={isScanning || !scanInput.trim()}
-                className="bg-orange-500 hover:bg-orange-600"
+                variant="outline"
               >
                 {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setScannerOpen(true)}
-              className="hidden sm:flex"
-            >
-              <Camera className="w-4 h-4 mr-1" />
-              相機
-            </Button>
           </div>
-          {/* Quick scan result feedback */}
+          {/* Quick scan result feedback - auto dismiss after 5 seconds */}
           {lastScanResult && (
             <div className={`mt-2 p-2 rounded flex items-center gap-2 text-sm ${
               lastScanResult.success
@@ -935,64 +937,56 @@ export default function ShopeeReturnsPage() {
         if (!open) stopScanner();
         setScannerOpen(open);
       }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto p-4">
+          <DialogHeader className="pb-2">
             <DialogTitle className="flex items-center gap-2">
-              <ScanLine className="w-5 h-5" />
-              掃描條碼
+              <Camera className="w-5 h-5" />
+              相機掃描
             </DialogTitle>
             <DialogDescription>
-              使用 USB 掃描器、手機相機，或手動輸入訂單編號
+              將條碼對準下方框內，自動識別
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Manual Input / USB Scanner - Always shown prominently */}
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-700 mb-2 font-medium">USB 掃描器 / 手動輸入：</p>
-              <div className="flex gap-2">
-                <Input
-                  ref={scanInputRef}
-                  value={scanInput}
-                  onChange={(e) => setScanInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleManualScan();
-                    }
-                  }}
-                  placeholder="掃描或輸入訂單編號，按 Enter 比對..."
-                  className="flex-1 bg-white"
-                  disabled={isScanning}
-                  autoFocus
-                />
-                <Button onClick={handleManualScan} disabled={isScanning || !scanInput.trim()}>
-                  {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : '比對'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Camera Scanner */}
+          <div className="space-y-3">
+            {/* Camera Scanner - Primary focus */}
             <div className="relative">
               <div
                 id="scanner-video"
                 ref={videoContainerRef}
-                className="w-full aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden min-h-[240px]"
+                className="w-full aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden min-h-[280px]"
               />
+              {/* Targeting frame overlay */}
+              {!cameraLoading && !cameraError && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  <div className="relative w-[80%] h-[40%]">
+                    {/* Corner markers */}
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-orange-400 rounded-tl-lg" />
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-orange-400 rounded-tr-lg" />
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-orange-400 rounded-bl-lg" />
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-orange-400 rounded-br-lg" />
+                    {/* Scan line animation */}
+                    <div className="absolute inset-x-0 top-1/2 h-0.5 bg-orange-400 opacity-75 animate-pulse" />
+                  </div>
+                  <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-1">
+                    將條碼對準框內
+                  </p>
+                </div>
+              )}
               {cameraLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
                   <div className="text-center text-white">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                    <p className="text-sm">正在啟動相機...</p>
-                    <p className="text-xs text-gray-400 mt-1">請允許相機權限</p>
+                    <Loader2 className="w-10 h-10 animate-spin mx-auto mb-3" />
+                    <p className="text-base font-medium">正在啟動相機...</p>
+                    <p className="text-sm text-gray-400 mt-1">請允許相機權限</p>
                   </div>
                 </div>
               )}
               {cameraError && !cameraLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg">
                   <div className="text-center text-white p-4">
-                    <Camera className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm text-gray-300 mb-3">{cameraError}</p>
+                    <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm text-gray-300 mb-4">{cameraError}</p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1000,12 +994,10 @@ export default function ShopeeReturnsPage() {
                         setCameraError(null);
                         initializeScanner();
                       }}
-                      className="mb-2"
                     >
                       <Camera className="w-4 h-4 mr-1" />
                       重試相機
                     </Button>
-                    <p className="text-xs text-gray-400">或使用上方輸入框手動輸入</p>
                   </div>
                 </div>
               )}
@@ -1014,7 +1006,7 @@ export default function ShopeeReturnsPage() {
             {/* Scan Result */}
             {lastScanResult && (
               <div
-                className={`p-4 rounded-lg flex items-center gap-3 ${
+                className={`p-3 rounded-lg flex items-center gap-3 ${
                   lastScanResult.success
                     ? 'bg-green-50 border border-green-200'
                     : 'bg-red-50 border border-red-200'
@@ -1025,13 +1017,13 @@ export default function ShopeeReturnsPage() {
                 ) : (
                   <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
                 )}
-                <div>
+                <div className="flex-1">
                   <p className={`font-medium ${lastScanResult.success ? 'text-green-800' : 'text-red-800'}`}>
                     {lastScanResult.message}
                   </p>
                   {lastScanResult.orderNumber && (
-                    <p className="text-sm text-muted-foreground">
-                      訂單：{lastScanResult.orderNumber}
+                    <p className="text-sm font-mono text-muted-foreground">
+                      {lastScanResult.orderNumber}
                     </p>
                   )}
                 </div>
@@ -1039,7 +1031,7 @@ export default function ShopeeReturnsPage() {
             )}
 
             {/* Stats */}
-            <div className="flex justify-center gap-4 text-sm pt-2 border-t">
+            <div className="flex justify-center gap-6 text-sm py-2 border-t">
               <div className="flex items-center gap-2">
                 <Badge className="bg-blue-100 text-blue-800">{scannedCount}</Badge>
                 <span className="text-muted-foreground">已掃描</span>
