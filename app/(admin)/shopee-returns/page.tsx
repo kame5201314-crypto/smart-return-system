@@ -172,7 +172,7 @@ export default function ShopeeReturnsPage() {
     try {
       // Check if mediaDevices is available
       if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError('您的瀏覽器不支援相機功能，請使用手動輸入或 USB 掃描器');
+        setCameraError('您的瀏覽器不支援相機功能，請重試或稍後再試');
         setCameraLoading(false);
         return;
       }
@@ -243,9 +243,9 @@ export default function ShopeeReturnsPage() {
       if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed')) {
         setCameraError('相機權限被拒絕，請在瀏覽器設定中允許相機存取');
       } else if (errorMsg.includes('NotFound') || errorMsg.includes('DevicesNotFound')) {
-        setCameraError('找不到相機裝置，請使用手動輸入或 USB 掃描器');
+        setCameraError('找不到相機裝置，請重試或稍後再試');
       } else {
-        setCameraError('相機啟動失敗，請使用手動輸入或 USB 掃描器');
+        setCameraError('相機啟動失敗，請重試或稍後再試');
       }
     } finally {
       setCameraLoading(false);
@@ -900,19 +900,34 @@ export default function ShopeeReturnsPage() {
                 ref={videoContainerRef}
                 className="w-full aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden min-h-[280px]"
               />
-              {/* Targeting frame overlay - always visible except when error */}
+              {/* Targeting frame overlay - white corner brackets for better visibility */}
               {!cameraError && (
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-                  <div className="relative w-[80%] h-[40%]">
-                    {/* Corner markers */}
-                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-orange-500 rounded-tl-lg" />
-                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-orange-500 rounded-tr-lg" />
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-orange-500 rounded-bl-lg" />
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-orange-500 rounded-br-lg" />
-                    {/* Scan line animation */}
-                    <div className="absolute inset-x-0 top-1/2 h-0.5 bg-orange-500 animate-pulse" />
+                  {/* Square scanning frame */}
+                  <div className="relative w-[70%] aspect-square max-w-[280px]">
+                    {/* Corner brackets - white, thick, prominent */}
+                    {/* Top-left */}
+                    <div className="absolute top-0 left-0 w-12 h-12">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-white rounded-full" />
+                      <div className="absolute top-0 left-0 w-1 h-full bg-white rounded-full" />
+                    </div>
+                    {/* Top-right */}
+                    <div className="absolute top-0 right-0 w-12 h-12">
+                      <div className="absolute top-0 right-0 w-full h-1 bg-white rounded-full" />
+                      <div className="absolute top-0 right-0 w-1 h-full bg-white rounded-full" />
+                    </div>
+                    {/* Bottom-left */}
+                    <div className="absolute bottom-0 left-0 w-12 h-12">
+                      <div className="absolute bottom-0 left-0 w-full h-1 bg-white rounded-full" />
+                      <div className="absolute bottom-0 left-0 w-1 h-full bg-white rounded-full" />
+                    </div>
+                    {/* Bottom-right */}
+                    <div className="absolute bottom-0 right-0 w-12 h-12">
+                      <div className="absolute bottom-0 right-0 w-full h-1 bg-white rounded-full" />
+                      <div className="absolute bottom-0 right-0 w-1 h-full bg-white rounded-full" />
+                    </div>
                   </div>
-                  <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm font-medium bg-black/60 py-2 mx-4 rounded">
+                  <p className="absolute bottom-6 left-0 right-0 text-center text-white text-sm font-medium drop-shadow-lg">
                     將條碼對準框內
                   </p>
                 </div>
