@@ -1060,50 +1060,8 @@ export default function ShopeeReturnsPage() {
               />
             </div>
 
-            {/* Filters Row */}
-            <div className="flex flex-wrap gap-2">
-              {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-                <SelectTrigger className="w-[110px]">
-                  <Filter className="w-4 h-4 mr-1" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="unprocessed">未處理</SelectItem>
-                  <SelectItem value="processed">已處理</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Scan Filter */}
-              <Select value={scanFilter} onValueChange={(v) => setScanFilter(v as typeof scanFilter)}>
-                <SelectTrigger className="w-[110px]">
-                  <ScanLine className="w-4 h-4 mr-1" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="scanned">已掃描</SelectItem>
-                  <SelectItem value="not_scanned">未掃描</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Print Filter */}
-              <Select value={printFilter} onValueChange={(v) => setPrintFilter(v as typeof printFilter)}>
-                <SelectTrigger className="w-[110px]">
-                  <Printer className="w-4 h-4 mr-1" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="printed">已列印</SelectItem>
-                  <SelectItem value="not_printed">未列印</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Stats - RWD */}
-            <div className="flex flex-wrap gap-2 text-xs md:text-sm">
+            {/* Stats & Filters Row */}
+            <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm">
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground">總計:</span>
                 <Badge variant="secondary" className="text-xs">{returns.length}</Badge>
@@ -1120,6 +1078,45 @@ export default function ShopeeReturnsPage() {
                 <span className="text-muted-foreground">已掃描:</span>
                 <Badge className="bg-blue-100 text-blue-800 text-xs">{scannedCount}</Badge>
               </div>
+
+              {/* Status Filter - moved here */}
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                <SelectTrigger className="w-[100px] h-7 text-xs">
+                  <Filter className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="unprocessed">未處理</SelectItem>
+                  <SelectItem value="processed">已處理</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Scan Filter */}
+              <Select value={scanFilter} onValueChange={(v) => setScanFilter(v as typeof scanFilter)}>
+                <SelectTrigger className="w-[100px] h-7 text-xs">
+                  <ScanLine className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="scanned">已掃描</SelectItem>
+                  <SelectItem value="not_scanned">未掃描</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Print Filter */}
+              <Select value={printFilter} onValueChange={(v) => setPrintFilter(v as typeof printFilter)}>
+                <SelectTrigger className="w-[100px] h-7 text-xs">
+                  <Printer className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="printed">已列印</SelectItem>
+                  <SelectItem value="not_printed">未列印</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
