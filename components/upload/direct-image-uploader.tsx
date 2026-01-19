@@ -24,16 +24,73 @@ interface DirectImageUploaderProps {
   folder?: string;
 }
 
+// Compress image before upload for faster speed
+async function compressImage(file: File, maxWidth = 1920, quality = 0.8): Promise<File> {
+  // Skip compression for small files (< 500KB)
+  if (file.size < 500 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      // Calculate new dimensions
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      // Create canvas and compress
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(file); // Fallback to original
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          } else {
+            resolve(file); // Fallback to original
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 async function uploadImageDirect(
   file: File,
   folder?: string
 ): Promise<{ publicUrl: string; storagePath: string }> {
+  // Compress image before upload
+  const compressedFile = await compressImage(file);
+
   // 1. Get signed URL from our API
   const signedUrlResponse = await fetch('/api/v1/upload/signed-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      fileName: file.name,
+      fileName: compressedFile.name,
       fileType: file.type,
       folder,
     }),
@@ -50,9 +107,9 @@ async function uploadImageDirect(
   const uploadResponse = await fetch(signedUrl, {
     method: 'PUT',
     headers: {
-      'Content-Type': file.type,
+      'Content-Type': compressedFile.type,
     },
-    body: file,
+    body: compressedFile,
   });
 
   if (!uploadResponse.ok) {
