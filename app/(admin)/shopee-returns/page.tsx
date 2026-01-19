@@ -1125,11 +1125,11 @@ export default function ShopeeReturnsPage() {
                         {getSortIcon('order_date')}
                       </div>
                     </TableHead>
-                    <TableHead className="w-[70px] hidden lg:table-cell">總價</TableHead>
+                    <TableHead className="w-[70px] hidden lg:table-cell text-center">總價</TableHead>
                     <TableHead className="hidden lg:table-cell">商品</TableHead>
                     <TableHead className="w-[80px] hidden xl:table-cell">貨號</TableHead>
                     <TableHead className="w-[50px] hidden xl:table-cell">數量</TableHead>
-                    <TableHead className="w-[120px] hidden md:table-cell text-left">備註</TableHead>
+                    <TableHead className="hidden md:table-cell text-left">備註</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1183,7 +1183,7 @@ export default function ShopeeReturnsPage() {
                       </TableCell>
                       <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
                       <TableCell className="text-xs hidden md:table-cell">{formatOrderDate(record.order_date)}</TableCell>
-                      <TableCell className="text-right text-xs hidden lg:table-cell">${(record.total_price || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-center text-xs hidden lg:table-cell">${(record.total_price || 0).toLocaleString()}</TableCell>
                       <TableCell className="hidden lg:table-cell">
                         <div className="max-w-[150px] truncate text-xs" title={record.product_name || ''}>
                           {record.product_name || '-'}
