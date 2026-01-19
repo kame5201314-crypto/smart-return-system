@@ -956,25 +956,25 @@ export default function ShopeeReturnsPage() {
                 ref={videoContainerRef}
                 className="w-full aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden min-h-[280px]"
               />
-              {/* Targeting frame overlay */}
-              {!cameraLoading && !cameraError && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              {/* Targeting frame overlay - always visible except when error */}
+              {!cameraError && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
                   <div className="relative w-[80%] h-[40%]">
                     {/* Corner markers */}
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-orange-400 rounded-tl-lg" />
-                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-orange-400 rounded-tr-lg" />
-                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-orange-400 rounded-bl-lg" />
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-orange-400 rounded-br-lg" />
+                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-orange-500 rounded-tl-lg" />
+                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-orange-500 rounded-tr-lg" />
+                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-orange-500 rounded-bl-lg" />
+                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-orange-500 rounded-br-lg" />
                     {/* Scan line animation */}
-                    <div className="absolute inset-x-0 top-1/2 h-0.5 bg-orange-400 opacity-75 animate-pulse" />
+                    <div className="absolute inset-x-0 top-1/2 h-0.5 bg-orange-500 animate-pulse" />
                   </div>
-                  <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-1">
+                  <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm font-medium bg-black/60 py-2 mx-4 rounded">
                     將條碼對準框內
                   </p>
                 </div>
               )}
               {cameraLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg z-20">
                   <div className="text-center text-white">
                     <Loader2 className="w-10 h-10 animate-spin mx-auto mb-3" />
                     <p className="text-base font-medium">正在啟動相機...</p>
@@ -983,7 +983,7 @@ export default function ShopeeReturnsPage() {
                 </div>
               )}
               {cameraError && !cameraLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg z-20">
                   <div className="text-center text-white p-4">
                     <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p className="text-sm text-gray-300 mb-4">{cameraError}</p>
