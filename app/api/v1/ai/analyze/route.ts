@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
     const supabase = createAdminClient();
 
