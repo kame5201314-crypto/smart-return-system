@@ -119,7 +119,6 @@ export default function PickupPage() {
           (r) =>
             r.orderNumber.toLowerCase().includes(query) ||
             r.platform.toLowerCase().includes(query) ||
-            r.notes.toLowerCase().includes(query) ||
             r.receiverInfo.toLowerCase().includes(query)
         )
       );
@@ -388,7 +387,7 @@ export default function PickupPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="搜尋訂單編號、備註、收件資料..."
+                placeholder="搜尋訂單編號、收件人姓名..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -443,8 +442,7 @@ export default function PickupPage() {
                     <TableHead className="w-[80px]">物流</TableHead>
                     <TableHead className="w-[100px]">物流狀態</TableHead>
                     <TableHead className="w-[120px]">收到/已貼</TableHead>
-                    <TableHead>備註</TableHead>
-                    <TableHead>收件資料</TableHead>
+                    <TableHead>收件人姓名</TableHead>
                     <TableHead className="w-[100px]">操作</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -493,11 +491,6 @@ export default function PickupPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-[150px] truncate text-sm" title={record.notes}>
-                          {record.notes || '-'}
-                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="max-w-[200px] truncate text-sm" title={record.receiverInfo}>
@@ -634,20 +627,20 @@ export default function PickupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>備註</Label>
+              <Label>收件人姓名</Label>
               <Input
-                placeholder="輸入備註內容"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="輸入收件人姓名"
+                value={formData.receiverInfo}
+                onChange={(e) => setFormData({ ...formData, receiverInfo: e.target.value })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>收件資料</Label>
+              <Label>備註</Label>
               <Textarea
-                placeholder="輸入收件人地址、電話等資訊"
-                value={formData.receiverInfo}
-                onChange={(e) => setFormData({ ...formData, receiverInfo: e.target.value })}
+                placeholder="輸入備註內容"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={2}
               />
             </div>
