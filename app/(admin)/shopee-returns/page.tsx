@@ -876,62 +876,6 @@ export default function ShopeeReturnsPage() {
         </div>
       </div>
 
-      {/* Quick Scan Bar - Always visible */}
-      <Card className="border-orange-200 bg-orange-50/50">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setScannerOpen(true)}
-              className="bg-orange-500 hover:bg-orange-600 gap-2"
-            >
-              <Camera className="w-5 h-5" />
-              <span className="hidden sm:inline">開啟相機掃描</span>
-              <span className="sm:hidden">掃描</span>
-            </Button>
-            <div className="flex-1 flex gap-2">
-              <Input
-                value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleManualScan();
-                  }
-                }}
-                placeholder="或手動輸入訂單編號..."
-                className="flex-1 bg-white"
-                disabled={isScanning}
-              />
-              <Button
-                onClick={handleManualScan}
-                disabled={isScanning || !scanInput.trim()}
-                variant="outline"
-              >
-                {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              </Button>
-            </div>
-          </div>
-          {/* Quick scan result feedback - auto dismiss after 5 seconds */}
-          {lastScanResult && (
-            <div className={`mt-2 p-2 rounded flex items-center gap-2 text-sm ${
-              lastScanResult.success
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {lastScanResult.success ? (
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              ) : (
-                <XCircle className="w-4 h-4 flex-shrink-0" />
-              )}
-              <span>{lastScanResult.message}</span>
-              {lastScanResult.orderNumber && (
-                <span className="font-mono text-xs ml-1">({lastScanResult.orderNumber})</span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Scanner Dialog */}
       <Dialog open={scannerOpen} onOpenChange={(open) => {
         if (!open) stopScanner();
