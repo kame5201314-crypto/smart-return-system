@@ -373,25 +373,6 @@ export default function InspectionPage() {
                   )}
                 />
 
-                {/* Inspector Comment */}
-                <FormField
-                  control={form.control}
-                  name="inspectorComment"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>驗貨評語</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="輸入可顯示給客戶的驗貨評語..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 {/* Submit */}
                 <Button
                   type="submit"
