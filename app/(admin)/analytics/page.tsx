@@ -375,7 +375,7 @@ export default function AnalyticsPage() {
                       <th className="text-left py-3 px-4 font-medium">商品名稱</th>
                       <th className="text-left py-3 px-4 font-medium">商品貨號</th>
                       <th className="text-left py-3 px-4 font-medium">退貨平台</th>
-                      <th className="text-right py-3 px-4 font-medium">退貨數量</th>
+                      <th className="text-center py-3 px-4 font-medium">退貨數量</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -394,7 +394,7 @@ export default function AnalyticsPage() {
                         <td className="py-3 px-4 font-medium">{product.name}</td>
                         <td className="py-3 px-4 text-muted-foreground">{product.sku || '-'}</td>
                         <td className="py-3 px-4 text-muted-foreground">{product.channel}</td>
-                        <td className="text-right py-3 px-4 font-medium">{product.quantity}</td>
+                        <td className="text-center py-3 px-4 font-medium">{product.quantity}</td>
                       </tr>
                     ))}
                   </tbody>
