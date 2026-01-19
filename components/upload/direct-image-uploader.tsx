@@ -25,9 +25,9 @@ interface DirectImageUploaderProps {
 }
 
 // Compress image before upload for faster speed
-async function compressImage(file: File, maxWidth = 1920, quality = 0.8): Promise<File> {
-  // Skip compression for small files (< 500KB)
-  if (file.size < 500 * 1024) {
+async function compressImage(file: File, maxWidth = 1200, quality = 0.7): Promise<File> {
+  // Skip compression for small files (< 200KB)
+  if (file.size < 200 * 1024) {
     return file;
   }
 
