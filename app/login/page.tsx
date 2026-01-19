@@ -145,12 +145,7 @@ export default function LoginPage() {
               </form>
             </Form>
 
-            {/* Demo credentials hint */}
-            <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-              <p className="text-sm text-purple-700 font-medium mb-2">測試帳號：</p>
-              <p className="text-sm text-purple-600">Email: admin@example.com</p>
-              <p className="text-sm text-purple-600">Password: admin888</p>
-            </div>
+{/* Production login - no demo credentials shown */}
           </CardContent>
         </Card>
 

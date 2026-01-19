@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { format } from 'date-fns';
 
 interface ReturnAnalysisData {
@@ -32,6 +33,17 @@ const getGeminiClient = () => {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: '未授權存取' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { period } = body; // e.g., '2024-01'
 
