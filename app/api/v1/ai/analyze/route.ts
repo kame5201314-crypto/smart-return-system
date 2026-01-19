@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { format } from 'date-fns';
@@ -23,13 +22,38 @@ interface ReturnAnalysisData {
   }[];
 }
 
-// Initialize Gemini client lazily
-const getGeminiClient = () => {
-  if (!process.env.GEMINI_API_KEY) {
+// Direct REST API call for Gemini (using v1 API)
+async function callGeminiAPI(prompt: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
-  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-};
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,9 +85,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
     const supabase = createAdminClient();
 
@@ -199,10 +220,8 @@ ${JSON.stringify(analysisData, null, 2)}
 
 請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
 
-    // Call Gemini API
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let aiResponse = response.text();
+    // Call Gemini API using direct REST API (more reliable)
+    let aiResponse = await callGeminiAPI(prompt);
 
     if (!aiResponse) {
       return NextResponse.json(
