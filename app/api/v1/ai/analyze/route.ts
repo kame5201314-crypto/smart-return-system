@@ -284,8 +284,9 @@ ${JSON.stringify(analysisData, null, 2)}
     });
   } catch (error) {
     console.error('AI analysis error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Analysis failed' },
+      { success: false, error: `分析失敗: ${errorMessage}` },
       { status: 500 }
     );
   }
