@@ -100,6 +100,7 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '運單編號': 'trackingNumber',
   '物流單號': 'trackingNumber',
   '追蹤編號': 'trackingNumber',
+  '包裹查詢號碼': 'trackingNumber',
 };
 
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
