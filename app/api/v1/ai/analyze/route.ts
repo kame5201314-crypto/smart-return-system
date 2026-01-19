@@ -22,15 +22,53 @@ interface ReturnAnalysisData {
   }[];
 }
 
-// Direct REST API call for Gemini (using v1 API)
+// First, list available models to find one that works
+async function listAvailableModels(apiKey: string): Promise<string[]> {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+  );
+
+  if (!response.ok) {
+    console.error('Failed to list models:', await response.text());
+    return [];
+  }
+
+  const data = await response.json();
+  return data.models?.map((m: { name: string }) => m.name) || [];
+}
+
+// Direct REST API call for Gemini
 async function callGeminiAPI(prompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
 
+  // Try to find an available model
+  const availableModels = await listAvailableModels(apiKey);
+  console.log('Available models:', availableModels);
+
+  // Find a suitable model for text generation
+  const preferredModels = [
+    'models/gemini-1.5-flash',
+    'models/gemini-1.5-pro',
+    'models/gemini-pro',
+    'models/gemini-1.0-pro',
+    'models/text-bison-001'
+  ];
+
+  let modelToUse = 'models/gemini-pro'; // default fallback
+  for (const preferred of preferredModels) {
+    if (availableModels.includes(preferred)) {
+      modelToUse = preferred;
+      break;
+    }
+  }
+
+  console.log('Using model:', modelToUse);
+
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: {
@@ -48,7 +86,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    throw new Error(`Gemini API error (model: ${modelToUse}, available: ${availableModels.join(', ')}): ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
