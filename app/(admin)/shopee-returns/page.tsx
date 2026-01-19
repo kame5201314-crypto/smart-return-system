@@ -131,9 +131,7 @@ export default function ShopeeReturnsPage() {
   const html5QrCodeRef = useRef<unknown>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const trackingTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
-  const [localTrackingNumbers, setLocalTrackingNumbers] = useState<Record<string, string>>({});
 
   // Load from database
   useEffect(() => {
@@ -678,37 +676,6 @@ export default function ShopeeReturnsPage() {
     return localNotes[record.id] !== undefined ? localNotes[record.id] : (record.note || '');
   }, [localNotes]);
 
-  // Debounced tracking number update
-  const debouncedUpdateTrackingNumber = useCallback((id: string, trackingNumber: string) => {
-    setLocalTrackingNumbers((prev) => ({ ...prev, [id]: trackingNumber }));
-
-    if (trackingTimersRef.current[id]) {
-      clearTimeout(trackingTimersRef.current[id]);
-    }
-
-    trackingTimersRef.current[id] = setTimeout(async () => {
-      const result = await updateShopeeReturnStatus(id, { tracking_number: trackingNumber });
-      if (result.success) {
-        setReturns((prev) =>
-          prev.map((r) =>
-            r.id === id ? { ...r, tracking_number: trackingNumber } : r
-          )
-        );
-        setLocalTrackingNumbers((prev) => {
-          const newTrackingNumbers = { ...prev };
-          delete newTrackingNumbers[id];
-          return newTrackingNumbers;
-        });
-      }
-      delete trackingTimersRef.current[id];
-    }, 500);
-  }, []);
-
-  // Get tracking number value (prefer local state for responsiveness)
-  const getTrackingNumberValue = useCallback((record: ShopeeReturn) => {
-    return localTrackingNumbers[record.id] !== undefined ? localTrackingNumbers[record.id] : (record.tracking_number || '');
-  }, [localTrackingNumbers]);
-
   function toggleSelectAll() {
     if (selectedIds.size === paginatedReturns.length) {
       setSelectedIds(new Set());
@@ -1238,13 +1205,8 @@ export default function ShopeeReturnsPage() {
                         </button>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Input
-                          value={getTrackingNumberValue(record)}
-                          onChange={(e) => debouncedUpdateTrackingNumber(record.id, e.target.value)}
-                          placeholder="寄件編號..."
-                          className="h-7 text-xs font-mono w-[120px]"
-                        />
+                      <TableCell className="hidden md:table-cell font-mono text-xs">
+                        {record.tracking_number || '-'}
                       </TableCell>
                       <TableCell className="text-xs hidden md:table-cell">{formatOrderDate(record.order_date)}</TableCell>
                       <TableCell className="text-center text-xs hidden lg:table-cell">${(record.total_price || 0).toLocaleString()}</TableCell>
