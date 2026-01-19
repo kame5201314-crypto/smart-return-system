@@ -286,12 +286,12 @@ export function DirectImageUploader({
                 )}
               </div>
 
-              {/* Remove button */}
+              {/* Remove button - always enabled */}
               <button
                 type="button"
                 onClick={() => removeImage(image.id)}
                 className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors"
-                disabled={disabled || image.status === 'uploading'}
+                disabled={disabled}
               >
                 <X className="w-4 h-4" />
               </button>
