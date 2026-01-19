@@ -689,7 +689,6 @@ export default function ReturnDetailPage() {
                       ) : (
                         <Badge variant="secondary">部分通過</Badge>
                       )}
-                      <Badge variant="outline">等級 {record.condition_grade}</Badge>
                     </div>
                     {record.inspector_comment && (
                       <p className="text-sm bg-gray-50 p-3 rounded">

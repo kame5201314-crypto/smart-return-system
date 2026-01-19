@@ -1137,7 +1137,7 @@ export default function ShopeeReturnsPage() {
                     <TableHead className="hidden lg:table-cell">商品</TableHead>
                     <TableHead className="w-[80px] hidden xl:table-cell">貨號</TableHead>
                     <TableHead className="w-[50px] hidden xl:table-cell">數量</TableHead>
-                    <TableHead className="w-[120px] hidden md:table-cell">備註</TableHead>
+                    <TableHead className="w-[120px] hidden md:table-cell text-left">備註</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
