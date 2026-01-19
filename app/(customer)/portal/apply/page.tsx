@@ -49,24 +49,47 @@ async function compressImage(file: File, maxWidth = 1600, quality = 0.5): Promis
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
+    // Check if canvas context is available
+    if (!ctx) {
+      reject(new Error('無法建立圖片處理器'));
+      return;
+    }
+
     img.onload = () => {
-      let width = img.width;
-      let height = img.height;
+      try {
+        let width = img.width;
+        let height = img.height;
 
-      // Only resize if larger than maxWidth (preserve smaller images)
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+        // Only resize if larger than maxWidth (preserve smaller images)
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+
+        // Validate the result
+        if (!compressedBase64 || compressedBase64 === 'data:,') {
+          reject(new Error('圖片壓縮失敗'));
+          return;
+        }
+
+        // Clean up object URL
+        URL.revokeObjectURL(img.src);
+        resolve(compressedBase64);
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('圖片處理錯誤'));
       }
-
-      canvas.width = width;
-      canvas.height = height;
-      ctx?.drawImage(img, 0, 0, width, height);
-      const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-      resolve(compressedBase64);
     };
 
-    img.onerror = reject;
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('無法載入圖片'));
+    };
+
     img.src = URL.createObjectURL(file);
   });
 }

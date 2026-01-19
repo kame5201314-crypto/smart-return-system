@@ -129,6 +129,8 @@ export default function ShopeeReturnsPage() {
   const scanInputRef = useRef<HTMLInputElement>(null);
   const html5QrCodeRef = useRef<unknown>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
   // Load from database
   useEffect(() => {
@@ -630,16 +632,40 @@ export default function ShopeeReturnsPage() {
     }
   }
 
-  async function updateNote(id: string, note: string) {
-    const result = await updateShopeeReturnStatus(id, { note });
-    if (result.success) {
-      setReturns((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, note } : r
-        )
-      );
+  // Debounced note update to avoid excessive API calls
+  const debouncedUpdateNote = useCallback((id: string, note: string) => {
+    // Update local state immediately for responsive UI
+    setLocalNotes((prev) => ({ ...prev, [id]: note }));
+
+    // Clear existing timer for this ID
+    if (noteTimersRef.current[id]) {
+      clearTimeout(noteTimersRef.current[id]);
     }
-  }
+
+    // Set new timer for debounced API call (500ms delay)
+    noteTimersRef.current[id] = setTimeout(async () => {
+      const result = await updateShopeeReturnStatus(id, { note });
+      if (result.success) {
+        setReturns((prev) =>
+          prev.map((r) =>
+            r.id === id ? { ...r, note } : r
+          )
+        );
+        // Clear local note since it's now synced
+        setLocalNotes((prev) => {
+          const newNotes = { ...prev };
+          delete newNotes[id];
+          return newNotes;
+        });
+      }
+      delete noteTimersRef.current[id];
+    }, 500);
+  }, []);
+
+  // Get note value (prefer local state for responsiveness)
+  const getNoteValue = useCallback((record: ShopeeReturn) => {
+    return localNotes[record.id] !== undefined ? localNotes[record.id] : (record.note || '');
+  }, [localNotes]);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedReturns.length) {
@@ -1175,8 +1201,8 @@ export default function ShopeeReturnsPage() {
                       <TableCell className="text-center text-xs hidden xl:table-cell">{record.return_quantity}</TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Input
-                          value={record.note || ''}
-                          onChange={(e) => updateNote(record.id, e.target.value)}
+                          value={getNoteValue(record)}
+                          onChange={(e) => debouncedUpdateNote(record.id, e.target.value)}
                           placeholder="備註..."
                           className="h-7 text-xs"
                         />

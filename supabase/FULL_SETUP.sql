@@ -9,6 +9,7 @@
 CREATE TABLE IF NOT EXISTS shopee_returns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_number VARCHAR(100) NOT NULL UNIQUE,
+  tracking_number VARCHAR(100),
   order_date DATE,
   total_price DECIMAL(10, 2) DEFAULT 0,
   product_name TEXT,
@@ -25,6 +26,8 @@ CREATE TABLE IF NOT EXISTS shopee_returns (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_shopee_returns_tracking_number ON shopee_returns(tracking_number);
 
 CREATE INDEX IF NOT EXISTS idx_shopee_returns_order_number ON shopee_returns(order_number);
 CREATE INDEX IF NOT EXISTS idx_shopee_returns_is_processed ON shopee_returns(is_processed);
