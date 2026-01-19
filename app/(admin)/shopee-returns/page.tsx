@@ -1113,15 +1113,7 @@ export default function ShopeeReturnsPage() {
                         {getSortIcon('is_scanned')}
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="w-[60px] cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('is_processed')}
-                    >
-                      <div className="flex items-center">
-                        狀態
-                        {getSortIcon('is_processed')}
-                      </div>
-                    </TableHead>
+                    <TableHead className="w-[60px]">狀態</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
                     <TableHead
