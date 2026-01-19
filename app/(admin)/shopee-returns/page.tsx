@@ -113,6 +113,7 @@ export default function ShopeeReturnsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'processed' | 'unprocessed'>('all');
   const [scanFilter, setScanFilter] = useState<'all' | 'scanned' | 'not_scanned'>('all');
+  const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
@@ -384,6 +385,13 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => !r.is_scanned);
     }
 
+    // Print filter
+    if (printFilter === 'printed') {
+      filtered = filtered.filter((r) => r.is_printed);
+    } else if (printFilter === 'not_printed') {
+      filtered = filtered.filter((r) => !r.is_printed);
+    }
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -417,7 +425,7 @@ export default function ShopeeReturnsPage() {
 
     setFilteredReturns(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [returns, searchQuery, statusFilter, scanFilter, sortField, sortDirection]);
+  }, [returns, searchQuery, statusFilter, scanFilter, printFilter, sortField, sortDirection]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredReturns.length / ITEMS_PER_PAGE);
@@ -1022,6 +1030,19 @@ export default function ShopeeReturnsPage() {
                   <SelectItem value="all">全部</SelectItem>
                   <SelectItem value="scanned">已掃描</SelectItem>
                   <SelectItem value="not_scanned">未掃描</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Print Filter */}
+              <Select value={printFilter} onValueChange={(v) => setPrintFilter(v as typeof printFilter)}>
+                <SelectTrigger className="w-[110px]">
+                  <Printer className="w-4 h-4 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="printed">已列印</SelectItem>
+                  <SelectItem value="not_printed">未列印</SelectItem>
                 </SelectContent>
               </Select>
             </div>
