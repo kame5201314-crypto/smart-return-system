@@ -63,8 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = getGeminiClient();
-    // 使用 models/ 前綴的完整模型名稱
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const supabase = createAdminClient();
 
