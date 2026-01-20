@@ -554,7 +554,9 @@ export default function ShopeeReturnsPage() {
 
     const labels = printData.map((r) => ({
       orderNumber: r.order_number,
+      trackingNumber: r.tracking_number || '',
       date: formatLabelDate(r.order_date),
+      platform: r.platform || 'shopee',
     }));
 
     const printContent = `
@@ -570,7 +572,9 @@ export default function ShopeeReturnsPage() {
           .label { border: 2px solid #000; display: grid; grid-template-columns: 2.5fr 1fr 1fr 1.5fr; height: 25mm; page-break-inside: avoid; }
           .label-cell { border-right: 2px solid #000; display: flex; align-items: center; justify-content: center; padding: 2mm; text-align: center; font-size: 11pt; font-weight: bold; overflow: hidden; word-break: break-all; }
           .label-cell:last-child { border-right: none; }
-          .label-cell.order-number { font-size: 10pt; line-height: 1.2; }
+          .label-cell.order-info { flex-direction: column; font-size: 9pt; line-height: 1.3; gap: 1mm; }
+          .label-cell.order-info .order-number { font-size: 10pt; }
+          .label-cell.order-info .tracking-number { font-size: 9pt; color: #333; }
           .label-cell.platform { background: #fff; font-size: 12pt; }
           .label-cell.date { font-size: 12pt; }
           .label-cell.shipping { font-size: 10pt; }
@@ -581,10 +585,13 @@ export default function ShopeeReturnsPage() {
         <div class="labels-container">
           ${labels.map((label) => `
             <div class="label">
-              <div class="label-cell order-number">${label.orderNumber}</div>
-              <div class="label-cell platform">蝦皮</div>
+              <div class="label-cell order-info">
+                <div class="order-number">${label.orderNumber}</div>
+                <div class="tracking-number">${label.trackingNumber}</div>
+              </div>
+              <div class="label-cell platform">${label.platform === 'mall' ? '商城' : '蝦皮'}</div>
               <div class="label-cell date">${label.date}</div>
-              <div class="label-cell shipping">蝦皮店到店</div>
+              <div class="label-cell shipping">${label.platform === 'mall' ? '黑貓' : '蝦皮店到店'}</div>
             </div>
           `).join('')}
         </div>
