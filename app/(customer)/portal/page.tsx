@@ -46,6 +46,20 @@ export default function CustomerPortalPage() {
   const [notAsDescribedText, setNotAsDescribedText] = useState('');
   const [selectedApexelIssues, setSelectedApexelIssues] = useState<string[]>([]);
   const [apexelOtherIssueText, setApexelOtherIssueText] = useState('');
+  // Official website return method states
+  const [returnMethod, setReturnMethod] = useState<string>('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  // Channel source states (now using checkbox)
+  const [selectedChannel, setSelectedChannel] = useState<string>('');
+  const [otherChannelText, setOtherChannelText] = useState('');
+
+  // Channel source options for checkbox selection
+  const channelOptions = [
+    { id: 'official', label: '官網' },
+    { id: 'shopee', label: '蝦皮' },
+    { id: 'other', label: '其他' },
+  ];
 
   // Product options for checkbox selection
   const productOptions = [
@@ -72,10 +86,28 @@ export default function CustomerPortalPage() {
     { id: 'apexel_other', label: '其他' },
   ];
 
+  // Official website return method options
+  const returnMethodOptions = [
+    { id: 'refund', label: '退貨退款' },
+    { id: 'credit_card_refund', label: '信用卡刷退' },
+    { id: 'exchange_only', label: '僅換貨(不退款)' },
+  ];
+
   // Check if APEXEL issues should be shown
   const shouldShowApexelIssues =
     selectedProducts.includes('apexel') &&
     (selectedReasons.includes('quality_issue') || selectedReasons.includes('defective'));
+
+  // Check if APEXEL tutorial link should be shown
+  const shouldShowApexelTutorial =
+    selectedProducts.includes('apexel') &&
+    (selectedReasons.includes('quality_issue') ||
+      selectedReasons.includes('defective') ||
+      selectedReasons.includes('not_as_described') ||
+      selectedReasons.includes('other'));
+
+  // APEXEL tutorial link
+  const APEXEL_TUTORIAL_URL = 'https://mefu.s3.ap-southeast-1.amazonaws.com/_MEFU%E5%AE%98%E7%B6%B2/APEXEL%E6%89%8B%E6%A9%9F%E9%8F%A1%E9%A0%AD%E7%B5%84%E8%A3%9D%E6%95%99%E5%AD%B8.html';
 
   const form = useForm<ReturnFormInput>({
     resolver: zodResolver(returnFormSchema),
@@ -91,6 +123,18 @@ export default function CustomerPortalPage() {
   });
 
   async function onSubmit(data: ReturnFormInput) {
+    // Validate channel source
+    if (!selectedChannel) {
+      toast.error('請選擇購買通路');
+      return;
+    }
+
+    // Validate other channel text if "other" is selected
+    if (selectedChannel === 'other' && !otherChannelText.trim()) {
+      toast.error('請填寫其他購買通路');
+      return;
+    }
+
     // Validate at least one product selected
     if (selectedProducts.length === 0) {
       toast.error('請至少選擇一項退貨商品');
@@ -125,6 +169,22 @@ export default function CustomerPortalPage() {
     if (selectedApexelIssues.includes('apexel_other') && !apexelOtherIssueText.trim()) {
       toast.error('請填寫 APEXEL 其他問題說明');
       return;
+    }
+
+    // Validate official website return method
+    if (selectedChannel === 'official') {
+      if (!returnMethod) {
+        toast.error('請選擇退換貨方式');
+        return;
+      }
+      if ((returnMethod === 'refund' || returnMethod === 'credit_card_refund') && !bankName.trim()) {
+        toast.error('請填寫匯款銀行');
+        return;
+      }
+      if ((returnMethod === 'refund' || returnMethod === 'credit_card_refund') && !bankAccount.trim()) {
+        toast.error('請填寫匯款帳號');
+        return;
+      }
     }
 
     // Validate at least one image successfully uploaded
@@ -189,10 +249,30 @@ export default function CustomerPortalPage() {
         combinedReason += `【APEXEL問題：${apexelIssueText}】`;
       }
 
+      // Build official website return method info
+      let officialReturnInfo = '';
+      if (selectedChannel === 'official' && returnMethod) {
+        const methodLabel = returnMethodOptions.find((opt) => opt.id === returnMethod)?.label || returnMethod;
+        officialReturnInfo = `【退換貨方式：${methodLabel}`;
+        if (returnMethod === 'refund' || returnMethod === 'credit_card_refund') {
+          officialReturnInfo += `｜匯款銀行：${bankName.trim()}｜匯款帳號：${bankAccount.trim()}`;
+        }
+        officialReturnInfo += '】';
+      }
+
+      // Combine product suggestion with official return info
+      let combinedProductSuggestion = data.productSuggestion || '';
+      if (officialReturnInfo) {
+        combinedProductSuggestion = officialReturnInfo + (combinedProductSuggestion ? '\n' + combinedProductSuggestion : '');
+      }
+
+      // Determine channel source value (use other text if "other" is selected)
+      const channelSourceValue = selectedChannel === 'other' ? otherChannelText.trim() : selectedChannel;
+
       // Submit to server
       const result = await submitCustomerReturn(
         {
-          channelSource: data.channelSource,
+          channelSource: channelSourceValue,
           accountId: data.accountId,
           orderNumber: data.orderNumber,
           ordererName: data.ordererName,
@@ -200,7 +280,7 @@ export default function CustomerPortalPage() {
           returnProducts: selectedProductLabels,
           reasonCategory: selectedReasons[0], // Primary reason for analytics
           returnReason: combinedReason,
-          productSuggestion: data.productSuggestion,
+          productSuggestion: combinedProductSuggestion,
         },
         allImagesData
       );
@@ -274,12 +354,17 @@ export default function CustomerPortalPage() {
                     setSubmittedData(null);
                     setImages([]);
                     setShippingLabelImages([]);
+                    setSelectedChannel('');
+                    setOtherChannelText('');
                     setSelectedProducts([]);
                     setSelectedReasons([]);
                     setOtherReasonText('');
                     setNotAsDescribedText('');
                     setSelectedApexelIssues([]);
                     setApexelOtherIssueText('');
+                    setReturnMethod('');
+                    setBankName('');
+                    setBankAccount('');
                     form.reset();
                   }}
                 >
@@ -309,10 +394,10 @@ export default function CustomerPortalPage() {
         <Card className="shadow-sm border border-gray-200 mb-6 bg-white">
           <CardContent className="p-5">
             <p className="text-gray-700 text-sm mb-4">
-              💡 遇到產品問題想退貨? 請給我們一分鐘協助您解決問題!
+              💡 APEXEL鏡頭遇到操作問題? 請給我們一分鐘協助您解決問題!
             </p>
             <a
-              href="https://mefu.s3.ap-southeast-1.amazonaws.com/_MEFU%E5%AE%98%E7%B6%B2/APEXEL%E6%89%8B%E6%A9%9F%E9%8F%A1%E9%A0%AD%E7%B5%84%E8%A3%9D%E6%95%99%E5%AD%B8.html"
+              href={APEXEL_TUTORIAL_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="block border border-gray-200 rounded-lg p-4 hover:border-teal-400 hover:shadow-sm transition-all"
@@ -342,31 +427,64 @@ export default function CustomerPortalPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                {/* Channel Source */}
-                <FormField
-                  control={form.control}
-                  name="channelSource"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
-                        購買通路 <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="請選擇購買通路" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="official">官網</SelectItem>
-                          <SelectItem value="shopee">蝦皮</SelectItem>
-                          <SelectItem value="other">其他</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Channel Source - Checkbox Selection */}
+                <div className="space-y-3">
+                  <FormLabel className="text-teal-700 font-medium">
+                    購買通路 <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <div className="space-y-2">
+                    {channelOptions.map((option) => (
+                      <div key={option.id}>
+                        <div className="flex items-center space-x-3">
+                          <Checkbox
+                            id={`channel-${option.id}`}
+                            checked={selectedChannel === option.id}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedChannel(option.id);
+                                // Also update form value for validation
+                                form.setValue('channelSource', option.id);
+                              } else {
+                                setSelectedChannel('');
+                                form.setValue('channelSource', '');
+                              }
+                              // Clear other channel text when switching
+                              if (option.id !== 'other') {
+                                setOtherChannelText('');
+                              }
+                              // Clear return method when changing from official
+                              if (option.id !== 'official') {
+                                setReturnMethod('');
+                                setBankName('');
+                                setBankAccount('');
+                              }
+                            }}
+                            disabled={isLoading}
+                            className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
+                          />
+                          <label
+                            htmlFor={`channel-${option.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {option.label}
+                          </label>
+                        </div>
+                        {/* Show text input when "其他" is selected */}
+                        {option.id === 'other' && selectedChannel === 'other' && (
+                          <div className="mt-2 ml-7">
+                            <Input
+                              placeholder="請填寫購買通路"
+                              value={otherChannelText}
+                              onChange={(e) => setOtherChannelText(e.target.value)}
+                              disabled={isLoading}
+                              className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Account ID */}
                 <FormField
@@ -620,6 +738,106 @@ export default function CustomerPortalPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* APEXEL Tutorial Link - Show when APEXEL + specific reasons */}
+                {shouldShowApexelTutorial && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">📖</span>
+                        <span className="text-blue-700 font-medium">APEXEL使用教學</span>
+                      </div>
+                      <a
+                        href={APEXEL_TUTORIAL_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1"
+                      >
+                        查看教學 ▶
+                      </a>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2">
+                      建議先查看使用教學，也許能幫助您解決問題!
+                    </p>
+                  </div>
+                )}
+
+                {/* Official Website Return Method - Only show when channel is "official" */}
+                {selectedChannel === 'official' && (
+                  <div className="space-y-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <FormLabel className="text-amber-700 font-medium text-base">
+                      官網退、換貨方式 <span className="text-red-500">*</span>
+                    </FormLabel>
+
+                    {/* Return Method Selection */}
+                    <div className="space-y-3">
+                      <p className="text-sm text-amber-700 font-medium">一、退貨換方式</p>
+                      <div className="space-y-2">
+                        {returnMethodOptions.map((option) => (
+                          <div key={option.id} className="flex items-center space-x-3">
+                            <Checkbox
+                              id={`return-method-${option.id}`}
+                              checked={returnMethod === option.id}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setReturnMethod(option.id);
+                                } else {
+                                  setReturnMethod('');
+                                }
+                              }}
+                              disabled={isLoading}
+                              className="border-amber-400 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                            />
+                            <label
+                              htmlFor={`return-method-${option.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {option.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bank Account Section - Show when refund or credit_card_refund is selected */}
+                    {(returnMethod === 'refund' || returnMethod === 'credit_card_refund') && (
+                      <div className="space-y-3 pt-3 border-t border-amber-200">
+                        <p className="text-sm text-amber-700 font-medium">二、鑑賞期內商品退款流程</p>
+                        <p className="text-xs text-amber-600">
+                          {returnMethod === 'refund'
+                            ? '退款請填寫匯款帳號，供匯款作業使用。'
+                            : '信用卡刷退請提供匯款帳號，供匯款運費。'}
+                        </p>
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <label className="text-sm text-amber-700 font-medium">
+                              匯款銀行 <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                              placeholder="例如：中國信託 (822)"
+                              value={bankName}
+                              onChange={(e) => setBankName(e.target.value)}
+                              disabled={isLoading}
+                              className="border-amber-300 focus:border-amber-500 focus:ring-amber-500 bg-white"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-amber-700 font-medium">
+                              匯款帳號 <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                              placeholder="請輸入您的銀行帳號"
+                              value={bankAccount}
+                              onChange={(e) => setBankAccount(e.target.value)}
+                              disabled={isLoading}
+                              className="border-amber-300 focus:border-amber-500 focus:ring-amber-500 bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

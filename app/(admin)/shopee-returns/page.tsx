@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import {
   Upload,
@@ -89,6 +89,13 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '物流單號': 'trackingNumber',
   '追蹤編號': 'trackingNumber',
   '包裹查詢號碼': 'trackingNumber',
+  '退貨寄件編號': 'trackingNumber',
+  // New fields
+  '爭議申請期限': 'disputeDeadline',
+  '買家退款金額': 'refundAmount',
+  '退貨原因': 'returnReason',
+  '買家退貨備註': 'buyerNote',
+  '買家備註': 'buyerNote',
 };
 
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
@@ -360,6 +367,10 @@ export default function ShopeeReturnsPage() {
           activityPrice: getCellNumber('activityPrice'),
           optionSku: getCellValue('optionSku'),
           returnQuantity: getCellNumber('returnQuantity', 1) || 1,
+          disputeDeadline: getCellValue('disputeDeadline') || undefined,
+          refundAmount: getCellNumber('refundAmount') || undefined,
+          returnReason: getCellValue('returnReason') || undefined,
+          buyerNote: getCellValue('buyerNote') || undefined,
         });
       });
 
@@ -826,107 +837,97 @@ export default function ShopeeReturnsPage() {
                     </TableHead>
                     <TableHead className="w-[60px]">狀態</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
-                    <TableHead className="w-[50px]">平台</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
-                    <TableHead className="min-w-[100px] hidden md:table-cell">寄件編號</TableHead>
-                    <TableHead
-                      className="w-[80px] hidden md:table-cell cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('order_date')}
-                    >
-                      <div className="flex items-center">
-                        日期
-                        {getSortIcon('order_date')}
-                      </div>
-                    </TableHead>
-                    <TableHead className="w-[70px] hidden lg:table-cell text-center">總價</TableHead>
+                    <TableHead className="min-w-[100px]">退貨寄件編號</TableHead>
+                    <TableHead className="w-[100px] hidden md:table-cell">爭議申請期限</TableHead>
+                    <TableHead className="w-[90px] hidden md:table-cell text-center">買家退款金額</TableHead>
                     <TableHead className="hidden lg:table-cell">商品</TableHead>
-                    <TableHead className="w-[80px] hidden xl:table-cell">貨號</TableHead>
-                    <TableHead className="w-[50px] hidden xl:table-cell">數量</TableHead>
-                    <TableHead className="hidden md:table-cell text-left">備註</TableHead>
+                    <TableHead className="w-[80px] hidden lg:table-cell">貨號</TableHead>
+                    <TableHead className="w-[50px] hidden lg:table-cell text-center">數量</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedReturns.map((record) => (
-                    <TableRow
-                      key={record.id}
-                      className={record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}
-                    >
-                      <TableCell className="sticky left-0 bg-inherit">
-                        <Checkbox
-                          checked={selectedIds.has(record.id)}
-                          onCheckedChange={() => toggleSelect(record.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {record.is_scanned ? (
-                          <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1">
-                            已入庫
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
-                            未入庫
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <button onClick={() => toggleProcessed(record.id)} className="flex items-center">
-                          {record.is_processed ? (
-                            <Badge className="bg-green-100 text-green-800 cursor-pointer text-[10px] px-1">
-                              已處理
+                    <React.Fragment key={record.id}>
+                      <TableRow
+                        className={record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}
+                      >
+                        <TableCell className="sticky left-0 bg-inherit" rowSpan={2}>
+                          <Checkbox
+                            checked={selectedIds.has(record.id)}
+                            onCheckedChange={() => toggleSelect(record.id)}
+                          />
+                        </TableCell>
+                        <TableCell rowSpan={2}>
+                          {record.is_scanned ? (
+                            <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1">
+                              已入庫
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="cursor-pointer text-yellow-700 border-yellow-300 text-[10px] px-1">
-                              未處理
+                            <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
+                              未入庫
                             </Badge>
                           )}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <button onClick={() => togglePrinted(record.id)} className="flex items-center">
-                          {record.is_printed ? (
-                            <Badge className="bg-purple-100 text-purple-800 cursor-pointer text-[10px] px-1">
-                              已列印
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">
-                              未列印
-                            </Badge>
-                          )}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        {record.platform === 'mall' ? (
-                          <Badge className="bg-red-100 text-red-700 text-[10px] px-1">
-                            商城
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-orange-100 text-orange-700 text-[10px] px-1">
-                            蝦皮
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
-                      <TableCell className="hidden md:table-cell font-mono text-xs">
-                        {record.tracking_number || '-'}
-                      </TableCell>
-                      <TableCell className="text-xs hidden md:table-cell">{formatOrderDate(record.order_date)}</TableCell>
-                      <TableCell className="text-center text-xs hidden lg:table-cell">${(record.total_price || 0).toLocaleString()}</TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="max-w-[150px] truncate text-xs" title={record.product_name || ''}>
-                          {record.product_name || '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs hidden xl:table-cell">{record.option_sku || '-'}</TableCell>
-                      <TableCell className="text-center text-xs hidden xl:table-cell">{record.return_quantity}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Input
-                          value={getNoteValue(record)}
-                          onChange={(e) => debouncedUpdateNote(record.id, e.target.value)}
-                          placeholder="備註..."
-                          className="h-7 text-xs"
-                        />
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell rowSpan={2}>
+                          <button onClick={() => toggleProcessed(record.id)} className="flex items-center">
+                            {record.is_processed ? (
+                              <Badge className="bg-green-100 text-green-800 cursor-pointer text-[10px] px-1">
+                                已處理
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="cursor-pointer text-yellow-700 border-yellow-300 text-[10px] px-1">
+                                未處理
+                              </Badge>
+                            )}
+                          </button>
+                        </TableCell>
+                        <TableCell rowSpan={2}>
+                          <button onClick={() => togglePrinted(record.id)} className="flex items-center">
+                            {record.is_printed ? (
+                              <Badge className="bg-purple-100 text-purple-800 cursor-pointer text-[10px] px-1">
+                                已列印
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">
+                                未列印
+                              </Badge>
+                            )}
+                          </button>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {record.tracking_number || '-'}
+                        </TableCell>
+                        <TableCell className="text-xs hidden md:table-cell">{record.dispute_deadline || '-'}</TableCell>
+                        <TableCell className="text-center text-xs hidden md:table-cell">
+                          {record.refund_amount ? `$${record.refund_amount.toLocaleString()}` : '-'}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="max-w-[150px] truncate text-xs" title={record.product_name || ''}>
+                            {record.product_name || '-'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs hidden lg:table-cell">{record.option_sku || '-'}</TableCell>
+                        <TableCell className="text-center text-xs hidden lg:table-cell">{record.return_quantity}</TableCell>
+                      </TableRow>
+                      <TableRow
+                        className={`border-b-2 ${record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}`}
+                      >
+                        <TableCell colSpan={7} className="py-1">
+                          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-foreground">退貨原因:</span>
+                              <span>{record.return_reason || '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-foreground">買家備註:</span>
+                              <span>{record.buyer_note || '-'}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>

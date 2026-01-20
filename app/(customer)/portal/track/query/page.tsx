@@ -1,18 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, ArrowLeft, Phone, FileText, Package, Clock, CheckCircle, AlertCircle, Truck } from 'lucide-react';
+import { Search, ArrowLeft, Phone, Package, Clock, CheckCircle, AlertCircle, Truck } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 
 import { toast } from 'sonner';
-import { searchReturnsByPhone, searchReturnByNumber } from '@/lib/actions/customer-return.actions';
+import { searchReturnsByPhone } from '@/lib/actions/customer-return.actions';
 
 // Status label mapping
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -49,27 +48,18 @@ interface ReturnResult {
 }
 
 export default function TrackQueryPage() {
-  const [requestNumber, setRequestNumber] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searchType, setSearchType] = useState<'phone' | 'order'>('phone');
   const [results, setResults] = useState<ReturnResult[]>([]);
   const [searched, setSearched] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate based on search type
-    if (searchType === 'phone') {
-      if (!phone.trim() || !/^09\d{8}$/.test(phone)) {
-        toast.error('請輸入有效的手機號碼 (09開頭，共10碼)');
-        return;
-      }
-    } else {
-      if (!requestNumber.trim()) {
-        toast.error('請輸入退貨單號');
-        return;
-      }
+    // Validate phone number
+    if (!phone.trim() || !/^09\d{8}$/.test(phone)) {
+      toast.error('請輸入有效的手機號碼 (09開頭，共10碼)');
+      return;
     }
 
     setLoading(true);
@@ -77,26 +67,16 @@ export default function TrackQueryPage() {
     setResults([]);
 
     try {
-      if (searchType === 'phone') {
-        const result = await searchReturnsByPhone(phone);
-        if (result.success && result.data) {
-          setResults(result.data as ReturnResult[]);
-          if (result.data.length === 0) {
-            toast.info('沒有找到符合的退貨記錄');
-          } else {
-            toast.success(`找到 ${result.data.length} 筆退貨記錄`);
-          }
+      const result = await searchReturnsByPhone(phone);
+      if (result.success && result.data) {
+        setResults(result.data as ReturnResult[]);
+        if (result.data.length === 0) {
+          toast.info('沒有找到符合的退貨記錄');
         } else {
-          toast.error(result.error || '查詢失敗');
+          toast.success(`找到 ${result.data.length} 筆退貨記錄`);
         }
       } else {
-        const result = await searchReturnByNumber(requestNumber);
-        if (result.success && result.data) {
-          setResults([result.data as ReturnResult]);
-          toast.success('找到退貨記錄');
-        } else {
-          toast.error(result.error || '找不到此退貨單號');
-        }
+        toast.error(result.error || '查詢失敗');
       }
     } catch {
       toast.error('查詢失敗，請稍後再試');
@@ -134,85 +114,54 @@ export default function TrackQueryPage() {
             <Package className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">查詢退貨進度</h1>
-          <p className="text-gray-500 mt-2">輸入手機號碼或退貨單號查詢</p>
+          <p className="text-gray-500 mt-2">輸入手機號碼查詢您的退貨進度</p>
         </div>
 
         <Card className="shadow-lg border-0">
           <CardHeader className="bg-teal-600 text-white rounded-t-lg">
             <CardTitle className="text-lg">查詢方式</CardTitle>
             <CardDescription className="text-teal-100">
-              請選擇以下任一方式查詢您的退貨進度
+              請輸入您申請退貨時填寫的手機號碼
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6 bg-white">
-            <Tabs value={searchType} onValueChange={(v) => setSearchType(v as 'phone' | 'order')}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="phone" className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  手機號碼
-                </TabsTrigger>
-                <TabsTrigger value="order" className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  退貨單號
-                </TabsTrigger>
-              </TabsList>
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-teal-700 font-medium flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    手機號碼
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="09xxxxxxxx"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={loading}
+                    className="text-lg py-6"
+                  />
+                  <p className="text-sm text-gray-500">
+                    請輸入您申請退貨時填寫的手機號碼
+                  </p>
+                </div>
+              </div>
 
-              <form onSubmit={handleSubmit}>
-                <TabsContent value="phone" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-teal-700 font-medium">
-                      手機號碼
-                    </Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="09xxxxxxxx"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      disabled={loading}
-                      className="text-lg py-6"
-                    />
-                    <p className="text-sm text-gray-500">
-                      請輸入您申請退貨時填寫的手機號碼
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="order" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="requestNumber" className="text-teal-700 font-medium">
-                      退貨單號
-                    </Label>
-                    <Input
-                      id="requestNumber"
-                      placeholder="例如：RET-20240101-0001"
-                      value={requestNumber}
-                      onChange={(e) => setRequestNumber(e.target.value)}
-                      disabled={loading}
-                      className="text-lg py-6"
-                    />
-                    <p className="text-sm text-gray-500">
-                      退貨單號會在申請成功後顯示，請妥善保存
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <Button
-                  type="submit"
-                  className="w-full mt-6 bg-teal-600 hover:bg-teal-700 py-6 text-lg"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    '查詢中...'
-                  ) : (
-                    <>
-                      <Search className="w-5 h-5 mr-2" />
-                      查詢進度
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Tabs>
+              <Button
+                type="submit"
+                className="w-full mt-6 bg-teal-600 hover:bg-teal-700 py-6 text-lg"
+                disabled={loading}
+              >
+                {loading ? (
+                  '查詢中...'
+                ) : (
+                  <>
+                    <Search className="w-5 h-5 mr-2" />
+                    查詢進度
+                  </>
+                )}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 

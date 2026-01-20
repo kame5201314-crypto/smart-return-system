@@ -14,6 +14,10 @@ export interface ShopeeReturn {
   activity_price: number;
   option_sku: string | null;
   return_quantity: number;
+  dispute_deadline: string | null;
+  refund_amount: number | null;
+  return_reason: string | null;
+  buyer_note: string | null;
   is_processed: boolean;
   is_printed: boolean;
   is_scanned: boolean;
@@ -35,6 +39,10 @@ export interface ShopeeReturnInput {
   activityPrice: number;
   optionSku: string;
   returnQuantity: number;
+  disputeDeadline?: string;
+  refundAmount?: number;
+  returnReason?: string;
+  buyerNote?: string;
 }
 
 /**
@@ -123,6 +131,10 @@ export async function importShopeeReturns(
       activity_price: item.activityPrice,
       option_sku: item.optionSku,
       return_quantity: item.returnQuantity || 1,
+      dispute_deadline: item.disputeDeadline || null,
+      refund_amount: item.refundAmount || null,
+      return_reason: item.returnReason || null,
+      buyer_note: item.buyerNote || null,
       is_processed: false,
       is_printed: false,
       note: '',
