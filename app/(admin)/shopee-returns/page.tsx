@@ -844,6 +844,7 @@ export default function ShopeeReturnsPage() {
                     <TableHead className="hidden lg:table-cell">商品</TableHead>
                     <TableHead className="w-[80px] hidden lg:table-cell">貨號</TableHead>
                     <TableHead className="w-[50px] hidden lg:table-cell text-center">數量</TableHead>
+                    <TableHead className="min-w-[150px]">備註</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -910,20 +911,38 @@ export default function ShopeeReturnsPage() {
                         </TableCell>
                         <TableCell className="font-mono text-xs hidden lg:table-cell">{record.option_sku || '-'}</TableCell>
                         <TableCell className="text-center text-xs hidden lg:table-cell">{record.return_quantity}</TableCell>
+                        <TableCell rowSpan={2}>
+                          <Input
+                            placeholder="輸入備註..."
+                            defaultValue={record.note || ''}
+                            className="text-xs h-8 min-w-[120px]"
+                            onBlur={(e) => {
+                              const newNote = e.target.value;
+                              if (newNote !== (record.note || '')) {
+                                updateShopeeReturnStatus(record.id, { note: newNote });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                          />
+                        </TableCell>
                       </TableRow>
                       <TableRow
                         className={`border-b-2 ${record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}`}
                       >
-                        <TableCell colSpan={7} className="py-1">
-                          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-foreground">退貨原因:</span>
-                              <span>{record.return_reason || '-'}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-foreground">買家備註:</span>
-                              <span>{record.buyer_note || '-'}</span>
-                            </div>
+                        <TableCell colSpan={3} className="py-1">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">退貨原因:</span>
+                            <span>{record.return_reason || '-'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell colSpan={4} className="py-1">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">買家備註:</span>
+                            <span className="text-amber-600">{record.buyer_note || '-'}</span>
                           </div>
                         </TableCell>
                       </TableRow>
