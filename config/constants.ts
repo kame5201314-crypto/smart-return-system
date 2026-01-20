@@ -100,6 +100,7 @@ export const RETURN_REASONS = {
   INSTALLATION_ISSUE: { key: 'installation_issue', label: '安裝問題', aiTag: 'user_education' },
   DEFECTIVE: { key: 'defective', label: '商品故障', aiTag: 'product_defect' },
   SIZE_NOT_FIT: { key: 'size_not_fit', label: '尺寸不合', aiTag: 'size_mismatch' },
+  PRODUCT_ISSUE: { key: 'product_issue', label: '產品問題', aiTag: 'product_issue' },
   OTHER: { key: 'other', label: '其他', aiTag: 'other' },
 } as const;
 
