@@ -19,6 +19,7 @@ export interface ShopeeReturn {
   is_scanned: boolean;
   scanned_at: string | null;
   note: string | null;
+  platform: 'shopee' | 'mall' | null;
   imported_at: string;
   created_at: string;
   updated_at: string;
@@ -65,7 +66,8 @@ export async function getShopeeReturns(): Promise<ApiResponse<ShopeeReturn[]>> {
  * Import shopee returns (batch upsert)
  */
 export async function importShopeeReturns(
-  items: ShopeeReturnInput[]
+  items: ShopeeReturnInput[],
+  platform: 'shopee' | 'mall' = 'shopee'
 ): Promise<ApiResponse<{ imported: number; duplicates: number }>> {
   try {
     const supabase = createUntypedAdminClient();
@@ -124,6 +126,7 @@ export async function importShopeeReturns(
       is_processed: false,
       is_printed: false,
       note: '',
+      platform: platform,
     }));
 
     // Try batch insert first

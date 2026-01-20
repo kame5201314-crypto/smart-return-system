@@ -106,10 +106,12 @@ export default function ShopeeReturnsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
+  const [importPlatform, setImportPlatform] = useState<'shopee' | 'mall'>('shopee');
   const [sortField, setSortField] = useState<SortField>('order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const shopeeFileRef = useRef<HTMLInputElement>(null);
+  const mallFileRef = useRef<HTMLInputElement>(null);
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
@@ -232,11 +234,33 @@ export default function ShopeeReturnsPage() {
     return format(date, 'yyyy-MM-dd');
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, platform: 'shopee' | 'mall') {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file name based on platform
+    const fileName = file.name.toLowerCase();
+    if (platform === 'shopee') {
+      if (!fileName.includes('蝦皮') && !fileName.includes('shopee')) {
+        toast.error('蝦皮匯入只能匯入檔名包含「蝦皮」的檔案');
+        e.target.value = '';
+        return;
+      }
+      if (fileName.includes('商城') || fileName.includes('mall')) {
+        toast.error('此檔案應使用「商城匯入」功能');
+        e.target.value = '';
+        return;
+      }
+    } else if (platform === 'mall') {
+      if (!fileName.includes('商城') && !fileName.includes('mall')) {
+        toast.error('商城匯入只能匯入檔名包含「商城」的檔案');
+        e.target.value = '';
+        return;
+      }
+    }
+
     setIsImporting(true);
+    setImportPlatform(platform);
 
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -340,11 +364,12 @@ export default function ShopeeReturnsPage() {
       });
 
       if (newItems.length > 0) {
-        const result = await importShopeeReturns(newItems);
+        const platformLabel = platform === 'shopee' ? '蝦皮' : '商城';
+        const result = await importShopeeReturns(newItems, platform);
         if (result.success && result.data) {
           const { imported, duplicates } = result.data;
           if (imported > 0) {
-            toast.success(`成功匯入 ${imported} 筆資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}`);
+            toast.success(`成功匯入 ${imported} 筆${platformLabel}資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}`);
             loadReturns();
           } else if (duplicates > 0) {
             toast.info(`所有 ${duplicates} 筆資料都是重複的`);
@@ -366,9 +391,9 @@ export default function ShopeeReturnsPage() {
     }
 
     setIsImporting(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    // Clear both file inputs
+    if (shopeeFileRef.current) shopeeFileRef.current.value = '';
+    if (mallFileRef.current) mallFileRef.current.value = '';
   }
 
   async function toggleProcessed(id: string) {
@@ -599,20 +624,50 @@ export default function ShopeeReturnsPage() {
           <p className="text-sm text-muted-foreground">匯入蝦皮退貨訂單並管理處理</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Hidden file inputs */}
           <input
-            ref={fileInputRef}
+            ref={shopeeFileRef}
             type="file"
             accept=".xlsx,.xls,.csv"
-            onChange={handleFileUpload}
+            onChange={(e) => handleFileUpload(e, 'shopee')}
             className="hidden"
           />
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-            {isImporting ? (
+          <input
+            ref={mallFileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={(e) => handleFileUpload(e, 'mall')}
+            className="hidden"
+          />
+          {/* Shopee Import Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => shopeeFileRef.current?.click()}
+            disabled={isImporting}
+            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            {isImporting && importPlatform === 'shopee' ? (
               <Loader2 className="w-4 h-4 mr-1 animate-spin" />
             ) : (
               <Upload className="w-4 h-4 mr-1" />
             )}
-            匯入
+            蝦皮匯入
+          </Button>
+          {/* Mall Import Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => mallFileRef.current?.click()}
+            disabled={isImporting}
+            className="border-red-300 text-red-600 hover:bg-red-50"
+          >
+            {isImporting && importPlatform === 'mall' ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 mr-1" />
+            )}
+            商城匯入
           </Button>
           <Button size="sm" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-1" />
@@ -764,6 +819,7 @@ export default function ShopeeReturnsPage() {
                     </TableHead>
                     <TableHead className="w-[60px]">狀態</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
+                    <TableHead className="w-[50px]">平台</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
                     <TableHead className="min-w-[100px] hidden md:table-cell">寄件編號</TableHead>
                     <TableHead
@@ -830,6 +886,17 @@ export default function ShopeeReturnsPage() {
                             </Badge>
                           )}
                         </button>
+                      </TableCell>
+                      <TableCell>
+                        {record.platform === 'mall' ? (
+                          <Badge className="bg-red-100 text-red-700 text-[10px] px-1">
+                            商城
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-orange-100 text-orange-700 text-[10px] px-1">
+                            蝦皮
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
                       <TableCell className="hidden md:table-cell font-mono text-xs">
