@@ -13,11 +13,7 @@ import {
   Filter,
   ShoppingBag,
   Loader2,
-  Camera,
-  ScanLine,
-  Volume2,
-  XCircle,
-  CheckCircle2,
+  Package,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -47,13 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 
 import {
   getShopeeReturns,
@@ -61,7 +50,6 @@ import {
   updateShopeeReturnStatus,
   batchUpdateShopeeReturns,
   deleteShopeeReturns,
-  scanShopeeReturn,
   type ShopeeReturn,
   type ShopeeReturnInput,
 } from '@/lib/actions/shopee-returns.actions';
@@ -118,251 +106,17 @@ export default function ShopeeReturnsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [scanInput, setScanInput] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null);
-  const [cameraLoading, setCameraLoading] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scanInputRef = useRef<HTMLInputElement>(null);
-  const html5QrCodeRef = useRef<unknown>(null);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const scanResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
   // Load from database
   useEffect(() => {
     loadReturns();
   }, []);
-
-  // Focus scan input when scanner opens
-  useEffect(() => {
-    if (scannerOpen && scanInputRef.current) {
-      setTimeout(() => scanInputRef.current?.focus(), 100);
-    }
-  }, [scannerOpen]);
-
-  // Initialize camera scanner with delay for DOM readiness
-  useEffect(() => {
-    if (scannerOpen) {
-      setCameraError(null);
-      // Add delay to ensure DOM is ready
-      const timer = setTimeout(() => {
-        initializeScanner();
-      }, 500);
-      return () => {
-        clearTimeout(timer);
-        stopScanner();
-      };
-    }
-    return () => {
-      stopScanner();
-    };
-  }, [scannerOpen]);
-
-  async function initializeScanner() {
-    setCameraLoading(true);
-    setCameraError(null);
-
-    try {
-      // Check if mediaDevices is available
-      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError('您的瀏覽器不支援相機功能，請重試或稍後再試');
-        setCameraLoading(false);
-        return;
-      }
-
-      // Wait for container to be ready
-      const container = document.getElementById('scanner-video');
-      if (!container) {
-        setCameraError('相機容器載入失敗');
-        setCameraLoading(false);
-        return;
-      }
-
-      const { Html5Qrcode } = await import('html5-qrcode');
-
-      if (html5QrCodeRef.current) {
-        try {
-          await (html5QrCodeRef.current as { stop: () => Promise<void> }).stop();
-        } catch {
-          // Ignore stop errors
-        }
-      }
-
-      const html5QrCode = new Html5Qrcode('scanner-video');
-      html5QrCodeRef.current = html5QrCode;
-
-      const containerWidth = container.clientWidth || 320;
-      // Larger scanning area for barcodes on mobile
-      const qrboxWidth = Math.min(280, containerWidth - 40);
-      const qrboxHeight = Math.min(120, qrboxWidth * 0.4);
-
-      // Try different camera configurations for mobile
-      const cameraConfigs = [
-        { facingMode: 'environment' },              // Prefer back camera
-        { facingMode: 'user' },                     // Front camera
-      ];
-
-      let started = false;
-      let lastError: unknown = null;
-
-      for (const config of cameraConfigs) {
-        try {
-          await html5QrCode.start(
-            config,
-            {
-              fps: 15,  // Higher FPS for smoother scanning
-              qrbox: { width: qrboxWidth, height: qrboxHeight },
-              aspectRatio: 1.777,  // 16:9 aspect ratio
-            },
-            handleScanSuccess,
-            () => {}
-          );
-          started = true;
-          console.log('Camera started with config:', config);
-          break;
-        } catch (err) {
-          console.log(`Camera config ${JSON.stringify(config)} failed:`, err);
-          lastError = err;
-          continue;
-        }
-      }
-
-      if (!started) {
-        throw lastError || new Error('All camera configurations failed');
-      }
-    } catch (error) {
-      console.error('Failed to initialize scanner:', error);
-      const errorMsg = error instanceof Error ? error.message : '';
-      if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowed')) {
-        setCameraError('相機權限被拒絕，請在瀏覽器設定中允許相機存取');
-      } else if (errorMsg.includes('NotFound') || errorMsg.includes('DevicesNotFound')) {
-        setCameraError('找不到相機裝置，請重試或稍後再試');
-      } else {
-        setCameraError('相機啟動失敗，請重試或稍後再試');
-      }
-    } finally {
-      setCameraLoading(false);
-    }
-  }
-
-  async function stopScanner() {
-    if (html5QrCodeRef.current) {
-      try {
-        await (html5QrCodeRef.current as { stop: () => Promise<void> }).stop();
-        html5QrCodeRef.current = null;
-      } catch (error) {
-        console.error('Error stopping scanner:', error);
-      }
-    }
-  }
-
-  const handleScanSuccess = useCallback(async (decodedText: string) => {
-    await processScan(decodedText);
-  }, []);
-
-  async function processScan(code: string) {
-    if (isScanning || !code.trim()) return;
-
-    setIsScanning(true);
-
-    // Clear existing timer
-    if (scanResultTimerRef.current) {
-      clearTimeout(scanResultTimerRef.current);
-    }
-
-    try {
-      const result = await scanShopeeReturn(code);
-
-      if (result.success && result.data) {
-        const { matched, alreadyScanned } = result.data;
-
-        // Play success sound
-        playBeep(alreadyScanned ? 'warning' : 'success');
-
-        if (alreadyScanned) {
-          setLastScanResult({
-            success: true,
-            message: '此訂單已掃描過',
-            orderNumber: matched.order_number
-          });
-        } else {
-          setLastScanResult({
-            success: true,
-            message: '掃描成功！',
-            orderNumber: matched.order_number
-          });
-
-          // Update local state
-          setReturns(prev =>
-            prev.map(r =>
-              r.id === matched.id ? { ...r, is_scanned: true, scanned_at: new Date().toISOString() } : r
-            )
-          );
-        }
-      } else {
-        playBeep('error');
-        setLastScanResult({
-          success: false,
-          message: result.error || '找不到符合的訂單'
-        });
-      }
-    } catch (error) {
-      console.error('Scan error:', error);
-      playBeep('error');
-      setLastScanResult({
-        success: false,
-        message: '掃描失敗，請重試'
-      });
-    } finally {
-      setIsScanning(false);
-      setScanInput('');
-
-      // Auto-dismiss result after 5 seconds
-      scanResultTimerRef.current = setTimeout(() => {
-        setLastScanResult(null);
-      }, 5000);
-    }
-  }
-
-  function playBeep(type: 'success' | 'warning' | 'error') {
-    try {
-      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      if (type === 'success') {
-        oscillator.frequency.value = 800;
-        gainNode.gain.value = 0.3;
-      } else if (type === 'warning') {
-        oscillator.frequency.value = 600;
-        gainNode.gain.value = 0.2;
-      } else {
-        oscillator.frequency.value = 300;
-        gainNode.gain.value = 0.3;
-      }
-
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 0.15);
-    } catch (e) {
-      // Ignore audio errors
-    }
-  }
-
-  async function handleManualScan() {
-    if (scanInput.trim()) {
-      await processScan(scanInput);
-    }
-  }
 
   async function loadReturns() {
     setIsLoading(true);
@@ -852,15 +606,6 @@ export default function ShopeeReturnsPage() {
             onChange={handleFileUpload}
             className="hidden"
           />
-          <Button
-            variant="default"
-            size="sm"
-            className="bg-orange-500 hover:bg-orange-600"
-            onClick={() => setScannerOpen(true)}
-          >
-            <Camera className="w-4 h-4 mr-1" />
-            掃描
-          </Button>
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
             {isImporting ? (
               <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -875,134 +620,6 @@ export default function ShopeeReturnsPage() {
           </Button>
         </div>
       </div>
-
-      {/* Scanner Dialog */}
-      <Dialog open={scannerOpen} onOpenChange={(open) => {
-        if (!open) stopScanner();
-        setScannerOpen(open);
-      }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto p-4">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="flex items-center gap-2">
-              <Camera className="w-5 h-5" />
-              相機掃描
-            </DialogTitle>
-            <DialogDescription>
-              將條碼對準下方框內，自動識別
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            {/* Camera Scanner - Primary focus */}
-            <div className="relative">
-              <div
-                id="scanner-video"
-                ref={videoContainerRef}
-                className="w-full aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden min-h-[280px]"
-              />
-              {/* Targeting frame overlay - white corner brackets for better visibility */}
-              {!cameraError && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-                  {/* Square scanning frame */}
-                  <div className="relative w-[70%] aspect-square max-w-[280px]">
-                    {/* Corner brackets - white, thick, prominent */}
-                    {/* Top-left */}
-                    <div className="absolute top-0 left-0 w-12 h-12">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-white rounded-full" />
-                      <div className="absolute top-0 left-0 w-1 h-full bg-white rounded-full" />
-                    </div>
-                    {/* Top-right */}
-                    <div className="absolute top-0 right-0 w-12 h-12">
-                      <div className="absolute top-0 right-0 w-full h-1 bg-white rounded-full" />
-                      <div className="absolute top-0 right-0 w-1 h-full bg-white rounded-full" />
-                    </div>
-                    {/* Bottom-left */}
-                    <div className="absolute bottom-0 left-0 w-12 h-12">
-                      <div className="absolute bottom-0 left-0 w-full h-1 bg-white rounded-full" />
-                      <div className="absolute bottom-0 left-0 w-1 h-full bg-white rounded-full" />
-                    </div>
-                    {/* Bottom-right */}
-                    <div className="absolute bottom-0 right-0 w-12 h-12">
-                      <div className="absolute bottom-0 right-0 w-full h-1 bg-white rounded-full" />
-                      <div className="absolute bottom-0 right-0 w-1 h-full bg-white rounded-full" />
-                    </div>
-                  </div>
-                  <p className="absolute bottom-6 left-0 right-0 text-center text-white text-sm font-medium drop-shadow-lg">
-                    將條碼對準框內
-                  </p>
-                </div>
-              )}
-              {cameraLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg z-20">
-                  <div className="text-center text-white">
-                    <Loader2 className="w-10 h-10 animate-spin mx-auto mb-3" />
-                    <p className="text-base font-medium">正在啟動相機...</p>
-                    <p className="text-sm text-gray-400 mt-1">請允許相機權限</p>
-                  </div>
-                </div>
-              )}
-              {cameraError && !cameraLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg z-20">
-                  <div className="text-center text-white p-4">
-                    <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-gray-300 mb-4">{cameraError}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setCameraError(null);
-                        initializeScanner();
-                      }}
-                    >
-                      <Camera className="w-4 h-4 mr-1" />
-                      重試相機
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Scan Result */}
-            {lastScanResult && (
-              <div
-                className={`p-3 rounded-lg flex items-center gap-3 ${
-                  lastScanResult.success
-                    ? 'bg-green-50 border border-green-200'
-                    : 'bg-red-50 border border-red-200'
-                }`}
-              >
-                {lastScanResult.success ? (
-                  <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
-                ) : (
-                  <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <p className={`font-medium ${lastScanResult.success ? 'text-green-800' : 'text-red-800'}`}>
-                    {lastScanResult.message}
-                  </p>
-                  {lastScanResult.orderNumber && (
-                    <p className="text-sm font-mono text-muted-foreground">
-                      {lastScanResult.orderNumber}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Stats */}
-            <div className="flex justify-center gap-6 text-sm py-2 border-t">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-blue-100 text-blue-800">{scannedCount}</Badge>
-                <span className="text-muted-foreground">已掃描</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{notScannedCount}</Badge>
-                <span className="text-muted-foreground">未掃描</span>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Filters & Stats - RWD */}
       <Card>
@@ -1034,7 +651,7 @@ export default function ShopeeReturnsPage() {
                 <Badge className="bg-green-100 text-green-800 text-xs">{processedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">已掃描:</span>
+                <span className="text-muted-foreground">已入庫:</span>
                 <Badge className="bg-blue-100 text-blue-800 text-xs">{scannedCount}</Badge>
               </div>
 
@@ -1051,16 +668,16 @@ export default function ShopeeReturnsPage() {
                 </SelectContent>
               </Select>
 
-              {/* Scan Filter */}
+              {/* Stock Filter */}
               <Select value={scanFilter} onValueChange={(v) => setScanFilter(v as typeof scanFilter)}>
                 <SelectTrigger className="w-[100px] h-7 text-xs">
-                  <ScanLine className="w-3 h-3 mr-1" />
+                  <Package className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="scanned">已掃描</SelectItem>
-                  <SelectItem value="not_scanned">未掃描</SelectItem>
+                  <SelectItem value="scanned">已入庫</SelectItem>
+                  <SelectItem value="not_scanned">未入庫</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1141,7 +758,7 @@ export default function ShopeeReturnsPage() {
                       onClick={() => handleSort('is_scanned')}
                     >
                       <div className="flex items-center">
-                        掃描
+                        入庫
                         {getSortIcon('is_scanned')}
                       </div>
                     </TableHead>
@@ -1180,11 +797,11 @@ export default function ShopeeReturnsPage() {
                       <TableCell>
                         {record.is_scanned ? (
                           <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1">
-                            已掃描
+                            已入庫
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
-                            未掃描
+                            未入庫
                           </Badge>
                         )}
                       </TableCell>

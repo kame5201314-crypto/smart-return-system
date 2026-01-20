@@ -160,6 +160,11 @@ export default function AnalyticsPage() {
     // Include both database returns and shopee returns in total count
     const totalReturns = filteredReturns.length + filteredShopeeReturns.length;
 
+    // Count by specific channels
+    const officialCount = filteredReturns.filter(r => r.channel_source === 'official').length;
+    const shopeeCount = filteredReturns.filter(r => r.channel_source === 'shopee').length + filteredShopeeReturns.length;
+    const shopeeMallCount = filteredReturns.filter(r => r.channel_source === 'shopee_mall').length;
+
     // By channel - include shopee returns
     const channelCounts: Record<string, number> = {};
     filteredReturns.forEach(r => {
@@ -234,7 +239,7 @@ export default function AnalyticsPage() {
     const productRanking = Object.values(productCounts)
       .sort((a, b) => b.quantity - a.quantity);
 
-    return { totalReturns, byChannel, byReason, byStatus, monthlyTrend, productRanking };
+    return { totalReturns, officialCount, shopeeCount, shopeeMallCount, byChannel, byReason, byStatus, monthlyTrend, productRanking };
   }, [filteredReturns, filteredShopeeReturns]);
 
   return (
@@ -336,6 +341,26 @@ export default function AnalyticsPage() {
                 <Skeleton className="h-10 w-24 mt-1" />
               ) : (
                 <p className="text-3xl font-bold">{stats.totalReturns}</p>
+              )}
+              {/* Channel breakdown */}
+              {!loading && (
+                <div className="flex gap-4 mt-3 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span className="text-muted-foreground">官網</span>
+                    <span className="font-medium">{stats.officialCount}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                    <span className="text-muted-foreground">蝦皮</span>
+                    <span className="font-medium">{stats.shopeeCount}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    <span className="text-muted-foreground">蝦皮商城</span>
+                    <span className="font-medium">{stats.shopeeMallCount}</span>
+                  </div>
+                </div>
               )}
             </div>
             <div className="p-4 bg-blue-50 rounded-full text-blue-600">
