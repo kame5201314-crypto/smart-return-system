@@ -439,6 +439,22 @@ export default function ShopeeReturnsPage() {
     }
   }
 
+  async function toggleScanned(id: string) {
+    const record = returns.find((r) => r.id === id);
+    if (!record) return;
+
+    const result = await updateShopeeReturnStatus(id, { is_scanned: !record.is_scanned });
+    if (result.success) {
+      setReturns((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, is_scanned: !r.is_scanned } : r
+        )
+      );
+    } else {
+      toast.error(result.error || '更新失敗');
+    }
+  }
+
   // Debounced note update to avoid excessive API calls
   const debouncedUpdateNote = useCallback((id: string, note: string) => {
     // Update local state immediately for responsive UI
@@ -860,15 +876,17 @@ export default function ShopeeReturnsPage() {
                           />
                         </TableCell>
                         <TableCell rowSpan={2}>
-                          {record.is_scanned ? (
-                            <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1">
-                              已入庫
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
-                              未入庫
-                            </Badge>
-                          )}
+                          <button onClick={() => toggleScanned(record.id)} className="flex items-center">
+                            {record.is_scanned ? (
+                              <Badge className="bg-blue-100 text-blue-800 cursor-pointer text-[10px] px-1">
+                                已入庫
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">
+                                未入庫
+                              </Badge>
+                            )}
+                          </button>
                         </TableCell>
                         <TableCell rowSpan={2}>
                           <button onClick={() => toggleProcessed(record.id)} className="flex items-center">
