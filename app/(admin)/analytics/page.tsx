@@ -137,12 +137,14 @@ export default function AnalyticsPage() {
 
   // Filter shopee returns based on selections
   const filteredShopeeReturns = useMemo(() => {
-    // If channel filter is set and not 蝦皮, exclude shopee returns
-    if (selectedChannel !== 'all' && selectedChannel !== 'shopee') {
-      return [];
-    }
-
     return shopeeReturns.filter(r => {
+      // Channel filter: shopee matches platform='shopee', shopee_mall matches platform='mall'
+      if (selectedChannel !== 'all') {
+        if (selectedChannel === 'shopee' && r.platform !== 'shopee') return false;
+        if (selectedChannel === 'shopee_mall' && r.platform !== 'mall') return false;
+        if (selectedChannel !== 'shopee' && selectedChannel !== 'shopee_mall') return false;
+      }
+
       if (!r.order_date) return selectedYear === 'all' && selectedMonth === 'all';
       const date = new Date(r.order_date);
       const year = date.getFullYear().toString();
@@ -162,8 +164,12 @@ export default function AnalyticsPage() {
 
     // Count by specific channels
     const officialCount = filteredReturns.filter(r => r.channel_source === 'official').length;
-    const shopeeCount = filteredReturns.filter(r => r.channel_source === 'shopee').length + filteredShopeeReturns.length;
-    const shopeeMallCount = filteredReturns.filter(r => r.channel_source === 'shopee_mall').length;
+    const shopeeFromReturns = filteredReturns.filter(r => r.channel_source === 'shopee').length;
+    const shopeeFromShopeeReturns = filteredShopeeReturns.filter(r => r.platform === 'shopee' || !r.platform).length;
+    const shopeeCount = shopeeFromReturns + shopeeFromShopeeReturns;
+    const mallFromReturns = filteredReturns.filter(r => r.channel_source === 'shopee_mall').length;
+    const mallFromShopeeReturns = filteredShopeeReturns.filter(r => r.platform === 'mall').length;
+    const shopeeMallCount = mallFromReturns + mallFromShopeeReturns;
 
     // By channel - include shopee returns
     const channelCounts: Record<string, number> = {};
@@ -171,10 +177,11 @@ export default function AnalyticsPage() {
       const channel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
       channelCounts[channel] = (channelCounts[channel] || 0) + 1;
     });
-    // Add shopee returns count
-    if (filteredShopeeReturns.length > 0) {
-      channelCounts['蝦皮'] = (channelCounts['蝦皮'] || 0) + filteredShopeeReturns.length;
-    }
+    // Add shopee returns count by platform
+    filteredShopeeReturns.forEach(r => {
+      const channelLabel = r.platform === 'mall' ? '商城' : '蝦皮';
+      channelCounts[channelLabel] = (channelCounts[channelLabel] || 0) + 1;
+    });
     const byChannel = Object.entries(channelCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
@@ -230,9 +237,10 @@ export default function AnalyticsPage() {
     // Add shopee returns to product ranking
     filteredShopeeReturns.forEach(r => {
       if (!r.product_name) return;
-      const key = `${r.product_name}||${r.option_sku || ''}||蝦皮`;
+      const channelLabel = r.platform === 'mall' ? '商城' : '蝦皮';
+      const key = `${r.product_name}||${r.option_sku || ''}||${channelLabel}`;
       if (!productCounts[key]) {
-        productCounts[key] = { name: r.product_name, sku: r.option_sku || null, channel: '蝦皮', quantity: 0 };
+        productCounts[key] = { name: r.product_name, sku: r.option_sku || null, channel: channelLabel, quantity: 0 };
       }
       productCounts[key].quantity += r.return_quantity;
     });
