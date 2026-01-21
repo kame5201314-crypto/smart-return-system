@@ -89,7 +89,7 @@ export default function CustomerPortalPage() {
   // Official website return method options
   const returnMethodOptions = [
     { id: 'refund', label: '退貨退款' },
-    { id: 'credit_card_refund', label: '信用卡刷退' },
+    { id: 'credit_card_refund', label: '信用卡刷退 (訂單為信用卡付款才能使用信用卡刷退)' },
     { id: 'exchange_only', label: '僅換貨(不退款)' },
   ];
 
@@ -808,7 +808,7 @@ export default function CustomerPortalPage() {
                         <p className="text-xs text-amber-600">
                           {returnMethod === 'refund'
                             ? '退款請填寫匯款帳號，供匯款作業使用。'
-                            : '信用卡刷退請提供匯款帳號，供匯款運費。'}
+                            : '信用卡刷退請提供匯款帳號，供匯款補貼運費。'}
                         </p>
                         <div className="space-y-3">
                           <div className="space-y-2">
