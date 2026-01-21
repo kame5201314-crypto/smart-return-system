@@ -932,7 +932,7 @@ export default function ShopeeReturnsPage() {
                           {record.platform === 'mall' ? '商城' : '蝦皮'}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
-                        <TableCell className="font-mono text-xs font-semibold text-gray-900">
+                        <TableCell className="font-mono text-xs">
                           {record.tracking_number || '-'}
                         </TableCell>
                         <TableCell className="text-xs hidden md:table-cell">{record.dispute_deadline || '-'}</TableCell>
