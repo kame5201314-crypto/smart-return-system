@@ -145,7 +145,6 @@ export default function ReturnDetailPage() {
   const [editProductName, setEditProductName] = useState('');
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
-  const [editReturnShippingMethod, setEditReturnShippingMethod] = useState('');
   const [editAdminNote, setEditAdminNote] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, 'full' | 'partial'>>({});
@@ -229,7 +228,6 @@ export default function ReturnDetailPage() {
         productName: editProductName || undefined,
         productSku: editProductSku || undefined,
         refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
-        returnShippingMethod: editReturnShippingMethod || undefined,
         adminNote: editAdminNote,
       });
 
@@ -252,7 +250,6 @@ export default function ReturnDetailPage() {
     setEditProductName(firstItem?.product_name || '');
     setEditProductSku(firstItem?.product_sku || '');
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
-    setEditReturnShippingMethod(returnData?.return_shipping_method || '');
     setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
     setEditInfoDialogOpen(true);
   }
@@ -438,25 +435,14 @@ export default function ReturnDetailPage() {
                 </div>
               )}
 
-              {/* Invoice Number */}
-              <div className="space-y-2">
-                <Label htmlFor="invoice-number">發票號碼</Label>
-                <Input
-                  id="invoice-number"
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                  placeholder="輸入發票號碼"
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4 text-sm pt-2 border-t">
                 <div>
                   <p className="text-muted-foreground">退貨原因</p>
                   <p className="font-medium">{reason?.label || returnData.reason_category || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">退回方式</p>
-                  <p className="font-medium">{shippingMethod?.label || '-'}</p>
+                  <p className="text-muted-foreground">發票號碼</p>
+                  <p className="font-medium">{invoiceNumber || '-'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">退款金額</p>
@@ -627,19 +613,12 @@ export default function ReturnDetailPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>退回方式</Label>
-                  <Select value={editReturnShippingMethod} onValueChange={setEditReturnShippingMethod}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="選擇退回方式" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(RETURN_SHIPPING_METHODS).map((method) => (
-                        <SelectItem key={method.key} value={method.key}>
-                          {method.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>發票號碼</Label>
+                  <Input
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    placeholder="輸入發票號碼"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>備註</Label>
