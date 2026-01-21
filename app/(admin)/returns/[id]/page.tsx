@@ -666,11 +666,10 @@ export default function ReturnDetailPage() {
                         />
                       </div>
                       <p className="text-xs text-muted-foreground text-center">
-                        {image.image_type === 'shipping_label' && '物流面單'}
-                        {image.image_type === 'product_damage' && '商品狀況'}
-                        {image.image_type === 'outer_box' && '外箱狀況'}
-                        {image.image_type === 'inspection' && '驗貨照片'}
-                        {image.image_type === 'other' && '其他'}
+                        {image.image_type === 'shipping_label' ? '物流面單' :
+                         image.image_type === 'outer_box' ? '外箱狀況' :
+                         image.image_type === 'inspection' ? '驗貨照片' :
+                         '退貨照片'}
                       </p>
                     </div>
                   ))}
