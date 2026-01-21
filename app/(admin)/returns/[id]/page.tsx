@@ -145,6 +145,8 @@ export default function ReturnDetailPage() {
   const [editProductName, setEditProductName] = useState('');
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
+  const [editReturnShippingMethod, setEditReturnShippingMethod] = useState('');
+  const [editAdminNote, setEditAdminNote] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, 'full' | 'partial'>>({});
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -227,6 +229,8 @@ export default function ReturnDetailPage() {
         productName: editProductName || undefined,
         productSku: editProductSku || undefined,
         refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
+        returnShippingMethod: editReturnShippingMethod || undefined,
+        adminNote: editAdminNote,
       });
 
       if (result.success) {
@@ -248,6 +252,8 @@ export default function ReturnDetailPage() {
     setEditProductName(firstItem?.product_name || '');
     setEditProductSku(firstItem?.product_sku || '');
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
+    setEditReturnShippingMethod(returnData?.return_shipping_method || '');
+    setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
     setEditInfoDialogOpen(true);
   }
 
@@ -453,10 +459,6 @@ export default function ReturnDetailPage() {
                   <p className="font-medium">{shippingMethod?.label || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">退款方式</p>
-                  <p className="font-medium">{refundType?.label || '-'}</p>
-                </div>
-                <div>
                   <p className="text-muted-foreground">退款金額</p>
                   <p className="font-medium text-green-600">
                     {returnData.refund_amount
@@ -471,6 +473,15 @@ export default function ReturnDetailPage() {
                   <p className="text-muted-foreground text-sm mb-1">詳細說明</p>
                   <p className="text-sm bg-gray-50 p-3 rounded">
                     {returnData.reason_detail}
+                  </p>
+                </div>
+              )}
+
+              {(returnData as { admin_note?: string }).admin_note && (
+                <div>
+                  <p className="text-muted-foreground text-sm mb-1">備註</p>
+                  <p className="text-sm bg-blue-50 p-3 rounded border border-blue-100">
+                    {(returnData as { admin_note?: string }).admin_note}
                   </p>
                 </div>
               )}
@@ -582,14 +593,14 @@ export default function ReturnDetailPage() {
 
           {/* Edit Info Dialog */}
           <Dialog open={editInfoDialogOpen} onOpenChange={setEditInfoDialogOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>編輯退貨資訊</DialogTitle>
                 <DialogDescription>
                   更新商品資訊和退款金額
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                 <div className="space-y-2">
                   <Label>商品名稱</Label>
                   <Input
@@ -613,6 +624,30 @@ export default function ReturnDetailPage() {
                     value={editRefundAmount}
                     onChange={(e) => setEditRefundAmount(e.target.value)}
                     placeholder="輸入退款金額"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>退回方式</Label>
+                  <Select value={editReturnShippingMethod} onValueChange={setEditReturnShippingMethod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇退回方式" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(RETURN_SHIPPING_METHODS).map((method) => (
+                        <SelectItem key={method.key} value={method.key}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>備註</Label>
+                  <Textarea
+                    value={editAdminNote}
+                    onChange={(e) => setEditAdminNote(e.target.value)}
+                    placeholder="輸入備註內容"
+                    rows={3}
                   />
                 </div>
               </div>

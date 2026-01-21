@@ -460,16 +460,29 @@ export async function updateReturnInfo(
     productName?: string;
     productSku?: string;
     refundAmount?: number;
+    returnShippingMethod?: string;
+    adminNote?: string;
   }
 ): Promise<ApiResponse> {
   try {
     const adminClient = createAdminClient();
 
-    // Update refund amount in return_requests
+    // Update fields in return_requests
+    const requestUpdateData: Record<string, unknown> = {};
     if (data.refundAmount !== undefined) {
+      requestUpdateData.refund_amount = data.refundAmount;
+    }
+    if (data.returnShippingMethod !== undefined) {
+      requestUpdateData.return_shipping_method = data.returnShippingMethod;
+    }
+    if (data.adminNote !== undefined) {
+      requestUpdateData.admin_note = data.adminNote;
+    }
+
+    if (Object.keys(requestUpdateData).length > 0) {
       const { error: requestError } = await adminClient
         .from('return_requests')
-        .update({ refund_amount: data.refundAmount } as never)
+        .update(requestUpdateData as never)
         .eq('id', returnRequestId);
 
       if (requestError) {
