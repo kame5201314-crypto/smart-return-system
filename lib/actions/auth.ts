@@ -16,40 +16,52 @@ export interface AuthResult {
 
 // 管理員登入
 export async function signIn(email: string, password: string): Promise<AuthResult> {
-  // Check for simple admin login first
-  if (email === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    // Set admin session cookie
-    const cookieStore = await cookies();
-    cookieStore.set('admin_session', 'authenticated', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
+  try {
+    // Trim inputs to avoid whitespace issues
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    // Check for simple admin login first
+    if (trimmedEmail === ADMIN_USERNAME && trimmedPassword === ADMIN_PASSWORD) {
+      // Set admin session cookie
+      const cookieStore = await cookies();
+      cookieStore.set('admin_session', 'authenticated', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      revalidatePath('/', 'layout');
+      return { success: true };
+    }
+
+    // Fallback to Supabase auth for email login
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: trimmedEmail,
+      password: trimmedPassword,
     });
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message === 'Invalid login credentials'
+          ? '帳號或密碼錯誤'
+          : error.message,
+      };
+    }
+
     revalidatePath('/', 'layout');
     return { success: true };
-  }
-
-  // Fallback to Supabase auth for email login
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
+  } catch (err) {
+    console.error('Login error:', err);
     return {
       success: false,
-      error: error.message === 'Invalid login credentials'
-        ? '帳號或密碼錯誤'
-        : error.message,
+      error: '登入失敗，請稍後再試',
     };
   }
-
-  revalidatePath('/', 'layout');
-  return { success: true };
 }
 
 // 管理員登出
