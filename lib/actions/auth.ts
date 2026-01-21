@@ -18,11 +18,11 @@ export interface AuthResult {
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   try {
     // Trim inputs to avoid whitespace issues
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
 
-    // Check for simple admin login first
-    if (trimmedEmail === ADMIN_USERNAME && trimmedPassword === ADMIN_PASSWORD) {
+    // Check for simple admin login first (case-insensitive username)
+    if (trimmedEmail === ADMIN_USERNAME.toLowerCase() && trimmedPassword === ADMIN_PASSWORD) {
       // Set admin session cookie
       const cookieStore = await cookies();
       cookieStore.set('admin_session', 'authenticated', {
@@ -36,7 +36,22 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       return { success: true };
     }
 
-    // Fallback to Supabase auth for email login
+    // If username is 'admin' but password is wrong
+    if (trimmedEmail === ADMIN_USERNAME.toLowerCase()) {
+      return {
+        success: false,
+        error: '密碼錯誤',
+      };
+    }
+
+    // Fallback to Supabase auth for email login (only if it looks like an email)
+    if (!trimmedEmail.includes('@')) {
+      return {
+        success: false,
+        error: '帳號或密碼錯誤',
+      };
+    }
+
     const supabase = await createClient();
 
     const { error } = await supabase.auth.signInWithPassword({
