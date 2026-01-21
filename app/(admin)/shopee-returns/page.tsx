@@ -977,7 +977,7 @@ export default function ShopeeReturnsPage() {
                         <TableCell colSpan={4} className="py-1">
                           <div className="flex items-center gap-1 text-xs">
                             <span className="font-semibold text-gray-900">買家備註:</span>
-                            <span className="text-gray-800 font-medium">{record.buyer_note || '-'}</span>
+                            <span className="text-black font-medium">{record.buyer_note || '-'}</span>
                           </div>
                         </TableCell>
                       </TableRow>
