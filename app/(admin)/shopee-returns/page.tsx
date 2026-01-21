@@ -582,15 +582,26 @@ export default function ShopeeReturnsPage() {
     }
 
     const labels = printData.map((r) => {
-      // Determine shipping display based on shipping_method field
-      let shippingDisplay = r.platform === 'mall' ? '黑貓' : '蝦皮';
+      // Determine shipping display based on shipping_method field or tracking number format
+      let shippingDisplay = '蝦皮'; // default
+
+      // First priority: check shipping_method field
       if (r.shipping_method) {
         if (r.shipping_method.includes('蝦皮') || r.shipping_method.includes('店到店')) {
           shippingDisplay = '蝦皮';
         } else if (r.shipping_method.includes('黑貓') || r.shipping_method.includes('宅急便')) {
           shippingDisplay = '黑貓';
         }
+      } else if (r.tracking_number) {
+        // Fallback: determine by tracking number format
+        // TW開頭 = 蝦皮店到店, 純數字 = 黑貓宅急便
+        if (/^TW/i.test(r.tracking_number)) {
+          shippingDisplay = '蝦皮';
+        } else if (/^\d+$/.test(r.tracking_number)) {
+          shippingDisplay = '黑貓';
+        }
       }
+
       return {
         orderNumber: r.order_number,
         trackingNumber: r.tracking_number || '',
