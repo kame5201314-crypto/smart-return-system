@@ -966,18 +966,18 @@ export default function ShopeeReturnsPage() {
                         </TableCell>
                       </TableRow>
                       <TableRow
-                        className={`border-b-2 ${record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}`}
+                        className={`border-b-4 border-gray-200 ${record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}`}
                       >
-                        <TableCell colSpan={2} className="py-1">
+                        <TableCell colSpan={2} className="py-2 pb-3">
                           <div className="flex items-center gap-1 text-xs">
-                            <span className="font-semibold text-gray-900">退貨原因:</span>
-                            <span className="text-gray-800">{record.return_reason || '-'}</span>
+                            <span className="font-medium text-gray-500">退貨原因:</span>
+                            <span className="text-gray-500">{record.return_reason || '-'}</span>
                           </div>
                         </TableCell>
-                        <TableCell colSpan={5} className="py-1">
+                        <TableCell colSpan={5} className="py-2 pb-3">
                           <div className="flex items-center gap-1 text-xs">
-                            <span className="font-semibold text-gray-900">買家備註:</span>
-                            <span className="text-black font-medium">{record.buyer_note || '-'}</span>
+                            <span className="font-medium text-gray-500">買家備註:</span>
+                            <span className="text-gray-600">{record.buyer_note || '-'}</span>
                           </div>
                         </TableCell>
                       </TableRow>
