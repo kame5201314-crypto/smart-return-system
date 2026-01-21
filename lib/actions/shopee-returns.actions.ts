@@ -187,7 +187,7 @@ export async function importShopeeReturns(
  */
 export async function updateShopeeReturnStatus(
   id: string,
-  updates: { is_processed?: boolean; is_printed?: boolean; note?: string; tracking_number?: string }
+  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; note?: string; tracking_number?: string }
 ): Promise<ApiResponse<void>> {
   try {
     const supabase = createUntypedAdminClient();
