@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Loader2, Package, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Package, User, Lock, Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { signIn } from '@/lib/actions/auth';
 
 const loginSchema = z.object({
-  email: z.string().email('請輸入有效的 Email'),
-  password: z.string().min(6, '密碼至少需要 6 個字元'),
+  email: z.string().min(1, '請輸入帳號'),
+  password: z.string().min(1, '請輸入密碼'),
 });
 
 type LoginInput = z.infer<typeof loginSchema>;
@@ -80,13 +80,13 @@ export default function LoginPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>帳號</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <Input
-                            type="email"
-                            placeholder="admin@example.com"
+                            type="text"
+                            placeholder="輸入帳號"
                             className="pl-10"
                             disabled={isLoading}
                             {...field}
