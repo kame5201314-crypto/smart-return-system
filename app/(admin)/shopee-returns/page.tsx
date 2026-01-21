@@ -866,6 +866,7 @@ export default function ShopeeReturnsPage() {
                     </TableHead>
                     <TableHead className="w-[60px]">狀態</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
+                    <TableHead className="w-[50px]">平台</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
                     <TableHead className="min-w-[100px]">退貨寄件編號</TableHead>
                     <TableHead className="w-[100px] hidden md:table-cell">爭議申請期限</TableHead>
@@ -927,8 +928,11 @@ export default function ShopeeReturnsPage() {
                             )}
                           </button>
                         </TableCell>
+                        <TableCell rowSpan={2} className="text-xs text-center">
+                          {record.platform === 'mall' ? '商城' : '蝦皮'}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{record.order_number}</TableCell>
-                        <TableCell className="font-mono text-xs">
+                        <TableCell className="font-mono text-xs font-semibold text-gray-900">
                           {record.tracking_number || '-'}
                         </TableCell>
                         <TableCell className="text-xs hidden md:table-cell">{record.dispute_deadline || '-'}</TableCell>
@@ -965,15 +969,15 @@ export default function ShopeeReturnsPage() {
                         className={`border-b-2 ${record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}`}
                       >
                         <TableCell colSpan={3} className="py-1">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">退貨原因:</span>
-                            <span>{record.return_reason || '-'}</span>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="font-semibold text-gray-900">退貨原因:</span>
+                            <span className="text-gray-800">{record.return_reason || '-'}</span>
                           </div>
                         </TableCell>
                         <TableCell colSpan={4} className="py-1">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">買家備註:</span>
-                            <span className="text-amber-600">{record.buyer_note || '-'}</span>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="font-semibold text-gray-900">買家備註:</span>
+                            <span className="text-gray-800 font-medium">{record.buyer_note || '-'}</span>
                           </div>
                         </TableCell>
                       </TableRow>
