@@ -96,6 +96,7 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '退貨原因': 'returnReason',
   '買家退貨備註': 'buyerNote',
   '買家備註': 'buyerNote',
+  '退貨運送方式': 'shippingMethod',
 };
 
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
@@ -579,12 +580,24 @@ export default function ShopeeReturnsPage() {
       return;
     }
 
-    const labels = printData.map((r) => ({
-      orderNumber: r.order_number,
-      trackingNumber: r.tracking_number || '',
-      date: formatLabelDate(r.order_date),
-      platform: r.platform || 'shopee',
-    }));
+    const labels = printData.map((r) => {
+      // Determine shipping display based on shipping_method field
+      let shippingDisplay = r.platform === 'mall' ? '黑貓' : '蝦皮';
+      if (r.shipping_method) {
+        if (r.shipping_method.includes('蝦皮') || r.shipping_method.includes('店到店')) {
+          shippingDisplay = '蝦皮';
+        } else if (r.shipping_method.includes('黑貓') || r.shipping_method.includes('宅急便')) {
+          shippingDisplay = '黑貓';
+        }
+      }
+      return {
+        orderNumber: r.order_number,
+        trackingNumber: r.tracking_number || '',
+        date: formatLabelDate(r.order_date),
+        platform: r.platform || 'shopee',
+        shippingDisplay,
+      };
+    });
 
     const printContent = `
       <!DOCTYPE html>
@@ -618,7 +631,7 @@ export default function ShopeeReturnsPage() {
               </div>
               <div class="label-cell platform">${label.platform === 'mall' ? '商城' : '蝦皮'}</div>
               <div class="label-cell date">${label.date}</div>
-              <div class="label-cell shipping">${label.platform === 'mall' ? '黑貓' : '蝦皮店到店'}</div>
+              <div class="label-cell shipping">${label.shippingDisplay}</div>
             </div>
           `).join('')}
         </div>

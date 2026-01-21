@@ -18,6 +18,7 @@ export interface ShopeeReturn {
   refund_amount: number | null;
   return_reason: string | null;
   buyer_note: string | null;
+  shipping_method: string | null;
   is_processed: boolean;
   is_printed: boolean;
   is_scanned: boolean;
@@ -43,6 +44,7 @@ export interface ShopeeReturnInput {
   refundAmount?: number;
   returnReason?: string;
   buyerNote?: string;
+  shippingMethod?: string;
 }
 
 /**
@@ -135,6 +137,7 @@ export async function importShopeeReturns(
       refund_amount: item.refundAmount || null,
       return_reason: item.returnReason || null,
       buyer_note: item.buyerNote || null,
+      shipping_method: item.shippingMethod || null,
       is_processed: false,
       is_printed: false,
       note: '',
