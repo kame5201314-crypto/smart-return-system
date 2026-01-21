@@ -372,6 +372,7 @@ export default function ShopeeReturnsPage() {
           refundAmount: getCellNumber('refundAmount') || undefined,
           returnReason: getCellValue('returnReason') || undefined,
           buyerNote: getCellValue('buyerNote') || undefined,
+          shippingMethod: getCellValue('shippingMethod') || undefined,
         });
       });
 
