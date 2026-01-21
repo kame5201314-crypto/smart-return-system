@@ -34,6 +34,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Check for admin session cookie first
+  const adminSession = request.cookies.get('admin_session');
+  const isAdminAuthenticated = adminSession?.value === 'authenticated';
+
   // Refresh session if expired
   let user = null;
   try {
@@ -42,6 +46,9 @@ export async function middleware(request: NextRequest) {
   } catch {
     // Ignore auth errors when Supabase is not fully configured
   }
+
+  // User is authenticated if either admin session or Supabase user exists
+  const isAuthenticated = isAdminAuthenticated || !!user;
 
   const pathname = request.nextUrl.pathname;
 
@@ -53,7 +60,7 @@ export async function middleware(request: NextRequest) {
   // If it's a public route, allow access
   if (isPublicRoute) {
     // But if user is logged in and accessing login page, redirect to analytics
-    if (pathname === '/login' && user) {
+    if (pathname === '/login' && isAuthenticated) {
       const url = request.nextUrl.clone();
       url.pathname = '/analytics';
       return NextResponse.redirect(url);
@@ -63,7 +70,7 @@ export async function middleware(request: NextRequest) {
 
   // All other routes require authentication (admin routes)
   // This includes: /, /dashboard, /returns, /orders, /analytics, /settings, /logistics
-  if (!user) {
+  if (!isAuthenticated) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
