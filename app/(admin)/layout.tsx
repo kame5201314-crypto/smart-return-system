@@ -13,6 +13,7 @@ import {
   Truck,
   ClipboardList,
   Printer,
+  Database,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/pickup', label: '派車收件', icon: ClipboardList },
   { href: '/logistics', label: '物流快查', icon: Truck },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
+  { href: '/settings/backup', label: '資料備份', icon: Database },
 ];
 
 interface UserInfo {
