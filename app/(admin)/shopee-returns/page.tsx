@@ -19,6 +19,8 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  Palette,
+  Circle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -43,6 +45,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import {
   getShopeeReturns,
@@ -52,7 +61,14 @@ import {
   deleteShopeeReturns,
   type ShopeeReturn,
   type ShopeeReturnInput,
+  type ColorTag,
 } from '@/lib/actions/shopee-returns.actions';
+
+// 顏色標籤選項
+const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
+  { value: 'yellow', label: '檢驗中', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  { value: 'red', label: '爭議中', color: 'bg-red-100 text-red-800 border-red-300' },
+];
 
 // Column mappings for Shopee export file
 const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
@@ -556,6 +572,20 @@ export default function ShopeeReturnsPage() {
     }
   }
 
+  async function handleColorTag(colorTag: ColorTag) {
+    const ids = Array.from(selectedIds);
+    const result = await batchUpdateShopeeReturns(ids, { color_tag: colorTag });
+    if (result.success) {
+      setReturns((prev) =>
+        prev.map((r) => (selectedIds.has(r.id) ? { ...r, color_tag: colorTag } : r))
+      );
+      setSelectedIds(new Set());
+      toast.success(colorTag ? `已標記為${COLOR_TAG_OPTIONS.find(o => o.value === colorTag)?.label}` : '已取消顏色標記');
+    } else {
+      toast.error(result.error || '標記失敗');
+    }
+  }
+
   function formatLabelDate(dateStr: string | null): string {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
@@ -826,6 +856,29 @@ export default function ShopeeReturnsPage() {
                 <Trash2 className="w-3 h-3 mr-1" />
                 刪除
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-7 text-xs">
+                    <Palette className="w-3 h-3 mr-1" />
+                    顏色標記
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleColorTag('yellow')} className="text-xs">
+                    <Circle className="w-3 h-3 mr-2 fill-yellow-400 text-yellow-400" />
+                    檢驗中
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleColorTag('red')} className="text-xs">
+                    <Circle className="w-3 h-3 mr-2 fill-red-400 text-red-400" />
+                    爭議中
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleColorTag(null)} className="text-xs text-muted-foreground">
+                    <X className="w-3 h-3 mr-2" />
+                    取消標記
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </CardContent>
@@ -893,7 +946,12 @@ export default function ShopeeReturnsPage() {
                   {paginatedReturns.map((record) => (
                     <React.Fragment key={record.id}>
                       <TableRow
-                        className={record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}
+                        className={
+                          record.color_tag === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-400' :
+                          record.color_tag === 'red' ? 'bg-red-50 border-l-4 border-l-red-400' :
+                          record.is_processed ? 'bg-green-50' :
+                          record.is_scanned ? 'bg-blue-50/50' : ''
+                        }
                       >
                         <TableCell className="sticky left-0 bg-inherit" rowSpan={2}>
                           <Checkbox
@@ -978,7 +1036,12 @@ export default function ShopeeReturnsPage() {
                         </TableCell>
                       </TableRow>
                       <TableRow
-                        className={`border-b-4 border-gray-200 ${record.is_processed ? 'bg-green-50' : record.is_scanned ? 'bg-blue-50/50' : ''}`}
+                        className={`border-b-4 border-gray-200 ${
+                          record.color_tag === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-400' :
+                          record.color_tag === 'red' ? 'bg-red-50 border-l-4 border-l-red-400' :
+                          record.is_processed ? 'bg-green-50' :
+                          record.is_scanned ? 'bg-blue-50/50' : ''
+                        }`}
                       >
                         <TableCell colSpan={2} className="py-2 pb-3">
                           <div className="flex items-center gap-1 text-xs">
