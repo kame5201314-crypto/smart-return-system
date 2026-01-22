@@ -148,7 +148,7 @@ export default function ReturnDetailPage() {
   const [editAdminNote, setEditAdminNote] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, 'full' | 'partial'>>({});
-  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceStatus, setInvoiceStatus] = useState('未作廢');
 
   const inspectionForm = useForm<InspectionInput>({
     resolver: zodResolver(inspectionSchema),
@@ -437,14 +437,6 @@ export default function ReturnDetailPage() {
 
               <div className="grid grid-cols-2 gap-4 text-sm pt-2 border-t">
                 <div>
-                  <p className="text-muted-foreground">退貨原因</p>
-                  <p className="font-medium">{reason?.label || returnData.reason_category || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">發票號碼</p>
-                  <p className="font-medium">{invoiceNumber || '-'}</p>
-                </div>
-                <div>
                   <p className="text-muted-foreground">退款金額</p>
                   <p className="font-medium text-green-600">
                     {returnData.refund_amount
@@ -452,11 +444,24 @@ export default function ReturnDetailPage() {
                       : '待定'}
                   </p>
                 </div>
+                <div>
+                  <p className="text-muted-foreground">發票狀態</p>
+                  <Badge variant={
+                    invoiceStatus === '已作廢' ? 'destructive' :
+                    invoiceStatus === '已折讓' ? 'secondary' : 'outline'
+                  }>
+                    {invoiceStatus}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">退貨原因</p>
+                  <p className="font-medium">{reason?.label || returnData.reason_category || '-'}</p>
+                </div>
               </div>
 
               {returnData.reason_detail && (
                 <div>
-                  <p className="text-muted-foreground text-sm mb-1">詳細說明</p>
+                  <p className="text-muted-foreground text-sm mb-1">退貨詳細說明</p>
                   <p className="text-sm bg-gray-50 p-3 rounded">
                     {returnData.reason_detail}
                   </p>
@@ -613,12 +618,17 @@ export default function ReturnDetailPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>發票號碼</Label>
-                  <Input
-                    value={invoiceNumber}
-                    onChange={(e) => setInvoiceNumber(e.target.value)}
-                    placeholder="輸入發票號碼"
-                  />
+                  <Label>發票狀態</Label>
+                  <Select value={invoiceStatus} onValueChange={setInvoiceStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇發票狀態" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="未作廢">未作廢</SelectItem>
+                      <SelectItem value="已作廢">已作廢</SelectItem>
+                      <SelectItem value="已折讓">已折讓</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>備註</Label>
