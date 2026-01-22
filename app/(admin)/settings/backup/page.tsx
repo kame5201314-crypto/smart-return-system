@@ -356,7 +356,7 @@ export default function BackupPage() {
               </div>
               <div className="flex items-center justify-between py-2 border-b">
                 <span className="text-sm">保留天數</span>
-                <Badge variant="secondary">30 天</Badge>
+                <Badge variant="secondary">60 天</Badge>
               </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm">儲存位置</span>
@@ -369,7 +369,7 @@ export default function BackupPage() {
               <div>
                 <p className="font-medium">自動備份說明</p>
                 <p className="text-blue-600 mt-1">
-                  系統會在每日凌晨 3:00 自動執行備份，備份檔案保存在 Supabase Storage，超過 30 天的舊備份會自動清理。
+                  系統會在每日凌晨 3:00 自動執行備份，備份檔案保存在 Supabase Storage，超過 60 天的舊備份會自動清理。
                 </p>
               </div>
             </div>
@@ -386,7 +386,7 @@ export default function BackupPage() {
               備份歷史
             </CardTitle>
             <CardDescription>
-              最近 30 天的自動備份記錄
+              最近 60 天的自動備份記錄
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={loadBackupHistory}>

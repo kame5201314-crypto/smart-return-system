@@ -152,7 +152,7 @@ export async function createBackup(
         tables_included: selectedTables,
       });
 
-      // 清理舊備份（保留最近30天）
+      // 清理舊備份（保留最近60天）
       await cleanupOldBackups();
     }
 
@@ -215,19 +215,19 @@ export async function deleteBackup(id: string, filePath: string): Promise<ApiRes
 }
 
 /**
- * 清理超過30天的舊備份
+ * 清理超過60天的舊備份
  */
 async function cleanupOldBackups(): Promise<void> {
   try {
     const supabase = createUntypedAdminClient();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
     // 獲取要刪除的備份記錄
     const { data: oldBackups } = await supabase
       .from('backup_records')
       .select('id, file_path')
-      .lt('created_at', thirtyDaysAgo.toISOString());
+      .lt('created_at', sixtyDaysAgo.toISOString());
 
     if (oldBackups && oldBackups.length > 0) {
       // 刪除 Storage 文件
