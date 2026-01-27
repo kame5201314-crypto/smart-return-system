@@ -304,10 +304,8 @@ export default function CustomerPortalPage() {
       setIsSubmitted(true);
       toast.success('退貨申請已成功送出！');
 
-    } catch (error) {
-      console.error('Submit error:', error);
-      const errorMsg = error instanceof Error ? error.message : '送出失敗，請稍後再試';
-      toast.error(errorMsg);
+    } catch {
+      toast.error('送出失敗，請稍後再試');
     } finally {
       setIsLoading(false);
     }
@@ -838,6 +836,11 @@ export default function CustomerPortalPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Notice for official website return */}
+                    <p className="text-xs text-amber-600 mt-3">
+                      *後續退款流程將用官網訂單留言(Email通知)。
+                    </p>
                   </div>
                 )}
 

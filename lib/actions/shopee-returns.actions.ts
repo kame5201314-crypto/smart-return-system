@@ -155,6 +155,8 @@ export async function importShopeeReturns(
     // If batch insert fails due to duplicates, insert one by one
     if (error && error.message.includes('duplicate key')) {
       let insertedCount = 0;
+      const failedItems: string[] = [];
+
       for (const item of insertData) {
         const { error: singleError } = await supabase
           .from('shopee_returns')
@@ -162,8 +164,22 @@ export async function importShopeeReturns(
 
         if (!singleError) {
           insertedCount++;
+        } else if (!singleError.message.includes('duplicate key')) {
+          // Track non-duplicate failures
+          failedItems.push(item.order_number);
+          console.error(`Failed to insert order ${item.order_number}:`, singleError.message);
         }
         // Silently skip duplicates
+      }
+
+      // Report failures if any (non-duplicate errors)
+      if (failedItems.length > 0) {
+        console.error('Failed to import orders:', failedItems);
+        return {
+          success: true,
+          data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount - failedItems.length) },
+          message: `部分訂單匯入失敗: ${failedItems.slice(0, 3).join(', ')}${failedItems.length > 3 ? ` 等 ${failedItems.length} 筆` : ''}`,
+        };
       }
 
       return {

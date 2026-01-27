@@ -33,14 +33,21 @@ export default function TrackReturnPage() {
     const session = JSON.parse(stored);
     const requestNumber = params.id as string;
 
-    getReturnStatus(requestNumber, session.phone).then((result) => {
-      if (result.success && result.data) {
-        setReturnRequest(result.data);
-      } else {
-        setError(result.error || '找不到此退貨申請');
-      }
-      setLoading(false);
-    });
+    getReturnStatus(requestNumber, session.phone)
+      .then((result) => {
+        if (result.success && result.data) {
+          setReturnRequest(result.data);
+        } else {
+          setError(result.error || '找不到此退貨申請');
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch return status:', err);
+        setError('系統錯誤，請稍後再試');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [params.id, router]);
 
   if (loading) {

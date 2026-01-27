@@ -1,7 +1,55 @@
 'use server';
 
+import { z } from 'zod';
+import { headers } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { ApiResponse } from '@/types';
+
+// ========== Zod 驗證 Schema ==========
+const customerReturnSchema = z.object({
+  channelSource: z.string().min(1, '請選擇購買通路').max(50),
+  accountId: z.string().min(1, '請填寫帳號').max(100),
+  orderNumber: z.string().min(1, '請填寫訂單編號').max(100),
+  ordererName: z.string().min(1, '請填寫訂購人姓名').max(50),
+  receiverName: z.string().max(50).optional(),
+  phone: z.string().regex(/^09\d{8}$/, '請輸入有效的手機號碼'),
+  returnProducts: z.array(z.string().max(100)).optional(),
+  reasonCategory: z.string().max(50).optional(),
+  returnReason: z.string().min(1, '請填寫退貨原因').max(2000),
+  productSuggestion: z.string().max(2000).optional(),
+});
+
+// ========== 簡易速率限制 ==========
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 小時
+const RATE_LIMIT_MAX_REQUESTS = 5; // 每小時最多 5 次提交
+
+function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  record.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count };
+}
+
+// 定期清理過期的速率限制記錄
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (now > value.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 10 * 60 * 1000); // 每 10 分鐘清理一次
 
 export interface CustomerReturnFormData {
   channelSource: string;
@@ -28,12 +76,31 @@ export async function submitCustomerReturn(
   imageFiles: { name: string; type: string; base64: string }[] | { publicUrl: string; storagePath: string }[]
 ): Promise<ApiResponse<{ requestNumber: string }>> {
   try {
+    // ========== 1. Zod 驗證 ==========
+    const validationResult = customerReturnSchema.safeParse(formData);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.issues[0]?.message || '輸入資料格式錯誤';
+      return { success: false, error: errorMessage };
+    }
+
+    // ========== 2. 速率限制 ==========
+    const headersList = await headers();
+    const clientIP = headersList.get('x-forwarded-for')?.split(',')[0] ||
+                     headersList.get('x-real-ip') ||
+                     'unknown';
+    // 同時用 IP 和手機號碼做限制
+    const rateLimitKey = `${clientIP}-${formData.phone}`;
+    const rateCheck = checkRateLimit(rateLimitKey);
+
+    if (!rateCheck.allowed) {
+      return { success: false, error: '提交次數過多，請稍後再試（每小時最多 5 次）' };
+    }
+
     let adminClient;
     try {
       adminClient = createAdminClient();
-    } catch (initError) {
-      console.error('Failed to create admin client:', initError);
-      return { success: false, error: '伺服器設定錯誤，請檢查 SUPABASE_SERVICE_ROLE_KEY 環境變數' };
+    } catch {
+      return { success: false, error: '伺服器設定錯誤，請稍後再試' };
     }
 
     // 1. Find or create customer and order in parallel
@@ -55,8 +122,7 @@ export async function submitCustomerReturn(
           .single()
           .then(res => res as { data: { id: string } | null; error: Error | null }),
       ]);
-    } catch (dbError) {
-      console.error('Database query error:', dbError);
+    } catch {
       return { success: false, error: '資料庫連線失敗，請稍後再試' };
     }
 
@@ -75,8 +141,7 @@ export async function submitCustomerReturn(
         .single() as { data: { id: string } | null; error: Error | null };
 
       if (customerError) {
-        console.error('Create customer error:', customerError);
-        return { success: false, error: `建立客戶記錄失敗: ${customerError.message}` };
+        return { success: false, error: '建立客戶記錄失敗，請稍後再試' };
       }
       customerId = newCustomer?.id || null;
     }
@@ -170,7 +235,6 @@ export async function submitCustomerReturn(
           });
 
         if (uploadError) {
-          console.error('Upload image error:', uploadError);
           return null;
         }
 
@@ -234,8 +298,34 @@ export async function submitCustomerReturn(
       },
     } as never);
 
-    // Execute all DB operations in parallel
-    await Promise.all([insertImagesPromise, insertItemPromise, insertLogPromise]);
+    // Execute all DB operations in parallel with error tracking
+    const [imagesResult, itemResult, logResult] = await Promise.allSettled([
+      insertImagesPromise,
+      insertItemPromise,
+      insertLogPromise,
+    ]);
+
+    // Check for partial failures (non-critical, return_request already created)
+    const failures: string[] = [];
+    if (imagesResult.status === 'rejected' || (imagesResult.status === 'fulfilled' && (imagesResult.value as { error?: unknown })?.error)) {
+      failures.push('圖片記錄');
+    }
+    if (itemResult.status === 'rejected' || (itemResult.status === 'fulfilled' && (itemResult.value as { error?: unknown })?.error)) {
+      failures.push('商品記錄');
+    }
+    if (logResult.status === 'rejected' || (logResult.status === 'fulfilled' && (logResult.value as { error?: unknown })?.error)) {
+      failures.push('活動記錄');
+    }
+
+    // Return success even with partial failures (main return_request was created)
+    if (failures.length > 0) {
+      console.error(`Partial insert failures for ${returnRequest.request_number}:`, failures);
+      return {
+        success: true,
+        data: { requestNumber: returnRequest.request_number },
+        message: `退貨申請已送出，但部分資料（${failures.join('、')}）可能未完整儲存`,
+      };
+    }
 
     return {
       success: true,
@@ -243,10 +333,7 @@ export async function submitCustomerReturn(
       message: '退貨申請已成功送出',
     };
   } catch (error) {
-    console.error('Submit customer return error:', error);
     const errorMessage = error instanceof Error ? error.message : '未知錯誤';
-    const errorStack = error instanceof Error ? error.stack : '';
-    console.error('Error stack:', errorStack);
 
     // Check for common database errors
     if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
@@ -258,7 +345,7 @@ export async function submitCustomerReturn(
     if (errorMessage.includes('Missing Supabase')) {
       return { success: false, error: '伺服器環境變數未設定，請聯繫管理員' };
     }
-    return { success: false, error: `系統錯誤: ${errorMessage}` };
+    return { success: false, error: '系統錯誤，請稍後再試' };
   }
 }
 
@@ -333,13 +420,11 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
       .order('created_at', { ascending: false }) as { data: ReturnListResult[] | null; error: Error | null };
 
     if (error) {
-      console.error('Search returns by phone error:', error);
       return { success: false, error: '查詢失敗' };
     }
 
     return { success: true, data: data || [] };
-  } catch (error) {
-    console.error('Search returns by phone error:', error);
+  } catch {
     return { success: false, error: '系統錯誤' };
   }
 }
@@ -406,8 +491,7 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
     }
 
     return { success: true, data };
-  } catch (error) {
-    console.error('Search return by number error:', error);
+  } catch {
     return { success: false, error: '系統錯誤' };
   }
 }

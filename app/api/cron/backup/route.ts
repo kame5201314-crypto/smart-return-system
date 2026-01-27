@@ -8,11 +8,29 @@ export async function GET(request: Request) {
   try {
     // 驗證是否為 Vercel Cron 請求
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      // 如果沒有設定 CRON_SECRET，允許執行（開發環境）
-      if (process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    const cronSecret = process.env.CRON_SECRET;
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+
+    // 生產環境強制要求 CRON_SECRET
+    if (isProduction && !cronSecret) {
+      console.error('CRON_SECRET is not configured in production environment');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    // 驗證 Bearer token
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // 開發環境允許無 token 訪問（方便測試）
+    if (!cronSecret && !isProduction) {
+      console.warn('CRON_SECRET not set - allowing request in development mode');
     }
 
     console.log('Starting automatic backup...');

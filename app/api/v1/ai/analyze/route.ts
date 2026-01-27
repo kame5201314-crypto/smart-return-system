@@ -46,7 +46,6 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 
   // Try to find an available model
   const availableModels = await listAvailableModels(apiKey);
-  console.log('Available models:', availableModels);
 
   // Find a suitable model for text generation (updated for 2025+ API)
   const preferredModels = [
@@ -64,8 +63,6 @@ async function callGeminiAPI(prompt: string): Promise<string> {
       break;
     }
   }
-
-  console.log('Using model:', modelToUse);
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`,
