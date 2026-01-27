@@ -838,7 +838,7 @@ export default function CustomerPortalPage() {
                     )}
 
                     {/* Notice for official website return */}
-                    <p className="text-xs text-amber-600 mt-3">
+                    <p className="text-sm text-amber-700 mt-4 pt-3 border-t border-amber-200">
                       *後續退款流程將用官網訂單留言(Email通知)。
                     </p>
                   </div>
