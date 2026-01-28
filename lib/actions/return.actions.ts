@@ -401,20 +401,25 @@ export async function submitInspection(
     const validated = inspectionSchema.parse(input);
     const adminClient = createAdminClient();
 
+    // Prepare inspection data with defaults
+    const inspectionData = {
+      return_request_id: validated.returnRequestId,
+      inspected_by: userId,
+      result: validated.result,
+      condition_grade: validated.conditionGrade || 'B', // Default to B if not provided
+      inspector_comment: validated.inspectorComment || validated.notes || '',
+      inspected_at: new Date().toISOString(),
+    };
+
     // Insert inspection record
     const { error: inspectError } = await adminClient
       .from('inspection_records')
-      .insert({
-        return_request_id: validated.returnRequestId,
-        inspected_by: userId,
-        result: validated.result,
-        condition_grade: validated.conditionGrade,
-        inspector_comment: validated.inspectorComment,
-      } as never);
+      .insert(inspectionData as never);
 
     if (inspectError) {
       console.error('Insert inspection error:', inspectError);
-      return { success: false, error: ERROR_MESSAGES.GENERIC };
+      console.error('Inspection data:', inspectionData);
+      return { success: false, error: `驗貨記錄建立失敗: ${inspectError.message}` };
     }
 
     // Update return request status
