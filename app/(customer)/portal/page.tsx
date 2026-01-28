@@ -58,13 +58,14 @@ export default function CustomerPortalPage() {
   const channelOptions = [
     { id: 'official', label: '官網' },
     { id: 'shopee', label: '蝦皮' },
+    { id: 'zeczec', label: '嘖嘖' },
     { id: 'other', label: '其他' },
   ];
 
   // Product options for checkbox selection
   const productOptions = [
     { id: 'mefu', label: 'MEFU 自拍棒 / 行動電源 / 充電頭 系列' },
-    { id: 'apexel', label: 'APEXEL 鏡頭系統' },
+    { id: 'apexel', label: 'APEXEL 鏡頭系列' },
     { id: 'other', label: '其他' },
   ];
 
@@ -427,7 +428,7 @@ export default function CustomerPortalPage() {
 
                 {/* Channel Source - Checkbox Selection */}
                 <div className="space-y-3">
-                  <FormLabel className="text-teal-700 font-medium">
+                  <FormLabel className="text-teal-700 font-bold text-base">
                     購買通路 <span className="text-red-500">*</span>
                   </FormLabel>
                   <div className="space-y-2">
@@ -490,7 +491,7 @@ export default function CustomerPortalPage() {
                   name="accountId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
+                      <FormLabel className="text-teal-700 font-bold text-base">
                         您的帳號 (官網 / 蝦皮) <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
@@ -512,7 +513,7 @@ export default function CustomerPortalPage() {
                   name="orderNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
+                      <FormLabel className="text-teal-700 font-bold text-base">
                         訂單編號 <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
@@ -534,7 +535,7 @@ export default function CustomerPortalPage() {
                   name="ordererName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
+                      <FormLabel className="text-teal-700 font-bold text-base">
                         訂購人 <span className="text-red-500">*</span>
                       </FormLabel>
                       <p className="text-sm text-gray-500 mb-2">
@@ -559,7 +560,7 @@ export default function CustomerPortalPage() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
+                      <FormLabel className="text-teal-700 font-bold text-base">
                         您的電話 <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
@@ -577,13 +578,13 @@ export default function CustomerPortalPage() {
 
                 {/* Return Products - Checkbox Selection */}
                 <div className="space-y-3">
-                  <FormLabel className="text-teal-700 font-medium">
+                  <FormLabel className="text-teal-700 font-bold text-base">
                     退貨商品 <span className="text-red-500">*</span>
                   </FormLabel>
                   <p className="text-sm text-gray-500">
                     請選擇您要退貨的商品類型（可複選）
                   </p>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {productOptions.map((option) => (
                       <div key={option.id} className="flex items-center space-x-3">
                         <Checkbox
@@ -597,11 +598,11 @@ export default function CustomerPortalPage() {
                             }
                           }}
                           disabled={isLoading}
-                          className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
+                          className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600 h-5 w-5"
                         />
                         <label
                           htmlFor={option.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          className="text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                         >
                           {option.label}
                         </label>
@@ -612,13 +613,13 @@ export default function CustomerPortalPage() {
 
                 {/* Return Reason - Checkbox Selection */}
                 <div className="space-y-3">
-                  <FormLabel className="text-teal-700 font-medium">
+                  <FormLabel className="text-teal-700 font-bold text-base">
                     退、換貨原因 <span className="text-red-500">*</span>
                   </FormLabel>
                   <p className="text-sm text-gray-500">
                     請選擇退貨原因（可複選）
                   </p>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {reasonOptions.map((option) => (
                       <div key={option.id}>
                         <div className="flex items-center space-x-3">
@@ -647,11 +648,11 @@ export default function CustomerPortalPage() {
                               }
                             }}
                             disabled={isLoading}
-                            className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
+                            className="border-gray-300 data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600 h-5 w-5"
                           />
                           <label
                             htmlFor={`reason-${option.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            className="text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                           >
                             {option.label}
                           </label>
@@ -850,7 +851,7 @@ export default function CustomerPortalPage() {
                   name="productSuggestion"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-teal-700 font-medium">
+                      <FormLabel className="text-teal-700 font-bold text-base">
                         對產品有什麼建議？
                       </FormLabel>
                       <FormControl>
@@ -870,7 +871,7 @@ export default function CustomerPortalPage() {
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center gap-2">
                     <Camera className="w-5 h-5 text-teal-600" />
-                    <FormLabel className="text-teal-700 font-medium text-base">
+                    <FormLabel className="text-teal-700 font-bold text-base">
                       上傳產品照片 <span className="text-red-500">*</span>
                     </FormLabel>
                   </div>
@@ -891,7 +892,7 @@ export default function CustomerPortalPage() {
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center gap-2">
                     <Camera className="w-5 h-5 text-teal-600" />
-                    <FormLabel className="text-teal-700 font-medium text-base">
+                    <FormLabel className="text-teal-700 font-bold text-base">
                       上傳寄件單照片
                     </FormLabel>
                   </div>
