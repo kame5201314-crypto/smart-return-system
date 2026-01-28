@@ -8,6 +8,8 @@ import { cookies } from 'next/headers';
 // Simple admin credentials
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'mefu888';
+// Fixed UUID for admin user (for database foreign key compatibility)
+const ADMIN_UUID = '00000000-0000-0000-0000-000000000001';
 
 export interface AuthResult {
   success: boolean;
@@ -101,7 +103,7 @@ export async function getCurrentUser() {
 
   if (adminSession?.value === 'authenticated') {
     return {
-      id: 'admin',
+      id: ADMIN_UUID,
       email: 'admin@system.local',
       name: '管理員',
       role: 'admin',
