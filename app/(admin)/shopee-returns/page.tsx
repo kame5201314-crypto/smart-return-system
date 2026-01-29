@@ -88,6 +88,7 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '產品名稱': 'productName',
   '商品選項名稱': 'optionName',
   '規格名稱': 'optionName',
+  '商品規格名稱': 'optionName',
   '商品活動價格': 'activityPrice',
   '活動價格': 'activityPrice',
   '商品原價': 'activityPrice',
