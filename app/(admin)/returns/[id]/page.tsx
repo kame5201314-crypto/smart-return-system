@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -14,6 +14,7 @@ import {
   CheckCircle,
   XCircle,
   Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -50,7 +51,7 @@ import {
 } from '@/components/ui/form';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
 
-import { getReturnRequestDetail, updateReturnStatus, updateReturnInfo, submitInspection } from '@/lib/actions/return.actions';
+import { getReturnRequestDetail, updateReturnStatus, updateReturnInfo, submitInspection, deleteReturnRequest } from '@/lib/actions/return.actions';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import {
@@ -135,6 +136,7 @@ interface ReturnDetail {
 export default function ReturnDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [returnData, setReturnData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -149,6 +151,8 @@ export default function ReturnDetailPage() {
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, 'full' | 'partial'>>({});
   const [invoiceStatus, setInvoiceStatus] = useState('未作廢');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const inspectionForm = useForm<InspectionInput>({
     resolver: zodResolver(inspectionSchema),
@@ -171,6 +175,15 @@ export default function ReturnDetailPage() {
   useEffect(() => {
     fetchDetail();
   }, [params.id]);
+
+  // Auto-open edit dialog if ?edit=true in URL
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true' && returnData) {
+      openEditInfoDialog();
+      // Clear the query param from URL
+      router.replace(`/returns/${params.id}`, { scroll: false });
+    }
+  }, [searchParams, returnData]);
 
   async function fetchDetail() {
     try {
@@ -278,6 +291,32 @@ export default function ReturnDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!returnData) return;
+
+    try {
+      setDeleting(true);
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('請先登入');
+        return;
+      }
+
+      const result = await deleteReturnRequest(returnData.id, user.id);
+      if (result.success) {
+        toast.success('退貨單已刪除');
+        router.push('/returns');
+      } else {
+        toast.error(result.error || '刪除失敗');
+      }
+    } catch {
+      toast.error('刪除失敗');
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -322,9 +361,34 @@ export default function ReturnDetailPage() {
             {format(new Date(returnData.created_at), 'yyyy/MM/dd HH:mm', { locale: zhTW })}
           </p>
         </div>
-        <Badge className={RETURN_STATUS_COLORS[returnData.status]} variant="outline">
-          {RETURN_STATUS_LABELS[returnData.status]}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge className={RETURN_STATUS_COLORS[returnData.status]} variant="outline">
+            {RETURN_STATUS_LABELS[returnData.status]}
+          </Badge>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>確認刪除</DialogTitle>
+                <DialogDescription>
+                  確定要刪除退貨單 {returnData.request_number} 嗎？此操作無法復原，相關的退貨商品、照片和驗貨紀錄都會一併刪除。
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  取消
+                </Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? '刪除中...' : '確認刪除'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Progress */}

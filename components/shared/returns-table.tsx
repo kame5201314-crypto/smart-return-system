@@ -186,13 +186,13 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="icon" asChild>
+                  <Button variant="ghost" size="icon" asChild title="查看詳情">
                     <Link href={`/returns/${item.id}`}>
                       <Eye className="w-4 h-4" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/returns/inspection/${item.id}`}>
+                  <Button variant="ghost" size="icon" asChild title="編輯資訊">
+                    <Link href={`/returns/${item.id}?edit=true`}>
                       <Edit className="w-4 h-4" />
                     </Link>
                   </Button>
@@ -201,6 +201,7 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
                     size="icon"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     onClick={() => openDeleteDialog(item)}
+                    title="刪除"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
