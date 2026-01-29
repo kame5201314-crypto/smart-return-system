@@ -921,7 +921,7 @@ export default function ShopeeReturnsPage() {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
-                    <TableHead className="w-[140px]">
+                    <TableHead className="w-[110px]">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         處理日期
@@ -968,11 +968,11 @@ export default function ShopeeReturnsPage() {
                         </TableCell>
                         <TableCell rowSpan={2}>
                           <input
-                            type="datetime-local"
-                            className="text-xs border rounded px-1 py-1 w-full max-w-[130px] cursor-pointer"
-                            defaultValue={record.processed_at ? record.processed_at.slice(0, 16) : ''}
+                            type="date"
+                            className="text-xs border rounded px-1 py-1 w-full max-w-[110px] cursor-pointer"
+                            defaultValue={record.processed_at ? record.processed_at.slice(0, 10) : ''}
                             onChange={async (e) => {
-                              const newDate = e.target.value ? new Date(e.target.value).toISOString() : null;
+                              const newDate = e.target.value || null;
                               const result = await updateShopeeReturnStatus(record.id, { processed_at: newDate });
                               if (result.success) {
                                 setReturns((prev) =>
