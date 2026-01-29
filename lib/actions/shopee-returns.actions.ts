@@ -23,6 +23,7 @@ export interface ShopeeReturn {
   is_printed: boolean;
   is_scanned: boolean;
   scanned_at: string | null;
+  processed_at: string | null;
   note: string | null;
   platform: 'shopee' | 'mall' | null;
   color_tag: 'yellow' | 'red' | null;
@@ -209,7 +210,7 @@ export async function importShopeeReturns(
  */
 export async function updateShopeeReturnStatus(
   id: string,
-  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; note?: string; tracking_number?: string }
+  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; note?: string; tracking_number?: string; processed_at?: string | null }
 ): Promise<ApiResponse<void>> {
   try {
     const supabase = createUntypedAdminClient();

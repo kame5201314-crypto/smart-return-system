@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Palette,
   Circle,
+  Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -920,6 +921,12 @@ export default function ShopeeReturnsPage() {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
+                    <TableHead className="w-[140px]">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        處理日期
+                      </div>
+                    </TableHead>
                     <TableHead
                       className="w-[60px] cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('is_scanned')}
@@ -936,7 +943,7 @@ export default function ShopeeReturnsPage() {
                     <TableHead className="min-w-[100px]">退貨寄件編號</TableHead>
                     <TableHead className="w-[100px] hidden md:table-cell">爭議申請期限</TableHead>
                     <TableHead className="w-[90px] hidden md:table-cell text-center">買家退款金額</TableHead>
-                    <TableHead className="hidden lg:table-cell">商品</TableHead>
+                    <TableHead className="hidden lg:table-cell">商品規格名稱</TableHead>
                     <TableHead className="w-[80px] hidden lg:table-cell">貨號</TableHead>
                     <TableHead className="w-[50px] hidden lg:table-cell text-center">數量</TableHead>
                     <TableHead className="min-w-[150px]">備註</TableHead>
@@ -957,6 +964,26 @@ export default function ShopeeReturnsPage() {
                           <Checkbox
                             checked={selectedIds.has(record.id)}
                             onCheckedChange={() => toggleSelect(record.id)}
+                          />
+                        </TableCell>
+                        <TableCell rowSpan={2}>
+                          <input
+                            type="datetime-local"
+                            className="text-xs border rounded px-1 py-1 w-full max-w-[130px] cursor-pointer"
+                            defaultValue={record.processed_at ? record.processed_at.slice(0, 16) : ''}
+                            onChange={async (e) => {
+                              const newDate = e.target.value ? new Date(e.target.value).toISOString() : null;
+                              const result = await updateShopeeReturnStatus(record.id, { processed_at: newDate });
+                              if (result.success) {
+                                setReturns((prev) =>
+                                  prev.map((r) =>
+                                    r.id === record.id ? { ...r, processed_at: newDate } : r
+                                  )
+                                );
+                              } else {
+                                toast.error('更新處理日期失敗');
+                              }
+                            }}
                           />
                         </TableCell>
                         <TableCell rowSpan={2}>
