@@ -47,6 +47,7 @@ interface AIAnalysisResult {
     sku: string;
     product_name: string;
     return_count: number;
+    return_rate?: string;
     main_issues: string[];
     suggestion: string;
   }[];
@@ -351,34 +352,46 @@ export default function AIReportPage() {
             </CardContent>
           </Card>
 
-          {/* SKU Analysis */}
+          {/* SKU Analysis - Top 20 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-orange-500" />
-                SKU 分析
+                退貨率最高商品分析 (Top 20)
               </CardTitle>
               <CardDescription>
-                退貨率最高的商品及改善建議
+                退貨次數最高的前 20 名商品及改善建議
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {result.skuAnalysis?.map((sku, index) => (
+                {result.skuAnalysis?.slice(0, 20).map((sku, index) => (
                   <div
                     key={index}
                     className="p-4 bg-gray-50 rounded-lg"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="font-medium">{sku.product_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          SKU: {sku.sku}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-sm font-bold">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="font-medium">{sku.product_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            SKU: {sku.sku}
+                          </p>
+                        </div>
                       </div>
-                      <Badge variant="destructive">
-                        {sku.return_count} 件退貨
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Badge variant="destructive">
+                          {sku.return_count} 件退貨
+                        </Badge>
+                        {sku.return_rate && (
+                          <Badge variant="outline" className="text-orange-600 border-orange-300">
+                            退貨率 {sku.return_rate}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     {sku.main_issues?.length > 0 && (
                       <p className="text-sm mb-2">

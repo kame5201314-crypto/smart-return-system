@@ -52,7 +52,7 @@ export default function ReturnsPage() {
   const [returns, setReturns] = useState<ReturnItem[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'kanban' | 'table'>('kanban');
+  const [view, setView] = useState<'kanban' | 'table'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -296,6 +296,7 @@ export default function ReturnsPage() {
           sortField={sortField}
           sortDirection={sortDirection}
           onSort={handleSort}
+          onRefresh={fetchReturns}
         />
       )}
     </div>

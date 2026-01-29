@@ -240,6 +240,7 @@ ${JSON.stringify(analysisData, null, 2)}
       "sku": "SKU編號",
       "product_name": "產品名稱",
       "return_count": 數量,
+      "return_rate": "退貨率百分比（若可計算）",
       "main_issues": ["主要問題"],
       "suggestion": "改善建議"
     }
@@ -252,6 +253,11 @@ ${JSON.stringify(analysisData, null, 2)}
     }
   ]
 }
+
+重要指示：
+1. sku_analysis 請列出退貨次數最高的前 20 名商品，按退貨次數由高到低排序
+2. 如果商品數量不足 20 個，則列出所有商品
+3. 每個商品都要提供具體的改善建議
 
 請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
 

@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { Eye, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Table,
@@ -13,9 +15,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RETURN_STATUS_LABELS, RETURN_STATUS_COLORS } from '@/config/constants';
+import { RETURN_STATUS_LABELS, RETURN_STATUS_COLORS, CHANNEL_LIST } from '@/config/constants';
+import { deleteReturnRequest } from '@/lib/actions/return.actions';
+import { getCurrentUser } from '@/lib/actions/auth';
+
+// Helper to get channel label in Chinese
+function getChannelLabel(channelSource: string | null): string {
+  if (!channelSource) return '-';
+  const channel = CHANNEL_LIST.find(c => c.key === channelSource);
+  return channel?.label || channelSource;
+}
 
 interface ReturnItem {
   id: string;
@@ -41,9 +60,45 @@ interface ReturnsTableProps {
   sortField?: SortField;
   sortDirection?: SortDirection;
   onSort?: (field: SortField) => void;
+  onRefresh?: () => void;
 }
 
-export function ReturnsTable({ items, sortField, sortDirection, onSort }: ReturnsTableProps) {
+export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefresh }: ReturnsTableProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<ReturnItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!deletingItem) return;
+
+    try {
+      setDeleting(true);
+      const user = await getCurrentUser();
+      if (!user) {
+        toast.error('請先登入');
+        return;
+      }
+
+      const result = await deleteReturnRequest(deletingItem.id, user.id);
+      if (result.success) {
+        toast.success('退貨單已刪除');
+        onRefresh?.();
+      } else {
+        toast.error(result.error || '刪除失敗');
+      }
+    } catch {
+      toast.error('刪除失敗');
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeletingItem(null);
+    }
+  }
+
+  function openDeleteDialog(item: ReturnItem) {
+    setDeletingItem(item);
+    setDeleteDialogOpen(true);
+  }
   // Helper to render sort icon
   function SortIcon({ field }: { field: SortField }) {
     if (sortField !== field) {
@@ -112,9 +167,7 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort }: Return
               <TableCell>{item.order?.customer_name || '-'}</TableCell>
               <TableCell>{item.order?.order_number || '-'}</TableCell>
               <TableCell>
-                {item.channel_source && (
-                  <Badge variant="outline">{item.channel_source}</Badge>
-                )}
+                <Badge variant="outline">{getChannelLabel(item.channel_source)}</Badge>
               </TableCell>
               <TableCell>
                 <Badge className={RETURN_STATUS_COLORS[item.status]}>
@@ -143,12 +196,44 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort }: Return
                       <Edit className="w-4 h-4" />
                     </Link>
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => openDeleteDialog(item)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>確認刪除</DialogTitle>
+            <DialogDescription>
+              確定要刪除退貨單 {deletingItem?.request_number} 嗎？此操作無法復原，相關的退貨商品、照片和驗貨紀錄都會一併刪除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? '刪除中...' : '確認刪除'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
