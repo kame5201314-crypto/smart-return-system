@@ -14,6 +14,8 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
+  Upload,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -37,6 +39,7 @@ import {
   createBackup,
   downloadBackup,
   deleteBackup,
+  restoreBackup,
   type BackupRecord,
   type BackupData,
 } from '@/lib/actions/backup.actions';
@@ -68,6 +71,11 @@ export default function BackupPage() {
     'shopee_returns',
     'pickup',
   ]);
+
+  // 還原相關狀態
+  const [restoreData, setRestoreData] = useState<BackupData | null>(null);
+  const [restoreTables, setRestoreTables] = useState<string[]>([]);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   useEffect(() => {
     loadBackupHistory();
@@ -257,6 +265,100 @@ export default function BackupPage() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   }
 
+  // 處理備份文件上傳
+  function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast.error('請上傳 JSON 格式的備份檔案');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string) as BackupData;
+        if (!data.metadata || !data.data) {
+          toast.error('無效的備份檔案格式');
+          return;
+        }
+        setRestoreData(data);
+        // 自動選擇有資料的表
+        const tables: string[] = [];
+        if (data.data.return_requests?.length || data.data.return_items?.length || data.data.return_images?.length) {
+          tables.push('return_management');
+        }
+        if (data.data.shopee_returns?.length) {
+          tables.push('shopee_returns');
+        }
+        if (data.data.pickup_records?.length) {
+          tables.push('pickup');
+        }
+        setRestoreTables(tables);
+        toast.success('備份檔案已載入，請確認還原項目');
+      } catch {
+        toast.error('無法解析備份檔案');
+      }
+    };
+    reader.readAsText(file);
+    // 重置 input 以便可以再次選擇相同文件
+    event.target.value = '';
+  }
+
+  // 執行還原
+  async function handleRestore() {
+    if (!restoreData || restoreTables.length === 0) {
+      toast.error('請選擇要還原的項目');
+      return;
+    }
+
+    if (!confirm('確定要還原資料嗎？這將覆蓋現有的相同 ID 資料。')) {
+      return;
+    }
+
+    setIsRestoring(true);
+    try {
+      // 還原派車收件到 localStorage
+      if (restoreTables.includes('pickup') && restoreData.data.pickup_records?.length) {
+        localStorage.setItem(PICKUP_STORAGE_KEY, JSON.stringify(restoreData.data.pickup_records));
+        toast.success(`已還原 ${restoreData.data.pickup_records.length} 筆派車收件資料到本地`);
+      }
+
+      // 還原資料庫資料
+      const dbTables = restoreTables.filter(t => t !== 'pickup');
+      if (dbTables.length > 0) {
+        const result = await restoreBackup(restoreData, dbTables);
+        if (result.success && result.data) {
+          const counts = Object.entries(result.data.restored)
+            .map(([table, count]) => `${table}: ${count}筆`)
+            .join(', ');
+          toast.success(`還原成功！${counts}`);
+        } else {
+          toast.error(result.error || '還原失敗');
+        }
+      }
+
+      // 清除上傳的資料
+      setRestoreData(null);
+      setRestoreTables([]);
+    } catch (error) {
+      console.error('Restore error:', error);
+      toast.error('還原失敗');
+    } finally {
+      setIsRestoring(false);
+    }
+  }
+
+  // 切換還原表選擇
+  function toggleRestoreTable(tableKey: string) {
+    setRestoreTables((prev) =>
+      prev.includes(tableKey)
+        ? prev.filter((t) => t !== tableKey)
+        : [...prev, tableKey]
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -376,6 +478,145 @@ export default function BackupPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 還原備份 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RotateCcw className="w-5 h-5" />
+            還原備份
+          </CardTitle>
+          <CardDescription>
+            上傳 JSON 備份檔案，還原資料到系統
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!restoreData ? (
+            <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
+              <Upload className="w-10 h-10 mx-auto mb-3 text-gray-400" />
+              <p className="text-sm text-muted-foreground mb-3">
+                選擇 JSON 格式的備份檔案
+              </p>
+              <label>
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <Button variant="outline" asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    選擇檔案
+                  </span>
+                </Button>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* 備份資訊 */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">備份檔案已載入</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>備份時間：{format(new Date(restoreData.metadata.created_at), 'yyyy-MM-dd HH:mm:ss')}</p>
+                  <p>備份類型：{restoreData.metadata.backup_type === 'manual' ? '手動' : '自動'}</p>
+                </div>
+              </div>
+
+              {/* 資料預覽 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">資料預覽（選擇要還原的項目）</Label>
+
+                {(restoreData.data.return_requests?.length || restoreData.data.return_items?.length || restoreData.data.return_images?.length) && (
+                  <div className="flex items-center space-x-2 p-2 border rounded">
+                    <Checkbox
+                      id="restore-return"
+                      checked={restoreTables.includes('return_management')}
+                      onCheckedChange={() => toggleRestoreTable('return_management')}
+                    />
+                    <Label htmlFor="restore-return" className="text-sm cursor-pointer flex-1">
+                      退貨管理
+                      <span className="text-muted-foreground ml-2">
+                        (申請: {restoreData.data.return_requests?.length || 0},
+                        商品: {restoreData.data.return_items?.length || 0},
+                        照片: {restoreData.data.return_images?.length || 0})
+                      </span>
+                    </Label>
+                  </div>
+                )}
+
+                {restoreData.data.shopee_returns?.length && (
+                  <div className="flex items-center space-x-2 p-2 border rounded">
+                    <Checkbox
+                      id="restore-shopee"
+                      checked={restoreTables.includes('shopee_returns')}
+                      onCheckedChange={() => toggleRestoreTable('shopee_returns')}
+                    />
+                    <Label htmlFor="restore-shopee" className="text-sm cursor-pointer flex-1">
+                      蝦皮退貨
+                      <span className="text-muted-foreground ml-2">
+                        ({restoreData.data.shopee_returns.length} 筆)
+                      </span>
+                    </Label>
+                  </div>
+                )}
+
+                {restoreData.data.pickup_records?.length && (
+                  <div className="flex items-center space-x-2 p-2 border rounded">
+                    <Checkbox
+                      id="restore-pickup"
+                      checked={restoreTables.includes('pickup')}
+                      onCheckedChange={() => toggleRestoreTable('pickup')}
+                    />
+                    <Label htmlFor="restore-pickup" className="text-sm cursor-pointer flex-1">
+                      派車收件
+                      <span className="text-muted-foreground ml-2">
+                        ({restoreData.data.pickup_records.length} 筆，存到本地)
+                      </span>
+                    </Label>
+                  </div>
+                )}
+              </div>
+
+              {/* 操作按鈕 */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleRestore}
+                  disabled={isRestoring || restoreTables.length === 0}
+                  className="flex-1"
+                >
+                  {isRestoring ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                  )}
+                  確認還原
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRestoreData(null);
+                    setRestoreTables([]);
+                  }}
+                  disabled={isRestoring}
+                >
+                  取消
+                </Button>
+              </div>
+
+              <div className="bg-amber-50 text-amber-700 p-3 rounded-lg text-sm flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <p>
+                  還原操作會以 ID 為依據更新現有資料（upsert）。如有相同 ID 的資料會被覆蓋，不會刪除現有的其他資料。
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 備份歷史 */}
       <Card>

@@ -177,8 +177,7 @@ export default function ReturnApplyPage() {
 
       setSuccess(result.data?.requestNumber || '');
       toast.success('退貨申請已送出成功！');
-    } catch (error) {
-      console.error('Submit error:', error);
+    } catch {
       toast.error('送出失敗，請稍後再試');
     } finally {
       setSubmitting(false);

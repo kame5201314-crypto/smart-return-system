@@ -47,13 +47,11 @@ export async function getBackupHistory(): Promise<ApiResponse<BackupRecord[]>> {
       if (error.code === '42P01') {
         return { success: true, data: [] };
       }
-      console.error('Get backup history error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: '獲取備份歷史失敗' };
     }
 
     return { success: true, data: (data as BackupRecord[]) || [] };
-  } catch (error) {
-    console.error('Get backup history error:', error);
+  } catch {
     return { success: false, error: '獲取備份歷史失敗' };
   }
 }
@@ -135,12 +133,11 @@ export async function createBackup(
         });
 
       if (uploadError) {
-        console.error('Upload backup error:', uploadError);
-        // 如果 bucket 不存在，嘗試創建
+        // 如果 bucket 不存在，提示用戶
         if (uploadError.message.includes('not found')) {
           return { success: false, error: '請先在 Supabase 創建 backups 儲存桶' };
         }
-        return { success: false, error: uploadError.message };
+        return { success: false, error: '備份上傳失敗' };
       }
 
       // 記錄備份歷史
@@ -157,8 +154,7 @@ export async function createBackup(
     }
 
     return { success: true, data: { data: backupData } };
-  } catch (error) {
-    console.error('Create backup error:', error);
+  } catch {
     return { success: false, error: '備份失敗' };
   }
 }
@@ -175,13 +171,11 @@ export async function downloadBackup(filePath: string): Promise<ApiResponse<{ ur
       .createSignedUrl(filePath, 3600); // 1小時有效
 
     if (error) {
-      console.error('Download backup error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: '下載失敗' };
     }
 
     return { success: true, data: { url: data.signedUrl } };
-  } catch (error) {
-    console.error('Download backup error:', error);
+  } catch {
     return { success: false, error: '下載失敗' };
   }
 }
@@ -203,13 +197,11 @@ export async function deleteBackup(id: string, filePath: string): Promise<ApiRes
       .eq('id', id);
 
     if (error) {
-      console.error('Delete backup record error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: '刪除記錄失敗' };
     }
 
     return { success: true };
-  } catch (error) {
-    console.error('Delete backup error:', error);
+  } catch {
     return { success: false, error: '刪除失敗' };
   }
 }
@@ -237,11 +229,9 @@ async function cleanupOldBackups(): Promise<void> {
       // 刪除記錄
       const ids = oldBackups.map((b: { id: string }) => b.id);
       await supabase.from('backup_records').delete().in('id', ids);
-
-      console.log(`Cleaned up ${oldBackups.length} old backups`);
     }
-  } catch (error) {
-    console.error('Cleanup old backups error:', error);
+  } catch {
+    // 清理失敗不影響主流程
   }
 }
 
@@ -255,4 +245,72 @@ function format(date: Date, formatStr: string): string {
     .replace('HH', pad(date.getHours()))
     .replace('mm', pad(date.getMinutes()))
     .replace('ss', pad(date.getSeconds()));
+}
+
+/**
+ * 還原備份資料
+ */
+export async function restoreBackup(
+  backupData: BackupData,
+  selectedTables: string[]
+): Promise<ApiResponse<{ restored: Record<string, number> }>> {
+  try {
+    const supabase = createUntypedAdminClient();
+    const restored: Record<string, number> = {};
+
+    // 還原退貨管理相關表
+    if (selectedTables.includes('return_management')) {
+      // 還原 return_requests
+      if (backupData.data.return_requests && backupData.data.return_requests.length > 0) {
+        const { error } = await supabase
+          .from('return_requests')
+          .upsert(backupData.data.return_requests as never[], { onConflict: 'id' });
+        if (error) {
+          return { success: false, error: '還原退貨申請失敗' };
+        }
+        restored.return_requests = backupData.data.return_requests.length;
+      }
+
+      // 還原 return_items
+      if (backupData.data.return_items && backupData.data.return_items.length > 0) {
+        const { error } = await supabase
+          .from('return_items')
+          .upsert(backupData.data.return_items as never[], { onConflict: 'id' });
+        if (error) {
+          return { success: false, error: '還原退貨商品失敗' };
+        }
+        restored.return_items = backupData.data.return_items.length;
+      }
+
+      // 還原 return_images
+      if (backupData.data.return_images && backupData.data.return_images.length > 0) {
+        const { error } = await supabase
+          .from('return_images')
+          .upsert(backupData.data.return_images as never[], { onConflict: 'id' });
+        if (error) {
+          return { success: false, error: '還原退貨照片失敗' };
+        }
+        restored.return_images = backupData.data.return_images.length;
+      }
+    }
+
+    // 還原蝦皮退貨
+    if (selectedTables.includes('shopee_returns')) {
+      if (backupData.data.shopee_returns && backupData.data.shopee_returns.length > 0) {
+        const { error } = await supabase
+          .from('shopee_returns')
+          .upsert(backupData.data.shopee_returns as never[], { onConflict: 'id' });
+        if (error) {
+          return { success: false, error: '還原蝦皮退貨失敗' };
+        }
+        restored.shopee_returns = backupData.data.shopee_returns.length;
+      }
+    }
+
+    // 派車收件需要在前端處理（localStorage）
+
+    return { success: true, data: { restored } };
+  } catch {
+    return { success: false, error: '還原失敗' };
+  }
 }

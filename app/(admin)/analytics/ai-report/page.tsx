@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Brain,
@@ -12,6 +13,7 @@ import {
   Calendar,
   RefreshCw,
   History,
+  FileText,
 } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 
@@ -165,6 +167,12 @@ export default function AIReportPage() {
             運用 AI 分析退貨數據，產生可執行的商業洞察
           </p>
         </div>
+        <Button variant="outline" asChild>
+          <Link href="/analytics/ai-report/history">
+            <FileText className="w-4 h-4 mr-2" />
+            歷史報告
+          </Link>
+        </Button>
       </div>
 
       {/* Controls */}

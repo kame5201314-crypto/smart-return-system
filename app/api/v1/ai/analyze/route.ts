@@ -363,6 +363,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period');
+    const limit = searchParams.get('limit');
 
     const supabase = createAdminClient();
 
@@ -375,7 +376,9 @@ export async function GET(request: NextRequest) {
       query = query.eq('report_period', period);
     }
 
-    const { data, error } = await query.limit(10);
+    // Allow custom limit, default to 50 for history page
+    const queryLimit = limit ? parseInt(limit, 10) : 50;
+    const { data, error } = await query.limit(queryLimit);
 
     if (error) {
       console.error('Fetch reports error:', error);

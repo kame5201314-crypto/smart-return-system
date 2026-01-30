@@ -708,6 +708,74 @@ export async function getReturnStatistics() {
 }
 
 /**
+ * Admin: Delete return request and related data
+ */
+export async function deleteReturnRequest(
+  returnRequestId: string,
+  userId: string
+): Promise<ApiResponse> {
+  try {
+    const adminClient = createAdminClient();
+
+    // Get return request info for logging
+    const { data: returnRequest, error: fetchError } = await adminClient
+      .from('return_requests')
+      .select('id, request_number')
+      .eq('id', returnRequestId)
+      .single() as { data: { id: string; request_number: string } | null; error: Error | null };
+
+    if (fetchError || !returnRequest) {
+      return { success: false, error: ERROR_MESSAGES.NOT_FOUND };
+    }
+
+    // Delete related data first (foreign key constraints)
+    // Delete return images
+    await adminClient
+      .from('return_images')
+      .delete()
+      .eq('return_request_id', returnRequestId);
+
+    // Delete return items
+    await adminClient
+      .from('return_items')
+      .delete()
+      .eq('return_request_id', returnRequestId);
+
+    // Delete inspection records
+    await adminClient
+      .from('inspection_records')
+      .delete()
+      .eq('return_request_id', returnRequestId);
+
+    // Delete activity logs related to this return request
+    await adminClient
+      .from('activity_logs')
+      .delete()
+      .eq('entity_type', 'return_request')
+      .eq('entity_id', returnRequestId);
+
+    // Finally delete the return request itself
+    const { error: deleteError } = await adminClient
+      .from('return_requests')
+      .delete()
+      .eq('id', returnRequestId);
+
+    if (deleteError) {
+      console.error('Delete return request error:', deleteError);
+      return { success: false, error: '刪除退貨單失敗' };
+    }
+
+    // Log deletion (to a general log, not entity-specific)
+    console.log(`Return request ${returnRequest.request_number} deleted by user ${userId}`);
+
+    return { success: true, message: '退貨單已刪除' };
+  } catch (error) {
+    console.error('Delete return request error:', error);
+    return { success: false, error: ERROR_MESSAGES.GENERIC };
+  }
+}
+
+/**
  * Export returns to Excel format (returns data for client-side XLSX generation)
  */
 export async function getReturnsForExport(filters?: {
