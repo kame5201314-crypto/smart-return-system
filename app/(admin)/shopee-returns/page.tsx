@@ -76,9 +76,6 @@ const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
 const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '訂單編號': 'orderNumber',
   '訂單號碼': 'orderNumber',
-  '退貨/退款編號': 'orderNumber',
-  '退貨編號': 'orderNumber',
-  '退款編號': 'orderNumber',
   '訂單成立日期': 'orderDate',
   '訂單成立時間': 'orderDate',
   '訂單完成時間': 'orderDate',
