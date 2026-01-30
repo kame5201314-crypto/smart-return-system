@@ -98,7 +98,7 @@ export default function ReturnsPage() {
     // Status filter
     if (statusFilter !== 'all') {
       if (statusFilter === 'pending_inspection') {
-        // 待驗收 includes multiple statuses
+        // 待審核 includes multiple statuses
         const pendingStatuses = ['pending_review', 'approved_waiting_shipping', 'shipping_in_transit', 'received_inspecting', 'refund_processing'];
         filtered = filtered.filter((r) => pendingStatuses.includes(r.status));
       } else {
@@ -241,7 +241,7 @@ export default function ReturnsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">所有狀態</SelectItem>
-                <SelectItem value="pending_inspection">待驗收</SelectItem>
+                <SelectItem value="pending_inspection">待審核</SelectItem>
                 <SelectItem value="completed">已結案</SelectItem>
                 <SelectItem value="abnormal_disputed">驗收異常</SelectItem>
               </SelectContent>

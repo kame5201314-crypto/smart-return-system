@@ -22,6 +22,7 @@ import {
   Palette,
   Circle,
   Calendar,
+  Store,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -129,6 +130,7 @@ export default function ShopeeReturnsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'processed' | 'unprocessed'>('all');
   const [scanFilter, setScanFilter] = useState<'all' | 'scanned' | 'not_scanned'>('all');
   const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
+  const [platformFilter, setPlatformFilter] = useState<'all' | 'shopee' | 'mall'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
@@ -182,6 +184,13 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => !r.is_printed);
     }
 
+    // Platform filter
+    if (platformFilter === 'shopee') {
+      filtered = filtered.filter((r) => r.platform === 'shopee' || !r.platform);
+    } else if (platformFilter === 'mall') {
+      filtered = filtered.filter((r) => r.platform === 'mall');
+    }
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -216,7 +225,7 @@ export default function ShopeeReturnsPage() {
 
     setFilteredReturns(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [returns, searchQuery, statusFilter, scanFilter, printFilter, sortField, sortDirection]);
+  }, [returns, searchQuery, statusFilter, scanFilter, printFilter, platformFilter, sortField, sortDirection]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredReturns.length / ITEMS_PER_PAGE);
@@ -837,6 +846,19 @@ export default function ShopeeReturnsPage() {
                   <SelectItem value="all">全部</SelectItem>
                   <SelectItem value="printed">已列印</SelectItem>
                   <SelectItem value="not_printed">未列印</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Platform Filter */}
+              <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as typeof platformFilter)}>
+                <SelectTrigger className="w-[100px] h-7 text-xs">
+                  <Store className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="shopee">蝦皮</SelectItem>
+                  <SelectItem value="mall">商城</SelectItem>
                 </SelectContent>
               </Select>
             </div>

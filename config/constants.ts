@@ -174,7 +174,7 @@ export const USER_ROLES = {
 export const KANBAN_COLUMNS = [
   {
     id: 'pending_inspection',
-    title: '待驗收',
+    title: '待審核',
     color: 'border-yellow-400',
     statuses: [
       RETURN_STATUS.PENDING_REVIEW,

@@ -8,9 +8,9 @@ interface ProgressTrackerProps {
   className?: string;
 }
 
-// Simplified 3-step progress: 待驗收 → 已結案, with 驗收異常 as separate state
+// Simplified 3-step progress: 待審核 → 已結案, with 驗收異常 as separate state
 const SIMPLIFIED_STEPS = [
-  { key: 'pending_inspection', label: '待驗收' },
+  { key: 'pending_inspection', label: '待審核' },
   { key: 'completed', label: '已結案' },
   { key: 'abnormal', label: '驗收異常' },
 ];
@@ -19,7 +19,7 @@ export function ProgressTracker({ currentStatus, className = '' }: ProgressTrack
   const isAbnormal = currentStatus === RETURN_STATUS.ABNORMAL_DISPUTED;
   const isCompleted = currentStatus === RETURN_STATUS.COMPLETED;
 
-  // Determine current step index (0: 待驗收, 1: 已結案, 2: 驗收異常)
+  // Determine current step index (0: 待審核, 1: 已結案, 2: 驗收異常)
   let currentIndex = 0;
   if (isCompleted) currentIndex = 1;
   if (isAbnormal) currentIndex = 2;
@@ -51,7 +51,7 @@ export function ProgressTracker({ currentStatus, className = '' }: ProgressTrack
         {/* Steps */}
         <div className="relative flex justify-between">
           {SIMPLIFIED_STEPS.map((step, index) => {
-            // For normal flow (待驗收 → 已結案)
+            // For normal flow (待審核 → 已結案)
             let isStepCompleted = false;
             let isStepCurrent = false;
             let isStepPending = true;
