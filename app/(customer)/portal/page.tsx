@@ -195,8 +195,15 @@ export default function CustomerPortalPage() {
       return;
     }
 
+    // Validate at least one shipping label image
+    const successfulShippingLabelImages = shippingLabelImages.filter((img) => img.status === 'success');
+    if (successfulShippingLabelImages.length === 0) {
+      toast.error('請至少上傳一張寄件單照片');
+      return;
+    }
+
     // Check if any images are still uploading
-    const uploadingImages = images.filter((img) => img.status === 'uploading');
+    const uploadingImages = [...images, ...shippingLabelImages].filter((img) => img.status === 'uploading');
     if (uploadingImages.length > 0) {
       toast.error('請等待圖片上傳完成');
       return;
@@ -893,7 +900,7 @@ export default function CustomerPortalPage() {
                   <div className="flex items-center gap-2">
                     <Camera className="w-5 h-5 text-teal-600" />
                     <FormLabel className="text-teal-700 font-bold text-base">
-                      上傳寄件單照片
+                      上傳寄件單照片 <span className="text-red-500">*</span>
                     </FormLabel>
                   </div>
                   <p className="text-sm text-gray-500">
