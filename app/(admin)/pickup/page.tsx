@@ -50,6 +50,7 @@ interface PickupRecord {
   id: string;
   processDate: string;
   orderNumber: string;
+  trackingNumber: string;
   platform: string;
   logisticsProvider: string;
   deliveryStatus: string;
@@ -78,6 +79,7 @@ export default function PickupPage() {
   const [formData, setFormData] = useState({
     processDate: format(new Date(), 'yyyy-MM-dd'),
     orderNumber: '',
+    trackingNumber: '',
     platform: '商城',
     logisticsProvider: '黑貓',
     deliveryStatus: '派車收件',
@@ -131,6 +133,7 @@ export default function PickupPage() {
       setFormData({
         processDate: record.processDate,
         orderNumber: record.orderNumber,
+        trackingNumber: record.trackingNumber || '',
         platform: record.platform,
         logisticsProvider: record.logisticsProvider,
         deliveryStatus: record.deliveryStatus,
@@ -143,6 +146,7 @@ export default function PickupPage() {
       setFormData({
         processDate: format(new Date(), 'yyyy-MM-dd'),
         orderNumber: '',
+        trackingNumber: '',
         platform: '商城',
         logisticsProvider: '黑貓',
         deliveryStatus: '派車收件',
@@ -242,6 +246,14 @@ export default function PickupPage() {
       newSelected.add(id);
     }
     setSelectedIds(newSelected);
+  }
+
+  function handleBatchDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`確定要刪除所選的 ${selectedIds.size} 筆記錄嗎？`)) return;
+    setRecords((prev) => prev.filter((r) => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+    toast.success(`已刪除 ${selectedIds.size} 筆記錄`);
   }
 
   function handlePrint() {
@@ -418,7 +430,22 @@ export default function PickupPage() {
       {/* Records Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">收件記錄</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">收件記錄</CardTitle>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">已選 {selectedIds.size} 筆</span>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleBatchDelete}
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  批量刪除
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {filteredRecords.length === 0 ? (
@@ -438,6 +465,7 @@ export default function PickupPage() {
                     </TableHead>
                     <TableHead className="w-[100px]">處理日期</TableHead>
                     <TableHead className="w-[180px]">訂單編號</TableHead>
+                    <TableHead className="w-[140px]">物流單號</TableHead>
                     <TableHead className="w-[80px]">平台</TableHead>
                     <TableHead className="w-[80px]">物流</TableHead>
                     <TableHead className="w-[100px]">物流狀態</TableHead>
@@ -468,6 +496,7 @@ export default function PickupPage() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="text-sm">{record.trackingNumber || '-'}</TableCell>
                       <TableCell>{record.platform}</TableCell>
                       <TableCell>{record.logisticsProvider}</TableCell>
                       <TableCell>
@@ -571,6 +600,15 @@ export default function PickupPage() {
                 value={formData.orderNumber}
                 onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
                 rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>物流單號</Label>
+              <Input
+                placeholder="輸入物流單號"
+                value={formData.trackingNumber}
+                onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
               />
             </div>
 
