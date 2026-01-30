@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -250,7 +250,7 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
               <TableCell className="font-medium">
                 <Link
                   href={`/returns/${item.id}`}
-                  className="hover:text-primary"
+                  className="text-blue-600 underline hover:text-blue-800"
                 >
                   {item.request_number}
                 </Link>
@@ -281,20 +281,6 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
                     <Link href={`/returns/${item.id}`}>
                       <Eye className="w-4 h-4" />
                     </Link>
-                  </Button>
-                  <Button variant="ghost" size="icon" asChild title="編輯資訊">
-                    <Link href={`/returns/${item.id}?edit=true`}>
-                      <Edit className="w-4 h-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => openDeleteDialog(item)}
-                    title="刪除"
-                  >
-                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </TableCell>
