@@ -946,7 +946,7 @@ export default function ShopeeReturnsPage() {
                     <TableHead className="min-w-[100px]">退貨寄件編號</TableHead>
                     <TableHead className="w-[100px] hidden md:table-cell">爭議申請期限</TableHead>
                     <TableHead className="w-[90px] hidden md:table-cell text-center">買家退款金額</TableHead>
-                    <TableHead className="hidden lg:table-cell">商品規格名稱</TableHead>
+                    <TableHead className="w-[120px] hidden lg:table-cell">商品規格名稱</TableHead>
                     <TableHead className="w-[80px] hidden lg:table-cell">貨號</TableHead>
                     <TableHead className="w-[50px] hidden lg:table-cell text-center">數量</TableHead>
                     <TableHead className="min-w-[150px]">備註</TableHead>
@@ -1040,8 +1040,16 @@ export default function ShopeeReturnsPage() {
                           {record.refund_amount ? `$${record.refund_amount.toLocaleString()}` : '-'}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          <div className="max-w-[150px] truncate text-xs" title={record.product_name || ''}>
-                            {record.product_name || '-'}
+                          <div className="relative group/product">
+                            <div className="max-w-[120px] truncate text-xs">
+                              {record.product_name || '-'}
+                            </div>
+                            {record.product_name && record.product_name.length > 12 && (
+                              <div className="invisible group-hover/product:visible absolute z-50 bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-[300px] whitespace-pre-wrap break-words pointer-events-none">
+                                {record.product_name}
+                                <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs hidden lg:table-cell">{record.option_sku || '-'}</TableCell>
