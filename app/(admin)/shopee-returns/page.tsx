@@ -1098,8 +1098,14 @@ export default function ShopeeReturnsPage() {
                         <TableCell colSpan={5} className="py-2 pb-3">
                           <div className="relative group/buyer flex items-center gap-1 text-xs">
                             <span className="font-medium text-gray-500 shrink-0">買家備註:</span>
-                            <span className="text-gray-600 truncate">{record.buyer_note || '-'}</span>
-                            {record.buyer_note && record.buyer_note.length > 15 && (
+                            <span className="text-gray-600">
+                              {record.buyer_note
+                                ? record.buyer_note.length > 30
+                                  ? record.buyer_note.slice(0, 30) + '...'
+                                  : record.buyer_note
+                                : '-'}
+                            </span>
+                            {record.buyer_note && record.buyer_note.length > 30 && (
                               <div className="invisible group-hover/buyer:visible absolute z-50 bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-[400px] whitespace-pre-wrap break-words pointer-events-none">
                                 {record.buyer_note}
                                 <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
