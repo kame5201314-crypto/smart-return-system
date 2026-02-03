@@ -153,6 +153,7 @@ export default function ReturnDetailPage() {
   const [invoiceStatus, setInvoiceStatus] = useState('未作廢');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const inspectionForm = useForm<InspectionInput>({
     resolver: zodResolver(inspectionSchema),
@@ -736,7 +737,8 @@ export default function ReturnDetailPage() {
                         <img
                           src={image.image_url}
                           alt={image.image_type || 'Photo'}
-                          className="w-full h-full object-cover cursor-pointer hover:opacity-80"
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setLightboxImage(image.image_url)}
                         />
                       </div>
                       <p className="text-xs text-muted-foreground text-center">
@@ -826,6 +828,22 @@ export default function ReturnDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Image Lightbox */}
+      <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
+        <DialogContent className="max-w-4xl w-[95vw] p-2">
+          <DialogHeader className="sr-only">
+            <DialogTitle>照片預覽</DialogTitle>
+          </DialogHeader>
+          {lightboxImage && (
+            <img
+              src={lightboxImage}
+              alt="放大照片"
+              className="w-full h-auto max-h-[85vh] object-contain rounded-lg"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
