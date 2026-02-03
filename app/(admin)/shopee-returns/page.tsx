@@ -1047,22 +1047,30 @@ export default function ShopeeReturnsPage() {
                         <TableCell className="font-mono text-xs hidden lg:table-cell">{record.option_sku || '-'}</TableCell>
                         <TableCell className="text-center text-xs hidden lg:table-cell">{record.return_quantity}</TableCell>
                         <TableCell rowSpan={2}>
-                          <Input
-                            placeholder="輸入備註..."
-                            defaultValue={record.note || ''}
-                            className="text-xs h-8 min-w-[120px]"
-                            onBlur={(e) => {
-                              const newNote = e.target.value;
-                              if (newNote !== (record.note || '')) {
-                                updateShopeeReturnStatus(record.id, { note: newNote });
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.currentTarget.blur();
-                              }
-                            }}
-                          />
+                          <div className="relative group/note">
+                            <Input
+                              placeholder="輸入備註..."
+                              defaultValue={record.note || ''}
+                              className="text-xs h-8 min-w-[120px]"
+                              onBlur={(e) => {
+                                const newNote = e.target.value;
+                                if (newNote !== (record.note || '')) {
+                                  updateShopeeReturnStatus(record.id, { note: newNote });
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                            />
+                            {record.note && record.note.length > 10 && (
+                              <div className="invisible group-hover/note:visible absolute z-50 bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-[300px] whitespace-pre-wrap break-words pointer-events-none">
+                                {record.note}
+                                <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                       <TableRow
@@ -1080,9 +1088,15 @@ export default function ShopeeReturnsPage() {
                           </div>
                         </TableCell>
                         <TableCell colSpan={5} className="py-2 pb-3">
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className="font-medium text-gray-500">買家備註:</span>
-                            <span className="text-gray-600">{record.buyer_note || '-'}</span>
+                          <div className="relative group/buyer flex items-center gap-1 text-xs">
+                            <span className="font-medium text-gray-500 shrink-0">買家備註:</span>
+                            <span className="text-gray-600 truncate">{record.buyer_note || '-'}</span>
+                            {record.buyer_note && record.buyer_note.length > 15 && (
+                              <div className="invisible group-hover/buyer:visible absolute z-50 bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-[400px] whitespace-pre-wrap break-words pointer-events-none">
+                                {record.buyer_note}
+                                <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
