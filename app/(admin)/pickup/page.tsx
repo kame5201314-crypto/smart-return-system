@@ -57,6 +57,7 @@ interface PickupRecord {
   receivedStatus: string;
   notes: string;
   receiverInfo: string;
+  isPrinted: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -181,6 +182,7 @@ export default function PickupPage() {
       const newRecord: PickupRecord = {
         id: `pickup-${Date.now()}`,
         ...formData,
+        isPrinted: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -207,6 +209,16 @@ export default function PickupPage() {
       )
     );
     toast.success('狀態已更新');
+  }
+
+  function togglePrinted(id: string) {
+    setRecords((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, isPrinted: !r.isPrinted, updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
   }
 
   function getStatusColor(status: string) {
@@ -367,6 +379,16 @@ export default function PickupPage() {
 
     printWindow.document.write(printContent);
     printWindow.document.close();
+
+    // Auto-mark selected records as printed
+    const printedIds = new Set(selectedRecords.map((r) => r.id));
+    setRecords((prev) =>
+      prev.map((r) =>
+        printedIds.has(r.id)
+          ? { ...r, isPrinted: true, updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
   }
 
   return (
@@ -463,6 +485,7 @@ export default function PickupPage() {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
+                    <TableHead className="w-[60px]">列印</TableHead>
                     <TableHead className="w-[100px]">處理日期</TableHead>
                     <TableHead className="w-[180px]">訂單編號</TableHead>
                     <TableHead className="w-[140px]">物流單號</TableHead>
@@ -482,6 +505,19 @@ export default function PickupPage() {
                           checked={selectedIds.has(record.id)}
                           onCheckedChange={() => toggleSelect(record.id)}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <button onClick={() => togglePrinted(record.id)}>
+                          {record.isPrinted ? (
+                            <Badge className="bg-purple-100 text-purple-800 text-[10px] px-1">
+                              已列印
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
+                              未列印
+                            </Badge>
+                          )}
+                        </button>
                       </TableCell>
                       <TableCell className="font-medium">
                         {format(new Date(record.processDate), 'M/d', { locale: zhTW })}
