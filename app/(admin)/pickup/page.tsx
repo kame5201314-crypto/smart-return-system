@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import {
@@ -46,35 +46,28 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 
-interface PickupRecord {
-  id: string;
-  processDate: string;
-  orderNumber: string;
-  trackingNumber: string;
-  platform: string;
-  logisticsProvider: string;
-  deliveryStatus: string;
-  receivedStatus: string;
-  notes: string;
-  receiverInfo: string;
-  isPrinted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  getPickupRecords,
+  createPickupRecord,
+  updatePickupRecord,
+  deletePickupRecord,
+  batchDeletePickupRecords,
+  batchUpdatePickupPrinted,
+} from '@/lib/actions/pickup.actions';
+import type { PickupRecord } from '@/lib/actions/pickup.actions';
 
 const PLATFORMS = ['商城', '蝦皮', '官網', 'MOMO', '其他'];
 const LOGISTICS_PROVIDERS = ['黑貓', '新竹物流', '7-11', '全家', '郵局', '其他'];
 const DELIVERY_STATUSES = ['派車收件', '來回件', '已送達', '配送中', '待收件', '已退回'];
 const RECEIVED_STATUSES = ['未收到', '已收到', '已貼單', '處理中', '完成'];
 
-const STORAGE_KEY = 'pickup-records';
-
 export default function PickupPage() {
   const [records, setRecords] = useState<PickupRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<PickupRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<PickupRecord | null>(null);
   const [formData, setFormData] = useState({
@@ -89,27 +82,20 @@ export default function PickupPage() {
     receiverInfo: '',
   });
 
-  // Load records from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setRecords(parsed);
-        setFilteredRecords(parsed);
-      } catch (e) {
-        console.error('Failed to parse saved records:', e);
-      }
+  // Load records from Supabase
+  const loadRecords = useCallback(async () => {
+    const result = await getPickupRecords();
+    if (result.success && result.data) {
+      setRecords(result.data);
+    } else {
+      toast.error(result.error || '載入資料失敗');
     }
-    setIsLoaded(true);
+    setIsLoading(false);
   }, []);
 
-  // Save records to localStorage - only after initial load
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    }
-  }, [records, isLoaded]);
+    loadRecords();
+  }, [loadRecords]);
 
   // Filter records
   useEffect(() => {
@@ -120,9 +106,9 @@ export default function PickupPage() {
       setFilteredRecords(
         records.filter(
           (r) =>
-            r.orderNumber.toLowerCase().includes(query) ||
+            r.order_number.toLowerCase().includes(query) ||
             r.platform.toLowerCase().includes(query) ||
-            r.receiverInfo.toLowerCase().includes(query)
+            (r.receiver_info || '').toLowerCase().includes(query)
         )
       );
     }
@@ -132,15 +118,15 @@ export default function PickupPage() {
     if (record) {
       setEditingRecord(record);
       setFormData({
-        processDate: record.processDate,
-        orderNumber: record.orderNumber,
-        trackingNumber: record.trackingNumber || '',
+        processDate: record.process_date,
+        orderNumber: record.order_number,
+        trackingNumber: record.tracking_number || '',
         platform: record.platform,
-        logisticsProvider: record.logisticsProvider,
-        deliveryStatus: record.deliveryStatus,
-        receivedStatus: record.receivedStatus,
-        notes: record.notes,
-        receiverInfo: record.receiverInfo,
+        logisticsProvider: record.logistics_provider,
+        deliveryStatus: record.delivery_status,
+        receivedStatus: record.received_status,
+        notes: record.notes || '',
+        receiverInfo: record.receiver_info || '',
       });
     } else {
       setEditingRecord(null);
@@ -159,66 +145,86 @@ export default function PickupPage() {
     setIsDialogOpen(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!formData.orderNumber.trim()) {
       toast.error('請填寫訂單編號');
       return;
     }
 
-    const now = new Date().toISOString();
+    setIsSaving(true);
+
+    const input = {
+      process_date: formData.processDate,
+      order_number: formData.orderNumber,
+      tracking_number: formData.trackingNumber || undefined,
+      platform: formData.platform,
+      logistics_provider: formData.logisticsProvider,
+      delivery_status: formData.deliveryStatus,
+      received_status: formData.receivedStatus,
+      notes: formData.notes || undefined,
+      receiver_info: formData.receiverInfo || undefined,
+    };
 
     if (editingRecord) {
-      // Update existing record
-      setRecords((prev) =>
-        prev.map((r) =>
-          r.id === editingRecord.id
-            ? { ...r, ...formData, updatedAt: now }
-            : r
-        )
-      );
-      toast.success('記錄已更新');
+      const result = await updatePickupRecord(editingRecord.id, input);
+      if (result.success && result.data) {
+        setRecords((prev) =>
+          prev.map((r) => (r.id === editingRecord.id ? result.data! : r))
+        );
+        toast.success('記錄已更新');
+      } else {
+        toast.error(result.error || '更新失敗');
+      }
     } else {
-      // Create new record
-      const newRecord: PickupRecord = {
-        id: `pickup-${Date.now()}`,
-        ...formData,
-        isPrinted: false,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setRecords((prev) => [newRecord, ...prev]);
-      toast.success('記錄已新增');
+      const result = await createPickupRecord(input);
+      if (result.success && result.data) {
+        setRecords((prev) => [result.data!, ...prev]);
+        toast.success('記錄已新增');
+      } else {
+        toast.error(result.error || '新增失敗');
+      }
     }
 
+    setIsSaving(false);
     setIsDialogOpen(false);
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (confirm('確定要刪除此記錄嗎？')) {
-      setRecords((prev) => prev.filter((r) => r.id !== id));
-      toast.success('記錄已刪除');
+      const result = await deletePickupRecord(id);
+      if (result.success) {
+        setRecords((prev) => prev.filter((r) => r.id !== id));
+        toast.success('記錄已刪除');
+      } else {
+        toast.error(result.error || '刪除失敗');
+      }
     }
   }
 
-  function handleQuickStatusUpdate(id: string, field: 'receivedStatus', value: string) {
-    setRecords((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, [field]: value, updatedAt: new Date().toISOString() }
-          : r
-      )
-    );
-    toast.success('狀態已更新');
+  async function handleQuickStatusUpdate(id: string, field: 'received_status', value: string) {
+    const result = await updatePickupRecord(id, { [field]: value });
+    if (result.success && result.data) {
+      setRecords((prev) =>
+        prev.map((r) => (r.id === id ? result.data! : r))
+      );
+      toast.success('狀態已更新');
+    } else {
+      toast.error(result.error || '更新失敗');
+    }
   }
 
-  function togglePrinted(id: string) {
-    setRecords((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, isPrinted: !r.isPrinted, updatedAt: new Date().toISOString() }
-          : r
-      )
-    );
+  async function togglePrinted(id: string) {
+    const record = records.find((r) => r.id === id);
+    if (!record) return;
+
+    const result = await updatePickupRecord(id, { is_printed: !record.is_printed });
+    if (result.success && result.data) {
+      setRecords((prev) =>
+        prev.map((r) => (r.id === id ? result.data! : r))
+      );
+    } else {
+      toast.error(result.error || '更新列印狀態失敗');
+    }
   }
 
   function getStatusColor(status: string) {
@@ -260,15 +266,22 @@ export default function PickupPage() {
     setSelectedIds(newSelected);
   }
 
-  function handleBatchDelete() {
+  async function handleBatchDelete() {
     if (selectedIds.size === 0) return;
     if (!confirm(`確定要刪除所選的 ${selectedIds.size} 筆記錄嗎？`)) return;
-    setRecords((prev) => prev.filter((r) => !selectedIds.has(r.id)));
-    setSelectedIds(new Set());
-    toast.success(`已刪除 ${selectedIds.size} 筆記錄`);
+
+    const ids = Array.from(selectedIds);
+    const result = await batchDeletePickupRecords(ids);
+    if (result.success) {
+      setRecords((prev) => prev.filter((r) => !selectedIds.has(r.id)));
+      setSelectedIds(new Set());
+      toast.success(`已刪除 ${ids.length} 筆記錄`);
+    } else {
+      toast.error(result.error || '批次刪除失敗');
+    }
   }
 
-  function handlePrint() {
+  async function handlePrint() {
     const selectedRecords = filteredRecords.filter((r) => selectedIds.has(r.id));
 
     if (selectedRecords.length === 0) {
@@ -284,10 +297,10 @@ export default function PickupPage() {
 
     // Generate labels
     const labels = selectedRecords.map((r) => ({
-      orderNumber: r.orderNumber.split('\n')[0],
+      orderNumber: r.order_number.split('\n')[0],
       platform: r.platform,
-      date: format(new Date(r.processDate), 'M/d'),
-      shipping: r.deliveryStatus,
+      date: format(new Date(r.process_date), 'M/d'),
+      shipping: r.delivery_status,
     }));
 
     const printContent = `
@@ -380,14 +393,25 @@ export default function PickupPage() {
     printWindow.document.write(printContent);
     printWindow.document.close();
 
-    // Auto-mark selected records as printed
-    const printedIds = new Set(selectedRecords.map((r) => r.id));
-    setRecords((prev) =>
-      prev.map((r) =>
-        printedIds.has(r.id)
-          ? { ...r, isPrinted: true, updatedAt: new Date().toISOString() }
-          : r
-      )
+    // Auto-mark selected records as printed in database
+    const printedIds = selectedRecords.map((r) => r.id);
+    const result = await batchUpdatePickupPrinted(printedIds);
+    if (result.success) {
+      setRecords((prev) =>
+        prev.map((r) =>
+          selectedIds.has(r.id)
+            ? { ...r, is_printed: true, updated_at: new Date().toISOString() }
+            : r
+        )
+      );
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-muted-foreground">載入中...</div>
+      </div>
     );
   }
 
@@ -435,13 +459,13 @@ export default function PickupPage() {
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">待收件:</span>
                 <Badge className="bg-yellow-100 text-yellow-800">
-                  {records.filter((r) => r.receivedStatus === '未收到').length} 筆
+                  {records.filter((r) => r.received_status === '未收到').length} 筆
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">已收到:</span>
                 <Badge className="bg-green-100 text-green-800">
-                  {records.filter((r) => r.receivedStatus === '已收到' || r.receivedStatus === '完成').length} 筆
+                  {records.filter((r) => r.received_status === '已收到' || r.received_status === '完成').length} 筆
                 </Badge>
               </div>
             </div>
@@ -508,7 +532,7 @@ export default function PickupPage() {
                       </TableCell>
                       <TableCell>
                         <button onClick={() => togglePrinted(record.id)}>
-                          {record.isPrinted ? (
+                          {record.is_printed ? (
                             <Badge className="bg-purple-100 text-purple-800 text-[10px] px-1">
                               已列印
                             </Badge>
@@ -520,30 +544,30 @@ export default function PickupPage() {
                         </button>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {format(new Date(record.processDate), 'M/d', { locale: zhTW })}
+                        {format(new Date(record.process_date), 'M/d', { locale: zhTW })}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div className="font-medium">{record.orderNumber.split('\n')[0]}</div>
-                          {record.orderNumber.split('\n')[1] && (
+                          <div className="font-medium">{record.order_number.split('\n')[0]}</div>
+                          {record.order_number.split('\n')[1] && (
                             <div className="text-muted-foreground text-xs">
-                              {record.orderNumber.split('\n')[1]}
+                              {record.order_number.split('\n')[1]}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{record.trackingNumber || '-'}</TableCell>
+                      <TableCell className="text-sm">{record.tracking_number || '-'}</TableCell>
                       <TableCell>{record.platform}</TableCell>
-                      <TableCell>{record.logisticsProvider}</TableCell>
+                      <TableCell>{record.logistics_provider}</TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(record.deliveryStatus)}>
-                          {record.deliveryStatus}
+                        <Badge className={getStatusColor(record.delivery_status)}>
+                          {record.delivery_status}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={record.receivedStatus}
-                          onValueChange={(value) => handleQuickStatusUpdate(record.id, 'receivedStatus', value)}
+                          value={record.received_status}
+                          onValueChange={(value) => handleQuickStatusUpdate(record.id, 'received_status', value)}
                         >
                           <SelectTrigger className="h-8 w-[100px]">
                             <SelectValue />
@@ -558,8 +582,8 @@ export default function PickupPage() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-[200px] truncate text-sm" title={record.receiverInfo}>
-                          {record.receiverInfo || '-'}
+                        <div className="max-w-[200px] truncate text-sm" title={record.receiver_info || ''}>
+                          {record.receiver_info || '-'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -724,9 +748,9 @@ export default function PickupPage() {
               <X className="w-4 h-4 mr-2" />
               取消
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={isSaving}>
               <Save className="w-4 h-4 mr-2" />
-              {editingRecord ? '更新' : '新增'}
+              {isSaving ? '儲存中...' : editingRecord ? '更新' : '新增'}
             </Button>
           </DialogFooter>
         </DialogContent>
