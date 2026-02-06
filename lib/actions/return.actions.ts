@@ -874,3 +874,145 @@ export async function getReturnsForExport(filters?: {
     return { success: false, error: ERROR_MESSAGES.GENERIC };
   }
 }
+
+/**
+ * Admin: Manually create a return request
+ */
+export async function createManualReturnRequest(input: {
+  customerName?: string;
+  customerPhone?: string;
+  orderNumber: string;
+  channelSource: string;
+  reasonCategory?: string;
+  reasonDetail?: string;
+  returnShippingMethod?: string;
+  refundAmount?: number;
+  items: {
+    productName: string;
+    productSku?: string;
+    quantity: number;
+    unitPrice?: number;
+  }[];
+}): Promise<ApiResponse<{ id: string; requestNumber: string }>> {
+  try {
+    const adminClient = createAdminClient();
+
+    if (!input.orderNumber.trim()) {
+      return { success: false, error: '請輸入訂單編號' };
+    }
+    if (!input.items || input.items.length === 0 || !input.items[0].productName.trim()) {
+      return { success: false, error: '請至少輸入一項退貨商品' };
+    }
+
+    // Find or create customer
+    let customerId: string | null = null;
+    if (input.customerPhone?.trim()) {
+      const { data: existingCustomer } = await adminClient
+        .from('customers')
+        .select('id')
+        .eq('phone', input.customerPhone.trim())
+        .single();
+
+      if (existingCustomer) {
+        customerId = (existingCustomer as { id: string }).id;
+      } else {
+        const { data: newCustomer, error: customerError } = await adminClient
+          .from('customers')
+          .insert({
+            phone: input.customerPhone.trim(),
+            name: input.customerName?.trim() || null,
+          } as never)
+          .select('id')
+          .single();
+
+        if (!customerError && newCustomer) {
+          customerId = (newCustomer as { id: string }).id;
+        }
+      }
+    }
+
+    // Find or create order
+    let orderId: string | null = null;
+    const { data: existingOrder } = await adminClient
+      .from('orders')
+      .select('id')
+      .eq('order_number', input.orderNumber.trim())
+      .single();
+
+    if (existingOrder) {
+      orderId = (existingOrder as { id: string }).id;
+    } else {
+      const { data: newOrder, error: orderError } = await adminClient
+        .from('orders')
+        .insert({
+          order_number: input.orderNumber.trim(),
+          channel_source: input.channelSource,
+          customer_id: customerId,
+          customer_phone: input.customerPhone?.trim() || null,
+          customer_name: input.customerName?.trim() || null,
+          status: 'delivered',
+        } as never)
+        .select('id')
+        .single();
+
+      if (orderError) {
+        console.error('Create order error:', orderError);
+        return { success: false, error: `建立訂單失敗: ${orderError.message}` };
+      }
+      orderId = (newOrder as { id: string }).id;
+    }
+
+    // Create return request
+    const { data: returnRequest, error: insertError } = await adminClient
+      .from('return_requests')
+      .insert({
+        order_id: orderId,
+        customer_id: customerId,
+        channel_source: input.channelSource,
+        reason_category: input.reasonCategory || null,
+        reason_detail: input.reasonDetail || null,
+        return_shipping_method: input.returnShippingMethod || null,
+        refund_amount: input.refundAmount || null,
+        status: 'pending_review',
+      } as never)
+      .select('id, request_number')
+      .single() as { data: { id: string; request_number: string } | null; error: Error | null };
+
+    if (insertError || !returnRequest) {
+      console.error('Create return request error:', insertError);
+      return { success: false, error: `建立退貨單失敗: ${insertError?.message || '未知錯誤'}` };
+    }
+
+    // Insert return items
+    const returnItems = input.items
+      .filter((item) => item.productName.trim())
+      .map((item) => ({
+        return_request_id: returnRequest.id,
+        product_name: item.productName.trim(),
+        product_sku: item.productSku?.trim() || null,
+        quantity: item.quantity || 1,
+        unit_price: item.unitPrice || null,
+      }));
+
+    if (returnItems.length > 0) {
+      await adminClient.from('return_items').insert(returnItems as never);
+    }
+
+    // Log activity
+    await adminClient.from('activity_logs').insert({
+      entity_type: 'return_request',
+      entity_id: returnRequest.id,
+      action: 'created',
+      actor_type: 'user',
+      description: `管理員手動建立退貨申請: ${returnRequest.request_number}`,
+    } as never);
+
+    return {
+      success: true,
+      data: { id: returnRequest.id, requestNumber: returnRequest.request_number },
+    };
+  } catch (error) {
+    console.error('Create manual return request error:', error);
+    return { success: false, error: ERROR_MESSAGES.GENERIC };
+  }
+}

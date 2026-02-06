@@ -395,3 +395,74 @@ export async function scanShopeeReturn(
     return { success: false, error: '掃描比對失敗' };
   }
 }
+
+/**
+ * Manually create a single shopee return record
+ */
+export async function createShopeeReturn(input: {
+  orderNumber: string;
+  platform: 'shopee' | 'mall';
+  trackingNumber?: string;
+  orderDate?: string;
+  disputeDeadline?: string;
+  refundAmount?: number;
+  productName?: string;
+  optionSku?: string;
+  returnQuantity?: number;
+  returnReason?: string;
+  buyerNote?: string;
+  shippingMethod?: string;
+  note?: string;
+}): Promise<ApiResponse<{ id: string }>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    if (!input.orderNumber.trim()) {
+      return { success: false, error: '請輸入訂單編號' };
+    }
+
+    // Check duplicate: order_number + option_sku
+    const { data: existing } = await supabase
+      .from('shopee_returns')
+      .select('id')
+      .eq('order_number', input.orderNumber.trim())
+      .eq('option_sku', input.optionSku?.trim() || '');
+
+    if (existing && existing.length > 0) {
+      return { success: false, error: '此訂單編號+貨號已存在' };
+    }
+
+    const { data, error } = await supabase
+      .from('shopee_returns')
+      .insert({
+        order_number: input.orderNumber.trim(),
+        platform: input.platform,
+        tracking_number: input.trackingNumber?.trim() || null,
+        order_date: input.orderDate || null,
+        dispute_deadline: input.disputeDeadline || null,
+        refund_amount: input.refundAmount || null,
+        product_name: input.productName?.trim() || null,
+        option_sku: input.optionSku?.trim() || null,
+        return_quantity: input.returnQuantity || 1,
+        return_reason: input.returnReason?.trim() || null,
+        buyer_note: input.buyerNote?.trim() || null,
+        shipping_method: input.shippingMethod?.trim() || null,
+        note: input.note?.trim() || null,
+        is_processed: false,
+        is_printed: false,
+        is_scanned: false,
+      } as never)
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Create shopee return error:', error);
+      return { success: false, error: `新增失敗: ${error.message}` };
+    }
+
+    return { success: true, data: { id: (data as { id: string }).id } };
+  } catch (error) {
+    console.error('Create shopee return error:', error);
+    return { success: false, error: '新增失敗' };
+  }
+}

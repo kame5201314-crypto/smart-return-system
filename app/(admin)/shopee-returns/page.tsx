@@ -23,12 +23,23 @@ import {
   Circle,
   Calendar,
   Store,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,6 +69,7 @@ import {
 import {
   getShopeeReturns,
   importShopeeReturns,
+  createShopeeReturn,
   updateShopeeReturnStatus,
   batchUpdateShopeeReturns,
   deleteShopeeReturns,
@@ -139,6 +151,23 @@ export default function ShopeeReturnsPage() {
   const mallFileRef = useRef<HTMLInputElement>(null);
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [isManualSubmitting, setIsManualSubmitting] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    orderNumber: '',
+    platform: 'shopee' as 'shopee' | 'mall',
+    trackingNumber: '',
+    orderDate: '',
+    disputeDeadline: '',
+    refundAmount: '',
+    productName: '',
+    optionSku: '',
+    returnQuantity: '1',
+    returnReason: '',
+    buyerNote: '',
+    shippingMethod: '',
+    note: '',
+  });
 
   // Load from database
   useEffect(() => {
@@ -594,6 +623,46 @@ export default function ShopeeReturnsPage() {
     }
   }
 
+  async function handleManualSubmit() {
+    if (!manualForm.orderNumber.trim()) {
+      toast.error('請輸入訂單編號');
+      return;
+    }
+    setIsManualSubmitting(true);
+    try {
+      const result = await createShopeeReturn({
+        orderNumber: manualForm.orderNumber,
+        platform: manualForm.platform,
+        trackingNumber: manualForm.trackingNumber || undefined,
+        orderDate: manualForm.orderDate || undefined,
+        disputeDeadline: manualForm.disputeDeadline || undefined,
+        refundAmount: manualForm.refundAmount ? parseFloat(manualForm.refundAmount) : undefined,
+        productName: manualForm.productName || undefined,
+        optionSku: manualForm.optionSku || undefined,
+        returnQuantity: manualForm.returnQuantity ? parseInt(manualForm.returnQuantity) : 1,
+        returnReason: manualForm.returnReason || undefined,
+        buyerNote: manualForm.buyerNote || undefined,
+        shippingMethod: manualForm.shippingMethod || undefined,
+        note: manualForm.note || undefined,
+      });
+      if (result.success) {
+        toast.success('手動新增成功');
+        setManualDialogOpen(false);
+        setManualForm({
+          orderNumber: '', platform: 'shopee', trackingNumber: '', orderDate: '',
+          disputeDeadline: '', refundAmount: '', productName: '', optionSku: '',
+          returnQuantity: '1', returnReason: '', buyerNote: '', shippingMethod: '', note: '',
+        });
+        loadReturns();
+      } else {
+        toast.error(result.error || '新增失敗');
+      }
+    } catch {
+      toast.error('新增失敗');
+    }
+    setIsManualSubmitting(false);
+  }
+
   function formatLabelDate(dateStr: string | null): string {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
@@ -748,6 +817,15 @@ export default function ShopeeReturnsPage() {
               <Upload className="w-4 h-4 mr-1" />
             )}
             商城匯入
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setManualDialogOpen(true)}
+            className="border-green-300 text-green-600 hover:bg-green-50"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            手動新增
           </Button>
           <Button size="sm" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-1" />
@@ -1174,6 +1252,92 @@ export default function ShopeeReturnsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Manual Entry Dialog */}
+      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>手動新增退貨</DialogTitle>
+            <DialogDescription>手動輸入退貨訂單資料</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>平台 *</Label>
+                <Select value={manualForm.platform} onValueChange={(v) => setManualForm((f) => ({ ...f, platform: v as 'shopee' | 'mall' }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="shopee">蝦皮</SelectItem>
+                    <SelectItem value="mall">商城</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>訂單編號 *</Label>
+                <Input value={manualForm.orderNumber} onChange={(e) => setManualForm((f) => ({ ...f, orderNumber: e.target.value }))} placeholder="輸入訂單編號" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>退貨寄件編號</Label>
+                <Input value={manualForm.trackingNumber} onChange={(e) => setManualForm((f) => ({ ...f, trackingNumber: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>退貨運送方式</Label>
+                <Input value={manualForm.shippingMethod} onChange={(e) => setManualForm((f) => ({ ...f, shippingMethod: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>訂單日期</Label>
+                <Input type="date" value={manualForm.orderDate} onChange={(e) => setManualForm((f) => ({ ...f, orderDate: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>爭議申請期限</Label>
+                <Input type="date" value={manualForm.disputeDeadline} onChange={(e) => setManualForm((f) => ({ ...f, disputeDeadline: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>買家退款金額</Label>
+                <Input type="number" value={manualForm.refundAmount} onChange={(e) => setManualForm((f) => ({ ...f, refundAmount: e.target.value }))} placeholder="0" />
+              </div>
+              <div className="space-y-1">
+                <Label>數量</Label>
+                <Input type="number" min="1" value={manualForm.returnQuantity} onChange={(e) => setManualForm((f) => ({ ...f, returnQuantity: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>商品規格名稱</Label>
+                <Input value={manualForm.productName} onChange={(e) => setManualForm((f) => ({ ...f, productName: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>貨號</Label>
+                <Input value={manualForm.optionSku} onChange={(e) => setManualForm((f) => ({ ...f, optionSku: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>退貨原因</Label>
+              <Input value={manualForm.returnReason} onChange={(e) => setManualForm((f) => ({ ...f, returnReason: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>買家備註</Label>
+              <Textarea rows={2} value={manualForm.buyerNote} onChange={(e) => setManualForm((f) => ({ ...f, buyerNote: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>備註</Label>
+              <Textarea rows={2} value={manualForm.note} onChange={(e) => setManualForm((f) => ({ ...f, note: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialogOpen(false)}>取消</Button>
+            <Button onClick={handleManualSubmit} disabled={isManualSubmitting}>
+              {isManualSubmitting ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />新增中...</> : '確認新增'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
