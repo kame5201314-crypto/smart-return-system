@@ -626,7 +626,7 @@ export default function ShopeeReturnsPage() {
       return {
         orderNumber: r.order_number,
         trackingNumber: r.tracking_number || '',
-        date: formatLabelDate(r.order_date),
+        date: formatLabelDate(r.dispute_deadline),
         platform: r.platform || 'shopee',
         shippingDisplay,
       };
