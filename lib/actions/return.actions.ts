@@ -971,7 +971,6 @@ export async function createManualReturnRequest(input: {
         channel_source: input.channelSource,
         reason_category: input.reasonCategory || null,
         reason_detail: input.reasonDetail || null,
-        return_shipping_method: input.returnShippingMethod || null,
         refund_amount: input.refundAmount || null,
         status: 'pending_review',
       } as never)
