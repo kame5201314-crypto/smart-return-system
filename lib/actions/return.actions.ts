@@ -885,7 +885,6 @@ export async function createManualReturnRequest(input: {
   channelSource: string;
   reasonCategory?: string;
   reasonDetail?: string;
-  returnShippingMethod?: string;
   refundAmount?: number;
   items: {
     productName: string;

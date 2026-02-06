@@ -29,7 +29,7 @@ import { KanbanBoard } from '@/components/kanban/kanban-board';
 import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
 
 import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
-import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_SHIPPING_METHODS } from '@/config/constants';
+import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
 
 // Status order for sorting
 const STATUS_ORDER: Record<string, number> = {
@@ -78,7 +78,6 @@ export default function ReturnsPage() {
     customerPhone: '',
     reasonCategory: '',
     reasonDetail: '',
-    returnShippingMethod: '',
     refundAmount: '',
     items: [{ productName: '', productSku: '', quantity: '1', unitPrice: '' }],
   });
@@ -177,7 +176,7 @@ export default function ReturnsPage() {
   function resetManualForm() {
     setManualForm({
       orderNumber: '', channelSource: 'official', customerName: '', customerPhone: '',
-      reasonCategory: '', reasonDetail: '', returnShippingMethod: '', refundAmount: '',
+      reasonCategory: '', reasonDetail: '', refundAmount: '',
       items: [{ productName: '', productSku: '', quantity: '1', unitPrice: '' }],
     });
   }
@@ -200,7 +199,6 @@ export default function ReturnsPage() {
         customerPhone: manualForm.customerPhone || undefined,
         reasonCategory: manualForm.reasonCategory || undefined,
         reasonDetail: manualForm.reasonDetail || undefined,
-        returnShippingMethod: manualForm.returnShippingMethod || undefined,
         refundAmount: manualForm.refundAmount ? parseFloat(manualForm.refundAmount) : undefined,
         items: manualForm.items.filter((i) => i.productName.trim()).map((i) => ({
           productName: i.productName,
@@ -439,19 +437,6 @@ export default function ReturnsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label>退貨方式</Label>
-                  <Select value={manualForm.returnShippingMethod} onValueChange={(v) => setManualForm((f) => ({ ...f, returnShippingMethod: v }))}>
-                    <SelectTrigger><SelectValue placeholder="選擇退貨方式" /></SelectTrigger>
-                    <SelectContent>
-                      {Object.values(RETURN_SHIPPING_METHODS).map((m) => (
-                        <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mt-3">
                 <div className="space-y-1">
                   <Label>退款金額</Label>
                   <Input type="number" value={manualForm.refundAmount} onChange={(e) => setManualForm((f) => ({ ...f, refundAmount: e.target.value }))} placeholder="0" />

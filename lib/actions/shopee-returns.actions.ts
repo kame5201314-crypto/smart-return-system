@@ -422,11 +422,17 @@ export async function createShopeeReturn(input: {
     }
 
     // Check duplicate: order_number + option_sku
-    const { data: existing } = await supabase
+    const skuValue = input.optionSku?.trim() || null;
+    let dupQuery = supabase
       .from('shopee_returns')
       .select('id')
-      .eq('order_number', input.orderNumber.trim())
-      .eq('option_sku', input.optionSku?.trim() || '');
+      .eq('order_number', input.orderNumber.trim());
+    if (skuValue) {
+      dupQuery = dupQuery.eq('option_sku', skuValue);
+    } else {
+      dupQuery = dupQuery.or('option_sku.is.null,option_sku.eq.');
+    }
+    const { data: existing } = await dupQuery;
 
     if (existing && existing.length > 0) {
       return { success: false, error: '此訂單編號+貨號已存在' };
