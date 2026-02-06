@@ -407,6 +407,7 @@ export async function submitInspection(
       inspected_by: userId,
       result: validated.result,
       condition_grade: validated.conditionGrade || 'B', // Default to B if not provided
+      checklist: validated.checklist || null,
       inspector_comment: validated.inspectorComment || validated.notes || '',
       inspected_at: new Date().toISOString(),
     };
@@ -467,6 +468,7 @@ export async function updateReturnInfo(
     refundAmount?: number;
     returnShippingMethod?: string;
     adminNote?: string;
+    invoiceStatus?: string;
   }
 ): Promise<ApiResponse> {
   try {
@@ -482,6 +484,9 @@ export async function updateReturnInfo(
     }
     if (data.adminNote !== undefined) {
       requestUpdateData.admin_note = data.adminNote;
+    }
+    if (data.invoiceStatus !== undefined) {
+      requestUpdateData.invoice_status = data.invoiceStatus;
     }
 
     if (Object.keys(requestUpdateData).length > 0) {
@@ -570,6 +575,7 @@ export async function getReturnRequestDetail(id: string) {
           id,
           result,
           condition_grade,
+          checklist,
           inspector_comment,
           inspected_at
         )

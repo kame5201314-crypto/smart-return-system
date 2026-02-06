@@ -191,6 +191,9 @@ CREATE TABLE return_requests (
   inspection_notes TEXT,
   dispute_notes TEXT,
 
+  -- Invoice status
+  invoice_status VARCHAR(20) CHECK (invoice_status IN ('未作廢', '已作廢', '已折讓')) DEFAULT '未作廢',
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
