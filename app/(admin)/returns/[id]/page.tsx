@@ -195,6 +195,9 @@ export default function ReturnDetailPage() {
         if (result.data.invoice_status) {
           setInvoiceStatus(result.data.invoice_status);
         }
+      } else if (result.error) {
+        console.error('Fetch detail failed:', result.error);
+        toast.error(result.error);
       }
     } catch (error) {
       console.error('Failed to fetch return detail:', error);

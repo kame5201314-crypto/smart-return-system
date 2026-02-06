@@ -575,7 +575,6 @@ export async function getReturnRequestDetail(id: string) {
           id,
           result,
           condition_grade,
-          checklist,
           inspector_comment,
           inspected_at
         )
@@ -583,7 +582,12 @@ export async function getReturnRequestDetail(id: string) {
       .eq('id', id)
       .single();
 
-    if (error || !data) {
+    if (error) {
+      console.error('Get return request detail error:', error.message, error.details, error.hint);
+      return { success: false, error: `查詢失敗: ${error.message}` };
+    }
+
+    if (!data) {
       return { success: false, error: ERROR_MESSAGES.NOT_FOUND };
     }
 
