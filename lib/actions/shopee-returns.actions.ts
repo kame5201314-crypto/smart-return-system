@@ -87,35 +87,41 @@ export async function importShopeeReturns(
     const supabase = createUntypedAdminClient();
 
     // Deduplicate items within the input file (keep first occurrence)
-    const seenOrderNumbers = new Set<string>();
+    // Use order_number + option_sku as composite key (same customer may buy different products)
+    const seenKeys = new Set<string>();
     const deduplicatedItems: ShopeeReturnInput[] = [];
     let fileDuplicates = 0;
 
     for (const item of items) {
-      if (!seenOrderNumbers.has(item.orderNumber)) {
-        seenOrderNumbers.add(item.orderNumber);
+      const compositeKey = `${item.orderNumber}__${item.optionSku || ''}`;
+      if (!seenKeys.has(compositeKey)) {
+        seenKeys.add(compositeKey);
         deduplicatedItems.push(item);
       } else {
         fileDuplicates++;
       }
     }
 
-    // Get existing order numbers to check for duplicates in database
+    // Get existing order_number + option_sku combos to check for duplicates in database
     const { data: existing, error: fetchError } = await supabase
       .from('shopee_returns')
-      .select('order_number');
+      .select('order_number, option_sku');
 
     if (fetchError) {
       console.error('Failed to fetch existing records:', fetchError);
       // Continue anyway, duplicates will be handled by the fallback
     }
 
-    const existingOrderNumbers = new Set(
-      (existing as { order_number: string }[] | null)?.map((r) => r.order_number) || []
+    const existingKeys = new Set(
+      (existing as { order_number: string; option_sku: string | null }[] | null)?.map(
+        (r) => `${r.order_number}__${r.option_sku || ''}`
+      ) || []
     );
 
-    // Filter out items that already exist in database
-    const newItems = deduplicatedItems.filter((item) => !existingOrderNumbers.has(item.orderNumber));
+    // Filter out items that already exist in database (same order_number + option_sku)
+    const newItems = deduplicatedItems.filter(
+      (item) => !existingKeys.has(`${item.orderNumber}__${item.optionSku || ''}`)
+    );
     const dbDuplicates = deduplicatedItems.length - newItems.length;
     const totalDuplicates = fileDuplicates + dbDuplicates;
 

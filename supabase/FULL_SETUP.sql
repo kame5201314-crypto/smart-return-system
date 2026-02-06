@@ -8,7 +8,7 @@
 -- ============================================
 CREATE TABLE IF NOT EXISTS shopee_returns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_number VARCHAR(100) NOT NULL UNIQUE,
+  order_number VARCHAR(100) NOT NULL,
   tracking_number VARCHAR(100),
   order_date DATE,
   total_price DECIMAL(10, 2) DEFAULT 0,
@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS shopee_returns (
   option_name TEXT,
   activity_price DECIMAL(10, 2) DEFAULT 0,
   option_sku VARCHAR(100),
+  UNIQUE (order_number, option_sku),
   return_quantity INTEGER DEFAULT 1,
   is_processed BOOLEAN DEFAULT FALSE,
   is_printed BOOLEAN DEFAULT FALSE,
