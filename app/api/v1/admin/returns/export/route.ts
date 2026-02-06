@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
 import ExcelJS from 'exceljs';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_SHIPPING_METHODS, REFUND_TYPES } from '@/config/constants';
 
@@ -33,7 +34,13 @@ interface ReturnExportData {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authentication check
+    // Allow signed admin session first
+    const adminSessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+    if (await verifyAdminSessionToken(adminSessionToken)) {
+      return await exportReturns(request);
+    }
+
+    // Fallback to Supabase user + admin role check
     const authClient = await createClient();
     const { data: { user }, error: authError } = await authClient.auth.getUser();
 
@@ -44,7 +51,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
+    const untypedSupabase = createUntypedAdminClient();
+    const { data: profile, error: profileError } = await untypedSupabase
+      .from('users')
+      .select('role')
+      .eq('email', user.email || '')
+      .single();
+
+    if (profileError || !profile || profile.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    return await exportReturns(request);
+  } catch (error) {
+    console.error('Export error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Export failed' },
+      { status: 500 }
+    );
+  }
+}
+
+async function exportReturns(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const channel = searchParams.get('channel');
     const dateFrom = searchParams.get('dateFrom');
@@ -164,18 +196,11 @@ export async function GET(request: NextRequest) {
     // Return as file download
     const filename = `退貨單匯出_${new Date().toISOString().split('T')[0]}.xlsx`;
 
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-      },
-    });
-  } catch (error) {
-    console.error('Export error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Export failed' },
-      { status: 500 }
-    );
-  }
+  return new NextResponse(buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+    },
+  });
 }

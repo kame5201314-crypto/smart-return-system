@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
 import { format } from 'date-fns';
 
 interface ReturnAnalysisData {
@@ -126,12 +126,12 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authentication check - try to get user but allow admin access
-    try {
-      const authClient = await createClient();
-      await authClient.auth.getUser();
-    } catch (authErr) {
-      console.warn('Auth check failed, continuing with admin access:', authErr);
+    const isAuthenticated = await isAuthenticatedRequest(request);
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -462,6 +462,14 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
 // Get existing reports
 export async function GET(request: NextRequest) {
   try {
+    const isAuthenticated = await isAuthenticatedRequest(request);
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period');
     const limit = searchParams.get('limit');
