@@ -128,6 +128,7 @@ interface ReturnDetail {
     id: string;
     result: string | null;
     condition_grade: string | null;
+    checklist: Record<string, boolean | null> | null;
     inspector_comment: string | null;
     inspected_at: string;
   }[];
@@ -188,9 +189,15 @@ export default function ReturnDetailPage() {
 
   async function fetchDetail() {
     try {
-      const result = await getReturnRequestDetail(params.id as string) as { success: boolean; data?: ReturnDetail; error?: string };
+      const result = await getReturnRequestDetail(params.id as string) as { success: boolean; data?: ReturnDetail & { invoice_status?: string }; error?: string };
       if (result.success && result.data) {
         setReturnData(result.data);
+        if (result.data.invoice_status) {
+          setInvoiceStatus(result.data.invoice_status);
+        }
+      } else if (result.error) {
+        console.error('Fetch detail failed:', result.error);
+        toast.error(result.error);
       }
     } catch (error) {
       console.error('Failed to fetch return detail:', error);
@@ -243,6 +250,7 @@ export default function ReturnDetailPage() {
         productSku: editProductSku || undefined,
         refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
         adminNote: editAdminNote,
+        invoiceStatus,
       });
 
       if (result.success) {

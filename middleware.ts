@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
 
 export async function middleware(request: NextRequest) {
   // Skip middleware if Supabase is not configured
@@ -34,9 +35,9 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Check for admin session cookie first
-  const adminSession = request.cookies.get('admin_session');
-  const isAdminAuthenticated = adminSession?.value === 'authenticated';
+  // Check for signed admin session cookie first
+  const adminSession = request.cookies.get(ADMIN_SESSION_COOKIE);
+  const isAdminAuthenticated = await verifyAdminSessionToken(adminSession?.value);
 
   // Refresh session if expired
   let user = null;

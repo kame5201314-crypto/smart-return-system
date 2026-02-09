@@ -1,11 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Filter, Download, Plus, LayoutGrid, List } from 'lucide-react';
+import { Search, Filter, Download, Plus, LayoutGrid, List, Loader2, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -17,8 +28,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KanbanBoard } from '@/components/kanban/kanban-board';
 import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
 
-import { getReturnRequests } from '@/lib/actions/return.actions';
-import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST } from '@/config/constants';
+import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
+import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
 
 // Status order for sorting
 const STATUS_ORDER: Record<string, number> = {
@@ -58,6 +69,18 @@ export default function ReturnsPage() {
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [isManualSubmitting, setIsManualSubmitting] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    orderNumber: '',
+    channelSource: 'official',
+    customerName: '',
+    customerPhone: '',
+    reasonCategory: '',
+    reasonDetail: '',
+    refundAmount: '',
+    items: [{ productName: '', productSku: '', quantity: '1', unitPrice: '' }],
+  });
 
   useEffect(() => {
     fetchReturns();
@@ -150,6 +173,54 @@ export default function ReturnsPage() {
     }
   }
 
+  function resetManualForm() {
+    setManualForm({
+      orderNumber: '', channelSource: 'official', customerName: '', customerPhone: '',
+      reasonCategory: '', reasonDetail: '', refundAmount: '',
+      items: [{ productName: '', productSku: '', quantity: '1', unitPrice: '' }],
+    });
+  }
+
+  async function handleManualSubmit() {
+    if (!manualForm.orderNumber.trim()) {
+      toast.error('請輸入訂單編號');
+      return;
+    }
+    if (!manualForm.items[0]?.productName.trim()) {
+      toast.error('請至少輸入一項退貨商品名稱');
+      return;
+    }
+    setIsManualSubmitting(true);
+    try {
+      const result = await createManualReturnRequest({
+        orderNumber: manualForm.orderNumber,
+        channelSource: manualForm.channelSource,
+        customerName: manualForm.customerName || undefined,
+        customerPhone: manualForm.customerPhone || undefined,
+        reasonCategory: manualForm.reasonCategory || undefined,
+        reasonDetail: manualForm.reasonDetail || undefined,
+        refundAmount: manualForm.refundAmount ? parseFloat(manualForm.refundAmount) : undefined,
+        items: manualForm.items.filter((i) => i.productName.trim()).map((i) => ({
+          productName: i.productName,
+          productSku: i.productSku || undefined,
+          quantity: parseInt(i.quantity) || 1,
+          unitPrice: i.unitPrice ? parseFloat(i.unitPrice) : undefined,
+        })),
+      });
+      if (result.success && result.data) {
+        toast.success(`退貨單 ${result.data.requestNumber} 建立成功`);
+        setManualDialogOpen(false);
+        resetManualForm();
+        fetchReturns();
+      } else {
+        toast.error(result.error || '建立失敗');
+      }
+    } catch {
+      toast.error('建立失敗');
+    }
+    setIsManualSubmitting(false);
+  }
+
   async function handleExport() {
     const ExcelJS = (await import('exceljs')).default;
 
@@ -202,10 +273,16 @@ export default function ReturnsPage() {
           <h1 className="text-2xl font-bold">退貨管理</h1>
           <p className="text-muted-foreground">管理所有退貨申請</p>
         </div>
-        <Button onClick={handleExport}>
-          <Download className="w-4 h-4 mr-2" />
-          匯出 Excel
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setManualDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            手動新增
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4 mr-2" />
+            匯出 Excel
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -299,6 +376,173 @@ export default function ReturnsPage() {
           onRefresh={fetchReturns}
         />
       )}
+
+      {/* Manual Entry Dialog */}
+      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>手動新增退貨單</DialogTitle>
+            <DialogDescription>手動輸入退貨申請資料</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 overflow-y-auto max-h-[60vh] pr-2">
+            {/* Customer Info */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">客戶資訊</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>客戶名稱</Label>
+                  <Input value={manualForm.customerName} onChange={(e) => setManualForm((f) => ({ ...f, customerName: e.target.value }))} placeholder="輸入客戶名稱" />
+                </div>
+                <div className="space-y-1">
+                  <Label>客戶電話</Label>
+                  <Input value={manualForm.customerPhone} onChange={(e) => setManualForm((f) => ({ ...f, customerPhone: e.target.value }))} placeholder="09xxxxxxxx" />
+                </div>
+              </div>
+            </div>
+
+            {/* Order Info */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">訂單資訊</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>訂單編號 *</Label>
+                  <Input value={manualForm.orderNumber} onChange={(e) => setManualForm((f) => ({ ...f, orderNumber: e.target.value }))} placeholder="輸入訂單編號" />
+                </div>
+                <div className="space-y-1">
+                  <Label>通路 *</Label>
+                  <Select value={manualForm.channelSource} onValueChange={(v) => setManualForm((f) => ({ ...f, channelSource: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CHANNEL_LIST.map((ch) => (
+                        <SelectItem key={ch.key} value={ch.key}>{ch.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Return Info */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">退貨資訊</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>退貨原因</Label>
+                  <Select value={manualForm.reasonCategory} onValueChange={(v) => setManualForm((f) => ({ ...f, reasonCategory: v }))}>
+                    <SelectTrigger><SelectValue placeholder="選擇退貨原因" /></SelectTrigger>
+                    <SelectContent>
+                      {Object.values(RETURN_REASONS).map((r) => (
+                        <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>退款金額</Label>
+                  <Input type="number" value={manualForm.refundAmount} onChange={(e) => setManualForm((f) => ({ ...f, refundAmount: e.target.value }))} placeholder="0" />
+                </div>
+              </div>
+              <div className="space-y-1 mt-3">
+                <Label>退貨詳細說明</Label>
+                <Textarea rows={2} value={manualForm.reasonDetail} onChange={(e) => setManualForm((f) => ({ ...f, reasonDetail: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Return Items */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-muted-foreground">退貨商品</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setManualForm((f) => ({ ...f, items: [...f.items, { productName: '', productSku: '', quantity: '1', unitPrice: '' }] }))}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  新增商品
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {manualForm.items.map((item, idx) => (
+                  <div key={idx} className="border rounded-lg p-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">商品名稱 *</Label>
+                        <Input
+                          value={item.productName}
+                          onChange={(e) => {
+                            const newItems = [...manualForm.items];
+                            newItems[idx] = { ...newItems[idx], productName: e.target.value };
+                            setManualForm((f) => ({ ...f, items: newItems }));
+                          }}
+                          placeholder="輸入商品名稱"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">貨號</Label>
+                        <Input
+                          value={item.productSku}
+                          onChange={(e) => {
+                            const newItems = [...manualForm.items];
+                            newItems[idx] = { ...newItems[idx], productSku: e.target.value };
+                            setManualForm((f) => ({ ...f, items: newItems }));
+                          }}
+                          placeholder="輸入貨號"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">數量</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newItems = [...manualForm.items];
+                            newItems[idx] = { ...newItems[idx], quantity: e.target.value };
+                            setManualForm((f) => ({ ...f, items: newItems }));
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">單價</Label>
+                          {manualForm.items.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0 text-red-500"
+                              onClick={() => setManualForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                        <Input
+                          type="number"
+                          value={item.unitPrice}
+                          onChange={(e) => {
+                            const newItems = [...manualForm.items];
+                            newItems[idx] = { ...newItems[idx], unitPrice: e.target.value };
+                            setManualForm((f) => ({ ...f, items: newItems }));
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialogOpen(false)}>取消</Button>
+            <Button onClick={handleManualSubmit} disabled={isManualSubmitting}>
+              {isManualSubmitting ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />建立中...</> : '確認建立'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

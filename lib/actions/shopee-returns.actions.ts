@@ -87,35 +87,41 @@ export async function importShopeeReturns(
     const supabase = createUntypedAdminClient();
 
     // Deduplicate items within the input file (keep first occurrence)
-    const seenOrderNumbers = new Set<string>();
+    // Use order_number + option_sku as composite key (same customer may buy different products)
+    const seenKeys = new Set<string>();
     const deduplicatedItems: ShopeeReturnInput[] = [];
     let fileDuplicates = 0;
 
     for (const item of items) {
-      if (!seenOrderNumbers.has(item.orderNumber)) {
-        seenOrderNumbers.add(item.orderNumber);
+      const compositeKey = `${item.orderNumber}__${item.optionSku || ''}`;
+      if (!seenKeys.has(compositeKey)) {
+        seenKeys.add(compositeKey);
         deduplicatedItems.push(item);
       } else {
         fileDuplicates++;
       }
     }
 
-    // Get existing order numbers to check for duplicates in database
+    // Get existing order_number + option_sku combos to check for duplicates in database
     const { data: existing, error: fetchError } = await supabase
       .from('shopee_returns')
-      .select('order_number');
+      .select('order_number, option_sku');
 
     if (fetchError) {
       console.error('Failed to fetch existing records:', fetchError);
       // Continue anyway, duplicates will be handled by the fallback
     }
 
-    const existingOrderNumbers = new Set(
-      (existing as { order_number: string }[] | null)?.map((r) => r.order_number) || []
+    const existingKeys = new Set(
+      (existing as { order_number: string; option_sku: string | null }[] | null)?.map(
+        (r) => `${r.order_number}__${r.option_sku || ''}`
+      ) || []
     );
 
-    // Filter out items that already exist in database
-    const newItems = deduplicatedItems.filter((item) => !existingOrderNumbers.has(item.orderNumber));
+    // Filter out items that already exist in database (same order_number + option_sku)
+    const newItems = deduplicatedItems.filter(
+      (item) => !existingKeys.has(`${item.orderNumber}__${item.optionSku || ''}`)
+    );
     const dbDuplicates = deduplicatedItems.length - newItems.length;
     const totalDuplicates = fileDuplicates + dbDuplicates;
 
@@ -387,5 +393,82 @@ export async function scanShopeeReturn(
   } catch (error) {
     console.error('Scan shopee return error:', error);
     return { success: false, error: '掃描比對失敗' };
+  }
+}
+
+/**
+ * Manually create a single shopee return record
+ */
+export async function createShopeeReturn(input: {
+  orderNumber: string;
+  platform: 'shopee' | 'mall';
+  trackingNumber?: string;
+  orderDate?: string;
+  disputeDeadline?: string;
+  refundAmount?: number;
+  productName?: string;
+  optionSku?: string;
+  returnQuantity?: number;
+  returnReason?: string;
+  buyerNote?: string;
+  shippingMethod?: string;
+  note?: string;
+}): Promise<ApiResponse<{ id: string }>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    if (!input.orderNumber.trim()) {
+      return { success: false, error: '請輸入訂單編號' };
+    }
+
+    // Check duplicate: order_number + option_sku
+    const skuValue = input.optionSku?.trim() || null;
+    let dupQuery = supabase
+      .from('shopee_returns')
+      .select('id')
+      .eq('order_number', input.orderNumber.trim());
+    if (skuValue) {
+      dupQuery = dupQuery.eq('option_sku', skuValue);
+    } else {
+      dupQuery = dupQuery.or('option_sku.is.null,option_sku.eq.');
+    }
+    const { data: existing } = await dupQuery;
+
+    if (existing && existing.length > 0) {
+      return { success: false, error: '此訂單編號+貨號已存在' };
+    }
+
+    const { data, error } = await supabase
+      .from('shopee_returns')
+      .insert({
+        order_number: input.orderNumber.trim(),
+        platform: input.platform,
+        tracking_number: input.trackingNumber?.trim() || null,
+        order_date: input.orderDate || null,
+        dispute_deadline: input.disputeDeadline || null,
+        refund_amount: input.refundAmount || null,
+        product_name: input.productName?.trim() || null,
+        option_sku: input.optionSku?.trim() || null,
+        return_quantity: input.returnQuantity || 1,
+        return_reason: input.returnReason?.trim() || null,
+        buyer_note: input.buyerNote?.trim() || null,
+        shipping_method: input.shippingMethod?.trim() || null,
+        note: input.note?.trim() || null,
+        is_processed: false,
+        is_printed: false,
+        is_scanned: false,
+      } as never)
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Create shopee return error:', error);
+      return { success: false, error: `新增失敗: ${error.message}` };
+    }
+
+    return { success: true, data: { id: (data as { id: string }).id } };
+  } catch (error) {
+    console.error('Create shopee return error:', error);
+    return { success: false, error: '新增失敗' };
   }
 }

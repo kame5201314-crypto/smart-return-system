@@ -415,12 +415,7 @@ export default function AnalyticsPage() {
                     {(showAllProducts ? stats.productRanking : stats.productRanking.slice(0, 5)).map((product, index) => (
                       <tr key={`${product.name}-${product.sku}-${product.channel}`} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                            index === 0 ? 'bg-yellow-100 text-yellow-800' :
-                            index === 1 ? 'bg-gray-100 text-gray-800' :
-                            index === 2 ? 'bg-orange-100 text-orange-800' :
-                            'bg-gray-50 text-gray-600'
-                          }`}>
+                          <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-gray-600">
                             {index + 1}
                           </span>
                         </td>

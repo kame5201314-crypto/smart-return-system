@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
+import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
 import { format } from 'date-fns';
 
 interface ReturnAnalysisData {
@@ -13,6 +13,7 @@ interface ReturnAnalysisData {
   return_items?: {
     product_name: string;
     sku: string;
+    quantity: number;
     reason: string;
   }[];
   inspection_records?: {
@@ -20,6 +21,40 @@ interface ReturnAnalysisData {
     condition_grade: string | null;
     inspector_comment: string | null;
   }[];
+}
+
+interface ShopeeReturnData {
+  id: string;
+  order_number: string;
+  order_date: string | null;
+  total_price: number;
+  product_name: string | null;
+  option_name: string | null;
+  activity_price: number;
+  option_sku: string | null;
+  return_quantity: number;
+  refund_amount: number | null;
+  return_reason: string | null;
+  buyer_note: string | null;
+  shipping_method: string | null;
+  platform: string | null;
+  is_processed: boolean;
+  note: string | null;
+  created_at: string;
+}
+
+interface PickupRecordData {
+  id: string;
+  process_date: string;
+  order_number: string;
+  tracking_number: string | null;
+  platform: string;
+  logistics_provider: string;
+  delivery_status: string;
+  received_status: string;
+  notes: string | null;
+  receiver_info: string | null;
+  created_at: string;
 }
 
 // First, list available models to find one that works
@@ -49,14 +84,13 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 
   // Find a suitable model for text generation (updated for 2025+ API)
   const preferredModels = [
-    'models/gemini-2.5-flash',
-    'models/gemini-2.5-pro',
     'models/gemini-2.0-flash',
+    'models/gemini-2.0-flash-lite',
     'models/gemini-flash-latest',
     'models/gemini-pro-latest',
   ];
 
-  let modelToUse = 'models/gemini-2.5-flash'; // default fallback
+  let modelToUse = 'models/gemini-2.0-flash'; // default fallback
   for (const preferred of preferredModels) {
     if (availableModels.includes(preferred)) {
       modelToUse = preferred;
@@ -92,18 +126,13 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authentication check - try to get user but allow admin access
-    let userId: string | null = null;
-    try {
-      const authClient = await createClient();
-      const { data: { user } } = await authClient.auth.getUser();
-      userId = user?.id || null;
-    } catch (authErr) {
-      console.warn('Auth check failed, continuing with admin access:', authErr);
+    const isAuthenticated = await isAuthenticatedRequest(request);
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
-
-    // If no user session, use admin client (for internal dashboard use)
-    // In production, you might want to add additional security checks
 
     const body = await request.json();
     const { period } = body; // e.g., '2024-01'
@@ -124,19 +153,17 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const untypedSupabase = createUntypedAdminClient();
 
-    // Get return requests for the period
+    // Get date range for the period
     const startDate = `${period}-01`;
     const endDate = format(
       new Date(new Date(startDate).setMonth(new Date(startDate).getMonth() + 1)),
       'yyyy-MM-dd'
     );
 
-    // First try with relations, fallback to basic query if relations fail
-    let returns: ReturnAnalysisData[] | null = null;
-    let fetchError: Error | null = null;
-
-    // Try with full relations first
+    // ============ 1. Fetch return_requests ============
+    let returns: ReturnAnalysisData[] = [];
     const fullQuery = await supabase
       .from('return_requests')
       .select(`
@@ -158,48 +185,70 @@ export async function POST(request: NextRequest) {
 
     if (fullQuery.error) {
       console.warn('Full query failed, trying basic query:', fullQuery.error.message);
-      // Fallback to basic query without relations
       const basicQuery = await supabase
         .from('return_requests')
         .select('*')
         .gte('created_at', startDate)
         .lt('created_at', endDate);
 
-      if (basicQuery.error) {
-        console.error('Basic query also failed:', basicQuery.error);
-        fetchError = basicQuery.error;
-      } else {
+      if (!basicQuery.error) {
         returns = basicQuery.data as ReturnAnalysisData[];
       }
     } else {
       returns = fullQuery.data as ReturnAnalysisData[];
     }
 
-    if (fetchError) {
-      console.error('Fetch returns error:', fetchError);
-      return NextResponse.json(
-        { success: false, error: `無法取得退貨資料: ${fetchError.message}` },
-        { status: 500 }
-      );
+    // ============ 2. Fetch shopee_returns ============
+    let shopeeReturns: ShopeeReturnData[] = [];
+    const shopeeQuery = await untypedSupabase
+      .from('shopee_returns')
+      .select('*')
+      .gte('created_at', startDate)
+      .lt('created_at', endDate);
+
+    if (!shopeeQuery.error && shopeeQuery.data) {
+      shopeeReturns = shopeeQuery.data as ShopeeReturnData[];
+    } else if (shopeeQuery.error) {
+      console.warn('Shopee returns query error:', shopeeQuery.error.message);
     }
 
-    if (!returns || returns.length === 0) {
+    // ============ 3. Fetch pickup_records ============
+    let pickupRecords: PickupRecordData[] = [];
+    const pickupQuery = await untypedSupabase
+      .from('pickup_records')
+      .select('*')
+      .gte('created_at', startDate)
+      .lt('created_at', endDate);
+
+    if (!pickupQuery.error && pickupQuery.data) {
+      pickupRecords = pickupQuery.data as PickupRecordData[];
+    } else if (pickupQuery.error) {
+      console.warn('Pickup records query error:', pickupQuery.error.message);
+    }
+
+    // Check if we have any data at all
+    const totalDataCount = returns.length + shopeeReturns.length + pickupRecords.length;
+    if (totalDataCount === 0) {
       return NextResponse.json(
-        { success: false, error: `${period} 月份沒有退貨資料可分析` },
+        { success: false, error: `${period} 月份沒有任何資料可分析` },
         { status: 404 }
       );
     }
 
-    // Prepare data for AI analysis
-    const analysisData = (returns as ReturnAnalysisData[]).map((r) => ({
+    // ============ Prepare data for AI analysis ============
+
+    // 1. Return requests data
+    const returnAnalysisData = returns.map((r) => ({
+      source: '退貨管理',
       request_number: r.request_number,
       channel: r.channel_source,
       reason_category: r.reason_category,
       reason_detail: r.reason_detail,
       refund_amount: r.refund_amount,
-      products: r.return_items?.map((item: { product_name: string; sku: string; reason: string }) => ({
+      products: r.return_items?.map((item) => ({
         name: item.product_name,
         sku: item.sku,
+        quantity: item.quantity,
         reason: item.reason,
       })),
       inspection: r.inspection_records?.[0]
@@ -211,16 +260,54 @@ export async function POST(request: NextRequest) {
         : null,
     }));
 
-    // Build prompt for AI
-    const prompt = `你是一位專業的電商營運分析師。請分析以下 ${period} 月份的退貨數據，並提供可執行的商業洞察。
+    // 2. Shopee returns data (including buyer_note)
+    const shopeeAnalysisData = shopeeReturns.map((r) => ({
+      source: r.platform === 'mall' ? '蝦皮商城' : '蝦皮',
+      order_number: r.order_number,
+      product_name: r.product_name,
+      option_name: r.option_name,
+      sku: r.option_sku,
+      return_quantity: r.return_quantity,
+      refund_amount: r.refund_amount,
+      return_reason: r.return_reason,
+      buyer_note: r.buyer_note,
+      admin_note: r.note,
+      is_processed: r.is_processed,
+    }));
 
-退貨數據：
-${JSON.stringify(analysisData, null, 2)}
+    // 3. Pickup records data
+    const pickupAnalysisData = pickupRecords.map((r) => ({
+      source: '派車收件',
+      order_number: r.order_number,
+      platform: r.platform,
+      logistics_provider: r.logistics_provider,
+      delivery_status: r.delivery_status,
+      received_status: r.received_status,
+      notes: r.notes,
+    }));
+
+    // Build prompt for AI
+    const prompt = `你是一位專業的電商營運分析師。請分析以下 ${period} 月份的所有退貨與物流數據，並提供可執行的商業洞察。
+
+===== 資料來源統計 =====
+- 退貨管理系統: ${returns.length} 筆
+- 蝦皮退貨: ${shopeeReturns.length} 筆
+- 派車收件: ${pickupRecords.length} 筆
+- 合計: ${totalDataCount} 筆
+
+===== 退貨管理資料 =====
+${returnAnalysisData.length > 0 ? JSON.stringify(returnAnalysisData, null, 2) : '（無資料）'}
+
+===== 蝦皮退貨資料（含買家備註） =====
+${shopeeAnalysisData.length > 0 ? JSON.stringify(shopeeAnalysisData, null, 2) : '（無資料）'}
+
+===== 派車收件資料 =====
+${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : '（無資料）'}
 
 請以 JSON 格式回覆，包含以下部分：
 
 {
-  "summary": "一段簡短的總結 (100字以內)",
+  "summary": "一段簡短的總結 (150字以內)，綜合分析所有資料來源（退貨管理、蝦皮退貨、派車收件）",
   "pain_points": [
     {
       "issue": "問題描述",
@@ -262,6 +349,9 @@ ${JSON.stringify(analysisData, null, 2)}
 3. 每個商品都要提供具體的改善建議
 4. 【重要】不要合併或歸類商品！必須按照原始數據中的每個獨立產品名稱分別列出，不同的 product_name 就是不同的商品
 5. 統計每個獨立商品名稱出現的退貨次數
+6. 【重要】channel_analysis 的 return_count 必須是該通路實際的退貨筆數，要把退貨管理和蝦皮退貨的資料都計入
+7. 【重要】買家備註(buyer_note)包含客戶的真實反饋，請特別分析這些內容來識別產品問題和客戶痛點
+8. 派車收件資料請分析物流狀態分布，如有異常（如大量已退回、未收到）請在 pain_points 和 recommendations 中反映
 
 請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
 
@@ -290,18 +380,21 @@ ${JSON.stringify(analysisData, null, 2)}
       );
     }
 
-    // Calculate statistics
-    const typedReturns = returns as ReturnAnalysisData[];
-    const totalReturns = typedReturns.length;
-    const totalRefundAmount = typedReturns.reduce(
-      (sum, r) => sum + (r.refund_amount || 0),
-      0
+    // Calculate statistics (combining all data sources)
+    const totalReturns = returns.length + shopeeReturns.length;
+    const returnRefundAmount = returns.reduce(
+      (sum, r) => sum + (r.refund_amount || 0), 0
     );
-    const storeCreditCount = typedReturns.filter(
+    const shopeeRefundAmount = shopeeReturns.reduce(
+      (sum, r) => sum + (r.refund_amount || r.total_price || 0), 0
+    );
+    const totalRefundAmount = returnRefundAmount + shopeeRefundAmount;
+
+    const storeCreditCount = returns.filter(
       (r) => r.refund_type === 'store_credit'
     ).length;
     const storeCreditRate =
-      totalReturns > 0 ? (storeCreditCount / totalReturns) * 100 : 0;
+      returns.length > 0 ? (storeCreditCount / returns.length) * 100 : 0;
 
     // Save report to database
     const reportData = {
@@ -314,9 +407,14 @@ ${JSON.stringify(analysisData, null, 2)}
       trend_analysis: { summary: analysisResult.summary },
       raw_prompt: prompt,
       raw_response: aiResponse,
-      total_returns: totalReturns,
-      total_refund_amount: totalRefundAmount,
-      store_credit_rate: storeCreditRate,
+      statistics: {
+        totalReturns,
+        totalRefundAmount,
+        storeCreditRate,
+        returnRequestsCount: returns.length,
+        shopeeReturnsCount: shopeeReturns.length,
+        pickupRecordsCount: pickupRecords.length,
+      },
     };
     const { data: report, error: saveError } = await supabase
       .from('ai_analysis_reports')
@@ -343,6 +441,9 @@ ${JSON.stringify(analysisData, null, 2)}
           totalReturns,
           totalRefundAmount,
           storeCreditRate,
+          returnRequestsCount: returns.length,
+          shopeeReturnsCount: shopeeReturns.length,
+          pickupRecordsCount: pickupRecords.length,
         },
       },
     });
@@ -361,6 +462,14 @@ ${JSON.stringify(analysisData, null, 2)}
 // Get existing reports
 export async function GET(request: NextRequest) {
   try {
+    const isAuthenticated = await isAuthenticatedRequest(request);
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period');
     const limit = searchParams.get('limit');
