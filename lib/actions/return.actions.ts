@@ -438,14 +438,16 @@ export async function submitInspection(
     };
 
     // Insert inspection record
-    const { error: inspectError } = await adminClient
+    const { data: inspectionRecord, error: inspectError } = (await adminClient
       .from('inspection_records')
-      .insert(inspectionData as never);
+      .insert(inspectionData as never)
+      .select('id')
+      .single()) as { data: { id: string } | null; error: Error | null };
 
-    if (inspectError) {
+    if (inspectError || !inspectionRecord) {
       console.error('Insert inspection error:', inspectError);
       console.error('Inspection data:', inspectionData);
-      return { success: false, error: `驗貨記錄建立失敗: ${inspectError.message}` };
+      return { success: false, error: `驗貨記錄建立失敗: ${inspectError?.message ?? 'unknown error'}` };
     }
 
     // Update return request status
@@ -453,7 +455,7 @@ export async function submitInspection(
     const newStatus =
       validated.result === 'failed' ? 'abnormal_disputed' : 'completed';
 
-    await adminClient
+    const { error: statusUpdateError } = await adminClient
       .from('return_requests')
       .update({
         status: newStatus,
@@ -461,8 +463,24 @@ export async function submitInspection(
       } as never)
       .eq('id', validated.returnRequestId);
 
+    if (statusUpdateError) {
+      console.error('Update return status after inspection error:', statusUpdateError);
+
+      // Compensating rollback: avoid leaving an inspection record without the matching status update.
+      const { error: rollbackError } = await adminClient
+        .from('inspection_records')
+        .delete()
+        .eq('id', inspectionRecord.id);
+
+      if (rollbackError) {
+        console.error('Rollback inspection record error:', rollbackError);
+      }
+
+      return { success: false, error: ERROR_MESSAGES.GENERIC };
+    }
+
     // Log activity
-    await adminClient.from('activity_logs').insert({
+    const { error: activityLogError } = await adminClient.from('activity_logs').insert({
       entity_type: 'return_request',
       entity_id: validated.returnRequestId,
       action: 'inspected',
@@ -474,6 +492,11 @@ export async function submitInspection(
       },
       description: `驗貨完成: ${validated.result} (等級 ${validated.conditionGrade})`,
     } as never);
+
+    if (activityLogError) {
+      console.error('Insert activity log (inspected) error:', activityLogError);
+      // Not a critical path: status and inspection record are already written.
+    }
 
     return { success: true, message: '驗貨結果已提交' };
   } catch (error) {
