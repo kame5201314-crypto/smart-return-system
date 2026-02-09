@@ -160,7 +160,15 @@ export async function submitReturnApplication(
       reason: item.reason,
     }));
 
-    await adminClient.from('return_items').insert(returnItems as never);
+    const { error: itemInsertError } = await adminClient
+      .from('return_items')
+      .insert(returnItems as never);
+
+    if (itemInsertError) {
+      console.error('Insert return items error:', itemInsertError);
+      await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+      return { success: false, error: ERROR_MESSAGES.GENERIC };
+    }
 
     // Insert images
     const images = imageUrls.map((img) => ({
@@ -171,16 +179,33 @@ export async function submitReturnApplication(
       uploaded_by: 'customer' as const,
     }));
 
-    await adminClient.from('return_images').insert(images as never);
+    const { error: imageInsertError } = await adminClient
+      .from('return_images')
+      .insert(images as never);
+
+    if (imageInsertError) {
+      console.error('Insert return images error:', imageInsertError);
+      await adminClient.from('return_items').delete().eq('return_request_id', returnRequest.id);
+      await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+      return { success: false, error: ERROR_MESSAGES.GENERIC };
+    }
 
     // Log activity
-    await adminClient.from('activity_logs').insert({
+    const { error: logInsertError } = await adminClient.from('activity_logs').insert({
       entity_type: 'return_request',
       entity_id: returnRequest.id,
       action: 'created',
       actor_type: 'customer',
-      description: `退貨申請已建立: ${returnRequest.request_number}`,
+      description: `???????????: ${returnRequest.request_number}`,
     } as never);
+
+    if (logInsertError) {
+      console.error('Insert activity log error:', logInsertError);
+      await adminClient.from('return_images').delete().eq('return_request_id', returnRequest.id);
+      await adminClient.from('return_items').delete().eq('return_request_id', returnRequest.id);
+      await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+      return { success: false, error: ERROR_MESSAGES.GENERIC };
+    }
 
     return {
       success: true,
@@ -740,29 +765,49 @@ export async function deleteReturnRequest(
 
     // Delete related data first (foreign key constraints)
     // Delete return images
-    await adminClient
+    const { error: deleteImagesError } = await adminClient
       .from('return_images')
       .delete()
       .eq('return_request_id', returnRequestId);
 
+    if (deleteImagesError) {
+      console.error('Delete return_images error:', deleteImagesError);
+      return { success: false, error: '???????????' };
+    }
+
     // Delete return items
-    await adminClient
+    const { error: deleteItemsError } = await adminClient
       .from('return_items')
       .delete()
       .eq('return_request_id', returnRequestId);
 
+    if (deleteItemsError) {
+      console.error('Delete return_items error:', deleteItemsError);
+      return { success: false, error: '???????????' };
+    }
+
     // Delete inspection records
-    await adminClient
+    const { error: deleteInspectionError } = await adminClient
       .from('inspection_records')
       .delete()
       .eq('return_request_id', returnRequestId);
 
+    if (deleteInspectionError) {
+      console.error('Delete inspection_records error:', deleteInspectionError);
+      return { success: false, error: '???????????' };
+    }
+
     // Delete activity logs related to this return request
-    await adminClient
+    const { error: deleteLogsError } = await adminClient
       .from('activity_logs')
       .delete()
       .eq('entity_type', 'return_request')
       .eq('entity_id', returnRequestId);
+
+    if (deleteLogsError) {
+      console.error('Delete activity_logs error:', deleteLogsError);
+      return { success: false, error: '???????????' };
+    }
 
     // Finally delete the return request itself
     const { error: deleteError } = await adminClient
