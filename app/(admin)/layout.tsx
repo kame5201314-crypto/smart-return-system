@@ -19,7 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Toaster } from '@/components/ui/sonner';
 import { getCurrentUser, signOut } from '@/lib/actions/auth';
 import { toast } from 'sonner';
 
@@ -220,8 +219,6 @@ export default function AdminLayout({
       <main className="lg:pl-64 pt-16 lg:pt-0">
         <div className="p-6">{children}</div>
       </main>
-
-      <Toaster position="top-right" />
     </div>
   );
 }

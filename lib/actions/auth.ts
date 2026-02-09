@@ -13,7 +13,8 @@ import {
 } from '@/lib/auth/admin-session';
 
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+// Defensive trim: Vercel env values can accidentally include trailing newlines.
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
 
 export interface AuthResult {
   success: boolean;

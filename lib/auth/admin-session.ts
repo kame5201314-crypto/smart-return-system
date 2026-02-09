@@ -14,7 +14,7 @@ interface AdminSessionPayload {
 }
 
 function getSessionSecret(): string {
-  const secret = process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = (process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   if (!secret) {
     throw new Error('Missing admin session secret');
   }
