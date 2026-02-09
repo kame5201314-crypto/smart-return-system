@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import {
@@ -70,7 +72,6 @@ const STORAGE_KEY = 'pickup-records';
 
 export default function PickupPage() {
   const [records, setRecords] = useState<PickupRecord[]>([]);
-  const [filteredRecords, setFilteredRecords] = useState<PickupRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
@@ -95,7 +96,6 @@ export default function PickupPage() {
       try {
         const parsed = JSON.parse(saved);
         setRecords(parsed);
-        setFilteredRecords(parsed);
       } catch (e) {
         console.error('Failed to parse saved records:', e);
       }
@@ -110,21 +110,18 @@ export default function PickupPage() {
     }
   }, [records, isLoaded]);
 
-  // Filter records
-  useEffect(() => {
+  const filteredRecords = useMemo(() => {
     if (!searchQuery) {
-      setFilteredRecords(records);
-    } else {
-      const query = searchQuery.toLowerCase();
-      setFilteredRecords(
-        records.filter(
-          (r) =>
-            r.orderNumber.toLowerCase().includes(query) ||
-            r.platform.toLowerCase().includes(query) ||
-            r.receiverInfo.toLowerCase().includes(query)
-        )
-      );
+      return records;
     }
+
+    const query = searchQuery.toLowerCase();
+    return records.filter(
+      (r) =>
+        r.orderNumber.toLowerCase().includes(query) ||
+        r.platform.toLowerCase().includes(query) ||
+        r.receiverInfo.toLowerCase().includes(query)
+    );
   }, [searchQuery, records]);
 
   function handleOpenDialog(record?: PickupRecord) {

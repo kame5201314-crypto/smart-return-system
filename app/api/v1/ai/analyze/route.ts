@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
 import { format } from 'date-fns';
+
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireRouteAuth } from '@/lib/auth/route-auth';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -9,7 +10,7 @@ interface ReturnAnalysisData {
   reason_category: string | null;
   reason_detail: string | null;
   refund_amount: number | null;
-  refund_type: string;
+  refund_type: string | null;
   return_items?: {
     product_name: string;
     sku: string;
@@ -22,14 +23,23 @@ interface ReturnAnalysisData {
   }[];
 }
 
-// First, list available models to find one that works
-async function listAvailableModels(apiKey: string): Promise<string[]> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-  );
+const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+function isValidPeriod(period: string): boolean {
+  return PERIOD_PATTERN.test(period);
+}
+
+function parseLimit(limitRaw: string | null): number {
+  if (!limitRaw) return 50;
+  const parsed = Number.parseInt(limitRaw, 10);
+  if (Number.isNaN(parsed)) return 50;
+  return Math.min(Math.max(parsed, 1), 200);
+}
+
+async function listAvailableModels(apiKey: string): Promise<string[]> {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
   if (!response.ok) {
-    console.error('Failed to list models:', await response.text());
+    console.error('Failed to list Gemini models:', response.status);
     return [];
   }
 
@@ -37,17 +47,13 @@ async function listAvailableModels(apiKey: string): Promise<string[]> {
   return data.models?.map((m: { name: string }) => m.name) || [];
 }
 
-// Direct REST API call for Gemini
 async function callGeminiAPI(prompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
+    throw new Error('GEMINI_API_KEY_MISSING');
   }
 
-  // Try to find an available model
   const availableModels = await listAvailableModels(apiKey);
-
-  // Find a suitable model for text generation (updated for 2025+ API)
   const preferredModels = [
     'models/gemini-2.0-flash',
     'models/gemini-2.0-flash-lite',
@@ -55,7 +61,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     'models/gemini-pro-latest',
   ];
 
-  let modelToUse = 'models/gemini-2.0-flash'; // default fallback
+  let modelToUse = 'models/gemini-2.0-flash';
   for (const preferred of preferredModels) {
     if (availableModels.includes(preferred)) {
       modelToUse = preferred;
@@ -67,22 +73,22 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
+        contents: [{ parts: [{ text: prompt }] }],
       }),
     }
   );
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (model: ${modelToUse}, available: ${availableModels.join(', ')}): ${response.status} - ${errorText}`);
+    const body = await response.text();
+    console.error('Gemini API request failed:', {
+      status: response.status,
+      modelToUse,
+      availableModels,
+      body,
+    });
+    throw new Error('GEMINI_REQUEST_FAILED');
   }
 
   const data = await response.json();
@@ -91,51 +97,40 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authentication check - try to get user but allow admin access
-    let userId: string | null = null;
-    try {
-      const authClient = await createClient();
-      const { data: { user } } = await authClient.auth.getUser();
-      userId = user?.id || null;
-    } catch (authErr) {
-      console.warn('Auth check failed, continuing with admin access:', authErr);
+    const auth = await requireRouteAuth({ requireAdmin: true });
+    if (!auth.ok) {
+      return NextResponse.json(
+        { success: false, error: auth.error || 'Unauthorized' },
+        { status: auth.status }
+      );
     }
 
-    // If no user session, use admin client (for internal dashboard use)
-    // In production, you might want to add additional security checks
-
     const body = await request.json();
-    const { period } = body; // e.g., '2024-01'
+    const period = String(body?.period || '').trim();
 
-    if (!period) {
+    if (!isValidPeriod(period)) {
       return NextResponse.json(
-        { success: false, error: 'Missing period parameter' },
+        { success: false, error: 'Invalid period format. Use YYYY-MM.' },
         { status: 400 }
       );
     }
 
-    // Check for Gemini API key
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'Gemini API key is not configured' },
+        { success: false, error: 'AI service is not configured' },
         { status: 500 }
       );
     }
 
     const supabase = createAdminClient();
-
-    // Get return requests for the period
     const startDate = `${period}-01`;
     const endDate = format(
       new Date(new Date(startDate).setMonth(new Date(startDate).getMonth() + 1)),
       'yyyy-MM-dd'
     );
 
-    // First try with relations, fallback to basic query if relations fail
     let returns: ReturnAnalysisData[] | null = null;
-    let fetchError: Error | null = null;
 
-    // Try with full relations first
     const fullQuery = await supabase
       .from('return_requests')
       .select(`
@@ -156,8 +151,7 @@ export async function POST(request: NextRequest) {
       .lt('created_at', endDate);
 
     if (fullQuery.error) {
-      console.warn('Full query failed, trying basic query:', fullQuery.error.message);
-      // Fallback to basic query without relations
+      console.warn('Full relation query failed, fallback to base query:', fullQuery.error.message);
       const basicQuery = await supabase
         .from('return_requests')
         .select('*')
@@ -165,38 +159,32 @@ export async function POST(request: NextRequest) {
         .lt('created_at', endDate);
 
       if (basicQuery.error) {
-        console.error('Basic query also failed:', basicQuery.error);
-        fetchError = basicQuery.error;
-      } else {
-        returns = basicQuery.data as ReturnAnalysisData[];
+        console.error('Return query failed:', basicQuery.error);
+        return NextResponse.json(
+          { success: false, error: 'Failed to load return data' },
+          { status: 500 }
+        );
       }
+
+      returns = basicQuery.data as ReturnAnalysisData[];
     } else {
       returns = fullQuery.data as ReturnAnalysisData[];
     }
 
-    if (fetchError) {
-      console.error('Fetch returns error:', fetchError);
-      return NextResponse.json(
-        { success: false, error: `無法取得退貨資料: ${fetchError.message}` },
-        { status: 500 }
-      );
-    }
-
     if (!returns || returns.length === 0) {
       return NextResponse.json(
-        { success: false, error: `${period} 月份沒有退貨資料可分析` },
+        { success: false, error: `No return data for ${period}` },
         { status: 404 }
       );
     }
 
-    // Prepare data for AI analysis
-    const analysisData = (returns as ReturnAnalysisData[]).map((r) => ({
+    const analysisData = returns.map((r) => ({
       request_number: r.request_number,
       channel: r.channel_source,
       reason_category: r.reason_category,
       reason_detail: r.reason_detail,
       refund_amount: r.refund_amount,
-      products: r.return_items?.map((item: { product_name: string; sku: string; reason: string }) => ({
+      products: r.return_items?.map((item) => ({
         name: item.product_name,
         sku: item.sku,
         reason: item.reason,
@@ -210,63 +198,21 @@ export async function POST(request: NextRequest) {
         : null,
     }));
 
-    // Build prompt for AI
-    const prompt = `你是一位專業的電商營運分析師。請分析以下 ${period} 月份的退貨數據，並提供可執行的商業洞察。
+    const prompt = `Analyze the following return data for period ${period} and output STRICT JSON only.
 
-退貨數據：
+Data:
 ${JSON.stringify(analysisData, null, 2)}
 
-請以 JSON 格式回覆，包含以下部分：
-
+Expected JSON format:
 {
-  "summary": "一段簡短的總結 (100字以內)",
-  "pain_points": [
-    {
-      "issue": "問題描述",
-      "frequency": "出現頻率 (high/medium/low)",
-      "impact": "影響程度 (high/medium/low)",
-      "affected_products": ["受影響的產品列表"]
-    }
-  ],
-  "recommendations": [
-    {
-      "title": "建議標題",
-      "description": "詳細描述",
-      "priority": "優先級 (high/medium/low)",
-      "category": "類別 (product/logistics/customer_service/marketing)"
-    }
-  ],
-  "sku_analysis": [
-    {
-      "sku": "SKU編號",
-      "product_name": "產品名稱",
-      "return_count": 數量,
-      "return_rate": "退貨率百分比（若可計算）",
-      "main_issues": ["主要問題"],
-      "suggestion": "改善建議"
-    }
-  ],
-  "channel_analysis": [
-    {
-      "channel": "通路名稱",
-      "return_count": 數量,
-      "common_issues": ["常見問題"]
-    }
-  ]
-}
+  "summary": "short summary",
+  "pain_points": [{"issue":"","frequency":"high|medium|low","impact":"high|medium|low","affected_products":[]}],
+  "recommendations": [{"title":"","description":"","priority":"high|medium|low","category":"product|logistics|customer_service|marketing"}],
+  "sku_analysis": [{"sku":"","product_name":"","return_count":0,"return_rate":"","main_issues":[],"suggestion":""}],
+  "channel_analysis": [{"channel":"","return_count":0,"common_issues":[]}]
+}`;
 
-重要指示：
-1. sku_analysis 請列出退貨次數最高的前 20 名商品，按退貨次數由高到低排序
-2. 如果商品數量不足 20 個，則列出所有商品
-3. 每個商品都要提供具體的改善建議
-4. 【重要】不要合併或歸類商品！必須按照原始數據中的每個獨立產品名稱分別列出，不同的 product_name 就是不同的商品
-5. 統計每個獨立商品名稱出現的退貨次數
-
-請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
-
-    // Call Gemini API using direct REST API (more reliable)
     let aiResponse = await callGeminiAPI(prompt);
-
     if (!aiResponse) {
       return NextResponse.json(
         { success: false, error: 'AI analysis failed' },
@@ -274,11 +220,16 @@ ${JSON.stringify(analysisData, null, 2)}
       );
     }
 
-    // Clean up response (remove markdown code blocks if present)
     aiResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
-    // Parse AI response
-    let analysisResult;
+    let analysisResult: {
+      summary?: string;
+      pain_points?: unknown;
+      recommendations?: unknown;
+      sku_analysis?: unknown;
+      channel_analysis?: unknown;
+    };
+
     try {
       analysisResult = JSON.parse(aiResponse);
     } catch {
@@ -289,34 +240,26 @@ ${JSON.stringify(analysisData, null, 2)}
       );
     }
 
-    // Calculate statistics
-    const typedReturns = returns as ReturnAnalysisData[];
-    const totalReturns = typedReturns.length;
-    const totalRefundAmount = typedReturns.reduce(
-      (sum, r) => sum + (r.refund_amount || 0),
-      0
-    );
-    const storeCreditCount = typedReturns.filter(
-      (r) => r.refund_type === 'store_credit'
-    ).length;
-    const storeCreditRate =
-      totalReturns > 0 ? (storeCreditCount / totalReturns) * 100 : 0;
+    const totalReturns = returns.length;
+    const totalRefundAmount = returns.reduce((sum, r) => sum + (r.refund_amount || 0), 0);
+    const storeCreditCount = returns.filter((r) => r.refund_type === 'store_credit').length;
+    const storeCreditRate = totalReturns > 0 ? (storeCreditCount / totalReturns) * 100 : 0;
 
-    // Save report to database
     const reportData = {
       report_period: period,
       report_type: 'monthly',
-      pain_points: analysisResult.pain_points,
-      recommendations: analysisResult.recommendations,
-      sku_analysis: analysisResult.sku_analysis,
-      channel_analysis: analysisResult.channel_analysis,
-      trend_analysis: { summary: analysisResult.summary },
+      pain_points: analysisResult.pain_points || [],
+      recommendations: analysisResult.recommendations || [],
+      sku_analysis: analysisResult.sku_analysis || [],
+      channel_analysis: analysisResult.channel_analysis || [],
+      trend_analysis: { summary: analysisResult.summary || '' },
       raw_prompt: prompt,
       raw_response: aiResponse,
       total_returns: totalReturns,
       total_refund_amount: totalRefundAmount,
       store_credit_rate: storeCreditRate,
     };
+
     const { data: report, error: saveError } = await supabase
       .from('ai_analysis_reports')
       .insert(reportData as never)
@@ -325,7 +268,6 @@ ${JSON.stringify(analysisData, null, 2)}
 
     if (saveError) {
       console.error('Save report error:', saveError);
-      // Still return the analysis even if save fails
     }
 
     return NextResponse.json({
@@ -333,11 +275,11 @@ ${JSON.stringify(analysisData, null, 2)}
       data: {
         id: report?.id,
         period,
-        summary: analysisResult.summary,
-        painPoints: analysisResult.pain_points,
-        recommendations: analysisResult.recommendations,
-        skuAnalysis: analysisResult.sku_analysis,
-        channelAnalysis: analysisResult.channel_analysis,
+        summary: analysisResult.summary || '',
+        painPoints: analysisResult.pain_points || [],
+        recommendations: analysisResult.recommendations || [],
+        skuAnalysis: analysisResult.sku_analysis || [],
+        channelAnalysis: analysisResult.channel_analysis || [],
         statistics: {
           totalReturns,
           totalRefundAmount,
@@ -346,23 +288,34 @@ ${JSON.stringify(analysisData, null, 2)}
       },
     });
   } catch (error) {
-    console.error('AI analysis error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    // 顯示完整錯誤訊息以便診斷
+    console.error('AI analysis route error:', error);
     return NextResponse.json(
-      { success: false, error: `分析失敗: ${errorMessage}` },
+      { success: false, error: 'AI analysis failed' },
       { status: 500 }
     );
   }
 }
 
-// Get existing reports
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireRouteAuth({ requireAdmin: true });
+    if (!auth.ok) {
+      return NextResponse.json(
+        { success: false, error: auth.error || 'Unauthorized' },
+        { status: auth.status }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period');
-    const limit = searchParams.get('limit');
+    const queryLimit = parseLimit(searchParams.get('limit'));
+
+    if (period && !isValidPeriod(period)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid period format. Use YYYY-MM.' },
+        { status: 400 }
+      );
+    }
 
     const supabase = createAdminClient();
 
@@ -375,8 +328,6 @@ export async function GET(request: NextRequest) {
       query = query.eq('report_period', period);
     }
 
-    // Allow custom limit, default to 50 for history page
-    const queryLimit = limit ? parseInt(limit, 10) : 50;
     const { data, error } = await query.limit(queryLimit);
 
     if (error) {

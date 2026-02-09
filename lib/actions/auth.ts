@@ -4,58 +4,58 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_COOKIE_OPTIONS,
+  ADMIN_UUID,
+  createAdminSessionToken,
+  verifyAdminSessionToken,
+} from '@/lib/auth/admin-session';
 
-// Simple admin credentials
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'mefu888';
-// Fixed UUID for admin user (for database foreign key compatibility)
-const ADMIN_UUID = '00000000-0000-0000-0000-000000000001';
+const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
 export interface AuthResult {
   success: boolean;
   error?: string;
 }
 
-// 管理員登入
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   try {
-    // Trim inputs to avoid whitespace issues
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
 
-    // Check for simple admin login first (case-insensitive username)
-    if (trimmedEmail === ADMIN_USERNAME.toLowerCase() && trimmedPassword === ADMIN_PASSWORD) {
-      // Set admin session cookie
+    if (trimmedEmail === ADMIN_USERNAME) {
+      if (!ADMIN_PASSWORD) {
+        return {
+          success: false,
+          error: 'Admin password is not configured',
+        };
+      }
+
+      if (trimmedPassword !== ADMIN_PASSWORD) {
+        return {
+          success: false,
+          error: 'Invalid password',
+        };
+      }
+
       const cookieStore = await cookies();
-      cookieStore.set('admin_session', 'authenticated', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/',
-      });
+      const sessionToken = await createAdminSessionToken(ADMIN_USERNAME);
+      cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, ADMIN_SESSION_COOKIE_OPTIONS);
+
       revalidatePath('/', 'layout');
       return { success: true };
     }
 
-    // If username is 'admin' but password is wrong
-    if (trimmedEmail === ADMIN_USERNAME.toLowerCase()) {
-      return {
-        success: false,
-        error: '密碼錯誤',
-      };
-    }
-
-    // Fallback to Supabase auth for email login (only if it looks like an email)
     if (!trimmedEmail.includes('@')) {
       return {
         success: false,
-        error: '帳號或密碼錯誤',
+        error: 'Please use email or configured admin username',
       };
     }
 
     const supabase = await createClient();
-
     const { error } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
       password: trimmedPassword,
@@ -64,9 +64,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     if (error) {
       return {
         success: false,
-        error: error.message === 'Invalid login credentials'
-          ? '帳號或密碼錯誤'
-          : error.message,
+        error: error.message === 'Invalid login credentials' ? 'Invalid login credentials' : error.message,
       };
     }
 
@@ -76,18 +74,15 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     console.error('Login error:', err);
     return {
       success: false,
-      error: '登入失敗，請稍後再試',
+      error: 'Login failed, please try again later',
     };
   }
 }
 
-// 管理員登出
 export async function signOut(): Promise<void> {
-  // Clear admin session cookie
   const cookieStore = await cookies();
-  cookieStore.delete('admin_session');
+  cookieStore.delete(ADMIN_SESSION_COOKIE);
 
-  // Also sign out from Supabase
   const supabase = await createClient();
   await supabase.auth.signOut();
 
@@ -95,32 +90,31 @@ export async function signOut(): Promise<void> {
   redirect('/login');
 }
 
-// 取得當前使用者
 export async function getCurrentUser() {
-  // Check for admin session first
   const cookieStore = await cookies();
-  const adminSession = cookieStore.get('admin_session');
+  const adminToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const adminSession = await verifyAdminSessionToken(adminToken);
 
-  if (adminSession?.value === 'authenticated') {
+  if (adminSession) {
     return {
       id: ADMIN_UUID,
       email: 'admin@system.local',
-      name: '管理員',
+      name: 'Administrator',
       role: 'admin',
       orgId: undefined,
     };
   }
 
-  // Fallback to Supabase auth
   const supabase = await createClient();
-
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
   if (error || !user) {
     return null;
   }
 
-  // 查詢使用者詳細資訊
   let userProfile: { name?: string; role?: string; org_id?: string } | null = null;
   if (user.email) {
     const { data } = await supabase
@@ -134,29 +128,26 @@ export async function getCurrentUser() {
   return {
     id: user.id,
     email: user.email,
-    name: userProfile?.name || user.email?.split('@')[0] || '使用者',
+    name: userProfile?.name || user.email?.split('@')[0] || 'User',
     role: userProfile?.role || 'staff',
     orgId: userProfile?.org_id,
   };
 }
 
-// 檢查是否已登入
 export async function checkAuth(): Promise<boolean> {
-  // Check for admin session first
   const cookieStore = await cookies();
-  const adminSession = cookieStore.get('admin_session');
-
-  if (adminSession?.value === 'authenticated') {
+  const adminToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  if (await verifyAdminSessionToken(adminToken)) {
     return true;
   }
 
-  // Fallback to Supabase auth
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return !!user;
 }
 
-// 重設密碼請求
 export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const supabase = await createClient();
 
@@ -167,7 +158,7 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   if (error) {
     return {
       success: false,
-      error: '發送重設密碼郵件失敗，請稍後再試',
+      error: 'Failed to send password reset email',
     };
   }
 

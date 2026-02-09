@@ -1,15 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
+
 export async function middleware(request: NextRequest) {
-  // Skip middleware if Supabase is not configured
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next();
   }
 
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,12 +19,8 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -34,32 +29,23 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Check for admin session cookie first
-  const adminSession = request.cookies.get('admin_session');
-  const isAdminAuthenticated = adminSession?.value === 'authenticated';
+  const adminToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+  const isAdminAuthenticated = !!(await verifyAdminSessionToken(adminToken));
 
-  // Refresh session if expired
   let user = null;
   try {
     const { data } = await supabase.auth.getUser();
     user = data.user;
   } catch {
-    // Ignore auth errors when Supabase is not fully configured
+    // ignore
   }
 
-  // User is authenticated if either admin session or Supabase user exists
   const isAuthenticated = isAdminAuthenticated || !!user;
-
   const pathname = request.nextUrl.pathname;
 
-  // Public routes - no authentication required
-  const isPublicRoute =
-    pathname.startsWith('/portal') ||  // Customer portal (public)
-    pathname === '/login';              // Login page
+  const isPublicRoute = pathname.startsWith('/portal') || pathname === '/login';
 
-  // If it's a public route, allow access
   if (isPublicRoute) {
-    // But if user is logged in and accessing login page, redirect to analytics
     if (pathname === '/login' && isAuthenticated) {
       const url = request.nextUrl.clone();
       url.pathname = '/analytics';
@@ -68,8 +54,6 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // All other routes require authentication (admin routes)
-  // This includes: /, /dashboard, /returns, /orders, /analytics, /settings, /logistics
   if (!isAuthenticated) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
@@ -81,14 +65,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - api routes (handled separately)
-     */
     '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

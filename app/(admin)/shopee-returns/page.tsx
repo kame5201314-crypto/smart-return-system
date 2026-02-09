@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import {
@@ -141,20 +143,28 @@ export default function ShopeeReturnsPage() {
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
 
   // Load from database
-  useEffect(() => {
-    loadReturns();
-  }, []);
-
-  async function loadReturns() {
+  const loadReturns = useCallback(async () => {
     setIsLoading(true);
     const result = await getShopeeReturns();
     if (result.success && result.data) {
       setReturns(result.data);
     } else {
-      toast.error(result.error || '載入失敗');
+      toast.error(result.error || '????');
     }
     setIsLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadReturns();
+  }, [loadReturns]);
+
+  // Cleanup pending debounced note timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(noteTimersRef.current).forEach((timer) => clearTimeout(timer));
+      noteTimersRef.current = {};
+    };
+  }, []);
 
   // Filter and sort returns
   useEffect(() => {
@@ -621,7 +631,7 @@ export default function ShopeeReturnsPage() {
 
     const labels = printData.map((r) => {
       // Determine shipping display: directly use shipping_method field value
-      let shippingDisplay = r.shipping_method || '蝦皮';
+      const shippingDisplay = r.shipping_method || '蝦皮';
 
       return {
         orderNumber: r.order_number,
@@ -1051,10 +1061,13 @@ export default function ShopeeReturnsPage() {
                             placeholder="輸入備註..."
                             defaultValue={record.note || ''}
                             className="text-xs h-8 min-w-[120px]"
-                            onBlur={(e) => {
+                            onBlur={async (e) => {
                               const newNote = e.target.value;
                               if (newNote !== (record.note || '')) {
-                                updateShopeeReturnStatus(record.id, { note: newNote });
+                                const result = await updateShopeeReturnStatus(record.id, { note: newNote });
+                                if (!result.success) {
+                                  toast.error(result.error || '????');
+                                }
                               }
                             }}
                             onKeyDown={(e) => {

@@ -86,19 +86,22 @@ export async function importShopeeReturns(
   try {
     const supabase = createUntypedAdminClient();
 
-    // Deduplicate items within the input file (keep first occurrence)
-    const seenOrderNumbers = new Set<string>();
-    const deduplicatedItems: ShopeeReturnInput[] = [];
+    // Deduplicate items within the input file (keep latest row as correction source)
+    const deduplicatedMap = new Map<string, ShopeeReturnInput>();
     let fileDuplicates = 0;
 
     for (const item of items) {
-      if (!seenOrderNumbers.has(item.orderNumber)) {
-        seenOrderNumbers.add(item.orderNumber);
-        deduplicatedItems.push(item);
-      } else {
+      const key = item.orderNumber.trim();
+      if (!key) continue;
+
+      if (deduplicatedMap.has(key)) {
         fileDuplicates++;
       }
+
+      deduplicatedMap.set(key, { ...item, orderNumber: key });
     }
+
+    const deduplicatedItems = Array.from(deduplicatedMap.values());
 
     // Get existing order numbers to check for duplicates in database
     const { data: existing, error: fetchError } = await supabase
@@ -156,6 +159,7 @@ export async function importShopeeReturns(
     // If batch insert fails due to duplicates, insert one by one
     if (error && error.message.includes('duplicate key')) {
       let insertedCount = 0;
+      let duplicateOnInsert = 0;
       const failedItems: string[] = [];
 
       for (const item of insertData) {
@@ -165,27 +169,30 @@ export async function importShopeeReturns(
 
         if (!singleError) {
           insertedCount++;
-        } else if (!singleError.message.includes('duplicate key')) {
-          // Track non-duplicate failures
-          failedItems.push(item.order_number);
-          console.error(`Failed to insert order ${item.order_number}:`, singleError.message);
+          continue;
         }
-        // Silently skip duplicates
+
+        if (singleError.message.includes('duplicate key')) {
+          duplicateOnInsert++;
+          continue;
+        }
+
+        failedItems.push(item.order_number);
+        console.error(`Failed to insert order ${item.order_number}:`, singleError.message);
       }
 
-      // Report failures if any (non-duplicate errors)
       if (failedItems.length > 0) {
         console.error('Failed to import orders:', failedItems);
         return {
           success: true,
-          data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount - failedItems.length) },
-          message: `部分訂單匯入失敗: ${failedItems.slice(0, 3).join(', ')}${failedItems.length > 3 ? ` 等 ${failedItems.length} 筆` : ''}`,
+          data: { imported: insertedCount, duplicates: totalDuplicates + duplicateOnInsert },
+          message: `Some rows failed to import: ${failedItems.slice(0, 3).join(', ')}${failedItems.length > 3 ? ` (and ${failedItems.length - 3} more)` : ''}`,
         };
       }
 
       return {
         success: true,
-        data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount) },
+        data: { imported: insertedCount, duplicates: totalDuplicates + duplicateOnInsert },
       };
     }
 
@@ -307,50 +314,62 @@ export async function scanShopeeReturn(
     // Check if this looks like a Taiwan shipping/tracking number (寄件編號)
     const isTrackingNumber = /^TW\d+$/i.test(cleanCode);
 
-    // Search for matching order
-    const { data: allReturns, error: fetchError } = await supabase
+    // Search for matching order with exact-match strategy (no full-table scan)
+    const candidateCodes = Array.from(new Set([
+      cleanCode,
+      cleanCode.toUpperCase(),
+      cleanCode.replace(/[\s-]/g, ''),
+    ].filter(Boolean)));
+
+    const { data: byOrderNumber, error: byOrderError } = await supabase
       .from('shopee_returns')
-      .select('*');
+      .select('*')
+      .in('order_number', candidateCodes);
 
-    if (fetchError) {
-      console.error('Fetch returns error:', fetchError);
-      return { success: false, error: '讀取資料失敗' };
+    if (byOrderError) {
+      console.error('Fetch returns by order_number error:', byOrderError);
+      return { success: false, error: 'Failed to fetch return records' };
     }
 
-    if (!allReturns || allReturns.length === 0) {
-      return { success: false, error: '找不到任何退貨資料' };
+    const { data: byTrackingNumber, error: byTrackingError } = await supabase
+      .from('shopee_returns')
+      .select('*')
+      .in('tracking_number', candidateCodes);
+
+    if (byTrackingError) {
+      console.error('Fetch returns by tracking_number error:', byTrackingError);
+      return { success: false, error: 'Failed to fetch return records' };
     }
 
-    // Try to find a match - check both order_number and tracking_number
-    const matched = (allReturns as ShopeeReturn[]).find((r) => {
-      const orderNum = r.order_number.toUpperCase();
-      const trackingNum = r.tracking_number?.toUpperCase() || '';
-      const scanned = cleanCode.toUpperCase();
+    const candidateMap = new Map<string, ShopeeReturn>();
+    for (const item of (byOrderNumber as ShopeeReturn[] | null) || []) {
+      candidateMap.set(item.id, item);
+    }
+    for (const item of (byTrackingNumber as ShopeeReturn[] | null) || []) {
+      candidateMap.set(item.id, item);
+    }
 
-      // Match against order_number
-      if (orderNum === scanned || orderNum.includes(scanned) || scanned.includes(orderNum)) {
-        return true;
-      }
+    const matches = Array.from(candidateMap.values());
+    const matched = matches.length === 1 ? matches[0] : null;
 
-      // Match against tracking_number (if exists)
-      if (trackingNum && (trackingNum === scanned || trackingNum.includes(scanned) || scanned.includes(trackingNum))) {
-        return true;
-      }
-
-      return false;
-    });
+    if (matches.length > 1) {
+      return {
+        success: false,
+        error: 'Multiple records matched this code. Please use full order/tracking code.',
+      };
+    }
 
     if (!matched) {
-      // Provide helpful error message based on what was scanned
       if (isTrackingNumber) {
         return {
           success: false,
-          error: `這是寄件編號 (${cleanCode})，請掃描「蝦皮訂單編號」旁的條碼`
+          error: `Tracking number not found: ${cleanCode}`,
         };
       }
+
       return {
         success: false,
-        error: `找不到符合的訂單：${cleanCode.substring(0, 20)}${cleanCode.length > 20 ? '...' : ''}`
+        error: `No matching order found: ${cleanCode.substring(0, 20)}${cleanCode.length > 20 ? '...' : ''}`,
       };
     }
 
