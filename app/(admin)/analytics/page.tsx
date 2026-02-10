@@ -42,6 +42,9 @@ import { getShopeeReturns, type ShopeeReturn } from '@/lib/actions/shopee-return
 import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const PRODUCT_RANKING_COMPACT_LIMIT = 10;
+const PRODUCT_RANKING_PAGE_SIZE = 30;
+const PRODUCT_RANKING_MAX = 60;
 
 interface ReturnItem {
   id: string;
@@ -67,7 +70,8 @@ export default function AnalyticsPage() {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
-  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [isProductRankingExpanded, setIsProductRankingExpanded] = useState(false);
+  const [productRankingPage, setProductRankingPage] = useState(1);
 
   // Generate year options (last 3 years)
   const yearOptions = useMemo(() => {
@@ -95,6 +99,11 @@ export default function AnalyticsPage() {
     fetchData();
     loadShopeeReturns();
   }, []);
+
+  // Reset ranking pagination when filters change
+  useEffect(() => {
+    setProductRankingPage(1);
+  }, [selectedYear, selectedMonth, selectedChannel]);
 
   async function fetchData() {
     try {
@@ -261,6 +270,23 @@ export default function AnalyticsPage() {
     return { totalReturns, officialCount, shopeeCount, shopeeMallCount, byChannel, byReason, byStatus, monthlyTrend, productRanking };
   }, [filteredReturns, filteredShopeeReturns]);
 
+  const productRankingLimited = stats.productRanking.slice(0, PRODUCT_RANKING_MAX);
+  const productRankingTotalPages = Math.max(
+    1,
+    Math.ceil(productRankingLimited.length / PRODUCT_RANKING_PAGE_SIZE)
+  );
+  const productRankingClampedPage = Math.min(
+    Math.max(productRankingPage, 1),
+    productRankingTotalPages
+  );
+  const productRankingPageStart = (productRankingClampedPage - 1) * PRODUCT_RANKING_PAGE_SIZE;
+  const productRankingVisible = isProductRankingExpanded
+    ? productRankingLimited.slice(
+      productRankingPageStart,
+      productRankingPageStart + PRODUCT_RANKING_PAGE_SIZE
+    )
+    : stats.productRanking.slice(0, PRODUCT_RANKING_COMPACT_LIMIT);
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -423,11 +449,13 @@ export default function AnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(showAllProducts ? stats.productRanking : stats.productRanking.slice(0, 5)).map((product, index) => (
+                    {productRankingVisible.map((product, index) => {
+                      const rank = isProductRankingExpanded ? productRankingPageStart + index + 1 : index + 1;
+                      return (
                       <tr key={`${product.name}-${product.sku}-${product.channel}`} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-gray-600">
-                            {index + 1}
+                            {rank}
                           </span>
                         </td>
                         <td className="py-3 px-4 font-medium">{product.name}</td>
@@ -435,19 +463,23 @@ export default function AnalyticsPage() {
                         <td className="py-3 px-4 text-muted-foreground">{product.channel}</td>
                         <td className="text-center py-3 px-4 font-medium">{product.quantity}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-              {stats.productRanking.length > 5 && (
-                <div className="flex justify-center">
+              {stats.productRanking.length > PRODUCT_RANKING_COMPACT_LIMIT && (
+                <div className="flex flex-col items-center gap-3">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowAllProducts(!showAllProducts)}
+                    onClick={() => {
+                      setIsProductRankingExpanded(!isProductRankingExpanded);
+                      setProductRankingPage(1);
+                    }}
                     className="text-muted-foreground"
                   >
-                    {showAllProducts ? (
+                    {isProductRankingExpanded ? (
                       <>
                         <ChevronUp className="w-4 h-4 mr-1" />
                         收起
@@ -455,10 +487,25 @@ export default function AnalyticsPage() {
                     ) : (
                       <>
                         <ChevronDown className="w-4 h-4 mr-1" />
-                        查看更多 ({stats.productRanking.length - 5} 項)
+                        查看更多（前 30 名）
                       </>
                     )}
                   </Button>
+
+                  {isProductRankingExpanded && productRankingTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2">
+                      {Array.from({ length: productRankingTotalPages }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={productRankingClampedPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setProductRankingPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
