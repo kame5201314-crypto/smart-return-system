@@ -62,8 +62,6 @@ import {
   RETURN_SHIPPING_METHODS,
   REFUND_TYPES,
   CHANNEL_LIST,
-  INSPECTION_GRADES,
-  INSPECTION_CHECKLIST,
   ERROR_MESSAGES,
 } from '@/config/constants';
 
@@ -162,13 +160,6 @@ export default function ReturnDetailPage() {
       returnRequestId: params.id as string,
       result: undefined,
       conditionGrade: undefined,
-      checklist: {
-        packaging_intact: null,
-        product_intact: null,
-        accessories_complete: null,
-        matches_photos: null,
-        resellable: null,
-      },
       notes: '',
       inspectorComment: '',
     },
@@ -595,33 +586,6 @@ export default function ReturnDetailPage() {
                       </FormItem>
                     )}
                   />
-
-                  {/* Checklist */}
-                  <div className="space-y-2">
-                    <FormLabel>檢查項目</FormLabel>
-                    <div className="grid grid-cols-2 gap-2">
-                      {INSPECTION_CHECKLIST.map((item) => (
-                        <FormField
-                          key={item.key}
-                          control={inspectionForm.control}
-                          name={`checklist.${item.key}` as const}
-                          render={({ field }) => (
-                            <FormItem className="flex items-center gap-2 space-y-0">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value === true}
-                                  onCheckedChange={(checked) => field.onChange(checked)}
-                                />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer text-sm">
-                                {item.label}
-                              </FormLabel>
-                            </FormItem>
-                          )}
-                        />
-                      ))}
-                    </div>
-                  </div>
 
                   {/* Notes */}
                   <FormField

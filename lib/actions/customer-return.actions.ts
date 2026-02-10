@@ -1,11 +1,16 @@
-'use server';
+﻿'use server';
 
 import { z } from 'zod';
 import { headers } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { ApiResponse } from '@/types';
+import {
+  getExtensionFromMimeType,
+  validateImageBlob,
+  verifyUploadSessionToken,
+  UPLOAD_MAX_FILE_SIZE_BYTES,
+} from '@/lib/upload/security';
 
-// ========== Zod 驗證 Schema ==========
 const customerReturnSchema = z.object({
   channelSource: z.string().min(1, '請選擇購買通路').max(50),
   accountId: z.string().min(1, '請填寫帳號').max(100),
@@ -19,10 +24,9 @@ const customerReturnSchema = z.object({
   productSuggestion: z.string().max(2000).optional(),
 });
 
-// ========== 簡易速率限制 ==========
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 小時
-const RATE_LIMIT_MAX_REQUESTS = 5; // 每小時最多 5 次提交
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
 
 function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
@@ -37,11 +41,10 @@ function checkRateLimit(identifier: string): { allowed: boolean; remaining: numb
     return { allowed: false, remaining: 0 };
   }
 
-  record.count++;
+  record.count += 1;
   return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count };
 }
 
-// 定期清理過期的速率限制記錄
 setInterval(() => {
   const now = Date.now();
   for (const [key, value] of rateLimitMap.entries()) {
@@ -49,7 +52,7 @@ setInterval(() => {
       rateLimitMap.delete(key);
     }
   }
-}, 10 * 60 * 1000); // 每 10 分鐘清理一次
+}, 10 * 60 * 1000);
 
 export interface CustomerReturnFormData {
   channelSource: string;
@@ -64,34 +67,145 @@ export interface CustomerReturnFormData {
   productSuggestion?: string;
 }
 
+interface UploadSessionInput {
+  draftId: string;
+  sessionToken: string;
+}
+
+interface PreUploadedImageInput {
+  publicUrl: string;
+  storagePath: string;
+}
+
+interface Base64ImageInput {
+  name: string;
+  type: string;
+  base64: string;
+}
+
+interface PreparedImageRecord {
+  url: string;
+  storagePath: string;
+  imageType: 'shipping_label' | 'product_damage';
+}
+
+function isPreUploadedImageArray(
+  imageFiles: Base64ImageInput[] | PreUploadedImageInput[]
+): imageFiles is PreUploadedImageInput[] {
+  return imageFiles.length > 0 && 'publicUrl' in imageFiles[0];
+}
+
+function inferImageTypeFromPath(storagePath: string): 'shipping_label' | 'product_damage' {
+  return storagePath.includes('/shipping-labels/') ? 'shipping_label' : 'product_damage';
+}
+
+function getValidationTypeLabel(code?: string): string {
+  if (!code) {
+    return '未知';
+  }
+  if (code.includes('SIZE') || code.includes('LARGE')) {
+    return '大小';
+  }
+  if (code.includes('CONTENT')) {
+    return '內容';
+  }
+  if (code.includes('TYPE')) {
+    return '類型';
+  }
+  return '格式';
+}
+
+async function withRetry<T>(
+  task: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelayMs = 250
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * attempt));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Operation failed');
+}
+
+async function validatePreUploadedImages(
+  adminClient: ReturnType<typeof createAdminClient>,
+  images: PreUploadedImageInput[],
+  draftId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const stagingPrefix = `staging/${draftId}/`;
+
+  for (const [index, image] of images.entries()) {
+    if (!image.storagePath || typeof image.storagePath !== 'string') {
+      return {
+        success: false,
+        error: `第 ${index + 1} 張圖片驗證失敗（路徑）：缺少 storagePath`,
+      };
+    }
+
+    if (!image.storagePath.startsWith(stagingPrefix)) {
+      return {
+        success: false,
+        error: `第 ${index + 1} 張圖片驗證失敗（來源）：圖片不屬於本次上傳草稿`,
+      };
+    }
+
+    const { data: fileBlob, error: downloadError } = await adminClient.storage
+      .from('return-images')
+      .download(image.storagePath);
+
+    if (downloadError || !fileBlob) {
+      return {
+        success: false,
+        error: `第 ${index + 1} 張圖片驗證失敗（讀取）：${downloadError?.message || '找不到檔案'}`,
+      };
+    }
+
+    const validation = await validateImageBlob(fileBlob, UPLOAD_MAX_FILE_SIZE_BYTES);
+    if (!validation.ok) {
+      return {
+        success: false,
+        error: `第 ${index + 1} 張圖片驗證失敗（${getValidationTypeLabel(validation.code)}）：${validation.reason || '不符合上傳規範'}`,
+      };
+    }
+  }
+
+  return { success: true };
+}
+
 /**
- * Submit customer return request from the simplified portal form
- * Optimized for speed with parallel operations
- *
- * @param formData - Form data from the customer
- * @param imageFiles - Either base64 encoded images OR already uploaded image URLs
+ * Submit customer return request from portal form
+ * - Pre-uploaded image flow: verify session + validate staged files, then move to final path after request is created.
+ * - Legacy base64 flow: keep compatibility and upload with short retry.
  */
 export async function submitCustomerReturn(
   formData: CustomerReturnFormData,
-  imageFiles: { name: string; type: string; base64: string }[] | { publicUrl: string; storagePath: string }[]
+  imageFiles: Base64ImageInput[] | PreUploadedImageInput[],
+  uploadSession?: UploadSessionInput
 ): Promise<ApiResponse<{ requestNumber: string }>> {
   try {
-    // ========== 1. Zod 驗證 ==========
     const validationResult = customerReturnSchema.safeParse(formData);
     if (!validationResult.success) {
       const errorMessage = validationResult.error.issues[0]?.message || '輸入資料格式錯誤';
       return { success: false, error: errorMessage };
     }
 
-    // ========== 2. 速率限制 ==========
     const headersList = await headers();
-    const clientIP = headersList.get('x-forwarded-for')?.split(',')[0] ||
-                     headersList.get('x-real-ip') ||
-                     'unknown';
-    // 同時用 IP 和手機號碼做限制
+    const clientIP = headersList.get('x-forwarded-for')?.split(',')[0]
+      || headersList.get('x-real-ip')
+      || 'unknown';
+
     const rateLimitKey = `${clientIP}-${formData.phone}`;
     const rateCheck = checkRateLimit(rateLimitKey);
-
     if (!rateCheck.allowed) {
       return { success: false, error: '提交次數過多，請稍後再試（每小時最多 5 次）' };
     }
@@ -103,24 +217,22 @@ export async function submitCustomerReturn(
       return { success: false, error: '伺服器設定錯誤，請稍後再試' };
     }
 
-    // 1. Find or create customer and order in parallel
-    let customerResult, orderResult;
+    let customerResult;
+    let orderResult;
     try {
       [customerResult, orderResult] = await Promise.all([
-        // Find existing customer
         adminClient
           .from('customers')
           .select('id')
           .eq('phone', formData.phone)
           .single()
-          .then(res => res as { data: { id: string } | null; error: Error | null }),
-        // Find existing order
+          .then((res) => res as { data: { id: string } | null; error: Error | null }),
         adminClient
           .from('orders')
           .select('id')
           .eq('order_number', formData.orderNumber)
           .single()
-          .then(res => res as { data: { id: string } | null; error: Error | null }),
+          .then((res) => res as { data: { id: string } | null; error: Error | null }),
       ]);
     } catch {
       return { success: false, error: '資料庫連線失敗，請稍後再試' };
@@ -129,7 +241,6 @@ export async function submitCustomerReturn(
     let customerId: string | null = customerResult.data?.id || null;
     let orderId: string | null = orderResult.data?.id || null;
 
-    // Create customer if not exists
     if (!customerId) {
       const { data: newCustomer, error: customerError } = await adminClient
         .from('customers')
@@ -141,12 +252,11 @@ export async function submitCustomerReturn(
         .single() as { data: { id: string } | null; error: Error | null };
 
       if (customerError) {
-        return { success: false, error: '建立客戶記錄失敗，請稍後再試' };
+        return { success: false, error: '建立客戶資料失敗，請稍後再試' };
       }
       customerId = newCustomer?.id || null;
     }
 
-    // Create order if not exists
     if (!orderId) {
       const orderChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
         ? formData.channelSource
@@ -170,18 +280,48 @@ export async function submitCustomerReturn(
         .single() as { data: { id: string } | null; error: Error | null };
 
       if (orderError || !newOrder) {
-        return { success: false, error: `建立訂單記錄失敗: ${orderError?.message || '未知錯誤'}` };
+        return { success: false, error: `建立訂單失敗: ${orderError?.message || '未知錯誤'}` };
       }
       orderId = newOrder.id;
     }
 
-    // 2. Create return request
+    const isPreUploaded = isPreUploadedImageArray(imageFiles);
+
+    if (isPreUploaded) {
+      if (!uploadSession?.draftId || !uploadSession?.sessionToken) {
+        return { success: false, error: '上傳工作階段遺失，請重新上傳照片後再送出' };
+      }
+
+      const sessionVerification = verifyUploadSessionToken(uploadSession.sessionToken);
+      if (!sessionVerification.valid || !sessionVerification.payload) {
+        return { success: false, error: sessionVerification.error || '上傳工作階段已失效，請重新上傳照片' };
+      }
+
+      if (sessionVerification.payload.draftId !== uploadSession.draftId) {
+        return { success: false, error: '上傳草稿與工作階段不一致，請重新上傳照片' };
+      }
+
+      const imageValidation = await validatePreUploadedImages(adminClient, imageFiles, uploadSession.draftId);
+      if (!imageValidation.success) {
+        return { success: false, error: imageValidation.error };
+      }
+    }
+
     const validChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
       ? formData.channelSource
       : 'other';
 
-    // Map reason category to valid database values
-    const validReasonCategories = ['quality_issue', 'wrong_item', 'damaged_in_transit', 'not_as_described', 'change_of_mind', 'installation_issue', 'defective', 'size_not_fit', 'other'];
+    const validReasonCategories = [
+      'quality_issue',
+      'wrong_item',
+      'damaged_in_transit',
+      'not_as_described',
+      'change_of_mind',
+      'installation_issue',
+      'defective',
+      'size_not_fit',
+      'other',
+    ];
     const reasonCategory = validReasonCategories.includes(formData.reasonCategory || '')
       ? formData.reasonCategory
       : 'other';
@@ -204,41 +344,89 @@ export async function submitCustomerReturn(
       return { success: false, error: `建立退貨申請失敗: ${returnError?.message || '未知錯誤'}` };
     }
 
-    // 3. Handle images - either already uploaded URLs or base64 data
-    let uploadedImages: { url: string; storagePath: string }[] = [];
-
-    // Check if images are already uploaded (have publicUrl) or need to be uploaded (have base64)
-    const isPreUploaded = imageFiles.length > 0 && 'publicUrl' in imageFiles[0];
+    let uploadedImages: PreparedImageRecord[] = [];
 
     if (isPreUploaded) {
-      // Images are already uploaded to Supabase Storage
-      uploadedImages = (imageFiles as { publicUrl: string; storagePath: string }[]).map((img) => ({
-        url: img.publicUrl,
-        storagePath: img.storagePath,
-      }));
-    } else {
-      // Upload images in PARALLEL (legacy base64 method)
-      const uploadPromises = (imageFiles as { name: string; type: string; base64: string }[]).map(async (file, i) => {
-        const fileExt = file.name.split('.').pop() || 'jpg';
-        const fileName = `${returnRequest.id}/${Date.now()}_${i}.${fileExt}`;
+      const movedPaths: string[] = [];
 
-        // Decode base64 to buffer
+      try {
+        uploadedImages = await Promise.all(
+          imageFiles.map(async (image, index) => {
+            const { data: fileBlob, error: downloadError } = await adminClient.storage
+              .from('return-images')
+              .download(image.storagePath);
+
+            if (downloadError || !fileBlob) {
+              throw new Error(`第 ${index + 1} 張照片暫存檔遺失，請重新上傳`);
+            }
+
+            const validation = await validateImageBlob(fileBlob, UPLOAD_MAX_FILE_SIZE_BYTES);
+            if (!validation.ok || !validation.detectedMime) {
+              throw new Error(`第 ${index + 1} 張照片內容驗證失敗：${validation.reason || '格式不符合規範'}`);
+            }
+
+            const extension = getExtensionFromMimeType(validation.detectedMime);
+            const targetPath = `returns/${returnRequest.id}/${Date.now()}_${index}_${crypto.randomUUID().slice(0, 8)}.${extension}`;
+
+            await withRetry(async () => {
+              const { error: moveError } = await adminClient.storage
+                .from('return-images')
+                .move(image.storagePath, targetPath);
+
+              if (moveError) {
+                throw new Error(moveError.message);
+              }
+            });
+
+            movedPaths.push(targetPath);
+
+            const { data: urlData } = adminClient.storage
+              .from('return-images')
+              .getPublicUrl(targetPath);
+
+            return {
+              url: urlData.publicUrl,
+              storagePath: targetPath,
+              imageType: inferImageTypeFromPath(image.storagePath),
+            } as PreparedImageRecord;
+          })
+        );
+      } catch (error) {
+        if (movedPaths.length > 0) {
+          await adminClient.storage.from('return-images').remove(movedPaths);
+        }
+        await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+
+        return {
+          success: false,
+          error: error instanceof Error
+            ? `上傳照片處理失敗：${error.message}`
+            : '上傳照片處理失敗，請重新上傳後再送出',
+        };
+      }
+    } else {
+      const base64Images = imageFiles as Base64ImageInput[];
+
+      const uploadPromises = base64Images.map(async (file, index) => {
+        const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const fileName = `returns/${returnRequest.id}/${Date.now()}_${index}_${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+
         const base64Data = file.base64.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
 
-        // Upload to Supabase Storage
-        const { error: uploadError } = await adminClient.storage
-          .from('return-images')
-          .upload(fileName, buffer, {
-            contentType: file.type,
-            upsert: false,
-          });
+        await withRetry(async () => {
+          const { error: uploadError } = await adminClient.storage
+            .from('return-images')
+            .upload(fileName, buffer, {
+              contentType: file.type,
+              upsert: false,
+            });
 
-        if (uploadError) {
-          return null;
-        }
+          if (uploadError) {
+            throw new Error(uploadError.message);
+          }
+        });
 
-        // Get public URL
         const { data: urlData } = adminClient.storage
           .from('return-images')
           .getPublicUrl(fileName);
@@ -246,29 +434,25 @@ export async function submitCustomerReturn(
         return {
           url: urlData.publicUrl,
           storagePath: fileName,
+          imageType: 'product_damage' as const,
         };
       });
 
-      // Wait for all uploads to complete in parallel
-      const uploadResults = await Promise.all(uploadPromises);
-      uploadedImages = uploadResults.filter((img): img is { url: string; storagePath: string } => img !== null);
+      uploadedImages = await Promise.all(uploadPromises);
     }
 
-    // 4. Create all remaining records in parallel
-    // Image records
     const insertImagesPromise = uploadedImages.length > 0
       ? adminClient.from('return_images').insert(
           uploadedImages.map((img) => ({
             return_request_id: returnRequest.id,
             image_url: img.url,
             storage_path: img.storagePath,
-            image_type: 'product_damage' as const,
+            image_type: img.imageType,
             uploaded_by: 'customer' as const,
           })) as never
         )
       : Promise.resolve();
 
-    // Return item record - use selected products or default to order number
     const productName = formData.returnProducts && formData.returnProducts.length > 0
       ? formData.returnProducts.join(', ')
       : `訂單 ${formData.orderNumber} 商品`;
@@ -280,7 +464,6 @@ export async function submitCustomerReturn(
       reason: formData.returnReason,
     } as never);
 
-    // Activity log
     const insertLogPromise = adminClient.from('activity_logs').insert({
       entity_type: 'return_request',
       entity_id: returnRequest.id,
@@ -298,26 +481,23 @@ export async function submitCustomerReturn(
       },
     } as never);
 
-    // Execute all DB operations in parallel with error tracking
     const [imagesResult, itemResult, logResult] = await Promise.allSettled([
       insertImagesPromise,
       insertItemPromise,
       insertLogPromise,
     ]);
 
-    // Check for partial failures (non-critical, return_request already created)
     const failures: string[] = [];
     if (imagesResult.status === 'rejected' || (imagesResult.status === 'fulfilled' && (imagesResult.value as { error?: unknown })?.error)) {
-      failures.push('圖片記錄');
+      failures.push('圖片資料');
     }
     if (itemResult.status === 'rejected' || (itemResult.status === 'fulfilled' && (itemResult.value as { error?: unknown })?.error)) {
-      failures.push('商品記錄');
+      failures.push('商品資料');
     }
     if (logResult.status === 'rejected' || (logResult.status === 'fulfilled' && (logResult.value as { error?: unknown })?.error)) {
-      failures.push('活動記錄');
+      failures.push('活動紀錄');
     }
 
-    // Return success even with partial failures (main return_request was created)
     if (failures.length > 0) {
       console.error(`Partial insert failures for ${returnRequest.request_number}:`, failures);
       return {
@@ -335,20 +515,18 @@ export async function submitCustomerReturn(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '未知錯誤';
 
-    // Check for common database errors
     if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
-      return { success: false, error: '資料庫表格尚未建立，請聯繫管理員' };
+      return { success: false, error: '資料庫表格尚未建立，請聯絡管理員' };
     }
     if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
-      return { success: false, error: '資料庫權限不足，請聯繫管理員' };
+      return { success: false, error: '資料庫權限不足，請聯絡管理員' };
     }
     if (errorMessage.includes('Missing Supabase')) {
-      return { success: false, error: '伺服器環境變數未設定，請聯繫管理員' };
+      return { success: false, error: '伺服器環境變數未設定，請聯絡管理員' };
     }
     return { success: false, error: '系統錯誤，請稍後再試' };
   }
 }
-
 interface ReturnListResult {
   id: string;
   request_number: string;
@@ -420,12 +598,12 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
       .order('created_at', { ascending: false }) as { data: ReturnListResult[] | null; error: Error | null };
 
     if (error) {
-      return { success: false, error: '查詢失敗' };
+      return { success: false, error: '鏌ヨ澶辨晽' };
     }
 
     return { success: true, data: data || [] };
   } catch {
-    return { success: false, error: '系統錯誤' };
+    return { success: false, error: '绯荤当閷' };
   }
 }
 
@@ -492,6 +670,7 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
 
     return { success: true, data };
   } catch {
-    return { success: false, error: '系統錯誤' };
+    return { success: false, error: '绯荤当閷' };
   }
 }
+

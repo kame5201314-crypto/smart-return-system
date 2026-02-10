@@ -68,13 +68,16 @@ export const inspectionSchema = z.object({
     message: '請選擇驗貨結果',
   }),
   conditionGrade: z.enum(['A', 'B', 'C', 'D', 'F']).optional(),
-  checklist: z.object({
-    packaging_intact: z.boolean().nullable(),
-    product_intact: z.boolean().nullable(),
-    accessories_complete: z.boolean().nullable(),
-    matches_photos: z.boolean().nullable(),
-    resellable: z.boolean().nullable(),
-  }),
+  checklist: z
+    .object({
+      packaging_intact: z.boolean().nullable(),
+      product_intact: z.boolean().nullable(),
+      accessories_complete: z.boolean().nullable(),
+      matches_photos: z.boolean().nullable(),
+      resellable: z.boolean().nullable(),
+    })
+    .nullable()
+    .optional(),
   notes: z.string().max(2000, '備註過長').optional(),
   inspectorComment: z.string().max(2000, '評語過長').optional(),
 });

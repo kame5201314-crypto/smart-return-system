@@ -39,14 +39,14 @@ import {
 
 import { getReturnRequests } from '@/lib/actions/return.actions';
 import { getShopeeReturns, type ShopeeReturn } from '@/lib/actions/shopee-returns.actions';
-import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
+import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 interface ReturnItem {
   id: string;
   product_name: string;
-  sku: string | null;
+  product_sku: string | null;
   quantity: number;
 }
 
@@ -225,11 +225,18 @@ export default function AnalyticsPage() {
     // Product ranking - aggregate by product name + sku + channel
     const productCounts: Record<string, { name: string; sku: string | null; channel: string; quantity: number }> = {};
     filteredReturns.forEach(r => {
+      // Ranking only counts closed or abnormal cases
+      if (r.status !== RETURN_STATUS.COMPLETED && r.status !== RETURN_STATUS.ABNORMAL_DISPUTED) return;
+
       const channelLabel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
       r.return_items?.forEach(item => {
-        const key = `${item.product_name}||${item.sku || ''}||${channelLabel}`;
+        const sku = item.product_sku?.trim() || null;
+        // No SKU => don't enter ranking (prevents "-" items from polluting the leaderboard)
+        if (!sku) return;
+
+        const key = `${item.product_name}||${sku}||${channelLabel}`;
         if (!productCounts[key]) {
-          productCounts[key] = { name: item.product_name, sku: item.sku, channel: channelLabel, quantity: 0 };
+          productCounts[key] = { name: item.product_name, sku, channel: channelLabel, quantity: 0 };
         }
         productCounts[key].quantity += item.quantity;
       });
@@ -237,10 +244,14 @@ export default function AnalyticsPage() {
     // Add shopee returns to product ranking
     filteredShopeeReturns.forEach(r => {
       if (!r.product_name) return;
+      const sku = r.option_sku?.trim() || null;
+      // No SKU => don't enter ranking
+      if (!sku) return;
+
       const channelLabel = r.platform === 'mall' ? '商城' : '蝦皮';
-      const key = `${r.product_name}||${r.option_sku || ''}||${channelLabel}`;
+      const key = `${r.product_name}||${sku}||${channelLabel}`;
       if (!productCounts[key]) {
-        productCounts[key] = { name: r.product_name, sku: r.option_sku || null, channel: channelLabel, quantity: 0 };
+        productCounts[key] = { name: r.product_name, sku, channel: channelLabel, quantity: 0 };
       }
       productCounts[key].quantity += r.return_quantity;
     });

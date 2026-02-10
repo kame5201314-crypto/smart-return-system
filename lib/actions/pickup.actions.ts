@@ -32,6 +32,86 @@ export interface PickupRecordInput {
 }
 
 /**
+ * Import pickup records (batch insert)
+ * Note: pickup_records currently has no unique constraint. This function only deduplicates within the uploaded file.
+ */
+export async function importPickupRecords(
+  items: PickupRecordInput[]
+): Promise<ApiResponse<{ imported: number; duplicates: number }>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    if (!items || items.length === 0) {
+      return { success: true, data: { imported: 0, duplicates: 0 } };
+    }
+
+    // Deduplicate within file by (process_date + order_number + tracking_number)
+    const seenKeys = new Set<string>();
+    const deduplicated: PickupRecordInput[] = [];
+    let duplicates = 0;
+
+    for (const raw of items) {
+      const process_date = raw.process_date?.trim();
+      const order_number = raw.order_number?.trim();
+      const tracking_number = raw.tracking_number?.trim() || '';
+
+      if (!process_date || !order_number) continue;
+
+      const key = `${process_date}__${order_number}__${tracking_number}`;
+      if (seenKeys.has(key)) {
+        duplicates++;
+        continue;
+      }
+
+      seenKeys.add(key);
+      deduplicated.push({
+        process_date,
+        order_number,
+        tracking_number: tracking_number || undefined,
+        platform: raw.platform?.trim() || '商城',
+        logistics_provider: raw.logistics_provider?.trim() || '黑貓',
+        delivery_status: raw.delivery_status?.trim() || '派車收件',
+        received_status: raw.received_status?.trim() || '未收到',
+        notes: raw.notes?.trim() || undefined,
+        receiver_info: raw.receiver_info?.trim() || undefined,
+      });
+    }
+
+    if (deduplicated.length === 0) {
+      return { success: true, data: { imported: 0, duplicates } };
+    }
+
+    const insertData = deduplicated.map((item) => ({
+      process_date: item.process_date,
+      order_number: item.order_number,
+      tracking_number: item.tracking_number || null,
+      platform: item.platform,
+      logistics_provider: item.logistics_provider,
+      delivery_status: item.delivery_status,
+      received_status: item.received_status,
+      notes: item.notes || null,
+      receiver_info: item.receiver_info || null,
+      is_printed: false,
+    }));
+
+    const { error } = await supabase
+      .from('pickup_records')
+      .insert(insertData as never);
+
+    if (error) {
+      console.error('Import pickup records error:', error);
+      return { success: false, error: `匯入失敗: ${error.message}` };
+    }
+
+    return { success: true, data: { imported: deduplicated.length, duplicates } };
+  } catch (error) {
+    console.error('Import pickup records error:', error);
+    const msg = error instanceof Error ? error.message : '未知錯誤';
+    return { success: false, error: `匯入失敗: ${msg}` };
+  }
+}
+
+/**
  * Get all pickup records
  */
 export async function getPickupRecords(): Promise<ApiResponse<PickupRecord[]>> {

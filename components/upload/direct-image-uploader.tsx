@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -15,6 +15,12 @@ interface UploadedImage {
   status: 'uploading' | 'success' | 'error';
 }
 
+interface UploadSession {
+  draftId: string;
+  sessionToken: string;
+  expiresAt: number;
+}
+
 interface DirectImageUploaderProps {
   images: UploadedImage[];
   onImagesChange: (images: UploadedImage[]) => void;
@@ -22,6 +28,7 @@ interface DirectImageUploaderProps {
   maxImages?: number;
   maxFileSizeMB?: number;
   folder?: string;
+  getUploadSession: () => Promise<UploadSession>;
 }
 
 // Compress image before upload for faster speed
@@ -78,45 +85,100 @@ async function compressImage(file: File, maxWidth = 1200, quality = 0.7): Promis
   });
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function shouldRetryByStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
 async function uploadImageDirect(
   file: File,
-  folder?: string
+  folder: string | undefined,
+  getUploadSession: () => Promise<UploadSession>
 ): Promise<{ publicUrl: string; storagePath: string }> {
   // Compress image before upload
   const compressedFile = await compressImage(file);
 
-  // 1. Get signed URL from our API
-  const signedUrlResponse = await fetch('/api/v1/upload/signed-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fileName: compressedFile.name,
-      fileType: file.type,
-      folder,
-    }),
-  });
+  const maxAttempts = 3;
+  let lastError: Error | null = null;
 
-  if (!signedUrlResponse.ok) {
-    const error = await signedUrlResponse.json();
-    throw new Error(error.error || '無法獲取上傳連結');
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const session = await getUploadSession();
+
+      // 1. Get signed URL from our API
+      const signedUrlResponse = await fetch('/api/v1/upload/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: compressedFile.name,
+          fileType: compressedFile.type,
+          fileSize: compressedFile.size,
+          folder,
+          draftId: session.draftId,
+          sessionToken: session.sessionToken,
+        }),
+      });
+
+      if (!signedUrlResponse.ok) {
+        let message = '無法取得上傳授權';
+        try {
+          const payload = await signedUrlResponse.json() as { error?: string; details?: string };
+          if (payload.error && payload.details) {
+            message = `${payload.error}（${payload.details}）`;
+          } else if (payload.error) {
+            message = payload.error;
+          }
+        } catch {
+          // Ignore JSON parse errors, keep fallback message
+        }
+
+        if (shouldRetryByStatus(signedUrlResponse.status) && attempt < maxAttempts) {
+          await wait(250 * attempt);
+          continue;
+        }
+
+        throw new Error(message);
+      }
+
+      const { signedUrl, path, publicUrl } = await signedUrlResponse.json() as {
+        signedUrl: string;
+        path: string;
+        publicUrl: string;
+      };
+
+      // 2. Upload file directly to Supabase Storage using signed URL
+      const uploadResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': compressedFile.type,
+        },
+        body: compressedFile,
+      });
+
+      if (!uploadResponse.ok) {
+        if (shouldRetryByStatus(uploadResponse.status) && attempt < maxAttempts) {
+          await wait(250 * attempt);
+          continue;
+        }
+        throw new Error(`上傳檔案失敗（HTTP ${uploadResponse.status}）`);
+      }
+
+      return { publicUrl, storagePath: path };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('上傳失敗');
+      if (attempt < maxAttempts) {
+        await wait(250 * attempt);
+        continue;
+      }
+    }
   }
 
-  const { signedUrl, path, publicUrl } = await signedUrlResponse.json();
-
-  // 2. Upload file directly to Supabase Storage using signed URL
-  const uploadResponse = await fetch(signedUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': compressedFile.type,
-    },
-    body: compressedFile,
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error('上傳檔案失敗');
-  }
-
-  return { publicUrl, storagePath: path };
+  throw lastError || new Error('上傳失敗，請稍後重試');
 }
 
 export function DirectImageUploader({
@@ -126,6 +188,7 @@ export function DirectImageUploader({
   maxImages = 5,
   maxFileSizeMB = 10,
   folder,
+  getUploadSession,
 }: DirectImageUploaderProps) {
   const [error, setError] = useState<string | null>(null);
   const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
@@ -151,10 +214,10 @@ export function DirectImageUploader({
       }
 
       // Create placeholder images with uploading status
-      const newImages: UploadedImage[] = acceptedFiles.map((file) => ({
+      const newImages: UploadedImage[] = acceptedFiles.map((acceptedFile) => ({
         id: crypto.randomUUID(),
-        file,
-        preview: URL.createObjectURL(file),
+        file: acceptedFile,
+        preview: URL.createObjectURL(acceptedFile),
         publicUrl: '',
         storagePath: '',
         status: 'uploading' as const,
@@ -167,7 +230,7 @@ export function DirectImageUploader({
       // Upload each image in parallel
       const uploadPromises = newImages.map(async (newImage) => {
         try {
-          const result = await uploadImageDirect(newImage.file!, folder);
+          const result = await uploadImageDirect(newImage.file!, folder, getUploadSession);
           return {
             ...newImage,
             publicUrl: result.publicUrl,
@@ -191,7 +254,7 @@ export function DirectImageUploader({
         ...uploadedImages,
       ]);
     },
-    [images, onImagesChange, maxImages, maxFileSizeBytes, maxFileSizeMB, folder]
+    [images, onImagesChange, maxImages, maxFileSizeBytes, maxFileSizeMB, folder, getUploadSession]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -320,4 +383,4 @@ export function DirectImageUploader({
   );
 }
 
-export type { UploadedImage };
+export type { UploadedImage, UploadSession };

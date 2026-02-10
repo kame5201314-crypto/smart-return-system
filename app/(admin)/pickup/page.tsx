@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import {
@@ -12,6 +12,8 @@ import {
   ClipboardList,
   Search,
   Printer,
+  Upload,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,6 +53,7 @@ import {
   createPickupRecord,
   updatePickupRecord,
   deletePickupRecord,
+  importPickupRecords,
   batchDeletePickupRecords,
   batchUpdatePickupPrinted,
 } from '@/lib/actions/pickup.actions';
@@ -61,6 +64,18 @@ const LOGISTICS_PROVIDERS = ['黑貓', '新竹物流', '7-11', '全家', '郵局
 const DELIVERY_STATUSES = ['派車收件', '來回件', '已送達', '配送中', '待收件', '已退回'];
 const RECEIVED_STATUSES = ['未收到', '已收到', '已貼單', '處理中', '完成'];
 
+const PICKUP_IMPORT_COLUMN_MAPPINGS: Record<string, string> = {
+  '處理日期': 'process_date',
+  '訂單編號': 'order_number',
+  '物流單號': 'tracking_number',
+  '平台': 'platform',
+  '物流': 'logistics_provider',
+  '物流狀態': 'delivery_status',
+  '收到/已貼': 'received_status',
+  '收件人姓名': 'receiver_info',
+  '備註': 'notes',
+};
+
 export default function PickupPage() {
   const [records, setRecords] = useState<PickupRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<PickupRecord[]>([]);
@@ -68,8 +83,10 @@ export default function PickupPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<PickupRecord | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     processDate: format(new Date(), 'yyyy-MM-dd'),
     orderNumber: '',
@@ -113,6 +130,141 @@ export default function PickupPage() {
       );
     }
   }, [searchQuery, records]);
+
+  function normalizeExcelDate(value: unknown): string {
+    if (value instanceof Date) {
+      return value.toISOString().split('T')[0];
+    }
+    if (typeof value === 'number') {
+      // Excel serial date -> JS date
+      const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+      return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+    }
+    const str = String(value ?? '').trim();
+    if (!str) return '';
+
+    const match = str.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/);
+    if (match) return match[1].replace(/\//g, '-');
+    return str.length >= 10 ? str.slice(0, 10) : str;
+  }
+
+  async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet || worksheet.rowCount < 2) {
+        toast.error('Excel 檔案沒有資料');
+        return;
+      }
+
+      const headerRow = worksheet.getRow(1);
+      const headers: unknown[] = [];
+      headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        headers[colNumber - 1] = cell.value;
+      });
+
+      const columnIndices: Record<string, number> = {};
+      headers.forEach((header, index) => {
+        const cleanHeader = header?.toString().trim();
+        if (!cleanHeader) return;
+        const key = PICKUP_IMPORT_COLUMN_MAPPINGS[cleanHeader];
+        if (!key) return;
+        if (columnIndices[key] === undefined) {
+          columnIndices[key] = index;
+        }
+      });
+
+      if (columnIndices.order_number === undefined) {
+        const idx = headers.findIndex((h) => (h?.toString() || '').includes('訂單'));
+        if (idx >= 0) columnIndices.order_number = idx;
+      }
+      if (columnIndices.process_date === undefined) {
+        const idx = headers.findIndex((h) => (h?.toString() || '').includes('日期'));
+        if (idx >= 0) columnIndices.process_date = idx;
+      }
+
+      const importedItems: Array<{
+        process_date: string;
+        order_number: string;
+        tracking_number?: string;
+        platform: string;
+        logistics_provider: string;
+        delivery_status: string;
+        received_status: string;
+        notes?: string;
+        receiver_info?: string;
+      }> = [];
+
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return;
+
+        const rowValues: unknown[] = [];
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          rowValues[colNumber - 1] = cell.value;
+        });
+
+        const getCellValue = (key: string): string => {
+          const idx = columnIndices[key];
+          if (idx === undefined) return '';
+          const val = rowValues[idx];
+          if (val === undefined || val === null) return '';
+          if (val instanceof Date) return val.toISOString().split('T')[0];
+          return String(val).trim();
+        };
+
+        const orderNumber = getCellValue('order_number');
+        if (!orderNumber) return;
+
+        const processDateRaw = columnIndices.process_date !== undefined ? rowValues[columnIndices.process_date] : '';
+        const processDate = normalizeExcelDate(processDateRaw) || format(new Date(), 'yyyy-MM-dd');
+
+        importedItems.push({
+          process_date: processDate,
+          order_number: orderNumber,
+          tracking_number: getCellValue('tracking_number') || undefined,
+          platform: getCellValue('platform') || '商城',
+          logistics_provider: getCellValue('logistics_provider') || '黑貓',
+          delivery_status: getCellValue('delivery_status') || '派車收件',
+          received_status: getCellValue('received_status') || '未收到',
+          receiver_info: getCellValue('receiver_info') || undefined,
+          notes: getCellValue('notes') || undefined,
+        });
+      });
+
+      if (importedItems.length === 0) {
+        toast.error('無法解析匯入內容，請確認 Excel 欄位');
+        return;
+      }
+
+      const result = await importPickupRecords(importedItems);
+      if (result.success && result.data) {
+        const { imported, duplicates } = result.data;
+        if (imported > 0) {
+          toast.success(`已匯入 ${imported} 筆${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}`);
+          await loadRecords();
+        } else if (duplicates > 0) {
+          toast.info(`全部都是重複資料（共 ${duplicates} 筆）`);
+        }
+      } else {
+        toast.error(result.error || '匯入失敗');
+      }
+    } catch (error) {
+      console.error('Pickup import error:', error);
+      toast.error('匯入失敗，請確認檔案格式');
+    } finally {
+      setIsImporting(false);
+      if (importFileRef.current) importFileRef.current.value = '';
+    }
+  }
 
   function handleOpenDialog(record?: PickupRecord) {
     if (record) {
@@ -427,6 +579,27 @@ export default function PickupPage() {
           <p className="text-muted-foreground">追蹤物流派車收件狀態</p>
         </div>
         <div className="flex gap-2">
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            onClick={() => importFileRef.current?.click()}
+            disabled={isImporting}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {isImporting ? '匯入中...' : '匯入'}
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/api/v1/admin/pickup/export" target="_blank" rel="noreferrer">
+              <Download className="w-4 h-4 mr-2" />
+              匯出
+            </a>
+          </Button>
           <Button variant="outline" onClick={handlePrint} disabled={selectedIds.size === 0}>
             <Printer className="w-4 h-4 mr-2" />
             列印 {selectedIds.size > 0 && `(${selectedIds.size})`}

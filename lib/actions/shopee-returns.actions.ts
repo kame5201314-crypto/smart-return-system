@@ -77,6 +77,31 @@ export async function getShopeeReturns(): Promise<ApiResponse<ShopeeReturn[]>> {
 }
 
 /**
+ * Get a single shopee return by id
+ */
+export async function getShopeeReturnById(id: string): Promise<ApiResponse<ShopeeReturn>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { data, error } = await supabase
+      .from('shopee_returns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return { success: false, error: `載入失敗: ${error?.message || 'Not found'}` };
+    }
+
+    return { success: true, data: data as ShopeeReturn };
+  } catch (error) {
+    console.error('Get shopee return by id error:', error);
+    const msg = error instanceof Error ? error.message : '未知錯誤';
+    return { success: false, error: `載入失敗: ${msg}` };
+  }
+}
+
+/**
  * Import shopee returns (batch upsert)
  */
 export async function importShopeeReturns(

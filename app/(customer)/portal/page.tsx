@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DirectImageUploader, type UploadedImage } from '@/components/upload/direct-image-uploader';
+import { DirectImageUploader, type UploadSession, type UploadedImage } from '@/components/upload/direct-image-uploader';
 import { submitCustomerReturn } from '@/lib/actions/customer-return.actions';
 
 // Form validation schema
@@ -40,6 +40,8 @@ export default function CustomerPortalPage() {
   } | null>(null);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [shippingLabelImages, setShippingLabelImages] = useState<UploadedImage[]>([]);
+  const [uploadSession, setUploadSession] = useState<UploadSession | null>(null);
+  const uploadSessionRequestRef = useRef<Promise<UploadSession> | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [otherReasonText, setOtherReasonText] = useState('');
@@ -122,6 +124,57 @@ export default function CustomerPortalPage() {
       productSuggestion: '',
     },
   });
+
+  const requestUploadSession = useCallback(
+    async (draftId?: string): Promise<UploadSession> => {
+      const response = await fetch('/api/v1/upload/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draftId ? { draftId } : {}),
+      });
+
+      const payload = await response.json() as {
+        success: boolean;
+        draftId?: string;
+        sessionToken?: string;
+        expiresAt?: number;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.success || !payload.draftId || !payload.sessionToken || !payload.expiresAt) {
+        throw new Error(payload.error || '無法建立上傳工作階段');
+      }
+
+      return {
+        draftId: payload.draftId,
+        sessionToken: payload.sessionToken,
+        expiresAt: payload.expiresAt,
+      };
+    },
+    []
+  );
+
+  const getUploadSession = useCallback(async (): Promise<UploadSession> => {
+    const now = Date.now();
+    if (uploadSession && uploadSession.expiresAt - now > 30 * 1000) {
+      return uploadSession;
+    }
+
+    if (uploadSessionRequestRef.current) {
+      return uploadSessionRequestRef.current;
+    }
+
+    const requestPromise = requestUploadSession(uploadSession?.draftId);
+    uploadSessionRequestRef.current = requestPromise;
+
+    try {
+      const nextSession = await requestPromise;
+      setUploadSession(nextSession);
+      return nextSession;
+    } finally {
+      uploadSessionRequestRef.current = null;
+    }
+  }, [requestUploadSession, uploadSession]);
 
   async function onSubmit(data: ReturnFormInput) {
     // Validate channel source
@@ -227,6 +280,15 @@ export default function CustomerPortalPage() {
         })),
       ];
 
+      let activeUploadSession: UploadSession | null = uploadSession;
+      try {
+        activeUploadSession = await getUploadSession();
+      } catch (sessionError) {
+        const message = sessionError instanceof Error ? sessionError.message : '無法驗證上傳工作階段';
+        toast.error(message);
+        return;
+      }
+
       // Get selected product labels for submission
       const selectedProductLabels = selectedProducts.map(
         (id) => productOptions.find((opt) => opt.id === id)?.label || id
@@ -290,7 +352,8 @@ export default function CustomerPortalPage() {
           returnReason: combinedReason,
           productSuggestion: combinedProductSuggestion,
         },
-        allImagesData
+        allImagesData,
+        activeUploadSession
       );
 
       if (!result.success) {
@@ -307,6 +370,7 @@ export default function CustomerPortalPage() {
       // Cleanup image previews
       images.forEach((img) => URL.revokeObjectURL(img.preview));
       shippingLabelImages.forEach((img) => URL.revokeObjectURL(img.preview));
+      setUploadSession(null);
 
       // Show success state
       setIsSubmitted(true);
@@ -360,6 +424,7 @@ export default function CustomerPortalPage() {
                     setSubmittedData(null);
                     setImages([]);
                     setShippingLabelImages([]);
+                    setUploadSession(null);
                     setSelectedChannel('');
                     setOtherChannelText('');
                     setSelectedProducts([]);
@@ -892,6 +957,7 @@ export default function CustomerPortalPage() {
                     maxImages={5}
                     maxFileSizeMB={10}
                     folder="product-photos"
+                    getUploadSession={getUploadSession}
                   />
                 </div>
 
@@ -913,6 +979,7 @@ export default function CustomerPortalPage() {
                     maxImages={2}
                     maxFileSizeMB={10}
                     folder="shipping-labels"
+                    getUploadSession={getUploadSession}
                   />
                 </div>
 

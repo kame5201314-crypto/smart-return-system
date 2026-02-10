@@ -12,14 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 import { getReturnRequestDetail, submitInspection } from '@/lib/actions/return.actions';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
-import { INSPECTION_GRADES, INSPECTION_CHECKLIST, ERROR_MESSAGES } from '@/config/constants';
+import { INSPECTION_GRADES, ERROR_MESSAGES } from '@/config/constants';
 
 interface ReturnDetail {
   id: string;
@@ -57,13 +56,6 @@ export default function InspectionPage() {
       returnRequestId: params.id as string,
       result: undefined,
       conditionGrade: undefined,
-      checklist: {
-        packaging_intact: null,
-        product_intact: null,
-        accessories_complete: null,
-        matches_photos: null,
-        resellable: null,
-      },
       notes: '',
       inspectorComment: '',
     },
@@ -328,31 +320,6 @@ export default function InspectionPage() {
                     </FormItem>
                   )}
                 />
-
-                {/* Checklist */}
-                <div className="space-y-3">
-                  <FormLabel>檢查項目</FormLabel>
-                  {INSPECTION_CHECKLIST.map((item) => (
-                    <FormField
-                      key={item.key}
-                      control={form.control}
-                      name={`checklist.${item.key}` as const}
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value === true}
-                              onCheckedChange={(checked) => field.onChange(checked)}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal cursor-pointer">
-                            {item.label}
-                          </FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
 
                 {/* Notes */}
                 <FormField

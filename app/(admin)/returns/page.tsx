@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Search, Filter, Download, Plus, LayoutGrid, List, Loader2, Trash2 } from 'lucide-react';
+import { useEffect, useState, useRef, type ChangeEvent } from 'react';
+import { Search, Filter, Download, Upload, Plus, LayoutGrid, List, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -59,6 +59,25 @@ interface ReturnItem {
   }[];
 }
 
+const RETURN_IMPORT_COLUMN_MAPPINGS: Record<string, string> = {
+  '訂單編號': 'orderNumber',
+  '通路': 'channelSource',
+  '來源': 'channelSource',
+  '客戶名稱': 'customerName',
+  '客戶電話': 'customerPhone',
+  '電話': 'customerPhone',
+  '退貨原因': 'reasonCategory',
+  '退貨原因說明': 'reasonDetail',
+  '退貨詳細說明': 'reasonDetail',
+  '退款金額': 'refundAmount',
+  '商品名稱': 'productName',
+  '商品貨號': 'productSku',
+  '貨號': 'productSku',
+  'SKU': 'productSku',
+  '數量': 'quantity',
+  '單價': 'unitPrice',
+};
+
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<ReturnItem[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnItem[]>([]);
@@ -71,6 +90,8 @@ export default function ReturnsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [isManualSubmitting, setIsManualSubmitting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [manualForm, setManualForm] = useState({
     orderNumber: '',
     channelSource: 'official',
@@ -221,6 +242,230 @@ export default function ReturnsPage() {
     setIsManualSubmitting(false);
   }
 
+  function normalizeChannelSource(value: string): string {
+    const v = value.trim();
+    if (!v) return 'official';
+
+    const lower = v.toLowerCase();
+    if (['official', 'shopee', 'shopee_mall', 'other'].includes(lower)) return lower;
+
+    const byLabel = CHANNEL_LIST.find((ch) => ch.label === v);
+    if (byLabel) return byLabel.key;
+
+    if (v.includes('官')) return 'official';
+    if (v.includes('蝦皮') || lower.includes('shopee')) {
+      return v.includes('商城') ? 'shopee_mall' : 'shopee';
+    }
+    if (v.includes('商城')) return 'shopee_mall';
+
+    return 'other';
+  }
+
+  function normalizeReasonCategory(value: string): string | undefined {
+    const v = value.trim();
+    if (!v) return undefined;
+
+    const direct = Object.values(RETURN_REASONS).find((r) => r.key === v);
+    if (direct) return direct.key;
+
+    const byLabel = Object.values(RETURN_REASONS).find((r) => r.label === v);
+    if (byLabel) return byLabel.key;
+
+    return v; // allow importing custom reason keys
+  }
+
+  function cellValueToString(val: unknown): string {
+    if (val === undefined || val === null) return '';
+    if (val instanceof Date) return val.toISOString().split('T')[0];
+    if (typeof val === 'object') {
+      const obj = val as { text?: unknown; richText?: Array<{ text?: unknown }>; result?: unknown };
+      if (typeof obj.text === 'string') return obj.text.trim();
+      if (Array.isArray(obj.richText)) {
+        return obj.richText.map((r) => String(r.text ?? '')).join('').trim();
+      }
+      if (obj.result !== undefined && obj.result !== null) return String(obj.result).trim();
+    }
+    return String(val).trim();
+  }
+
+  function parseNumber(val: unknown): number | undefined {
+    if (val === undefined || val === null || val === '') return undefined;
+    if (typeof val === 'number') return isNaN(val) ? undefined : val;
+    const cleaned = cellValueToString(val).replace(/[^0-9.-]/g, '');
+    if (!cleaned) return undefined;
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? undefined : num;
+  }
+
+  function parseInteger(val: unknown, defaultVal: number = 1): number {
+    const num = parseNumber(val);
+    if (num === undefined) return defaultVal;
+    const intVal = Math.trunc(num);
+    return intVal > 0 ? intVal : defaultVal;
+  }
+
+  async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet || worksheet.rowCount < 2) {
+        toast.error('Excel 檔案沒有資料');
+        return;
+      }
+
+      const headerRow = worksheet.getRow(1);
+      const headers: unknown[] = [];
+      headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        headers[colNumber - 1] = cell.value;
+      });
+
+      const columnIndices: Record<string, number> = {};
+      headers.forEach((header, index) => {
+        const cleanHeader = header?.toString().trim();
+        if (!cleanHeader) return;
+        const key = RETURN_IMPORT_COLUMN_MAPPINGS[cleanHeader];
+        if (!key) return;
+        if (columnIndices[key] === undefined) {
+          columnIndices[key] = index;
+        }
+      });
+
+      if (columnIndices.orderNumber === undefined || columnIndices.productName === undefined) {
+        toast.error('匯入失敗：找不到必要欄位（訂單編號、商品名稱）');
+        return;
+      }
+
+      type ImportGroup = {
+        orderNumber: string;
+        channelSource: string;
+        customerName?: string;
+        customerPhone?: string;
+        reasonCategory?: string;
+        reasonDetail?: string;
+        refundAmount?: number;
+        items: { productName: string; productSku?: string; quantity: number; unitPrice?: number }[];
+      };
+
+      const groups = new Map<string, ImportGroup>();
+
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return;
+
+        const rowValues: unknown[] = [];
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          rowValues[colNumber - 1] = cell.value;
+        });
+
+        const getRaw = (key: string): unknown => {
+          const idx = columnIndices[key];
+          if (idx === undefined) return undefined;
+          return rowValues[idx];
+        };
+
+        const getText = (key: string): string => cellValueToString(getRaw(key));
+
+        const orderNumber = getText('orderNumber');
+        const productName = getText('productName');
+        if (!orderNumber || !productName) return;
+
+        const channelSource = normalizeChannelSource(getText('channelSource'));
+        const customerName = getText('customerName') || undefined;
+        const customerPhone = getText('customerPhone') || undefined;
+        const reasonCategory = normalizeReasonCategory(getText('reasonCategory') || '');
+        const reasonDetail = getText('reasonDetail') || undefined;
+        const refundAmount = parseNumber(getRaw('refundAmount'));
+
+        const productSku = getText('productSku') || undefined;
+        const quantity = parseInteger(getRaw('quantity'), 1);
+        const unitPrice = parseNumber(getRaw('unitPrice'));
+
+        const groupKey = [
+          orderNumber,
+          customerPhone || '',
+          channelSource,
+          reasonCategory || '',
+          reasonDetail || '',
+          refundAmount ?? '',
+        ].join('||');
+
+        const group = groups.get(groupKey) || {
+          orderNumber,
+          channelSource,
+          customerName,
+          customerPhone,
+          reasonCategory,
+          reasonDetail,
+          refundAmount,
+          items: [],
+        };
+
+        group.items.push({
+          productName,
+          productSku,
+          quantity,
+          unitPrice,
+        });
+
+        groups.set(groupKey, group);
+      });
+
+      const requests = Array.from(groups.values());
+      if (requests.length === 0) {
+        toast.error('Excel 沒有可匯入的資料');
+        return;
+      }
+
+      let importedCount = 0;
+      const failed: Array<{ orderNumber: string; error: string }> = [];
+
+      for (const req of requests) {
+        const result = await createManualReturnRequest({
+          orderNumber: req.orderNumber,
+          channelSource: req.channelSource,
+          customerName: req.customerName,
+          customerPhone: req.customerPhone,
+          reasonCategory: req.reasonCategory,
+          reasonDetail: req.reasonDetail,
+          refundAmount: req.refundAmount,
+          items: req.items,
+        });
+
+        if (result.success) {
+          importedCount++;
+        } else {
+          failed.push({ orderNumber: req.orderNumber, error: result.error || '建立失敗' });
+        }
+      }
+
+      if (importedCount > 0) {
+        toast.success(`已匯入 ${importedCount} 筆退貨單${failed.length > 0 ? `，失敗 ${failed.length} 筆` : ''}`);
+        fetchReturns();
+      } else {
+        toast.error(`匯入失敗（共 ${failed.length} 筆）`);
+      }
+
+      if (failed.length > 0) {
+        console.warn('Return import failures:', failed);
+        toast.error(`部分失敗：${failed.slice(0, 3).map((f) => f.orderNumber).join(', ')}${failed.length > 3 ? ' ...' : ''}`);
+      }
+    } catch (error) {
+      console.error('Return import error:', error);
+      toast.error('匯入失敗，請確認檔案格式');
+    } finally {
+      setIsImporting(false);
+      if (importFileRef.current) importFileRef.current.value = '';
+    }
+  }
+
   async function handleExport() {
     const ExcelJS = (await import('exceljs')).default;
 
@@ -274,9 +519,24 @@ export default function ReturnsPage() {
           <p className="text-muted-foreground">管理所有退貨申請</p>
         </div>
         <div className="flex gap-2">
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleImportFile}
+            className="hidden"
+          />
           <Button onClick={() => setManualDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             手動新增
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => importFileRef.current?.click()}
+            disabled={isImporting}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {isImporting ? '匯入中...' : '匯入'}
           </Button>
           <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
