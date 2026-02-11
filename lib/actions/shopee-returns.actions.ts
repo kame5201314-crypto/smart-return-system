@@ -241,7 +241,15 @@ export async function importShopeeReturns(
  */
 export async function updateShopeeReturnStatus(
   id: string,
-  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; note?: string; tracking_number?: string; processed_at?: string | null }
+  updates: {
+    is_processed?: boolean;
+    is_printed?: boolean;
+    is_scanned?: boolean;
+    note?: string;
+    tracking_number?: string;
+    processed_at?: string | null;
+    scanned_at?: string | null;
+  }
 ): Promise<ApiResponse<void>> {
   try {
     const supabase = createUntypedAdminClient();

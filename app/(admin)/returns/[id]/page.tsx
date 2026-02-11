@@ -343,6 +343,12 @@ export default function ReturnDetailPage() {
   const refundType = Object.values(REFUND_TYPES).find(
     (t) => t.key === returnData.refund_type
   );
+  const handledAt =
+    returnData.closed_at ||
+    returnData.inspected_at ||
+    returnData.received_at ||
+    returnData.approved_at ||
+    null;
 
   return (
     <div className="space-y-6">
@@ -397,6 +403,12 @@ export default function ReturnDetailPage() {
           <CardTitle className="text-lg">處理進度</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            處理日期：
+            {handledAt
+              ? format(new Date(handledAt), 'yyyy/MM/dd HH:mm', { locale: zhTW })
+              : '尚未處理'}
+          </p>
           <ProgressTracker currentStatus={returnData.status} />
         </CardContent>
       </Card>
