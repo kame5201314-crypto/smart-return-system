@@ -343,12 +343,6 @@ export default function ReturnDetailPage() {
   const refundType = Object.values(REFUND_TYPES).find(
     (t) => t.key === returnData.refund_type
   );
-  const handledAt =
-    returnData.closed_at ||
-    returnData.inspected_at ||
-    returnData.received_at ||
-    returnData.approved_at ||
-    null;
 
   return (
     <div className="space-y-6">
@@ -362,10 +356,6 @@ export default function ReturnDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{returnData.request_number}</h1>
-          <p className="text-muted-foreground">
-            申請時間：
-            {format(new Date(returnData.created_at), 'yyyy/MM/dd HH:mm', { locale: zhTW })}
-          </p>
         </div>
         <div className="flex items-center gap-3">
           <Badge className={RETURN_STATUS_COLORS[returnData.status]} variant="outline">
@@ -403,12 +393,6 @@ export default function ReturnDetailPage() {
           <CardTitle className="text-lg">處理進度</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            處理日期：
-            {handledAt
-              ? format(new Date(handledAt), 'yyyy/MM/dd HH:mm', { locale: zhTW })
-              : '尚未處理'}
-          </p>
           <ProgressTracker
             currentStatus={returnData.status}
             stepTimes={{
