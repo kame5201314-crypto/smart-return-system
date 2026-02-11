@@ -401,26 +401,105 @@ export async function submitInspection(
     const validated = inspectionSchema.parse(input);
     const adminClient = createAdminClient();
 
-    // Prepare inspection data with defaults
-    const inspectionData = {
-      return_request_id: validated.returnRequestId,
-      inspected_by: userId,
-      result: validated.result,
-      condition_grade: validated.conditionGrade || 'B', // Default to B if not provided
-      checklist: validated.checklist || null,
-      inspector_comment: validated.inspectorComment || validated.notes || '',
-      inspected_at: new Date().toISOString(),
-    };
+    const resultVariants = validated.result === 'passed'
+      ? ['passed', 'pass']
+      : validated.result === 'failed'
+        ? ['failed', 'fail']
+        : [validated.result];
+    const payloadCandidates: Record<string, unknown>[] = [];
 
-    // Insert inspection record
-    const { error: inspectError } = await adminClient
-      .from('inspection_records')
-      .insert(inspectionData as never);
+    // Build payload variants to handle schema/value differences across deployments.
+    for (const resultValue of resultVariants) {
+      const baseInspectionData: Record<string, unknown> = {
+        return_request_id: validated.returnRequestId,
+        result: resultValue,
+        condition_grade: validated.conditionGrade || 'B',
+        inspector_comment: validated.inspectorComment || validated.notes || '',
+        inspected_at: new Date().toISOString(),
+      };
 
-    if (inspectError) {
+      for (const inspectorColumn of ['inspected_by', 'inspector_id']) {
+        const payloadWithInspector = {
+          ...baseInspectionData,
+          [inspectorColumn]: userId,
+        };
+        payloadCandidates.push(payloadWithInspector);
+      }
+    }
+
+    const uniquePayloads = payloadCandidates.filter((payload, index, arr) => (
+      arr.findIndex((item) => JSON.stringify(item) === JSON.stringify(payload)) === index
+    ));
+
+    let inspectError: {
+      message?: string;
+      code?: string;
+      details?: string;
+      hint?: string;
+    } | null = null;
+    let inserted = false;
+
+    for (const payload of uniquePayloads) {
+      const { error } = await adminClient
+        .from('inspection_records')
+        .insert(payload as never);
+
+      if (!error) {
+        inserted = true;
+        inspectError = null;
+        break;
+      }
+
+      inspectError = error;
+      const lowerMessage = (error.message || '').toLowerCase();
+      const isSchemaMismatch =
+        lowerMessage.includes('column') ||
+        lowerMessage.includes('does not exist') ||
+        lowerMessage.includes('schema cache');
+      const isInspectorForeignKeyError =
+        lowerMessage.includes('foreign key') &&
+        (lowerMessage.includes('inspected_by') || lowerMessage.includes('inspector_id'));
+
+      // Some environments may not have the admin UUID in users table yet.
+      if (isInspectorForeignKeyError) {
+        const payloadWithoutInspector: Record<string, unknown> = { ...payload };
+        if ('inspected_by' in payloadWithoutInspector) {
+          payloadWithoutInspector.inspected_by = null;
+        }
+        if ('inspector_id' in payloadWithoutInspector) {
+          payloadWithoutInspector.inspector_id = null;
+        }
+
+        const { error: fallbackError } = await adminClient
+          .from('inspection_records')
+          .insert(payloadWithoutInspector as never);
+
+        if (!fallbackError) {
+          inserted = true;
+          inspectError = null;
+          console.warn('Inserted inspection record without inspector id due FK mismatch');
+          break;
+        }
+
+        inspectError = fallbackError;
+      }
+
+      if (!isSchemaMismatch && !isInspectorForeignKeyError) {
+        break;
+      }
+    }
+
+    if (!inserted || inspectError) {
       console.error('Insert inspection error:', inspectError);
-      console.error('Inspection data:', inspectionData);
-      return { success: false, error: `驗貨記錄建立失敗: ${inspectError.message}` };
+      console.error('Inspection payloads tried:', uniquePayloads);
+      const inspectionErrorMessage = inspectError?.message || ERROR_MESSAGES.GENERIC;
+      const inspectionErrorMeta = [inspectError?.code, inspectError?.details, inspectError?.hint]
+        .filter(Boolean)
+        .join(' | ');
+      const errorText = inspectionErrorMeta
+        ? `驗貨記錄建立失敗 [inspect-save-v2]: ${inspectionErrorMessage} (${inspectionErrorMeta})`
+        : `驗貨記錄建立失敗 [inspect-save-v2]: ${inspectionErrorMessage}`;
+      return { success: false, error: errorText };
     }
 
     // Update return request status
