@@ -2,10 +2,19 @@
 
 import { Check, AlertTriangle } from 'lucide-react';
 import { RETURN_STATUS } from '@/config/constants';
+import { format } from 'date-fns';
+import { zhTW } from 'date-fns/locale';
+
+interface ProgressStepTimes {
+  pendingInspection?: string | null;
+  completed?: string | null;
+  abnormal?: string | null;
+}
 
 interface ProgressTrackerProps {
   currentStatus: string;
   className?: string;
+  stepTimes?: ProgressStepTimes;
 }
 
 // Simplified 3-step progress: 待審核 → 已結案, with 驗收異常 as separate state
@@ -15,7 +24,14 @@ const SIMPLIFIED_STEPS = [
   { key: 'abnormal', label: '驗收異常' },
 ];
 
-export function ProgressTracker({ currentStatus, className = '' }: ProgressTrackerProps) {
+function formatStepTime(value?: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return format(date, 'yyyy/MM/dd HH:mm', { locale: zhTW });
+}
+
+export function ProgressTracker({ currentStatus, className = '', stepTimes }: ProgressTrackerProps) {
   const isAbnormal = currentStatus === RETURN_STATUS.ABNORMAL_DISPUTED;
   const isCompleted = currentStatus === RETURN_STATUS.COMPLETED;
 
@@ -72,6 +88,13 @@ export function ProgressTracker({ currentStatus, className = '' }: ProgressTrack
             }
 
             const isAbnormalStep = index === 2;
+            const rawStepTime =
+              index === 0
+                ? stepTimes?.pendingInspection
+                : index === 1
+                  ? stepTimes?.completed
+                  : stepTimes?.abnormal;
+            const stepTime = formatStepTime(rawStepTime);
 
             return (
               <div
@@ -79,6 +102,12 @@ export function ProgressTracker({ currentStatus, className = '' }: ProgressTrack
                 className="flex flex-col items-center"
                 style={{ width: '33.33%' }}
               >
+                {stepTime && (
+                  <p className="mb-2 text-[11px] leading-none text-muted-foreground">
+                    {stepTime}
+                  </p>
+                )}
+
                 {/* Circle */}
                 <div
                   className={`

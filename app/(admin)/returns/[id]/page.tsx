@@ -409,7 +409,13 @@ export default function ReturnDetailPage() {
               ? format(new Date(handledAt), 'yyyy/MM/dd HH:mm', { locale: zhTW })
               : '尚未處理'}
           </p>
-          <ProgressTracker currentStatus={returnData.status} />
+          <ProgressTracker
+            currentStatus={returnData.status}
+            stepTimes={{
+              pendingInspection: returnData.created_at,
+              completed: returnData.closed_at,
+            }}
+          />
         </CardContent>
       </Card>
 

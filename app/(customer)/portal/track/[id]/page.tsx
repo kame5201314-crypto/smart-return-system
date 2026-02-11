@@ -106,7 +106,13 @@ export default function TrackReturnPage() {
           <CardTitle className="text-lg">進度追蹤</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProgressTracker currentStatus={returnRequest.status} />
+          <ProgressTracker
+            currentStatus={returnRequest.status}
+            stepTimes={{
+              pendingInspection: returnRequest.applied_at,
+              completed: returnRequest.closed_at,
+            }}
+          />
         </CardContent>
       </Card>
 
