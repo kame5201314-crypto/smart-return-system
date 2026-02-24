@@ -76,3 +76,9 @@ next-env.d.ts
 health-check-report.json
 
 .env*.local
+
+# Local Vercel env pulls (contain secrets)
+.vercel.*.env
+# Local secret temp files
+.tmp_*
+

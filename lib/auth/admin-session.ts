@@ -1,138 +1,132 @@
-const SESSION_VERSION = 1;
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
 export const ADMIN_SESSION_COOKIE = 'admin_session';
+export const ADMIN_UUID = '00000000-0000-0000-0000-000000000001';
 export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 interface AdminSessionPayload {
-  sub: 'admin';
+  sub: string;
+  role: 'admin';
   iat: number;
   exp: number;
-  v: number;
+  nonce: string;
 }
 
-function getSessionSecret(): string | null {
-  const secret = process.env.ADMIN_SESSION_SECRET;
-  if (!secret || secret.length < 32) {
-    return null;
+function getSessionSecret(): string {
+  const secret = (process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!secret) {
+    throw new Error('Missing admin session secret');
   }
   return secret;
 }
 
-function bytesToBase64Url(bytes: Uint8Array): string {
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(bytes)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
-  }
-
+function toBase64Url(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
   }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+
+  const base64 = btoa(binary);
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function base64UrlToBytes(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-
-  if (typeof Buffer !== 'undefined') {
-    return new Uint8Array(Buffer.from(padded, 'base64'));
-  }
-
-  const binary = atob(padded);
+function fromBase64Url(base64url: string): Uint8Array {
+  const padded = base64url + '='.repeat((4 - (base64url.length % 4)) % 4);
+  const base64 = padded.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
+
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
+
   return bytes;
 }
 
-async function importSigningKey(secret: string) {
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function encodePayload(payload: AdminSessionPayload): string {
+  const payloadBytes = textEncoder.encode(JSON.stringify(payload));
+  return toBase64Url(payloadBytes);
+}
+
+function decodePayload(value: string): AdminSessionPayload | null {
+  try {
+    const decoded = textDecoder.decode(fromBase64Url(value));
+    return JSON.parse(decoded) as AdminSessionPayload;
+  } catch {
+    return null;
+  }
+}
+
+async function getHmacKey(): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(secret),
+    textEncoder.encode(getSessionSecret()),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign', 'verify']
+    ['sign']
   );
 }
 
-export async function createAdminSessionToken(): Promise<string | null> {
-  const secret = getSessionSecret();
-  if (!secret) {
-    return null;
-  }
+async function signPayload(encodedPayload: string): Promise<string> {
+  const key = await getHmacKey();
+  const signature = await crypto.subtle.sign('HMAC', key, textEncoder.encode(encodedPayload));
+  return toBase64Url(new Uint8Array(signature));
+}
 
+export async function createAdminSessionToken(subject = 'admin'): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const payload: AdminSessionPayload = {
-    sub: 'admin',
+    sub: subject,
+    role: 'admin',
     iat: now,
     exp: now + ADMIN_SESSION_MAX_AGE_SECONDS,
-    v: SESSION_VERSION,
+    nonce: crypto.randomUUID(),
   };
 
-  const payloadB64 = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
-
-  let signatureB64: string;
-  try {
-    const key = await importSigningKey(secret);
-    const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payloadB64));
-    signatureB64 = bytesToBase64Url(new Uint8Array(signature));
-  } catch {
-    return null;
-  }
-
-  return `${payloadB64}.${signatureB64}`;
+  const encodedPayload = encodePayload(payload);
+  const signature = await signPayload(encodedPayload);
+  return `${encodedPayload}.${signature}`;
 }
 
-export async function verifyAdminSessionToken(token?: string | null): Promise<boolean> {
-  if (!token) {
-    return false;
-  }
-
-  const secret = getSessionSecret();
-  if (!secret) {
-    return false;
-  }
+export async function verifyAdminSessionToken(
+  token: string | undefined | null
+): Promise<AdminSessionPayload | null> {
+  if (!token) return null;
 
   const parts = token.split('.');
-  if (parts.length !== 2) {
-    return false;
-  }
+  if (parts.length !== 2) return null;
 
-  const [payloadB64, signatureB64] = parts;
-  if (!payloadB64 || !signatureB64) {
-    return false;
-  }
+  const [encodedPayload, signature] = parts;
+  if (!encodedPayload || !signature) return null;
 
-  let payload: AdminSessionPayload;
-  let signatureBytes: Uint8Array;
+  const expectedSignature = await signPayload(encodedPayload);
+  if (!safeEqual(signature, expectedSignature)) return null;
 
-  try {
-    payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64))) as AdminSessionPayload;
-    signatureBytes = base64UrlToBytes(signatureB64);
-  } catch {
-    return false;
-  }
-
-  if (payload.sub !== 'admin' || payload.v !== SESSION_VERSION) {
-    return false;
-  }
+  const payload = decodePayload(encodedPayload);
+  if (!payload) return null;
 
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp <= now || payload.iat > now + 60) {
-    return false;
-  }
+  if (payload.role !== 'admin') return null;
+  if (payload.exp <= now) return null;
+  if (!payload.sub || !payload.nonce) return null;
 
-  try {
-    const key = await importSigningKey(secret);
-    // Create a fresh view backed by ArrayBuffer to satisfy stricter TS BufferSource typing.
-    const signatureForVerify = new Uint8Array(signatureBytes.byteLength);
-    signatureForVerify.set(signatureBytes);
-    return await crypto.subtle.verify('HMAC', key, signatureForVerify, new TextEncoder().encode(payloadB64));
-  } catch {
-    return false;
-  }
+  return payload;
 }
+
+export const ADMIN_SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
+  path: '/',
+};
