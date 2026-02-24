@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 
 interface AIAnalysisResult {
   id?: string;
@@ -129,7 +128,6 @@ export default function AIReportPage() {
   async function handleAnalyze() {
     try {
       setLoading(true);
-      setResult(null);
 
       const response = await fetch('/api/v1/ai/analyze', {
         method: 'POST',
@@ -141,8 +139,12 @@ export default function AIReportPage() {
 
       if (data.success) {
         setResult(data.data);
-        setHasExistingReport(true);
-        toast.success('分析完成，報告已儲存');
+        if (data.saved !== false) {
+          setHasExistingReport(true);
+          toast.success('分析完成，報告已儲存');
+        } else {
+          toast.warning(data.warning || '分析完成，但報告儲存失敗');
+        }
       } else {
         toast.error(data.error || '分析失敗');
       }

@@ -57,6 +57,57 @@ interface PickupRecordData {
   created_at: string;
 }
 
+interface LegacyStatistics {
+  totalReturns?: unknown;
+  total_returns?: unknown;
+  totalRefundAmount?: unknown;
+  total_refund_amount?: unknown;
+  storeCreditRate?: unknown;
+  store_credit_rate?: unknown;
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
+  const statistics =
+    report.statistics && typeof report.statistics === 'object'
+      ? (report.statistics as LegacyStatistics)
+      : null;
+
+  const fallbackTotalReturns = toNumberOrNull(
+    statistics?.totalReturns ?? statistics?.total_returns
+  );
+  const fallbackTotalRefundAmount = toNumberOrNull(
+    statistics?.totalRefundAmount ?? statistics?.total_refund_amount
+  );
+  const fallbackStoreCreditRate = toNumberOrNull(
+    statistics?.storeCreditRate ?? statistics?.store_credit_rate
+  );
+
+  return {
+    ...report,
+    total_returns:
+      toNumberOrNull(report.total_returns) ?? fallbackTotalReturns,
+    total_refund_amount:
+      toNumberOrNull(report.total_refund_amount) ?? fallbackTotalRefundAmount,
+    store_credit_rate:
+      toNumberOrNull(report.store_credit_rate) ?? fallbackStoreCreditRate,
+  };
+}
+
 // First, list available models to find one that works
 async function listAvailableModels(apiKey: string): Promise<string[]> {
   const response = await fetch(
@@ -407,21 +458,17 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
       trend_analysis: { summary: analysisResult.summary },
       raw_prompt: prompt,
       raw_response: aiResponse,
-      statistics: {
-        totalReturns,
-        totalRefundAmount,
-        storeCreditRate,
-        returnRequestsCount: returns.length,
-        shopeeReturnsCount: shopeeReturns.length,
-        pickupRecordsCount: pickupRecords.length,
-      },
+      total_returns: totalReturns,
+      total_refund_amount: totalRefundAmount,
+      store_credit_rate: storeCreditRate,
     };
-    const { data: report, error: saveError } = await supabase
+    const { data: report, error: saveError } = await untypedSupabase
       .from('ai_analysis_reports')
-      .insert(reportData as never)
-      .select()
+      .insert(reportData)
+      .select('id')
       .single() as { data: { id: string } | null; error: Error | null };
 
+    const saved = !saveError;
     if (saveError) {
       console.error('Save report error:', saveError);
       // Still return the analysis even if save fails
@@ -429,6 +476,8 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
 
     return NextResponse.json({
       success: true,
+      saved,
+      warning: saved ? undefined : '分析完成，但報告儲存失敗',
       data: {
         id: report?.id,
         period,
@@ -497,7 +546,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, data });
+    const normalizedData = (data || []).map((report) =>
+      normalizeLegacyReportStatistics(report as unknown as Record<string, unknown>)
+    );
+
+    return NextResponse.json({ success: true, data: normalizedData });
   } catch (error) {
     console.error('Get reports error:', error);
     return NextResponse.json(
