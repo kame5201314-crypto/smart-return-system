@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import type { MouseEvent } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -156,6 +157,11 @@ export default function AIReportPage() {
     }
   }
 
+  function handleAnalyzeClick(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    void handleAnalyze();
+  }
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -197,7 +203,11 @@ export default function AIReportPage() {
               </Select>
             </div>
 
-            <Button onClick={handleAnalyze} disabled={loading || loadingExisting}>
+            <Button
+              type="button"
+              onClick={handleAnalyzeClick}
+              disabled={loading || loadingExisting}
+            >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
