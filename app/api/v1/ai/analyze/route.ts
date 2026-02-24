@@ -81,28 +81,63 @@ function toNumberOrNull(value: unknown): number | null {
   return null;
 }
 
-function isInPeriod(dateValue: string | null | undefined, period: string): boolean {
-  if (!dateValue) {
-    return false;
+function parseExcelDate(serial: number): Date | null {
+  if (!Number.isFinite(serial)) {
+    return null;
   }
 
-  const parsedDate = new Date(dateValue);
+  // Excel serial date (Windows): days since 1899-12-30
+  if (serial < 1 || serial > 100000) {
+    return null;
+  }
+
+  const epoch = Date.UTC(1899, 11, 30);
+  const ms = epoch + Math.floor(serial) * 24 * 60 * 60 * 1000;
+  return new Date(ms);
+}
+
+function toYearMonth(dateValue: string | null | undefined): string | null {
+  if (!dateValue) {
+    return null;
+  }
+
+  const raw = String(dateValue).trim();
+  if (!raw) {
+    return null;
+  }
+
+  // Numeric text can be an Excel serial date.
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const excelDate = parseExcelDate(Number(raw));
+    if (excelDate && !Number.isNaN(excelDate.getTime())) {
+      const year = excelDate.getUTCFullYear();
+      const month = String(excelDate.getUTCMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
+    }
+  }
+
+  const parsedDate = new Date(raw);
   if (!Number.isNaN(parsedDate.getTime())) {
     const year = parsedDate.getFullYear();
     const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}` === period;
+    return `${year}-${month}`;
   }
 
-  // Fallback for non-ISO text date values like "2026/2/5 ..."
-  const normalized = String(dateValue).replace(/\//g, '-');
-  const match = normalized.match(/^(\d{4})-(\d{1,2})/);
+  // Fallback for non-ISO date text:
+  // "2026/2/5", "2026-02-05", "2026年2月5日", etc.
+  const normalized = raw.replace(/\//g, '-');
+  const match = normalized.match(/(\d{4})\D+(\d{1,2})/);
   if (!match) {
-    return false;
+    return null;
   }
 
   const year = match[1];
   const month = match[2].padStart(2, '0');
-  return `${year}-${month}` === period;
+  return `${year}-${month}`;
+}
+
+function isInPeriod(dateValue: string | null | undefined, period: string): boolean {
+  return toYearMonth(dateValue) === period;
 }
 
 function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
