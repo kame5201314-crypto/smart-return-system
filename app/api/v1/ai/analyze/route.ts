@@ -81,6 +81,30 @@ function toNumberOrNull(value: unknown): number | null {
   return null;
 }
 
+function isInPeriod(dateValue: string | null | undefined, period: string): boolean {
+  if (!dateValue) {
+    return false;
+  }
+
+  const parsedDate = new Date(dateValue);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}` === period;
+  }
+
+  // Fallback for non-ISO text date values like "2026/2/5 ..."
+  const normalized = String(dateValue).replace(/\//g, '-');
+  const match = normalized.match(/^(\d{4})-(\d{1,2})/);
+  if (!match) {
+    return false;
+  }
+
+  const year = match[1];
+  const month = match[2].padStart(2, '0');
+  return `${year}-${month}` === period;
+}
+
 function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
   const statistics =
     report.statistics && typeof report.statistics === 'object'
@@ -250,17 +274,17 @@ export async function POST(request: NextRequest) {
     }
 
     // ============ 2. Fetch shopee_returns ============
-    // Keep the same filtering rule as Analytics page:
-    // use order_date (not created_at/imported_at) for month-based statistics.
+    // Keep the same filtering behavior as Analytics page:
+    // filter by order_date using JS date parsing to avoid DB type/format mismatch.
     let shopeeReturns: ShopeeReturnData[] = [];
     const shopeeQuery = await untypedSupabase
       .from('shopee_returns')
-      .select('*')
-      .gte('order_date', startDate)
-      .lt('order_date', endDate);
+      .select('*');
 
     if (!shopeeQuery.error && shopeeQuery.data) {
-      shopeeReturns = shopeeQuery.data as ShopeeReturnData[];
+      shopeeReturns = (shopeeQuery.data as ShopeeReturnData[]).filter((row) =>
+        isInPeriod(row.order_date, period)
+      );
     } else if (shopeeQuery.error) {
       console.warn('Shopee returns query error:', shopeeQuery.error.message);
     }
