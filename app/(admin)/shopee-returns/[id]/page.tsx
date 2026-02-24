@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 
 import {
   getShopeeReturnById,
@@ -43,6 +44,8 @@ export default function ShopeeReturnDetailPage() {
   const [record, setRecord] = useState<ShopeeReturn | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'processed' | 'printed' | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [updatingNote, setUpdatingNote] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +59,7 @@ export default function ShopeeReturnDetailPage() {
 
       if (result.success && result.data) {
         setRecord(result.data);
+        setNoteDraft(result.data.note || '');
       } else {
         toast.error(result.error || '載入失敗');
       }
@@ -91,6 +95,25 @@ export default function ShopeeReturnDetailPage() {
     }
 
     setUpdatingStatus(null);
+  }
+
+  async function saveNote() {
+    if (!record || updatingNote) return;
+    const currentNote = record.note || '';
+    if (noteDraft === currentNote) return;
+
+    setUpdatingNote(true);
+    const result = await updateShopeeReturnStatus(record.id, { note: noteDraft });
+
+    if (result.success) {
+      setRecord((prev) => (prev ? { ...prev, note: noteDraft } : prev));
+      toast.success('備註已更新');
+    } else {
+      setNoteDraft(currentNote);
+      toast.error(result.error || '備註更新失敗');
+    }
+
+    setUpdatingNote(false);
   }
 
   return (
@@ -259,6 +282,17 @@ export default function ShopeeReturnDetailPage() {
               <div className="md:col-span-2">
                 <div className="text-xs text-muted-foreground">買家備註</div>
                 <div className="text-sm whitespace-pre-wrap break-words">{record.buyer_note || '-'}</div>
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-xs text-muted-foreground">內部備註（與列表同步）</div>
+                <Textarea
+                  value={noteDraft}
+                  placeholder="輸入備註..."
+                  className="mt-1 min-h-[84px] text-sm"
+                  disabled={updatingNote}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  onBlur={saveNote}
+                />
               </div>
             </div>
           )}

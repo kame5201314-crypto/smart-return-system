@@ -516,40 +516,67 @@ export default function ShopeeReturnsPage() {
     }
   }
 
+  const syncNote = useCallback(async (id: string, note: string) => {
+    const result = await updateShopeeReturnStatus(id, { note });
+    if (result.success) {
+      setReturns((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, note } : r
+        )
+      );
+      setLocalNotes((prev) => {
+        const newNotes = { ...prev };
+        delete newNotes[id];
+        return newNotes;
+      });
+    } else {
+      toast.error(result.error || '備註更新失敗');
+    }
+  }, []);
+
   // Debounced note update to avoid excessive API calls
   const debouncedUpdateNote = useCallback((id: string, note: string) => {
-    // Update local state immediately for responsive UI
     setLocalNotes((prev) => ({ ...prev, [id]: note }));
 
-    // Clear existing timer for this ID
     if (noteTimersRef.current[id]) {
       clearTimeout(noteTimersRef.current[id]);
     }
 
-    // Set new timer for debounced API call (500ms delay)
-    noteTimersRef.current[id] = setTimeout(async () => {
-      const result = await updateShopeeReturnStatus(id, { note });
-      if (result.success) {
-        setReturns((prev) =>
-          prev.map((r) =>
-            r.id === id ? { ...r, note } : r
-          )
-        );
-        // Clear local note since it's now synced
-        setLocalNotes((prev) => {
-          const newNotes = { ...prev };
-          delete newNotes[id];
-          return newNotes;
-        });
-      }
+    noteTimersRef.current[id] = setTimeout(() => {
       delete noteTimersRef.current[id];
+      void syncNote(id, note);
     }, 500);
-  }, []);
+  }, [syncNote]);
+
+  const flushNoteUpdate = useCallback((id: string, note: string) => {
+    if (noteTimersRef.current[id]) {
+      clearTimeout(noteTimersRef.current[id]);
+      delete noteTimersRef.current[id];
+    }
+    const currentNote = returns.find((r) => r.id === id)?.note || '';
+    if (note === currentNote) {
+      setLocalNotes((prev) => {
+        if (prev[id] === undefined) return prev;
+        const newNotes = { ...prev };
+        delete newNotes[id];
+        return newNotes;
+      });
+      return;
+    }
+    void syncNote(id, note);
+  }, [returns, syncNote]);
 
   // Get note value (prefer local state for responsiveness)
   const getNoteValue = useCallback((record: ShopeeReturn) => {
     return localNotes[record.id] !== undefined ? localNotes[record.id] : (record.note || '');
   }, [localNotes]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(noteTimersRef.current).forEach((timer) => clearTimeout(timer));
+      noteTimersRef.current = {};
+    };
+  }, []);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedReturns.length) {
@@ -1138,23 +1165,19 @@ export default function ShopeeReturnsPage() {
                         <div className="relative group/note">
                           <Input
                             placeholder="輸入備註..."
-                            defaultValue={record.note || ''}
+                            value={getNoteValue(record)}
                             className="text-xs h-8 min-w-[120px]"
-                            onBlur={(e) => {
-                              const newNote = e.target.value;
-                              if (newNote !== (record.note || '')) {
-                                updateShopeeReturnStatus(record.id, { note: newNote });
-                              }
-                            }}
+                            onChange={(e) => debouncedUpdateNote(record.id, e.target.value)}
+                            onBlur={(e) => flushNoteUpdate(record.id, e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.currentTarget.blur();
                               }
                             }}
                           />
-                          {record.note && record.note.length > 10 && (
+                          {getNoteValue(record) && getNoteValue(record).length > 10 && (
                             <div className="invisible group-hover/note:visible absolute z-50 bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-[300px] whitespace-pre-wrap break-words pointer-events-none">
-                              {record.note}
+                              {getNoteValue(record)}
                               <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
