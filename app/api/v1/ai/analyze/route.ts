@@ -96,6 +96,23 @@ function parseExcelDate(serial: number): Date | null {
   return new Date(ms);
 }
 
+function extractYearMonthFromRaw(raw: string): string | null {
+  // Covers formats like:
+  // 2026-02-05, 2026/2/5, 2026年2月5日, 2026-02-05T00:00:00+08:00
+  const match = raw.match(/(\d{4})\D+(\d{1,2})/);
+  if (!match) {
+    return null;
+  }
+
+  const year = match[1];
+  const monthNum = Number(match[2]);
+  if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) {
+    return null;
+  }
+
+  return `${year}-${String(monthNum).padStart(2, '0')}`;
+}
+
 function toYearMonth(dateValue: string | null | undefined): string | null {
   if (!dateValue) {
     return null;
@@ -116,24 +133,21 @@ function toYearMonth(dateValue: string | null | undefined): string | null {
     }
   }
 
+  // Prefer raw text extraction first to avoid timezone shifting issues.
+  const rawYearMonth = extractYearMonthFromRaw(raw);
+  if (rawYearMonth) {
+    return rawYearMonth;
+  }
+
   const parsedDate = new Date(raw);
   if (!Number.isNaN(parsedDate.getTime())) {
-    const year = parsedDate.getFullYear();
-    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    // Use UTC to keep server timezone from changing month boundaries.
+    const year = parsedDate.getUTCFullYear();
+    const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
     return `${year}-${month}`;
   }
 
-  // Fallback for non-ISO date text:
-  // "2026/2/5", "2026-02-05", "2026年2月5日", etc.
-  const normalized = raw.replace(/\//g, '-');
-  const match = normalized.match(/(\d{4})\D+(\d{1,2})/);
-  if (!match) {
-    return null;
-  }
-
-  const year = match[1];
-  const month = match[2].padStart(2, '0');
-  return `${year}-${month}`;
+  return null;
 }
 
 function isInPeriod(dateValue: string | null | undefined, period: string): boolean {
