@@ -132,6 +132,15 @@ interface ReturnDetail {
   }[];
 }
 
+type ItemRefundOption = 'full' | 'partial' | 'exchange' | 'round_trip';
+
+const ITEM_REFUND_OPTIONS: Array<{ key: ItemRefundOption; label: string }> = [
+  { key: 'full', label: '全額退款' },
+  { key: 'partial', label: '部分退款' },
+  { key: 'exchange', label: '換貨' },
+  { key: 'round_trip', label: '來回件' },
+];
+
 export default function ReturnDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -148,7 +157,7 @@ export default function ReturnDetailPage() {
   const [editRefundAmount, setEditRefundAmount] = useState('');
   const [editAdminNote, setEditAdminNote] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
-  const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, 'full' | 'partial'>>({});
+  const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, ItemRefundOption>>({});
   const [invoiceStatus, setInvoiceStatus] = useState('未作廢');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -470,29 +479,24 @@ export default function ReturnDetailPage() {
                         </div>
                         <div className="flex items-center gap-4 pt-2 border-t">
                           <span className="text-sm text-muted-foreground">退款方式：</span>
-                          <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={itemRefundTypes[item.id] === 'full' || (!itemRefundTypes[item.id])}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setItemRefundTypes(prev => ({ ...prev, [item.id]: 'full' }));
+                          <div className="flex items-center gap-4 flex-wrap">
+                            {ITEM_REFUND_OPTIONS.map((option) => (
+                              <label key={option.key} className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={
+                                    itemRefundTypes[item.id]
+                                      ? itemRefundTypes[item.id] === option.key
+                                      : option.key === 'full'
                                   }
-                                }}
-                              />
-                              <span className="text-sm">全額退款</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={itemRefundTypes[item.id] === 'partial'}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setItemRefundTypes(prev => ({ ...prev, [item.id]: 'partial' }));
-                                  }
-                                }}
-                              />
-                              <span className="text-sm">部分退款</span>
-                            </label>
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setItemRefundTypes((prev) => ({ ...prev, [item.id]: option.key }));
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm">{option.label}</span>
+                              </label>
+                            ))}
                           </div>
                         </div>
                       </div>
