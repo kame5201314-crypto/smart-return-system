@@ -181,6 +181,38 @@ function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
   };
 }
 
+function extractFirstJsonObject(text: string): string {
+  const cleaned = text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+
+  // Try direct parse first.
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    // continue
+  }
+
+  // Fallback: extract first balanced JSON object.
+  const start = cleaned.indexOf('{');
+  if (start === -1) {
+    throw new Error('No JSON object found in AI response');
+  }
+
+  let depth = 0;
+  for (let i = start; i < cleaned.length; i += 1) {
+    const char = cleaned[i];
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (depth === 0) {
+      const candidate = cleaned.slice(start, i + 1);
+      JSON.parse(candidate);
+      return candidate;
+    }
+  }
+
+  throw new Error('Incomplete JSON object in AI response');
+}
+
 // First, list available models to find one that works
 async function listAvailableModels(apiKey: string): Promise<string[]> {
   const response = await fetch(
@@ -491,13 +523,12 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
       );
     }
 
-    // Clean up response (remove markdown code blocks if present)
-    aiResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
     // Parse AI response
     let analysisResult;
     try {
-      analysisResult = JSON.parse(aiResponse);
+      const jsonText = extractFirstJsonObject(aiResponse);
+      analysisResult = JSON.parse(jsonText);
+      aiResponse = jsonText;
     } catch {
       console.error('Failed to parse AI response:', aiResponse);
       return NextResponse.json(
