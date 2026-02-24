@@ -250,12 +250,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ============ 2. Fetch shopee_returns ============
+    // Keep the same filtering rule as Analytics page:
+    // use order_date (not created_at/imported_at) for month-based statistics.
     let shopeeReturns: ShopeeReturnData[] = [];
     const shopeeQuery = await untypedSupabase
       .from('shopee_returns')
       .select('*')
-      .gte('created_at', startDate)
-      .lt('created_at', endDate);
+      .gte('order_date', startDate)
+      .lt('order_date', endDate);
 
     if (!shopeeQuery.error && shopeeQuery.data) {
       shopeeReturns = shopeeQuery.data as ShopeeReturnData[];
