@@ -129,6 +129,18 @@ node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-t
 
 注意：`--apply` 只會更新 `ai_analysis_reports.total_returns` 與 `ai_analysis_reports.total_refund_amount`，不會刪除任何原始資料。
 
+### 每日排程（Vercel Cron）
+
+- `/api/cron/backup`：每日 03:00（UTC+8）
+- `/api/cron/reconcile-ai-reports`：每日 04:00（UTC+8）
+
+需要環境變數：
+
+- `CRON_SECRET`：保護 cron API
+- `SCHEMA_DRIFT_ALERT_WEBHOOK_URL`：schema drift / 對帳異常告警
+- `RECONCILE_CRON_AUTO_FIX`：是否自動修正報告 totals（預設 `1`）
+- `RECONCILE_COMPARE_AMOUNT`：是否一起比對退款金額（預設 `1`）
+
 ## 資安注意事項
 
 - 所有 API Key 必須存放於 .env 檔案
