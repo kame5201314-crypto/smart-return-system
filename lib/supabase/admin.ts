@@ -7,8 +7,8 @@ import type { Database } from '@/types/database.types';
  * NEVER expose to client-side
  */
 export function createAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\n/g, '').trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/\\n/g, '').trim();
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('Missing Supabase admin credentials');
@@ -27,8 +27,8 @@ export function createAdminClient() {
  * Use this for shopee_returns and other dynamic tables
  */
 export function createUntypedAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\\n/g, '').trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/\\n/g, '').trim();
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('Missing Supabase admin credentials');

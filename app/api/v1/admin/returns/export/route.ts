@@ -21,6 +21,7 @@ interface ReturnExportData {
   return_shipping_method: string | null;
   tracking_number: string | null;
   refund_type: string;
+  refund_method?: string | null;
   refund_amount: number | null;
   applied_at: string;
   approved_at: string | null;
@@ -38,6 +39,70 @@ interface ReturnExportData {
     product_name: string;
     resolution_type?: string | null;
   }[];
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+  return '';
+}
+
+function isMissingColumnError(error: unknown, table: string, column: string): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  if (!message) return false;
+
+  return (
+    message.includes(`column ${table}.${column} does not exist`)
+    || message.includes(`column ${table}_1.${column} does not exist`)
+    || message.includes(`column ${table}_2.${column} does not exist`)
+  );
+}
+
+function normalizeResolutionTypeFromFallback(value: unknown): string {
+  if (typeof value !== 'string') {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+
+  const validKeys = new Set<string>(Object.values(RETURN_ITEM_RESOLUTION_TYPES).map((item) => item.key));
+  if (validKeys.has(trimmed)) {
+    return trimmed;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'full' || lower === 'full_refund' || lower === 'full refund' || trimmed === RETURN_ITEM_RESOLUTION_TYPES.FULL.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+  if (lower === 'partial' || lower === 'partial_refund' || lower === 'partial refund' || trimmed === RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.key;
+  }
+  if (lower === 'exchange' || trimmed === RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.key;
+  }
+  if (lower === 'round_trip' || lower === 'round trip' || trimmed === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key;
+  }
+
+  return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+}
+
+function applyFallbackResolutionTypeToItems(
+  items: Array<{ product_name: string; resolution_type?: string | null }> | null | undefined,
+  fallbackValue: unknown
+) {
+  const fallback = normalizeResolutionTypeFromFallback(fallbackValue);
+  return (items || []).map((item) => ({
+    ...item,
+    resolution_type: item.resolution_type || fallback,
+  }));
 }
 
 export async function GET(request: NextRequest) {
@@ -92,41 +157,64 @@ async function exportReturns(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    let query = supabase
-      .from('return_requests')
-      .select(`
-        *,
-        order:orders (
-          order_number,
-          customer_name,
-          customer_phone,
-          channel_source,
-          total_amount
-        ),
-        return_items (
+    const buildQuery = (includeResolutionType: boolean) => {
+      const returnItemsSelect = includeResolutionType
+        ? `
           product_name,
-          sku,
+          sku:product_sku,
           quantity,
           unit_price,
           resolution_type
-        )
-      `)
-      .order('created_at', { ascending: false });
+        `
+        : `
+          product_name,
+          sku:product_sku,
+          quantity,
+          unit_price
+        `;
 
-    if (status) {
-      query = query.eq('status', status);
-    }
-    if (channel) {
-      query = query.eq('channel_source', channel);
-    }
-    if (dateFrom) {
-      query = query.gte('created_at', dateFrom);
-    }
-    if (dateTo) {
-      query = query.lte('created_at', dateTo);
-    }
+      let query = supabase
+        .from('return_requests')
+        .select(`
+          *,
+          order:orders (
+            order_number,
+            customer_name,
+            customer_phone,
+            channel_source,
+            total_amount
+          ),
+          return_items (
+            ${returnItemsSelect}
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-    const { data, error } = await query;
+      if (status) {
+        query = query.eq('status', status);
+      }
+      if (channel) {
+        query = query.eq('channel_source', channel);
+      }
+      if (dateFrom) {
+        query = query.gte('created_at', dateFrom);
+      }
+      if (dateTo) {
+        query = query.lte('created_at', dateTo);
+      }
+
+      return query;
+    };
+
+    let { data, error } = await buildQuery(true);
+    let usedResolutionFallback = false;
+
+    if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      usedResolutionFallback = true;
+      const retry = await buildQuery(false);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Export error:', error);
@@ -175,9 +263,13 @@ async function exportReturns(request: NextRequest) {
       const shippingMethodLabel = Object.values(RETURN_SHIPPING_METHODS).find((m) => m.key === r.return_shipping_method)?.label || '';
       const refundTypeLabel = Object.values(REFUND_TYPES).find((t) => t.key === r.refund_type)?.label || '';
       const products = r.return_items?.map((item: { product_name: string }) => item.product_name).join(', ') || '';
+      const itemsWithResolution = usedResolutionFallback
+        ? applyFallbackResolutionTypeToItems(r.return_items, r.refund_method)
+        : (r.return_items || []);
+
       const resolutionLabels = Array.from(
         new Set(
-          (r.return_items || [])
+          itemsWithResolution
             .map((item) => {
               const matched = Object.values(RETURN_ITEM_RESOLUTION_TYPES).find((type) => type.key === item.resolution_type);
               return matched?.label;

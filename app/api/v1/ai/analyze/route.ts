@@ -10,6 +10,7 @@ interface ReturnAnalysisData {
   reason_detail: string | null;
   refund_amount: number | null;
   refund_type: string;
+  refund_method?: string | null;
   return_items?: {
     product_name: string;
     sku: string;
@@ -65,6 +66,45 @@ interface LegacyStatistics {
   total_refund_amount?: unknown;
   storeCreditRate?: unknown;
   store_credit_rate?: unknown;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+  return '';
+}
+
+function isMissingColumnError(error: unknown, table: string, column: string): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  if (!message) return false;
+
+  return (
+    message.includes(`column ${table}.${column} does not exist`)
+    || message.includes(`column ${table}_1.${column} does not exist`)
+    || message.includes(`column ${table}_2.${column} does not exist`)
+  );
+}
+
+function normalizeResolutionTypeFromFallback(value: unknown): string {
+  if (typeof value !== 'string') {
+    return 'full';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 'full';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'full' || lower === 'full_refund' || lower === 'full refund' || trimmed === '全額退款') return 'full';
+  if (lower === 'partial' || lower === 'partial_refund' || lower === 'partial refund' || trimmed === '部分退款') return 'partial';
+  if (lower === 'exchange' || trimmed === '換貨') return 'exchange';
+  if (lower === 'round_trip' || lower === 'round trip' || trimmed === '來回件') return 'round_trip';
+  return 'full';
 }
 
 function toNumberOrNull(value: unknown): number | null {
@@ -230,8 +270,7 @@ async function listAvailableModels(apiKey: string): Promise<string[]> {
 }
 
 // Direct REST API call for Gemini
-async function callGeminiAPI(prompt: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
@@ -301,8 +340,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const geminiApiKey = process.env.GEMINI_API_KEY?.replace(/\\n/g, '').trim();
+
     // Check for Gemini API key
-    if (!process.env.GEMINI_API_KEY) {
+    if (!geminiApiKey) {
       return NextResponse.json(
         { success: false, error: 'Gemini API key is not configured' },
         { status: 500 }
@@ -321,13 +362,13 @@ export async function POST(request: NextRequest) {
 
     // ============ 1. Fetch return_requests ============
     let returns: ReturnAnalysisData[] = [];
-    const fullQuery = await supabase
+    const queryWithResolution = await supabase
       .from('return_requests')
       .select(`
         *,
         return_items (
           product_name,
-          sku,
+          sku:product_sku,
           quantity,
           reason,
           resolution_type
@@ -341,8 +382,50 @@ export async function POST(request: NextRequest) {
       .gte('created_at', startDate)
       .lt('created_at', endDate);
 
-    if (fullQuery.error) {
-      console.warn('Full query failed, trying basic query:', fullQuery.error.message);
+    if (!queryWithResolution.error) {
+      returns = queryWithResolution.data as ReturnAnalysisData[];
+    } else if (isMissingColumnError(queryWithResolution.error, 'return_items', 'resolution_type')) {
+      const queryWithoutResolution = await supabase
+        .from('return_requests')
+        .select(`
+          *,
+          return_items (
+            product_name,
+            sku:product_sku,
+            quantity,
+            reason
+          ),
+          inspection_records (
+            result,
+            condition_grade,
+            inspector_comment
+          )
+        `)
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+
+      if (!queryWithoutResolution.error) {
+        returns = (queryWithoutResolution.data as ReturnAnalysisData[]).map((row) => ({
+          ...row,
+          return_items: (row.return_items || []).map((item) => ({
+            ...item,
+            resolution_type: item.resolution_type || normalizeResolutionTypeFromFallback(row.refund_method),
+          })),
+        }));
+      } else {
+        console.warn('Fallback return query failed, trying basic query:', queryWithoutResolution.error.message);
+        const basicQuery = await supabase
+          .from('return_requests')
+          .select('*')
+          .gte('created_at', startDate)
+          .lt('created_at', endDate);
+
+        if (!basicQuery.error) {
+          returns = basicQuery.data as ReturnAnalysisData[];
+        }
+      }
+    } else {
+      console.warn('Full query failed, trying basic query:', queryWithResolution.error.message);
       const basicQuery = await supabase
         .from('return_requests')
         .select('*')
@@ -352,8 +435,6 @@ export async function POST(request: NextRequest) {
       if (!basicQuery.error) {
         returns = basicQuery.data as ReturnAnalysisData[];
       }
-    } else {
-      returns = fullQuery.data as ReturnAnalysisData[];
     }
 
     // ============ 2. Fetch shopee_returns ============
@@ -517,7 +598,7 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
 請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
 
     // Call Gemini API using direct REST API (more reliable)
-    let aiResponse = await callGeminiAPI(prompt);
+    let aiResponse = await callGeminiAPI(prompt, geminiApiKey);
 
     if (!aiResponse) {
       return NextResponse.json(

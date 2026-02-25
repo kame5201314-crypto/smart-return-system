@@ -35,6 +35,122 @@ function mapChannelToPickupPlatform(channelSource: string | null): string {
   return '其他';
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+  return '';
+}
+
+function isMissingColumnError(error: unknown, table: string, column: string): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  if (!message) return false;
+
+  const targetPatterns = [
+    `column ${table}.${column} does not exist`,
+    `column ${table}_1.${column} does not exist`,
+    `column ${table}_2.${column} does not exist`,
+  ];
+
+  return targetPatterns.some((pattern) => message.includes(pattern));
+}
+
+function normalizeResolutionTypeFromFallback(value: unknown): ReturnItemResolutionType {
+  if (typeof value !== 'string') {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+
+  if (isReturnItemResolutionType(trimmed)) {
+    return trimmed;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'full' || lower === 'full_refund' || lower === 'full refund') {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+  if (lower === 'partial' || lower === 'partial_refund' || lower === 'partial refund') {
+    return RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.key;
+  }
+  if (lower === 'exchange') {
+    return RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.key;
+  }
+  if (lower === 'round_trip' || lower === 'round trip') {
+    return RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key;
+  }
+
+  if (trimmed === RETURN_ITEM_RESOLUTION_TYPES.FULL.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+  }
+  if (trimmed === RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.key;
+  }
+  if (trimmed === RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.key;
+  }
+  if (trimmed === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.label) {
+    return RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key;
+  }
+
+  return RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+}
+
+function applyFallbackResolutionTypeToItems<T extends Record<string, unknown>>(
+  items: T[] | null | undefined,
+  fallbackValue: unknown
+): Array<T & { resolution_type: ReturnItemResolutionType }> {
+  const fallbackResolution = normalizeResolutionTypeFromFallback(fallbackValue);
+  return (items || []).map((item) => {
+    const current = typeof item.resolution_type === 'string'
+      ? item.resolution_type
+      : null;
+    const normalized = current && isReturnItemResolutionType(current)
+      ? current
+      : fallbackResolution;
+
+    return {
+      ...item,
+      resolution_type: normalized,
+    };
+  });
+}
+
+async function insertReturnItemsWithResolutionFallback(
+  adminClient: ReturnType<typeof createAdminClient>,
+  returnItems: Array<Record<string, unknown>>
+): Promise<{ error: Error | null; usedFallback: boolean }> {
+  const { error } = await adminClient
+    .from('return_items')
+    .insert(returnItems as never) as { error: Error | null };
+
+  if (!error) {
+    return { error: null, usedFallback: false };
+  }
+
+  if (!isMissingColumnError(error, 'return_items', 'resolution_type')) {
+    return { error, usedFallback: false };
+  }
+
+  const fallbackRows = returnItems.map((item) => {
+    const rowWithoutResolution = { ...item };
+    delete rowWithoutResolution.resolution_type;
+    return rowWithoutResolution;
+  });
+
+  const { error: fallbackError } = await adminClient
+    .from('return_items')
+    .insert(fallbackRows as never) as { error: Error | null };
+
+  return { error: fallbackError, usedFallback: true };
+}
+
 async function ensureRoundTripPickupRecord(
   adminClient: ReturnType<typeof createAdminClient>,
   returnRequestId: string
@@ -281,9 +397,10 @@ export async function submitReturnApplication(
       resolution_type: 'full',
     }));
 
-    const { error: itemInsertError } = await adminClient
-      .from('return_items')
-      .insert(returnItems as never);
+    const { error: itemInsertError } = await insertReturnItemsWithResolutionFallback(
+      adminClient,
+      returnItems as Array<Record<string, unknown>>
+    );
 
     if (itemInsertError) {
       console.error('Insert return items error:', itemInsertError);
@@ -317,7 +434,7 @@ export async function submitReturnApplication(
       entity_id: returnRequest.id,
       action: 'created',
       actor_type: 'customer',
-      description: `???????????: ${returnRequest.request_number}`,
+      description: `退貨申請已建立: ${returnRequest.request_number}`,
     } as never);
 
     if (logInsertError) {
@@ -348,33 +465,75 @@ export async function getReturnStatus(
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    const selectWithResolution = `
+      *,
+      order:orders!inner (
+        order_number,
+        customer_phone,
+        channel_source
+      ),
+      return_items (
+        id,
+        product_name,
+        quantity,
+        reason,
+        resolution_type
+      ),
+      return_images (
+        id,
+        image_url,
+        image_type
+      )
+    `;
+
+    const selectWithoutResolution = `
+      *,
+      order:orders!inner (
+        order_number,
+        customer_phone,
+        channel_source
+      ),
+      return_items (
+        id,
+        product_name,
+        quantity,
+        reason
+      ),
+      return_images (
+        id,
+        image_url,
+        image_type
+      )
+    `;
+
+    let { data, error } = await supabase
       .from('return_requests')
-      .select(`
-        *,
-        order:orders!inner (
-          order_number,
-          customer_phone,
-          channel_source
-        ),
-        return_items (
-          id,
-          product_name,
-          quantity,
-          reason,
-          resolution_type
-        ),
-        return_images (
-          id,
-          image_url,
-          image_type
-        )
-      `)
+      .select(selectWithResolution)
       .eq('request_number', requestNumber)
       .single() as { data: ReturnRequestWithRelations & { order?: { customer_phone?: string } } | null; error: Error | null };
 
+    let usedResolutionFallback = false;
+    if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      usedResolutionFallback = true;
+      const retry = await supabase
+        .from('return_requests')
+        .select(selectWithoutResolution)
+        .eq('request_number', requestNumber)
+        .single() as { data: ReturnRequestWithRelations & { order?: { customer_phone?: string } } | null; error: Error | null };
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error || !data) {
       return { success: false, error: ERROR_MESSAGES.NOT_FOUND };
+    }
+
+    if (usedResolutionFallback) {
+      const row = data as unknown as Record<string, unknown>;
+      row.return_items = applyFallbackResolutionTypeToItems(
+        row.return_items as Array<Record<string, unknown>> | null | undefined,
+        row.refund_method
+      );
     }
 
     // Verify phone matches
@@ -402,44 +561,78 @@ export async function getReturnRequests(filters?: {
     // Use admin client to bypass RLS (admin page doesn't have user auth)
     const adminClient = createAdminClient();
 
-    let query = adminClient
-      .from('return_requests')
-      .select(`
-        *,
-        order:orders (
-          order_number,
-          customer_name,
-          customer_phone,
-          channel_source
-        ),
-        return_items (
+    const buildQuery = (includeResolutionType: boolean) => {
+      const returnItemsSelect = includeResolutionType
+        ? `
           id,
           product_name,
           product_sku,
           quantity,
           resolution_type
-        )
-      `)
-      .order('created_at', { ascending: false });
+        `
+        : `
+          id,
+          product_name,
+          product_sku,
+          quantity
+        `;
 
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-    if (filters?.channelSource) {
-      query = query.eq('channel_source', filters.channelSource);
-    }
-    if (filters?.dateFrom) {
-      query = query.gte('created_at', filters.dateFrom);
-    }
-    if (filters?.dateTo) {
-      query = query.lte('created_at', filters.dateTo);
-    }
+      let query = adminClient
+        .from('return_requests')
+        .select(`
+          *,
+          order:orders (
+            order_number,
+            customer_name,
+            customer_phone,
+            channel_source
+          ),
+          return_items (
+            ${returnItemsSelect}
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-    const { data, error } = await query;
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters?.channelSource) {
+        query = query.eq('channel_source', filters.channelSource);
+      }
+      if (filters?.dateFrom) {
+        query = query.gte('created_at', filters.dateFrom);
+      }
+      if (filters?.dateTo) {
+        query = query.lte('created_at', filters.dateTo);
+      }
+
+      return query;
+    };
+
+    let { data, error } = await buildQuery(true);
+    let usedResolutionFallback = false;
+
+    if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      usedResolutionFallback = true;
+      const retry = await buildQuery(false);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Get return requests error:', error);
       return { success: false, error: ERROR_MESSAGES.GENERIC };
+    }
+
+    if (usedResolutionFallback) {
+      const normalizedData = ((data || []) as Array<Record<string, unknown>>).map((row) => ({
+        ...row,
+        return_items: applyFallbackResolutionTypeToItems(
+          row.return_items as Array<Record<string, unknown>> | null | undefined,
+          row.refund_method
+        ),
+      }));
+      return { success: true, data: normalizedData };
     }
 
     return { success: true, data };
@@ -791,14 +984,26 @@ export async function updateReturnInfo(
       }
     }
 
+    let resolutionFallbackMessage = '';
+
     // Update per-item handling mode (全額退款 / 部分退款 / 換貨 / 來回件)
     if (data.itemResolutionTypes && Object.keys(data.itemResolutionTypes).length > 0) {
       let shouldSyncRoundTripToPickup = false;
       const previousResolutionByItemId: Record<string, ReturnItemResolutionType> = {};
+      let resolutionColumnUnavailable = false;
+      let fallbackResolutionType: ReturnItemResolutionType | null = null;
 
       for (const [itemId, rawResolutionType] of Object.entries(data.itemResolutionTypes)) {
         if (!itemId || typeof rawResolutionType !== 'string') continue;
         if (!isReturnItemResolutionType(rawResolutionType)) continue;
+
+        if (resolutionColumnUnavailable) {
+          fallbackResolutionType = rawResolutionType;
+          if (rawResolutionType === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key) {
+            shouldSyncRoundTripToPickup = true;
+          }
+          continue;
+        }
 
         const { data: existingItem, error: existingItemError } = await adminClient
           .from('return_items')
@@ -807,9 +1012,22 @@ export async function updateReturnInfo(
           .eq('return_request_id', returnRequestId)
           .single() as { data: { resolution_type?: string | null } | null; error: Error | null };
 
-        if (existingItemError || !existingItem) {
+        if (existingItemError) {
+          if (isMissingColumnError(existingItemError, 'return_items', 'resolution_type')) {
+            resolutionColumnUnavailable = true;
+            fallbackResolutionType = rawResolutionType;
+            if (rawResolutionType === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key) {
+              shouldSyncRoundTripToPickup = true;
+            }
+            continue;
+          }
+
           console.error('Fetch existing return item resolution error:', existingItemError);
-          return { success: false, error: `更新處理方式失敗: ${existingItemError?.message || '找不到退貨商品'}` };
+          return { success: false, error: `更新處理方式失敗: ${existingItemError.message}` };
+        }
+
+        if (!existingItem) {
+          return { success: false, error: '更新處理方式失敗: 找不到退貨商品' };
         }
 
         previousResolutionByItemId[itemId] = isReturnItemResolutionType(existingItem.resolution_type || '')
@@ -823,6 +1041,15 @@ export async function updateReturnInfo(
           .eq('return_request_id', returnRequestId);
 
         if (resolutionError) {
+          if (isMissingColumnError(resolutionError, 'return_items', 'resolution_type')) {
+            resolutionColumnUnavailable = true;
+            fallbackResolutionType = rawResolutionType;
+            if (rawResolutionType === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key) {
+              shouldSyncRoundTripToPickup = true;
+            }
+            continue;
+          }
+
           console.error('Update return item resolution error:', resolutionError);
           return { success: false, error: `更新處理方式失敗: ${resolutionError.message}` };
         }
@@ -832,7 +1059,35 @@ export async function updateReturnInfo(
         }
       }
 
-      if (shouldSyncRoundTripToPickup) {
+      if (resolutionColumnUnavailable) {
+        if (fallbackResolutionType) {
+          const { error: fallbackMethodError } = await adminClient
+            .from('return_requests')
+            .update({ refund_method: fallbackResolutionType } as never)
+            .eq('id', returnRequestId);
+
+          if (fallbackMethodError) {
+            console.error('Fallback update return refund_method error:', fallbackMethodError);
+            return { success: false, error: `更新處理方式失敗: ${fallbackMethodError.message}` };
+          }
+        }
+
+        if (shouldSyncRoundTripToPickup) {
+          const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId);
+          if (!pickupSyncResult.success) {
+            return { success: false, error: `同步派車收件失敗: ${pickupSyncResult.error}` };
+          }
+          if (pickupSyncResult.created) {
+            roundTripSyncMessage = '，已同步新增派車收件「來回件」';
+          } else if (pickupSyncResult.updated) {
+            roundTripSyncMessage = '，已同步更新派車收件為「來回件」';
+          } else {
+            roundTripSyncMessage = '，派車收件已是「來回件」';
+          }
+        }
+
+        resolutionFallbackMessage = '（資料庫尚未升級商品層級處理方式，已改存退貨單層級）';
+      } else if (shouldSyncRoundTripToPickup) {
         const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId);
         if (!pickupSyncResult.success) {
           // Best-effort rollback for resolution updates when pickup sync fails
@@ -855,7 +1110,7 @@ export async function updateReturnInfo(
       }
     }
 
-    return { success: true, message: `資訊更新成功${roundTripSyncMessage}` };
+    return { success: true, message: `資訊更新成功${roundTripSyncMessage}${resolutionFallbackMessage}` };
   } catch (error) {
     console.error('Update return info error:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC };
@@ -870,26 +1125,9 @@ export async function getReturnRequestDetail(id: string) {
     // Use admin client to bypass RLS (admin page doesn't have user auth)
     const adminClient = createAdminClient();
 
-    const { data, error } = await adminClient
-      .from('return_requests')
-      .select(`
-        *,
-        order:orders (
-          id,
-          order_number,
-          customer_name,
-          customer_phone,
-          channel_source,
-          total_amount,
-          created_at
-        ),
-        customer:customers (
-          id,
-          name,
-          phone,
-          email
-        ),
-        return_items (
+    const buildDetailQuery = (includeResolutionType: boolean) => {
+      const returnItemsSelect = includeResolutionType
+        ? `
           id,
           product_sku,
           product_name,
@@ -897,24 +1135,65 @@ export async function getReturnRequestDetail(id: string) {
           unit_price,
           reason,
           resolution_type
-        ),
-        return_images (
+        `
+        : `
           id,
-          image_url,
-          image_type,
-          uploaded_by,
-          created_at
-        ),
-        inspection_records (
-          id,
-          result,
-          condition_grade,
-          inspector_comment,
-          inspected_at
-        )
-      `)
-      .eq('id', id)
-      .single();
+          product_sku,
+          product_name,
+          quantity,
+          unit_price,
+          reason
+        `;
+
+      return adminClient
+        .from('return_requests')
+        .select(`
+          *,
+          order:orders (
+            id,
+            order_number,
+            customer_name,
+            customer_phone,
+            channel_source,
+            total_amount,
+            created_at
+          ),
+          customer:customers (
+            id,
+            name,
+            phone,
+            email
+          ),
+          return_items (
+            ${returnItemsSelect}
+          ),
+          return_images (
+            id,
+            image_url,
+            image_type,
+            uploaded_by,
+            created_at
+          ),
+          inspection_records (
+            id,
+            result,
+            condition_grade,
+            inspector_comment,
+            inspected_at
+          )
+        `)
+        .eq('id', id)
+        .single();
+    };
+
+    let { data, error } = await buildDetailQuery(true);
+    let usedResolutionFallback = false;
+    if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      usedResolutionFallback = true;
+      const retry = await buildDetailQuery(false);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Get return request detail error:', error.message, error.details, error.hint);
@@ -923,6 +1202,14 @@ export async function getReturnRequestDetail(id: string) {
 
     if (!data) {
       return { success: false, error: ERROR_MESSAGES.NOT_FOUND };
+    }
+
+    if (usedResolutionFallback) {
+      const row = data as unknown as Record<string, unknown>;
+      row.return_items = applyFallbackResolutionTypeToItems(
+        row.return_items as Array<Record<string, unknown>> | null | undefined,
+        row.refund_method
+      );
     }
 
     return { success: true, data };
@@ -1081,7 +1368,7 @@ export async function deleteReturnRequest(
 
     if (deleteImagesError) {
       console.error('Delete return_images error:', deleteImagesError);
-      return { success: false, error: '???????????' };
+      return { success: false, error: '刪除退貨圖片失敗' };
     }
 
     // Delete return items
@@ -1092,7 +1379,7 @@ export async function deleteReturnRequest(
 
     if (deleteItemsError) {
       console.error('Delete return_items error:', deleteItemsError);
-      return { success: false, error: '???????????' };
+      return { success: false, error: '刪除退貨商品失敗' };
     }
 
     // Delete inspection records
@@ -1103,7 +1390,7 @@ export async function deleteReturnRequest(
 
     if (deleteInspectionError) {
       console.error('Delete inspection_records error:', deleteInspectionError);
-      return { success: false, error: '???????????' };
+      return { success: false, error: '刪除驗貨記錄失敗' };
     }
 
     // Delete activity logs related to this return request
@@ -1115,7 +1402,7 @@ export async function deleteReturnRequest(
 
     if (deleteLogsError) {
       console.error('Delete activity_logs error:', deleteLogsError);
-      return { success: false, error: '???????????' };
+      return { success: false, error: '刪除活動紀錄失敗' };
     }
 
     // Finally delete the return request itself
@@ -1152,51 +1439,72 @@ export async function getReturnsForExport(filters?: {
     // Use admin client to bypass RLS (admin page doesn't have user auth)
     const adminClient = createAdminClient();
 
-    let query = adminClient
-      .from('return_requests')
-      .select(`
-        id,
-        request_number,
-        status,
-        channel_source,
-        reason_category,
-        reason_detail,
-        refund_amount,
-        refund_type,
-        refund_method,
-        created_at,
-        approved_at,
-        received_at,
-        refund_processed_at,
-        closed_at,
-        order:orders (
-          order_number,
-          customer_name,
-          customer_phone,
-          total_amount
-        ),
-        return_items (
+    const buildQuery = (includeResolutionType: boolean) => {
+      const returnItemsSelect = includeResolutionType
+        ? `
           product_name,
           quantity,
           resolution_type
-        )
-      `)
-      .order('created_at', { ascending: false });
+        `
+        : `
+          product_name,
+          quantity
+        `;
 
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-    if (filters?.channelSource) {
-      query = query.eq('channel_source', filters.channelSource);
-    }
-    if (filters?.dateFrom) {
-      query = query.gte('created_at', filters.dateFrom);
-    }
-    if (filters?.dateTo) {
-      query = query.lte('created_at', filters.dateTo);
-    }
+      let query = adminClient
+        .from('return_requests')
+        .select(`
+          id,
+          request_number,
+          status,
+          channel_source,
+          reason_category,
+          reason_detail,
+          refund_amount,
+          refund_type,
+          refund_method,
+          created_at,
+          approved_at,
+          received_at,
+          refund_processed_at,
+          closed_at,
+          order:orders (
+            order_number,
+            customer_name,
+            customer_phone,
+            total_amount
+          ),
+          return_items (
+            ${returnItemsSelect}
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-    const { data, error } = await query;
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters?.channelSource) {
+        query = query.eq('channel_source', filters.channelSource);
+      }
+      if (filters?.dateFrom) {
+        query = query.gte('created_at', filters.dateFrom);
+      }
+      if (filters?.dateTo) {
+        query = query.lte('created_at', filters.dateTo);
+      }
+
+      return query;
+    };
+
+    let { data, error } = await buildQuery(true);
+    let usedResolutionFallback = false;
+
+    if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      usedResolutionFallback = true;
+      const retry = await buildQuery(false);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Get returns for export error:', error);
@@ -1205,7 +1513,12 @@ export async function getReturnsForExport(filters?: {
 
     // Transform data for Excel export
     const exportData = data?.map((r: Record<string, unknown>) => {
-      const itemResolutions = (r.return_items as Array<{ resolution_type?: string | null }> | undefined) || [];
+      const itemResolutions = usedResolutionFallback
+        ? applyFallbackResolutionTypeToItems(
+            (r.return_items as Array<Record<string, unknown>> | null | undefined) || [],
+            r.refund_method
+          )
+        : ((r.return_items as Array<{ resolution_type?: string | null }> | undefined) || []);
       const resolutionLabels = Array.from(
         new Set(
           itemResolutions
@@ -1366,7 +1679,14 @@ export async function createManualReturnRequest(input: {
       }));
 
     if (returnItems.length > 0) {
-      await adminClient.from('return_items').insert(returnItems as never);
+      const { error: itemInsertError } = await insertReturnItemsWithResolutionFallback(
+        adminClient,
+        returnItems as Array<Record<string, unknown>>
+      );
+      if (itemInsertError) {
+        console.error('Create manual return items error:', itemInsertError);
+        return { success: false, error: `建立退貨商品失敗: ${itemInsertError.message}` };
+      }
     }
 
     // Log activity

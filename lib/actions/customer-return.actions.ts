@@ -28,6 +28,26 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 5;
 
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+  return '';
+}
+
+function isMissingColumnError(error: unknown, table: string, column: string): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes(`column ${table}.${column} does not exist`)
+    || message.includes(`column ${table}_1.${column} does not exist`)
+    || message.includes(`column ${table}_2.${column} does not exist`)
+  );
+}
+
 function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = rateLimitMap.get(identifier);
@@ -457,13 +477,32 @@ export async function submitCustomerReturn(
       ? formData.returnProducts.join(', ')
       : `訂單 ${formData.orderNumber} 商品`;
 
-    const insertItemPromise = adminClient.from('return_items').insert({
-      return_request_id: returnRequest.id,
-      product_name: productName,
-      quantity: 1,
-      reason: formData.returnReason,
-      resolution_type: 'full',
-    } as never);
+    const insertItemPromise = (async () => {
+      const itemPayload: Record<string, unknown> = {
+        return_request_id: returnRequest.id,
+        product_name: productName,
+        quantity: 1,
+        reason: formData.returnReason,
+        resolution_type: 'full',
+      };
+
+      const firstTry = await adminClient
+        .from('return_items')
+        .insert(itemPayload as never);
+      if (!firstTry.error) {
+        return firstTry;
+      }
+
+      if (!isMissingColumnError(firstTry.error, 'return_items', 'resolution_type')) {
+        return firstTry;
+      }
+
+      const fallbackPayload = { ...itemPayload };
+      delete fallbackPayload.resolution_type;
+      return adminClient
+        .from('return_items')
+        .insert(fallbackPayload as never);
+    })();
 
     const insertLogPromise = adminClient.from('activity_logs').insert({
       entity_type: 'return_request',
