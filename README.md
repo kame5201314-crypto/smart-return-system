@@ -117,6 +117,18 @@ API_SECRET_KEY=
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+## 維運檢查（退貨系統）
+
+```bash
+# 檢查 AI 報告與來源資料是否一致（所有已產生報告月份）
+node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-totals.mjs --strict
+
+# 僅修復指定月份（例：2026-01）
+node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-totals.mjs --period=2026-01 --apply
+```
+
+注意：`--apply` 只會更新 `ai_analysis_reports.total_returns` 與 `ai_analysis_reports.total_refund_amount`，不會刪除任何原始資料。
+
 ## 資安注意事項
 
 - 所有 API Key 必須存放於 .env 檔案

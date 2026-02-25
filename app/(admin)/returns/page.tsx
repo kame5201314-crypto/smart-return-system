@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState, useRef, type ChangeEvent } from 'react';
-import { Search, Filter, Download, Upload, Plus, LayoutGrid, List, Loader2, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState, useRef, type ChangeEvent } from 'react';
+import { Search, Download, Upload, Plus, LayoutGrid, List, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KanbanBoard } from '@/components/kanban/kanban-board';
 import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
 
 import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
-import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
+import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
 
 // Status order for sorting
 const STATUS_ORDER: Record<string, number> = {
@@ -85,6 +84,7 @@ export default function ReturnsPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'kanban' | 'table'>('table');
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('created_at');
@@ -108,10 +108,6 @@ export default function ReturnsPage() {
     fetchReturns();
   }, []);
 
-  useEffect(() => {
-    filterReturns();
-  }, [returns, statusFilter, channelFilter, sortField, sortDirection]); // Remove searchQuery - only filter on button click
-
   async function fetchReturns() {
     try {
       const result = await getReturnRequests();
@@ -125,12 +121,12 @@ export default function ReturnsPage() {
     }
   }
 
-  function filterReturns() {
+  const filterReturns = useCallback(() => {
     let filtered = [...returns];
 
     // Search filter (supports phone number search)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase().replace(/[-\s]/g, '');
+    if (appliedSearchQuery) {
+      const query = appliedSearchQuery.toLowerCase().replace(/[-\s]/g, '');
       filtered = filtered.filter(
         (r) =>
           r.request_number.toLowerCase().includes(query) ||
@@ -182,7 +178,11 @@ export default function ReturnsPage() {
     }
 
     setFilteredReturns(filtered);
-  }
+  }, [appliedSearchQuery, channelFilter, returns, sortDirection, sortField, statusFilter]);
+
+  useEffect(() => {
+    filterReturns();
+  }, [filterReturns]);
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -572,13 +572,13 @@ export default function ReturnsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      filterReturns();
+                      setAppliedSearchQuery(searchQuery.trim());
                     }
                   }}
                   className="pl-9"
                 />
               </div>
-              <Button onClick={() => filterReturns()} variant="secondary">
+              <Button onClick={() => setAppliedSearchQuery(searchQuery.trim())} variant="secondary">
                 <Search className="w-4 h-4 mr-2" />
                 搜尋
               </Button>

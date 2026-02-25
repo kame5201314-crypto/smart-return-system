@@ -14,7 +14,8 @@
     "prebuild:check": "node -e \"const id='fdzfnenizyppxglypden'; const url=process.env.NEXT_PUBLIC_SUPABASE_URL||''; if(!url.includes(id)){console.error('ERROR: Wrong Supabase project! Expected:',id);process.exit(1)}else{console.log('Supabase project verified:',id)}\"",
     "prebuild:schema-gate": "node scripts/predeploy/schema-gate.mjs",
     "prebuild:consistency": "node scripts/predeploy/check-ai-analytics-consistency.mjs",
-    "prebuild:encoding": "node scripts/predeploy/check-encoding-hygiene.mjs"
+    "prebuild:encoding": "node scripts/predeploy/check-encoding-hygiene.mjs",
+    "maintenance:reconcile-ai-totals": "node scripts/maintenance/reconcile-ai-report-totals.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
