@@ -89,10 +89,10 @@ async function main() {
     const message = '[consistency-check] Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY';
     if (strict) {
       console.error(`${message} (strict mode: fail)`);
-      process.exit(1);
+      return 1;
     }
     console.warn(`${message} (non-strict mode: skip)`);
-    return;
+    return 0;
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -106,18 +106,18 @@ async function main() {
 
   if (reportsError) {
     console.error(`[consistency-check] Failed to load ai_analysis_reports: ${reportsError.message}`);
-    process.exit(1);
+    return 1;
   }
 
   if (!reports || reports.length === 0) {
     console.log(`[consistency-check] No AI report for ${targetPeriod}, skip consistency comparison.`);
-    return;
+    return 0;
   }
 
   const latestReport = reports[0];
   if (!latestReport?.report_period) {
     console.log(`[consistency-check] Invalid AI report period for ${targetPeriod}, skip.`);
-    return;
+    return 0;
   }
 
   const { data: returnRequests, error: rrError } = await supabase
@@ -125,7 +125,7 @@ async function main() {
     .select('id, created_at');
   if (rrError) {
     console.error(`[consistency-check] Failed to load return_requests: ${rrError.message}`);
-    process.exit(1);
+    return 1;
   }
 
   const { data: shopeeReturns, error: shopeeError } = await supabase
@@ -133,7 +133,7 @@ async function main() {
     .select('id, order_date');
   if (shopeeError) {
     console.error(`[consistency-check] Failed to load shopee_returns: ${shopeeError.message}`);
-    process.exit(1);
+    return 1;
   }
 
   const totalsByPeriod = new Map();
@@ -155,7 +155,7 @@ async function main() {
 
   if (actual === expected) {
     console.log(`[consistency-check] PASS (${targetPeriod}) expected=${expected} actual=${actual}`);
-    return;
+    return 0;
   }
 
   console.error('[consistency-check] MISMATCH detected between analytics and AI report totals:');
@@ -163,12 +163,16 @@ async function main() {
     `  - period=${targetPeriod} expected=${expected} actual=${actual} report=${latestReport.id}`
   );
 
-  if (strict) {
-    process.exit(1);
-  }
+  return strict ? 1 : 0;
 }
 
-main().catch((error) => {
-  console.error('[consistency-check] Unexpected error:', error);
-  process.exit(1);
-});
+main()
+  .then((exitCode) => {
+    if (exitCode && exitCode !== 0) {
+      process.exitCode = exitCode;
+    }
+  })
+  .catch((error) => {
+    console.error('[consistency-check] Unexpected error:', error);
+    process.exitCode = 1;
+  });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
 import { format } from 'date-fns';
+import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -385,6 +386,13 @@ export async function POST(request: NextRequest) {
     if (!queryWithResolution.error) {
       returns = queryWithResolution.data as ReturnAnalysisData[];
     } else if (isMissingColumnError(queryWithResolution.error, 'return_items', 'resolution_type')) {
+      await emitSchemaDriftAlert({
+        source: 'api.ai.analyze.queryReturnRequests',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: queryWithResolution.error.message,
+        context: { period },
+      });
       const queryWithoutResolution = await supabase
         .from('return_requests')
         .select(`

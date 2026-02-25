@@ -15,6 +15,7 @@ import {
 } from '@/lib/validations/return.schema';
 import { CHANNELS, ERROR_MESSAGES, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
 import type { ApiResponse, CustomerSession, ReturnRequestWithRelations } from '@/types';
+import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 
 export type ReturnItemResolutionType =
   typeof RETURN_ITEM_RESOLUTION_TYPES[keyof typeof RETURN_ITEM_RESOLUTION_TYPES]['key'];
@@ -124,7 +125,9 @@ function applyFallbackResolutionTypeToItems<T extends Record<string, unknown>>(
 
 async function insertReturnItemsWithResolutionFallback(
   adminClient: ReturnType<typeof createAdminClient>,
-  returnItems: Array<Record<string, unknown>>
+  returnItems: Array<Record<string, unknown>>,
+  source: string,
+  context?: Record<string, unknown>
 ): Promise<{ error: Error | null; usedFallback: boolean }> {
   const { error } = await adminClient
     .from('return_items')
@@ -137,6 +140,14 @@ async function insertReturnItemsWithResolutionFallback(
   if (!isMissingColumnError(error, 'return_items', 'resolution_type')) {
     return { error, usedFallback: false };
   }
+
+  await emitSchemaDriftAlert({
+    source,
+    table: 'return_items',
+    column: 'resolution_type',
+    errorMessage: error.message,
+    context,
+  });
 
   const fallbackRows = returnItems.map((item) => {
     const rowWithoutResolution = { ...item };
@@ -399,7 +410,9 @@ export async function submitReturnApplication(
 
     const { error: itemInsertError } = await insertReturnItemsWithResolutionFallback(
       adminClient,
-      returnItems as Array<Record<string, unknown>>
+      returnItems as Array<Record<string, unknown>>,
+      'return.actions.submitReturnApplication',
+      { returnRequestId: returnRequest.id }
     );
 
     if (itemInsertError) {
@@ -514,6 +527,13 @@ export async function getReturnStatus(
 
     let usedResolutionFallback = false;
     if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      await emitSchemaDriftAlert({
+        source: 'return.actions.getReturnStatus',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: error.message,
+        context: { requestNumber },
+      });
       usedResolutionFallback = true;
       const retry = await supabase
         .from('return_requests')
@@ -613,6 +633,12 @@ export async function getReturnRequests(filters?: {
     let usedResolutionFallback = false;
 
     if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      await emitSchemaDriftAlert({
+        source: 'return.actions.getReturnRequests',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: error.message,
+      });
       usedResolutionFallback = true;
       const retry = await buildQuery(false);
       data = retry.data;
@@ -1014,6 +1040,13 @@ export async function updateReturnInfo(
 
         if (existingItemError) {
           if (isMissingColumnError(existingItemError, 'return_items', 'resolution_type')) {
+            await emitSchemaDriftAlert({
+              source: 'return.actions.updateReturnInfo.readExistingResolution',
+              table: 'return_items',
+              column: 'resolution_type',
+              errorMessage: existingItemError.message,
+              context: { returnRequestId, itemId },
+            });
             resolutionColumnUnavailable = true;
             fallbackResolutionType = rawResolutionType;
             if (rawResolutionType === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key) {
@@ -1042,6 +1075,13 @@ export async function updateReturnInfo(
 
         if (resolutionError) {
           if (isMissingColumnError(resolutionError, 'return_items', 'resolution_type')) {
+            await emitSchemaDriftAlert({
+              source: 'return.actions.updateReturnInfo.writeResolution',
+              table: 'return_items',
+              column: 'resolution_type',
+              errorMessage: resolutionError.message,
+              context: { returnRequestId, itemId, nextResolutionType: rawResolutionType },
+            });
             resolutionColumnUnavailable = true;
             fallbackResolutionType = rawResolutionType;
             if (rawResolutionType === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key) {
@@ -1069,6 +1109,13 @@ export async function updateReturnInfo(
 
           if (fallbackMethodError) {
             if (isMissingColumnError(fallbackMethodError, 'return_requests', 'refund_method')) {
+              await emitSchemaDriftAlert({
+                source: 'return.actions.updateReturnInfo.writeFallbackRefundMethod',
+                table: 'return_requests',
+                column: 'refund_method',
+                errorMessage: fallbackMethodError.message,
+                context: { returnRequestId, fallbackResolutionType },
+              });
               console.warn('Fallback refund_method column not available, skipping request-level persistence');
             } else {
               console.error('Fallback update return refund_method error:', fallbackMethodError);
@@ -1198,6 +1245,13 @@ export async function getReturnRequestDetail(id: string) {
     let { data, error } = await buildDetailQuery(true);
     let usedResolutionFallback = false;
     if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      await emitSchemaDriftAlert({
+        source: 'return.actions.getReturnRequestDetail',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: error.message,
+        context: { id },
+      });
       usedResolutionFallback = true;
       const retry = await buildDetailQuery(false);
       data = retry.data;
@@ -1509,6 +1563,12 @@ export async function getReturnsForExport(filters?: {
     let usedResolutionFallback = false;
 
     if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      await emitSchemaDriftAlert({
+        source: 'return.actions.getReturnsForExport',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: error.message,
+      });
       usedResolutionFallback = true;
       const retry = await buildQuery(false);
       data = retry.data;
@@ -1690,7 +1750,9 @@ export async function createManualReturnRequest(input: {
     if (returnItems.length > 0) {
       const { error: itemInsertError } = await insertReturnItemsWithResolutionFallback(
         adminClient,
-        returnItems as Array<Record<string, unknown>>
+        returnItems as Array<Record<string, unknown>>,
+        'return.actions.createManualReturnRequest',
+        { returnRequestId: returnRequest.id }
       );
       if (itemInsertError) {
         console.error('Create manual return items error:', itemInsertError);

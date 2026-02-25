@@ -10,6 +10,7 @@ import {
   verifyUploadSessionToken,
   UPLOAD_MAX_FILE_SIZE_BYTES,
 } from '@/lib/upload/security';
+import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 
 const customerReturnSchema = z.object({
   channelSource: z.string().min(1, '請選擇購買通路').max(50),
@@ -496,6 +497,14 @@ export async function submitCustomerReturn(
       if (!isMissingColumnError(firstTry.error, 'return_items', 'resolution_type')) {
         return firstTry;
       }
+
+      await emitSchemaDriftAlert({
+        source: 'customer-return.submitCustomerReturn.insertItem',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: firstTry.error.message,
+        context: { returnRequestId: returnRequest.id },
+      });
 
       const fallbackPayload = { ...itemPayload };
       delete fallbackPayload.resolution_type;

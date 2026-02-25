@@ -11,6 +11,7 @@ import {
   REFUND_TYPES,
   RETURN_ITEM_RESOLUTION_TYPES,
 } from '@/config/constants';
+import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 
 interface ReturnExportData {
   request_number: string;
@@ -210,6 +211,12 @@ async function exportReturns(request: NextRequest) {
     let usedResolutionFallback = false;
 
     if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
+      await emitSchemaDriftAlert({
+        source: 'api.admin.returns.export',
+        table: 'return_items',
+        column: 'resolution_type',
+        errorMessage: error.message,
+      });
       usedResolutionFallback = true;
       const retry = await buildQuery(false);
       data = retry.data;
