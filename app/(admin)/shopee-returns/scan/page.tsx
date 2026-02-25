@@ -349,19 +349,21 @@ export default function ShopeeReturnScanPage() {
                 )}
               </div>
 
+              <div className="text-xs text-muted-foreground">寄件編號</div>
+              <div className="font-mono text-xl font-semibold leading-tight">
+                {latestScan.trackingNumber || '-'}
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <Link
                   href={`/shopee-returns/${latestScan.id}`}
-                  className="font-mono text-lg font-semibold underline underline-offset-2 hover:text-primary"
+                  className="font-mono text-sm font-medium underline underline-offset-2 hover:text-primary"
                 >
                   {latestScan.orderNumber}
                 </Link>
               </div>
-              <div className="text-xs text-muted-foreground font-mono">
-                掃描值：{latestScan.code}
-              </div>
               <div className="text-xs text-muted-foreground">
-                寄件編號：{latestScan.trackingNumber || '-'} ｜ 寫入筆數：{latestScan.updatedCount} ｜ 掃描時間：{formatDateTime(latestScan.scannedAt)}
+                寫入筆數：{latestScan.updatedCount} ｜ 掃描時間：{formatDateTime(latestScan.scannedAt)}
               </div>
             </div>
           )}
@@ -409,12 +411,6 @@ export default function ShopeeReturnScanPage() {
                   className="rounded-lg border p-3 space-y-1 text-sm"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/shopee-returns/${item.id}`}
-                      className="font-mono underline underline-offset-2 hover:text-primary"
-                    >
-                      {item.orderNumber}
-                    </Link>
                     <Badge variant="outline">
                       {getPlatformLabel(item.platform)}
                     </Badge>
@@ -425,11 +421,20 @@ export default function ShopeeReturnScanPage() {
                       <Badge variant="outline">同單 {item.matchedCount} 筆</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground font-mono">
-                    掃描值：{item.code}
+                  <div className="text-xs text-muted-foreground">寄件編號</div>
+                  <div className="font-mono text-base font-semibold leading-tight">
+                    {item.trackingNumber || '-'}
+                  </div>
+                  <div>
+                    <Link
+                      href={`/shopee-returns/${item.id}`}
+                      className="font-mono text-xs font-medium underline underline-offset-2 hover:text-primary"
+                    >
+                      {item.orderNumber}
+                    </Link>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    寄件編號：{item.trackingNumber || '-'} ｜ 寫入筆數：{item.updatedCount} ｜ 掃描時間：{formatDateTime(item.scannedAt)}
+                    寫入筆數：{item.updatedCount} ｜ 掃描時間：{formatDateTime(item.scannedAt)}
                   </div>
                 </div>
               ))}
