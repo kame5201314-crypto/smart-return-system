@@ -6,8 +6,11 @@ import {
 
 describe('text hygiene utilities', () => {
   it('detects mojibake-like text', () => {
-    expect(isLikelyMojibakeText('蝦皮??商城??來回件')).toBe(true);
-    expect(isLikelyMojibakeText('蝦皮?商城?來回件')).toBe(true);
+    const doubledQuestion = '?'.repeat(2);
+    const mixedQuestion = '?';
+
+    expect(isLikelyMojibakeText(`蝦皮${doubledQuestion}商城${doubledQuestion}來回件`)).toBe(true);
+    expect(isLikelyMojibakeText(`蝦皮${mixedQuestion}商城${mixedQuestion}來回件`)).toBe(true);
     expect(isLikelyMojibakeText('含有\uFFFD替代字元')).toBe(true);
   });
 
@@ -17,12 +20,13 @@ describe('text hygiene utilities', () => {
   });
 
   it('recursively scans nested objects', () => {
+    const mixedQuestion = '?';
     const payload = {
       summary: '正常內容',
       pain_points: [
         {
           issue: '品質問題',
-          details: '蝦皮?商城?來回件',
+          details: `蝦皮${mixedQuestion}商城${mixedQuestion}來回件`,
         },
       ],
     };

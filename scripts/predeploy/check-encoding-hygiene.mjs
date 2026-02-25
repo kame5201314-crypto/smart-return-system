@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const TEXT_EXTENSIONS = new Set([
@@ -10,13 +10,66 @@ const TEXT_EXTENSIONS = new Set([
   '.yml', '.yaml', '.txt',
 ]);
 
+const SKIP_DIRECTORIES = new Set([
+  '.git',
+  '.next',
+  '.vercel',
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+]);
+
+function normalizeFilePath(filePath) {
+  return filePath.replace(/\\/g, '/');
+}
+
+function listTextFilesFromFilesystem(dirPath, rootDir = dirPath) {
+  const entries = readdirSync(dirPath, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.DS_Store')) {
+      continue;
+    }
+
+    const absolutePath = path.join(dirPath, entry.name);
+    const relativePath = normalizeFilePath(path.relative(rootDir, absolutePath));
+
+    if (entry.isDirectory()) {
+      if (SKIP_DIRECTORIES.has(entry.name)) {
+        continue;
+      }
+      files.push(...listTextFilesFromFilesystem(absolutePath, rootDir));
+      continue;
+    }
+
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    if (!TEXT_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+      continue;
+    }
+
+    files.push(relativePath);
+  }
+
+  return files;
+}
+
 function listTrackedFiles() {
-  const output = execSync('git ls-files', { encoding: 'utf8' });
-  return output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((file) => TEXT_EXTENSIONS.has(path.extname(file).toLowerCase()));
+  try {
+    const output = execSync('git ls-files', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return output
+      .split(/\r?\n/)
+      .map((line) => normalizeFilePath(line.trim()))
+      .filter(Boolean)
+      .filter((file) => TEXT_EXTENSIONS.has(path.extname(file).toLowerCase()));
+  } catch {
+    console.warn('[encoding-hygiene] git ls-files unavailable, using filesystem scan fallback.');
+    return listTextFilesFromFilesystem(process.cwd());
+  }
 }
 
 function hasNullByte(buffer) {
