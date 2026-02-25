@@ -265,13 +265,13 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
 
   // Find a suitable model for text generation (updated for 2025+ API)
   const preferredModels = [
-    'models/gemini-2.0-flash',
     'models/gemini-2.0-flash-lite',
+    'models/gemini-2.0-flash',
     'models/gemini-flash-latest',
     'models/gemini-pro-latest',
   ];
 
-  let modelToUse = 'models/gemini-2.0-flash'; // default fallback
+  let modelToUse = 'models/gemini-2.0-flash-lite'; // default fallback
   for (const preferred of preferredModels) {
     if (availableModels.includes(preferred)) {
       modelToUse = preferred;
