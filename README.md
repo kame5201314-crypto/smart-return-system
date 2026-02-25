@@ -141,6 +141,12 @@ node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-t
 - `RECONCILE_CRON_AUTO_FIX`：是否自動修正報告 totals（預設 `1`）
 - `RECONCILE_COMPARE_AMOUNT`：是否一起比對退款金額（預設 `1`）
 
+手動演練（部署後建議執行）：
+
+```bash
+node --env-file=.env.vercel.production scripts/maintenance/cron-drill.mjs --base-url=https://smart-return-system.vercel.app
+```
+
 ## 資安注意事項
 
 - 所有 API Key 必須存放於 .env 檔案

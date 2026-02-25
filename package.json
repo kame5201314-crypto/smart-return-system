@@ -16,7 +16,8 @@
     "prebuild:alerts": "node scripts/predeploy/check-alert-config.mjs",
     "prebuild:consistency": "node scripts/predeploy/check-ai-analytics-consistency.mjs",
     "prebuild:encoding": "node scripts/predeploy/check-encoding-hygiene.mjs",
-    "maintenance:reconcile-ai-totals": "node scripts/maintenance/reconcile-ai-report-totals.mjs"
+    "maintenance:reconcile-ai-totals": "node scripts/maintenance/reconcile-ai-report-totals.mjs",
+    "maintenance:cron-drill": "node scripts/maintenance/cron-drill.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

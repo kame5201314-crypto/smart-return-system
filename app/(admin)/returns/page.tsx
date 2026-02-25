@@ -29,6 +29,7 @@ import { ReturnsTable, SortField, SortDirection } from '@/components/shared/retu
 
 import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
+import { filterAndSortReturns } from '@/lib/utils/return-filtering';
 
 // Status order for sorting
 const STATUS_ORDER: Record<string, number> = {
@@ -122,61 +123,14 @@ export default function ReturnsPage() {
   }
 
   const filterReturns = useCallback(() => {
-    let filtered = [...returns];
-
-    // Search filter (supports phone number search)
-    if (appliedSearchQuery) {
-      const query = appliedSearchQuery.toLowerCase().replace(/[-\s]/g, '');
-      filtered = filtered.filter(
-        (r) =>
-          r.request_number.toLowerCase().includes(query) ||
-          r.order?.customer_name?.toLowerCase().includes(query) ||
-          r.order?.order_number?.toLowerCase().includes(query) ||
-          r.order?.customer_phone?.replace(/[-\s]/g, '').includes(query)
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'pending_inspection') {
-        // 待審核 includes multiple statuses
-        const pendingStatuses = ['pending_review', 'approved_waiting_shipping', 'shipping_in_transit', 'received_inspecting', 'refund_processing'];
-        filtered = filtered.filter((r) => pendingStatuses.includes(r.status));
-      } else {
-        filtered = filtered.filter((r) => r.status === statusFilter);
-      }
-    }
-
-    // Channel filter
-    if (channelFilter !== 'all') {
-      filtered = filtered.filter((r) => r.channel_source === channelFilter);
-    }
-
-    // Apply sorting
-    if (sortField) {
-      filtered.sort((a, b) => {
-        let comparison = 0;
-
-        switch (sortField) {
-          case 'status':
-            const statusA = STATUS_ORDER[a.status] ?? 99;
-            const statusB = STATUS_ORDER[b.status] ?? 99;
-            comparison = statusA - statusB;
-            break;
-          case 'created_at':
-            comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-            break;
-          case 'channel_source':
-            const channelA = a.channel_source || '';
-            const channelB = b.channel_source || '';
-            comparison = channelA.localeCompare(channelB);
-            break;
-        }
-
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-    }
-
+    const filtered = filterAndSortReturns(returns, {
+      appliedSearchQuery,
+      statusFilter,
+      channelFilter,
+      sortField,
+      sortDirection,
+      statusOrder: STATUS_ORDER,
+    });
     setFilteredReturns(filtered);
   }, [appliedSearchQuery, channelFilter, returns, sortDirection, sortField, statusFilter]);
 

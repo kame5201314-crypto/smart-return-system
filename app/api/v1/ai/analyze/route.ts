@@ -3,6 +3,7 @@ import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admi
 import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
 import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -88,24 +89,6 @@ function isMissingColumnError(error: unknown, table: string, column: string): bo
     || message.includes(`column ${table}_1.${column} does not exist`)
     || message.includes(`column ${table}_2.${column} does not exist`)
   );
-}
-
-function normalizeResolutionTypeFromFallback(value: unknown): string {
-  if (typeof value !== 'string') {
-    return 'full';
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return 'full';
-  }
-
-  const lower = trimmed.toLowerCase();
-  if (lower === 'full' || lower === 'full_refund' || lower === 'full refund' || trimmed === '全額退款') return 'full';
-  if (lower === 'partial' || lower === 'partial_refund' || lower === 'partial refund' || trimmed === '部分退款') return 'partial';
-  if (lower === 'exchange' || trimmed === '換貨') return 'exchange';
-  if (lower === 'round_trip' || lower === 'round trip' || trimmed === '來回件') return 'round_trip';
-  return 'full';
 }
 
 function toNumberOrNull(value: unknown): number | null {

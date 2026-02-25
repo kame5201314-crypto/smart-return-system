@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
-
-interface ReconcileMismatch {
-  id: string;
-  period: string;
-  expectedReturns: number;
-  actualReturns: number;
-  expectedRefundAmount: number;
-  actualRefundAmount: number;
-  returnsMismatch: boolean;
-  amountMismatch: boolean;
-}
+import {
+  buildReconcileMismatches,
+  type AiReportMetricRow,
+  type ReturnRequestMetricRow,
+  type ShopeeReturnMetricRow,
+} from '@/lib/maintenance/reconcile-ai-reports';
 
 function normalizeEnvValue(value: string | undefined): string {
   if (!value) return '';
@@ -24,68 +19,6 @@ function parseBool(value: string | undefined, defaultValue: boolean): boolean {
   if (normalized === '1' || normalized === 'true' || normalized === 'yes') return true;
   if (normalized === '0' || normalized === 'false' || normalized === 'no') return false;
   return defaultValue;
-}
-
-function parseExcelDate(serial: number): Date | null {
-  if (!Number.isFinite(serial)) return null;
-  if (serial < 1 || serial > 100000) return null;
-  const epoch = Date.UTC(1899, 11, 30);
-  return new Date(epoch + Math.floor(serial) * 24 * 60 * 60 * 1000);
-}
-
-function extractYearMonthFromRaw(raw: string): string | null {
-  const match = raw.match(/(\d{4})\D+(\d{1,2})/);
-  if (!match) return null;
-
-  const year = match[1];
-  const monthNum = Number(match[2]);
-  if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) return null;
-
-  return `${year}-${String(monthNum).padStart(2, '0')}`;
-}
-
-function toYearMonth(value: unknown): string | null {
-  if (!value) return null;
-  const raw = String(value).trim();
-  if (!raw) return null;
-
-  if (/^\d+(\.\d+)?$/.test(raw)) {
-    const excelDate = parseExcelDate(Number(raw));
-    if (excelDate && !Number.isNaN(excelDate.getTime())) {
-      const year = excelDate.getUTCFullYear();
-      const month = String(excelDate.getUTCMonth() + 1).padStart(2, '0');
-      return `${year}-${month}`;
-    }
-  }
-
-  const rawYearMonth = extractYearMonthFromRaw(raw);
-  if (rawYearMonth) return rawYearMonth;
-
-  const parsedDate = new Date(raw);
-  if (!Number.isNaN(parsedDate.getTime())) {
-    const year = parsedDate.getUTCFullYear();
-    const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  }
-
-  return null;
-}
-
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
-function roundCurrency(value: number): number {
-  return Number(value.toFixed(2));
-}
-
-function amountsMatch(a: number, b: number): boolean {
-  return Math.abs(a - b) < 0.01;
 }
 
 function parseRequestedPeriods(url: string): Set<string> {
@@ -110,7 +43,7 @@ function shouldAutoFix(url: string): boolean {
 async function reconcileReports(url: string): Promise<{
   checkedPeriods: number;
   mismatchCount: number;
-  mismatches: ReconcileMismatch[];
+  mismatches: ReturnType<typeof buildReconcileMismatches>['mismatches'];
   appliedCount: number;
   applyErrors: Array<{ id: string; period: string; error: string }>;
 }> {
@@ -133,71 +66,18 @@ async function reconcileReports(url: string): Promise<{
     throw new Error(rrError?.message || srError?.message || reportsError?.message || 'Failed to query tables');
   }
 
-  const totalsByPeriod = new Map<string, { totalReturns: number; totalRefundAmount: number }>();
-
-  for (const row of returnRequests || []) {
-    const period = toYearMonth((row as { created_at?: unknown }).created_at);
-    if (!period) continue;
-    const current = totalsByPeriod.get(period) || { totalReturns: 0, totalRefundAmount: 0 };
-    const refund = toFiniteNumber((row as { refund_amount?: unknown }).refund_amount) ?? 0;
-    totalsByPeriod.set(period, {
-      totalReturns: current.totalReturns + 1,
-      totalRefundAmount: roundCurrency(current.totalRefundAmount + refund),
-    });
-  }
-
-  for (const row of shopeeReturns || []) {
-    const period = toYearMonth((row as { order_date?: unknown }).order_date);
-    if (!period) continue;
-    const current = totalsByPeriod.get(period) || { totalReturns: 0, totalRefundAmount: 0 };
-    const refund =
-      toFiniteNumber((row as { refund_amount?: unknown }).refund_amount)
-      ?? toFiniteNumber((row as { total_price?: unknown }).total_price)
-      ?? 0;
-    totalsByPeriod.set(period, {
-      totalReturns: current.totalReturns + 1,
-      totalRefundAmount: roundCurrency(current.totalRefundAmount + refund),
-    });
-  }
-
-  const latestByPeriod = new Map<string, { id: string; report_period: string; total_returns: unknown; total_refund_amount: unknown }>();
-  for (const row of reports || []) {
-    const report = row as { id: string; report_period: string; total_returns: unknown; total_refund_amount: unknown };
-    if (!latestByPeriod.has(report.report_period)) {
-      latestByPeriod.set(report.report_period, report);
-    }
-  }
-
-  const reportRows = [...latestByPeriod.values()]
-    .filter((row) => periodFilter.size === 0 || periodFilter.has(row.report_period))
-    .sort((a, b) => a.report_period.localeCompare(b.report_period));
-
-  const mismatches: ReconcileMismatch[] = [];
-  for (const row of reportRows) {
-    const expected = totalsByPeriod.get(row.report_period) || { totalReturns: 0, totalRefundAmount: 0 };
-    const actualReturns = toFiniteNumber(row.total_returns) ?? 0;
-    const actualRefundAmount = roundCurrency(toFiniteNumber(row.total_refund_amount) ?? 0);
-
-    const returnsMismatch = actualReturns !== expected.totalReturns;
-    const amountMismatch = compareAmount && !amountsMatch(actualRefundAmount, expected.totalRefundAmount);
-    if (returnsMismatch || amountMismatch) {
-      mismatches.push({
-        id: row.id,
-        period: row.report_period,
-        expectedReturns: expected.totalReturns,
-        actualReturns,
-        expectedRefundAmount: expected.totalRefundAmount,
-        actualRefundAmount,
-        returnsMismatch,
-        amountMismatch,
-      });
-    }
-  }
+  const summary = buildReconcileMismatches({
+    returnRequests: (returnRequests || []) as ReturnRequestMetricRow[],
+    shopeeReturns: (shopeeReturns || []) as ShopeeReturnMetricRow[],
+    reports: (reports || []) as AiReportMetricRow[],
+    compareAmount,
+    periodFilter,
+  });
 
   const applyErrors: Array<{ id: string; period: string; error: string }> = [];
   let appliedCount = 0;
   if (apply) {
-    for (const mismatch of mismatches) {
+    for (const mismatch of summary.mismatches) {
       const { error } = await supabase
         .from('ai_analysis_reports')
         .update({
@@ -215,9 +95,9 @@ async function reconcileReports(url: string): Promise<{
   }
 
   return {
-    checkedPeriods: reportRows.length,
-    mismatchCount: mismatches.length,
-    mismatches,
+    checkedPeriods: summary.checkedPeriods,
+    mismatchCount: summary.mismatches.length,
+    mismatches: summary.mismatches,
     appliedCount,
     applyErrors,
   };
