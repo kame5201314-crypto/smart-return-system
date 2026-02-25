@@ -4,6 +4,7 @@ import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
 import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
+import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -609,6 +610,14 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
       return NextResponse.json(
         { success: false, error: 'Failed to parse AI response' },
         { status: 500 }
+      );
+    }
+
+    if (containsLikelyMojibake(analysisResult)) {
+      console.error('AI response appears to contain mojibake-like content:', aiResponse);
+      return NextResponse.json(
+        { success: false, error: 'AI 回傳內容疑似亂碼，請重新分析一次' },
+        { status: 502 }
       );
     }
 

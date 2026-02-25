@@ -41,6 +41,58 @@ function findTripleQuestionInStringLiterals(text) {
   return findings;
 }
 
+function countMatches(text, pattern) {
+  const matches = text.match(pattern);
+  return matches ? matches.length : 0;
+}
+
+function isLikelyMojibakeText(input) {
+  const text = String(input || '').trim();
+  if (!text) return false;
+
+  if (text.includes('\uFFFD')) return true;
+  if (/\?{3,}/.test(text)) return true;
+
+  const questionCount = countMatches(text, /\?/g);
+  if (questionCount === 0) return false;
+
+  const cjkCount = countMatches(text, /[\u3400-\u9FFF]/g);
+  const latinCount = countMatches(text, /[A-Za-z]/g);
+  const totalSignal = cjkCount + latinCount + questionCount;
+
+  if (cjkCount > 0 && /[\u3400-\u9FFF]\?[\u3400-\u9FFF]/.test(text)) {
+    return true;
+  }
+
+  if (cjkCount > 0 && questionCount >= 2 && questionCount / Math.max(totalSignal, 1) >= 0.18) {
+    return true;
+  }
+
+  return false;
+}
+
+function findMojibakeRiskInStringLiterals(text) {
+  const findings = [];
+  const pattern = /(['"`])(?:\\.|(?!\1)[\s\S])*?\1/g;
+  let match;
+
+  while ((match = pattern.exec(text))) {
+    const literal = match[0].slice(1, -1);
+    if (!isLikelyMojibakeText(literal)) {
+      continue;
+    }
+
+    const index = match.index;
+    const line = text.slice(0, index).split('\n').length;
+    findings.push({
+      line,
+      preview: match[0].slice(0, 120),
+    });
+  }
+
+  return findings;
+}
+
 function main() {
   const files = listTrackedFiles();
   const violations = [];
@@ -73,6 +125,16 @@ function main() {
         preview: finding.preview,
       });
     }
+
+    const mojibakeFindings = findMojibakeRiskInStringLiterals(text);
+    for (const finding of mojibakeFindings) {
+      violations.push({
+        file,
+        line: finding.line,
+        type: 'mojibake-risk',
+        preview: finding.preview,
+      });
+    }
   }
 
   if (violations.length === 0) {
@@ -94,4 +156,3 @@ function main() {
 }
 
 main();
-
