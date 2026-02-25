@@ -2,19 +2,54 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 import {
   getShopeeReturnById,
+  updateShopeeReturn,
   updateShopeeReturnStatus,
   type ShopeeReturn,
 } from '@/lib/actions/shopee-returns.actions';
+
+interface EditFormState {
+  platform: 'shopee' | 'mall';
+  orderNumber: string;
+  trackingNumber: string;
+  shippingMethod: string;
+  orderDate: string;
+  disputeDeadline: string;
+  refundAmount: string;
+  returnQuantity: string;
+  productName: string;
+  optionName: string;
+  optionSku: string;
+  returnReason: string;
+  buyerNote: string;
+  note: string;
+}
 
 function getPlatformLabel(platform: ShopeeReturn['platform']): string {
   if (platform === 'mall') return '商城';
@@ -36,6 +71,30 @@ function formatDateTime(dateString: string | null): string {
   });
 }
 
+function toDateInput(dateString: string | null): string {
+  if (!dateString) return '';
+  return dateString.slice(0, 10);
+}
+
+function buildEditForm(record: ShopeeReturn): EditFormState {
+  return {
+    platform: record.platform === 'mall' ? 'mall' : 'shopee',
+    orderNumber: record.order_number || '',
+    trackingNumber: record.tracking_number || '',
+    shippingMethod: record.shipping_method || '',
+    orderDate: toDateInput(record.order_date),
+    disputeDeadline: toDateInput(record.dispute_deadline),
+    refundAmount: record.refund_amount != null ? String(record.refund_amount) : '',
+    returnQuantity: String(record.return_quantity || 1),
+    productName: record.product_name || '',
+    optionName: record.option_name || '',
+    optionSku: record.option_sku || '',
+    returnReason: record.return_reason || '',
+    buyerNote: record.buyer_note || '',
+    note: record.note || '',
+  };
+}
+
 export default function ShopeeReturnDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -46,6 +105,10 @@ export default function ShopeeReturnDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'processed' | 'printed' | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [updatingNote, setUpdatingNote] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState<EditFormState | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -116,6 +179,72 @@ export default function ShopeeReturnDetailPage() {
     setUpdatingNote(false);
   }
 
+  function updateEditField<K extends keyof EditFormState>(key: K, value: EditFormState[K]) {
+    setEditForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+  }
+
+  function openEditDialog() {
+    if (!record) return;
+    setEditForm(buildEditForm(record));
+    setEditOpen(true);
+  }
+
+  async function saveEdit() {
+    if (!record || !editForm || savingEdit) return;
+
+    const orderNumber = editForm.orderNumber.trim();
+    if (!orderNumber) {
+      toast.error('請輸入訂單編號');
+      return;
+    }
+
+    const quantity = Number(editForm.returnQuantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      toast.error('數量必須為正整數');
+      return;
+    }
+
+    let refundAmount: number | null = null;
+    if (editForm.refundAmount.trim() !== '') {
+      const parsed = Number(editForm.refundAmount);
+      if (Number.isNaN(parsed)) {
+        toast.error('退款金額格式錯誤');
+        return;
+      }
+      refundAmount = parsed;
+    }
+
+    setSavingEdit(true);
+
+    const result = await updateShopeeReturn(record.id, {
+      platform: editForm.platform,
+      orderNumber,
+      trackingNumber: editForm.trackingNumber,
+      shippingMethod: editForm.shippingMethod,
+      orderDate: editForm.orderDate,
+      disputeDeadline: editForm.disputeDeadline,
+      refundAmount,
+      returnQuantity: quantity,
+      productName: editForm.productName,
+      optionName: editForm.optionName,
+      optionSku: editForm.optionSku,
+      returnReason: editForm.returnReason,
+      buyerNote: editForm.buyerNote,
+      note: editForm.note,
+    });
+
+    if (result.success && result.data) {
+      setRecord(result.data);
+      setNoteDraft(result.data.note || '');
+      setEditOpen(false);
+      toast.success('內容已更新');
+    } else {
+      toast.error(result.error || '更新失敗');
+    }
+
+    setSavingEdit(false);
+  }
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -131,14 +260,20 @@ export default function ShopeeReturnDetailPage() {
           </Button>
           <div>
             <h1 className="text-xl md:text-2xl font-bold">退貨訂單明細</h1>
-            <p className="text-sm text-muted-foreground">查看買家退款金額、規格、貨號等資訊</p>
+            <p className="text-sm text-muted-foreground">查看與編輯退貨金額、規格、貨號等資訊</p>
           </div>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="py-4">
+        <CardHeader className="py-4 flex flex-row items-center justify-between">
           <CardTitle className="text-base">基本資訊</CardTitle>
+          {!loading && record && (
+            <Button variant="outline" size="sm" onClick={openEditDialog}>
+              <Pencil className="w-4 h-4 mr-1" />
+              編輯內容
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -209,14 +344,14 @@ export default function ShopeeReturnDetailPage() {
                   </button>
 
                   {record.color_tag === 'yellow' && (
-                    <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300">標色: 黃</Badge>
+                    <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300">顏色標籤: 黃</Badge>
                   )}
                   {record.color_tag === 'red' && (
-                    <Badge className="bg-red-100 text-red-800 border border-red-300">標色: 紅</Badge>
+                    <Badge className="bg-red-100 text-red-800 border border-red-300">顏色標籤: 紅</Badge>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  已入庫時間：{formatDateTime(record.scanned_at)} ｜ 已處理時間：{formatDateTime(record.processed_at)}
+                  入庫時間：{formatDateTime(record.scanned_at)} ｜ 已處理時間：{formatDateTime(record.processed_at)}
                 </div>
                 <div className="text-xs text-muted-foreground">點選上方狀態可切換。</div>
               </div>
@@ -233,6 +368,14 @@ export default function ShopeeReturnDetailPage() {
                 <div>
                   <div className="text-xs text-muted-foreground">退貨寄件編號</div>
                   <div className="text-sm font-mono">{record.tracking_number || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">退貨運送方式</div>
+                  <div className="text-sm">{record.shipping_method || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">訂單日期</div>
+                  <div className="text-sm">{record.order_date || '-'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">爭議申請期限</div>
@@ -267,7 +410,11 @@ export default function ShopeeReturnDetailPage() {
                 <div className="text-xs text-muted-foreground">數量</div>
                 <div className="text-sm font-medium">{record.return_quantity}</div>
               </div>
-              <div className="md:col-span-2">
+              <div>
+                <div className="text-xs text-muted-foreground">商品名稱</div>
+                <div className="text-sm">{record.product_name || '-'}</div>
+              </div>
+              <div>
                 <div className="text-xs text-muted-foreground">商品規格名稱</div>
                 <div className="text-sm">{record.option_name || '-'}</div>
               </div>
@@ -284,13 +431,13 @@ export default function ShopeeReturnDetailPage() {
                 <div className="text-sm whitespace-pre-wrap break-words">{record.buyer_note || '-'}</div>
               </div>
               <div className="md:col-span-2">
-                <div className="text-xs text-muted-foreground">內部備註（與列表同步）</div>
+                <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
                 <Textarea
                   value={noteDraft}
                   placeholder="輸入備註..."
                   className="mt-1 min-h-[84px] text-sm"
                   disabled={updatingNote}
-                  onChange={(e) => setNoteDraft(e.target.value)}
+                  onChange={(event) => setNoteDraft(event.target.value)}
                   onBlur={saveNote}
                 />
               </div>
@@ -298,6 +445,161 @@ export default function ShopeeReturnDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>編輯退貨內容</DialogTitle>
+            <DialogDescription>可修改平台、訂單資訊、商品與備註內容。</DialogDescription>
+          </DialogHeader>
+
+          {!editForm ? null : (
+            <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>平台 *</Label>
+                  <Select
+                    value={editForm.platform}
+                    onValueChange={(value) => updateEditField('platform', value as 'shopee' | 'mall')}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="shopee">蝦皮</SelectItem>
+                      <SelectItem value="mall">商城</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>訂單編號 *</Label>
+                  <Input
+                    value={editForm.orderNumber}
+                    onChange={(event) => updateEditField('orderNumber', event.target.value)}
+                    placeholder="輸入訂單編號"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>退貨寄件編號</Label>
+                  <Input
+                    value={editForm.trackingNumber}
+                    onChange={(event) => updateEditField('trackingNumber', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>退貨運送方式</Label>
+                  <Input
+                    value={editForm.shippingMethod}
+                    onChange={(event) => updateEditField('shippingMethod', event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>訂單日期</Label>
+                  <Input
+                    type="date"
+                    value={editForm.orderDate}
+                    onChange={(event) => updateEditField('orderDate', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>爭議申請期限</Label>
+                  <Input
+                    type="date"
+                    value={editForm.disputeDeadline}
+                    onChange={(event) => updateEditField('disputeDeadline', event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>買家退款金額</Label>
+                  <Input
+                    type="number"
+                    value={editForm.refundAmount}
+                    onChange={(event) => updateEditField('refundAmount', event.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>數量</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editForm.returnQuantity}
+                    onChange={(event) => updateEditField('returnQuantity', event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>商品名稱</Label>
+                  <Input
+                    value={editForm.productName}
+                    onChange={(event) => updateEditField('productName', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>商品規格名稱</Label>
+                  <Input
+                    value={editForm.optionName}
+                    onChange={(event) => updateEditField('optionName', event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>貨號</Label>
+                  <Input
+                    value={editForm.optionSku}
+                    onChange={(event) => updateEditField('optionSku', event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>退貨原因</Label>
+                  <Input
+                    value={editForm.returnReason}
+                    onChange={(event) => updateEditField('returnReason', event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>買家備註</Label>
+                <Textarea
+                  rows={2}
+                  value={editForm.buyerNote}
+                  onChange={(event) => updateEditField('buyerNote', event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>管理備註</Label>
+                <Textarea
+                  rows={2}
+                  value={editForm.note}
+                  onChange={(event) => updateEditField('note', event.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
+              取消
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit || !editForm}>
+              {savingEdit ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />儲存中...</> : '儲存'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

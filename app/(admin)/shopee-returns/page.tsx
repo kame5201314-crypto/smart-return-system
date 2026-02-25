@@ -26,6 +26,7 @@ import {
   Calendar,
   Store,
   Plus,
+  ScanLine,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -864,6 +865,17 @@ export default function ShopeeReturnsPage() {
             asChild
             variant="outline"
             size="sm"
+            className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+          >
+            <Link href="/shopee-returns/scan">
+              <ScanLine className="w-4 h-4 mr-1" />
+              掃描工具
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
             className="border-blue-300 text-blue-600 hover:bg-blue-50"
           >
             <a href="/api/v1/admin/shopee-returns/export" target="_blank" rel="noreferrer">
@@ -910,6 +922,10 @@ export default function ShopeeReturnsPage() {
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground">已入庫:</span>
                 <Badge className="bg-blue-100 text-blue-800 text-xs">{scannedCount}</Badge>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground">未掃描:</span>
+                <Badge variant="outline" className="text-xs">{notScannedCount}</Badge>
               </div>
 
               {/* Status Filter - moved here */}
@@ -1053,13 +1069,18 @@ export default function ShopeeReturnsPage() {
                       </div>
                     </TableHead>
                     <TableHead
-                      className="w-[60px] cursor-pointer hover:bg-muted/50 select-none"
+                      className="w-[70px] cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort('is_scanned')}
                     >
                       <div className="flex items-center">
-                        入庫
+                        掃描
                         {getSortIcon('is_scanned')}
                       </div>
+                    </TableHead>
+                    <TableHead
+                      className="w-[60px]"
+                    >
+                      入庫
                     </TableHead>
                     <TableHead className="w-[60px]">狀態</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
@@ -1106,6 +1127,17 @@ export default function ShopeeReturnsPage() {
                             }
                           }}
                         />
+                      </TableCell>
+                      <TableCell>
+                        {record.is_scanned ? (
+                          <Badge className="bg-indigo-100 text-indigo-800 text-[10px] px-1">
+                            已掃描
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
+                            未掃描
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <button onClick={() => toggleScanned(record.id)} className="flex items-center">
