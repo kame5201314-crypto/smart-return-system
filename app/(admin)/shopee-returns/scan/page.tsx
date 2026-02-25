@@ -70,6 +70,7 @@ function getPlatformLabel(platform: 'shopee' | 'mall' | null): string {
 
 export default function ShopeeReturnScanPage() {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const autoStartRef = useRef(false);
   const processingRef = useRef(false);
   const dedupeRef = useRef<{ code: string; timestamp: number }>({
     code: '',
@@ -244,6 +245,12 @@ export default function ShopeeReturnScanPage() {
   }, [handleCode, manualCode]);
 
   useEffect(() => {
+    if (autoStartRef.current) return;
+    autoStartRef.current = true;
+    void startScanner();
+  }, [startScanner]);
+
+  useEffect(() => {
     return () => {
       void stopScanner();
     };
@@ -278,7 +285,7 @@ export default function ShopeeReturnScanPage() {
             相機掃描
           </CardTitle>
           <CardDescription>
-            建議使用手機後鏡頭掃描，可辨識訂單編號、寄件編號與常見 1D/2D 條碼格式。
+            進入頁面會自動啟動掃描，可辨識訂單編號、寄件編號與常見 1D/2D 條碼格式。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -310,10 +317,6 @@ export default function ShopeeReturnScanPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>鏡頭模式：</span>
-            <Badge variant="outline">
-              {facingMode === 'environment' ? '後鏡頭' : '前鏡頭'}
-            </Badge>
             {isProcessing && (
               <Badge className="bg-indigo-100 text-indigo-800">
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -343,19 +346,28 @@ export default function ShopeeReturnScanPage() {
           ) : (
             <div className="rounded-lg border p-3 space-y-2 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`/shopee-returns/${latestScan.id}`}
-                  className="font-mono underline underline-offset-2 hover:text-primary"
+                <Badge variant="outline" className="text-sm px-2 py-0.5">
+                  {getPlatformLabel(latestScan.platform)}
+                </Badge>
+                <Badge
+                  className={`text-sm px-2 py-0.5 ${latestScan.alreadyScanned ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}
                 >
-                  {latestScan.orderNumber}
-                </Link>
-                <Badge variant="outline">{getPlatformLabel(latestScan.platform)}</Badge>
-                <Badge className={latestScan.alreadyScanned ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}>
                   {latestScan.alreadyScanned ? '已掃描過' : '新掃描'}
                 </Badge>
                 {latestScan.matchedCount > 1 && (
-                  <Badge variant="outline">同單 {latestScan.matchedCount} 筆</Badge>
+                  <Badge variant="outline" className="text-sm px-2 py-0.5">
+                    同單 {latestScan.matchedCount} 筆
+                  </Badge>
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/shopee-returns/${latestScan.id}`}
+                  className="font-mono text-lg font-semibold underline underline-offset-2 hover:text-primary"
+                >
+                  {latestScan.orderNumber}
+                </Link>
               </div>
               <div className="text-xs text-muted-foreground font-mono">
                 掃描值：{latestScan.code}
