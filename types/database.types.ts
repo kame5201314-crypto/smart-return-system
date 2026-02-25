@@ -341,6 +341,7 @@ export interface Database {
           quantity: number;
           unit_price: number | null;
           reason: string | null;
+          resolution_type: 'full' | 'partial' | 'exchange' | 'round_trip';
           created_at: string;
         };
         Insert: {
@@ -354,6 +355,7 @@ export interface Database {
           quantity?: number;
           unit_price?: number | null;
           reason?: string | null;
+          resolution_type?: 'full' | 'partial' | 'exchange' | 'round_trip';
           created_at?: string;
         };
         Update: {
@@ -367,6 +369,7 @@ export interface Database {
           quantity?: number;
           unit_price?: number | null;
           reason?: string | null;
+          resolution_type?: 'full' | 'partial' | 'exchange' | 'round_trip';
           created_at?: string;
         };
       };

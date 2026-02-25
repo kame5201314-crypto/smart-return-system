@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS public.return_items (
     subtotal DECIMAL(12,2) NOT NULL,
     condition VARCHAR(30), -- unopened, opened_unused, used, damaged
     condition_notes TEXT,
+    resolution_type VARCHAR(30) DEFAULT 'full', -- full, partial, exchange, round_trip
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

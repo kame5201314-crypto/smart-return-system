@@ -59,8 +59,7 @@ import {
   RETURN_STATUS_LABELS,
   RETURN_STATUS_COLORS,
   RETURN_REASONS,
-  RETURN_SHIPPING_METHODS,
-  REFUND_TYPES,
+  RETURN_ITEM_RESOLUTION_TYPES,
   CHANNEL_LIST,
   ERROR_MESSAGES,
 } from '@/config/constants';
@@ -114,6 +113,7 @@ interface ReturnDetail {
     quantity: number;
     unit_price: number | null;
     reason: string | null;
+    resolution_type?: string | null;
   }[];
   return_images?: {
     id: string;
@@ -135,11 +135,16 @@ interface ReturnDetail {
 type ItemRefundOption = 'full' | 'partial' | 'exchange' | 'round_trip';
 
 const ITEM_REFUND_OPTIONS: Array<{ key: ItemRefundOption; label: string }> = [
-  { key: 'full', label: '全額退款' },
-  { key: 'partial', label: '部分退款' },
-  { key: 'exchange', label: '換貨' },
-  { key: 'round_trip', label: '來回件' },
+  { key: RETURN_ITEM_RESOLUTION_TYPES.FULL.key, label: RETURN_ITEM_RESOLUTION_TYPES.FULL.label },
+  { key: RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.key, label: RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.label },
+  { key: RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.key, label: RETURN_ITEM_RESOLUTION_TYPES.EXCHANGE.label },
+  { key: RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key, label: RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.label },
 ];
+
+function normalizeItemResolutionType(value?: string | null): ItemRefundOption {
+  const valid = ITEM_REFUND_OPTIONS.some((option) => option.key === value);
+  return valid ? (value as ItemRefundOption) : RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+}
 
 export default function ReturnDetailPage() {
   const params = useParams();
@@ -158,6 +163,7 @@ export default function ReturnDetailPage() {
   const [editAdminNote, setEditAdminNote] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, ItemRefundOption>>({});
+  const [updatingResolutionItemId, setUpdatingResolutionItemId] = useState<string | null>(null);
   const [invoiceStatus, setInvoiceStatus] = useState('未作廢');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -195,6 +201,11 @@ export default function ReturnDetailPage() {
         if (result.data.invoice_status) {
           setInvoiceStatus(result.data.invoice_status);
         }
+        const initialResolutionTypes: Record<string, ItemRefundOption> = {};
+        result.data.return_items?.forEach((item) => {
+          initialResolutionTypes[item.id] = normalizeItemResolutionType(item.resolution_type);
+        });
+        setItemRefundTypes(initialResolutionTypes);
       } else if (result.error) {
         console.error('Fetch detail failed:', result.error);
         toast.error(result.error);
@@ -251,10 +262,11 @@ export default function ReturnDetailPage() {
         refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
         adminNote: editAdminNote,
         invoiceStatus,
+        itemResolutionTypes: itemRefundTypes,
       });
 
       if (result.success) {
-        toast.success('資訊更新成功');
+        toast.success(result.message || '資訊更新成功');
         setEditInfoDialogOpen(false);
         fetchDetail();
       } else {
@@ -274,6 +286,45 @@ export default function ReturnDetailPage() {
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
     setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
     setEditInfoDialogOpen(true);
+  }
+
+  async function handleItemResolutionChange(itemId: string, nextType: ItemRefundOption) {
+    if (!returnData || updatingResolutionItemId) return;
+
+    const previousType = itemRefundTypes[itemId]
+      || normalizeItemResolutionType(returnData.return_items?.find((item) => item.id === itemId)?.resolution_type);
+    if (previousType === nextType) return;
+
+    setItemRefundTypes((prev) => ({ ...prev, [itemId]: nextType }));
+    setUpdatingResolutionItemId(itemId);
+
+    try {
+      const result = await updateReturnInfo(returnData.id, {
+        itemResolutionTypes: { [itemId]: nextType },
+      });
+
+      if (!result.success) {
+        setItemRefundTypes((prev) => ({ ...prev, [itemId]: previousType }));
+        toast.error(result.error || '更新處理方式失敗');
+        return;
+      }
+
+      setReturnData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          return_items: prev.return_items?.map((item) =>
+            item.id === itemId ? { ...item, resolution_type: nextType } : item
+          ),
+        };
+      });
+      toast.success(result.message || '處理方式已更新');
+    } catch {
+      setItemRefundTypes((prev) => ({ ...prev, [itemId]: previousType }));
+      toast.error('更新處理方式失敗');
+    } finally {
+      setUpdatingResolutionItemId(null);
+    }
   }
 
   async function handleInspectionSubmit(data: InspectionInput) {
@@ -345,12 +396,6 @@ export default function ReturnDetailPage() {
 
   const reason = Object.values(RETURN_REASONS).find(
     (r) => r.key === returnData.reason_category
-  );
-  const shippingMethod = Object.values(RETURN_SHIPPING_METHODS).find(
-    (m) => m.key === returnData.return_shipping_method
-  );
-  const refundType = Object.values(REFUND_TYPES).find(
-    (t) => t.key === returnData.refund_type
   );
 
   return (
@@ -459,7 +504,7 @@ export default function ReturnDetailPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Return Items with Refund Type Selection */}
+              {/* Return items with handling-mode selection */}
               {returnData.return_items && returnData.return_items.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-muted-foreground">退貨商品</p>
@@ -478,7 +523,7 @@ export default function ReturnDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4 pt-2 border-t">
-                          <span className="text-sm text-muted-foreground">退款方式：</span>
+                          <span className="text-sm text-muted-foreground">處理方式：</span>
                           <div className="flex items-center gap-4 flex-wrap">
                             {ITEM_REFUND_OPTIONS.map((option) => (
                               <label key={option.key} className="flex items-center gap-2 cursor-pointer">
@@ -486,11 +531,12 @@ export default function ReturnDetailPage() {
                                   checked={
                                     itemRefundTypes[item.id]
                                       ? itemRefundTypes[item.id] === option.key
-                                      : option.key === 'full'
+                                      : option.key === RETURN_ITEM_RESOLUTION_TYPES.FULL.key
                                   }
+                                  disabled={updatingResolutionItemId === item.id}
                                   onCheckedChange={(checked) => {
                                     if (checked) {
-                                      setItemRefundTypes((prev) => ({ ...prev, [item.id]: option.key }));
+                                      void handleItemResolutionChange(item.id, option.key);
                                     }
                                   }}
                                 />

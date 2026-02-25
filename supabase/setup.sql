@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS return_items (
   quantity INT NOT NULL DEFAULT 1,
   unit_price DECIMAL(10,2),
   reason VARCHAR(255),
+  resolution_type VARCHAR(30) DEFAULT 'full',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

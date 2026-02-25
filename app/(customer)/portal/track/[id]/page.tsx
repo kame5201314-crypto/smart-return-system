@@ -11,7 +11,13 @@ import { Separator } from '@/components/ui/separator';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
 
 import { getReturnStatus } from '@/lib/actions/return.actions';
-import { RETURN_STATUS_LABELS, RETURN_STATUS_COLORS, RETURN_SHIPPING_METHODS, RETURN_REASONS } from '@/config/constants';
+import {
+  RETURN_STATUS_LABELS,
+  RETURN_STATUS_COLORS,
+  RETURN_SHIPPING_METHODS,
+  RETURN_REASONS,
+  RETURN_ITEM_RESOLUTION_TYPES,
+} from '@/config/constants';
 import type { ReturnRequestWithRelations } from '@/types';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
@@ -174,7 +180,16 @@ export default function TrackReturnPage() {
                   </div>
                   <div className="flex-1">
                     <p className="font-medium">{item.product_name}</p>
-                    <p className="text-sm text-muted-foreground">× {item.quantity}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-muted-foreground">× {item.quantity}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {
+                          Object.values(RETURN_ITEM_RESOLUTION_TYPES).find(
+                            (type) => type.key === item.resolution_type
+                          )?.label || RETURN_ITEM_RESOLUTION_TYPES.FULL.label
+                        }
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               ))}

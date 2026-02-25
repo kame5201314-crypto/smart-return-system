@@ -3,7 +3,14 @@ import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admi
 import { createClient } from '@/lib/supabase/server';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
 import ExcelJS from 'exceljs';
-import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_SHIPPING_METHODS, REFUND_TYPES } from '@/config/constants';
+import {
+  RETURN_STATUS_LABELS,
+  CHANNEL_LIST,
+  RETURN_REASONS,
+  RETURN_SHIPPING_METHODS,
+  REFUND_TYPES,
+  RETURN_ITEM_RESOLUTION_TYPES,
+} from '@/config/constants';
 
 interface ReturnExportData {
   request_number: string;
@@ -29,6 +36,7 @@ interface ReturnExportData {
   } | null;
   return_items?: {
     product_name: string;
+    resolution_type?: string | null;
   }[];
 }
 
@@ -99,7 +107,8 @@ async function exportReturns(request: NextRequest) {
           product_name,
           sku,
           quantity,
-          unit_price
+          unit_price,
+          resolution_type
         )
       `)
       .order('created_at', { ascending: false });
@@ -143,7 +152,8 @@ async function exportReturns(request: NextRequest) {
       { header: '詳細說明', key: 'reason_detail', width: 30 },
       { header: '退回方式', key: 'shipping_method', width: 12 },
       { header: '物流單號', key: 'tracking_number', width: 15 },
-      { header: '退款方式', key: 'refund_type', width: 10 },
+      { header: '處理方式', key: 'resolution_type', width: 16 },
+      { header: '退款方式(財務)', key: 'refund_type', width: 12 },
       { header: '退款金額', key: 'refund_amount', width: 10 },
       { header: '退貨商品', key: 'products', width: 40 },
       { header: '申請時間', key: 'applied_at', width: 18 },
@@ -165,6 +175,17 @@ async function exportReturns(request: NextRequest) {
       const shippingMethodLabel = Object.values(RETURN_SHIPPING_METHODS).find((m) => m.key === r.return_shipping_method)?.label || '';
       const refundTypeLabel = Object.values(REFUND_TYPES).find((t) => t.key === r.refund_type)?.label || '';
       const products = r.return_items?.map((item: { product_name: string }) => item.product_name).join(', ') || '';
+      const resolutionLabels = Array.from(
+        new Set(
+          (r.return_items || [])
+            .map((item) => {
+              const matched = Object.values(RETURN_ITEM_RESOLUTION_TYPES).find((type) => type.key === item.resolution_type);
+              return matched?.label;
+            })
+            .filter(Boolean) as string[]
+        )
+      );
+      const resolutionSummary = resolutionLabels.join('、') || RETURN_ITEM_RESOLUTION_TYPES.FULL.label;
 
       worksheet.addRow({
         request_number: r.request_number,
@@ -177,6 +198,7 @@ async function exportReturns(request: NextRequest) {
         reason_detail: r.reason_detail || '',
         shipping_method: shippingMethodLabel,
         tracking_number: r.tracking_number || '',
+        resolution_type: resolutionSummary,
         refund_type: refundTypeLabel,
         refund_amount: r.refund_amount || 0,
         products: products,

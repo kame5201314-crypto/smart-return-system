@@ -39,7 +39,13 @@ import {
 
 import { getReturnRequests } from '@/lib/actions/return.actions';
 import { getShopeeReturns, type ShopeeReturn } from '@/lib/actions/shopee-returns.actions';
-import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
+import {
+  RETURN_STATUS,
+  RETURN_STATUS_LABELS,
+  CHANNEL_LIST,
+  RETURN_REASONS,
+  RETURN_ITEM_RESOLUTION_TYPES,
+} from '@/config/constants';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 const PRODUCT_RANKING_COMPACT_LIMIT = 10;
@@ -51,6 +57,7 @@ interface ReturnItem {
   product_name: string;
   product_sku: string | null;
   quantity: number;
+  resolution_type?: string | null;
 }
 
 interface ReturnData {
@@ -213,6 +220,20 @@ export default function AnalyticsPage() {
     });
     const byStatus = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
+    // By handling mode (全額退款 / 部分退款 / 換貨 / 來回件)
+    const resolutionCounts: Record<string, number> = {};
+    filteredReturns.forEach((r) => {
+      r.return_items?.forEach((item) => {
+        const resolutionLabel =
+          Object.values(RETURN_ITEM_RESOLUTION_TYPES).find((type) => type.key === item.resolution_type)?.label
+          || RETURN_ITEM_RESOLUTION_TYPES.FULL.label;
+        resolutionCounts[resolutionLabel] = (resolutionCounts[resolutionLabel] || 0) + 1;
+      });
+    });
+    const byResolution = Object.entries(resolutionCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
     // Monthly trend - include shopee returns
     const monthlyData: Record<string, number> = {};
     filteredReturns.forEach(r => {
@@ -267,7 +288,18 @@ export default function AnalyticsPage() {
     const productRanking = Object.values(productCounts)
       .sort((a, b) => b.quantity - a.quantity);
 
-    return { totalReturns, officialCount, shopeeCount, shopeeMallCount, byChannel, byReason, byStatus, monthlyTrend, productRanking };
+    return {
+      totalReturns,
+      officialCount,
+      shopeeCount,
+      shopeeMallCount,
+      byChannel,
+      byReason,
+      byStatus,
+      byResolution,
+      monthlyTrend,
+      productRanking,
+    };
   }, [filteredReturns, filteredShopeeReturns]);
 
   const productRankingLimited = stats.productRanking.slice(0, PRODUCT_RANKING_MAX);
@@ -657,6 +689,38 @@ export default function AnalyticsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Resolution distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle>處理方式分布</CardTitle>
+          <CardDescription>全額退款、部分退款、換貨、來回件的件數</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-[180px] w-full" />
+          ) : stats.byResolution.length === 0 ? (
+            <div className="h-[80px] flex items-center justify-center text-muted-foreground">
+              無數據
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {stats.byResolution.map((item, index) => (
+                <div key={item.name} className="flex items-center justify-between py-1 border-b last:border-b-0">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <span className="text-sm">{item.name}</span>
+                  </div>
+                  <span className="text-sm font-medium">{item.value}</span>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

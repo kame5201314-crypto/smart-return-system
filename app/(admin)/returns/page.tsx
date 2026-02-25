@@ -29,7 +29,7 @@ import { KanbanBoard } from '@/components/kanban/kanban-board';
 import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
 
 import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
-import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS } from '@/config/constants';
+import { RETURN_STATUS, RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
 
 // Status order for sorting
 const STATUS_ORDER: Record<string, number> = {
@@ -56,6 +56,7 @@ interface ReturnItem {
   } | null;
   return_items?: {
     product_name: string;
+    resolution_type?: string | null;
   }[];
 }
 
@@ -479,6 +480,7 @@ export default function ReturnsPage() {
       { header: '訂單編號', key: 'order_number', width: 18 },
       { header: '狀態', key: 'status', width: 12 },
       { header: '通路', key: 'channel', width: 10 },
+      { header: '處理方式', key: 'resolution_type', width: 18 },
       { header: '退款金額', key: 'refund_amount', width: 10 },
       { header: '建立時間', key: 'created_at', width: 18 },
     ];
@@ -488,12 +490,23 @@ export default function ReturnsPage() {
 
     // Add data
     filteredReturns.forEach((r) => {
+      const resolutionLabels = Array.from(
+        new Set(
+          ((r.return_items || [])
+            .map((item) =>
+              Object.values(RETURN_ITEM_RESOLUTION_TYPES).find((type) => type.key === item.resolution_type)?.label
+            )
+            .filter(Boolean) as string[])
+        )
+      );
+
       worksheet.addRow({
         request_number: r.request_number,
         customer_name: r.order?.customer_name || '',
         order_number: r.order?.order_number || '',
         status: RETURN_STATUS_LABELS[r.status] || r.status,
         channel: r.channel_source || '',
+        resolution_type: resolutionLabels.join('、') || RETURN_ITEM_RESOLUTION_TYPES.FULL.label,
         refund_amount: r.refund_amount || 0,
         created_at: r.created_at,
       });

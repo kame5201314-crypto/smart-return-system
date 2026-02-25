@@ -15,6 +15,7 @@ interface ReturnAnalysisData {
     sku: string;
     quantity: number;
     reason: string;
+    resolution_type?: string | null;
   }[];
   inspection_records?: {
     result: string | null;
@@ -328,7 +329,8 @@ export async function POST(request: NextRequest) {
           product_name,
           sku,
           quantity,
-          reason
+          reason,
+          resolution_type
         ),
         inspection_records (
           result,
@@ -408,6 +410,7 @@ export async function POST(request: NextRequest) {
         sku: item.sku,
         quantity: item.quantity,
         reason: item.reason,
+        resolution_type: item.resolution_type,
       })),
       inspection: r.inspection_records?.[0]
         ? {

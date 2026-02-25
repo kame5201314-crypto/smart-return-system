@@ -462,6 +462,7 @@ export async function submitCustomerReturn(
       product_name: productName,
       quantity: 1,
       reason: formData.returnReason,
+      resolution_type: 'full',
     } as never);
 
     const insertLogPromise = adminClient.from('activity_logs').insert({

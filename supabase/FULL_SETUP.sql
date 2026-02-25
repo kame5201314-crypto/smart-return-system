@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS public.return_items (
     quantity INTEGER DEFAULT 1,
     unit_price DECIMAL(10,2),
     reason TEXT,
+    resolution_type VARCHAR(30) DEFAULT 'full',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

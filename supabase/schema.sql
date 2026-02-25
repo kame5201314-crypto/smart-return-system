@@ -212,6 +212,12 @@ CREATE TABLE return_items (
   quantity INT NOT NULL DEFAULT 1,
   unit_price DECIMAL(10,2),
   reason VARCHAR(255),
+  resolution_type VARCHAR(30) CHECK (resolution_type IN (
+    'full',
+    'partial',
+    'exchange',
+    'round_trip'
+  )) DEFAULT 'full',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

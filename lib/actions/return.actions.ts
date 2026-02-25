@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import {
   customerLoginSchema,
   returnApplySchema,
@@ -13,8 +13,128 @@ import {
   type StatusUpdateInput,
   type InspectionInput,
 } from '@/lib/validations/return.schema';
-import { CHANNELS, ERROR_MESSAGES } from '@/config/constants';
+import { CHANNELS, ERROR_MESSAGES, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
 import type { ApiResponse, CustomerSession, ReturnRequestWithRelations } from '@/types';
+
+export type ReturnItemResolutionType =
+  typeof RETURN_ITEM_RESOLUTION_TYPES[keyof typeof RETURN_ITEM_RESOLUTION_TYPES]['key'];
+
+const RETURN_ITEM_RESOLUTION_TYPE_SET = new Set(
+  Object.values(RETURN_ITEM_RESOLUTION_TYPES).map((item) => item.key)
+);
+
+function isReturnItemResolutionType(value: string): value is ReturnItemResolutionType {
+  return RETURN_ITEM_RESOLUTION_TYPE_SET.has(value as ReturnItemResolutionType);
+}
+
+function mapChannelToPickupPlatform(channelSource: string | null): string {
+  if (channelSource === 'official') return '官網';
+  if (channelSource === 'shopee') return '蝦皮';
+  if (channelSource === 'shopee_mall') return '商城';
+  if (channelSource === 'momo') return 'MOMO';
+  return '其他';
+}
+
+async function ensureRoundTripPickupRecord(
+  adminClient: ReturnType<typeof createAdminClient>,
+  returnRequestId: string
+): Promise<{ success: true; created: boolean; updated: boolean } | { success: false; error: string }> {
+  const untypedAdminClient = createUntypedAdminClient();
+  const { data: requestData, error: requestError } = await adminClient
+    .from('return_requests')
+    .select(`
+      id,
+      request_number,
+      channel_source,
+      tracking_number,
+      order:orders (
+        order_number,
+        customer_name
+      )
+    `)
+    .eq('id', returnRequestId)
+    .single() as {
+      data: {
+        id: string;
+        request_number: string;
+        channel_source: string | null;
+        tracking_number: string | null;
+        order?: { order_number?: string | null; customer_name?: string | null } | null;
+      } | null;
+      error: Error | null;
+    };
+
+  if (requestError || !requestData) {
+    return { success: false, error: `讀取退貨單失敗: ${requestError?.message || 'Not found'}` };
+  }
+
+  const orderNumber = requestData.order?.order_number?.trim() || requestData.request_number;
+  const receiverInfo = requestData.order?.customer_name || null;
+
+  const { data: existingRows, error: existingError } = await untypedAdminClient
+    .from('pickup_records')
+    .select('id, delivery_status, notes')
+    .eq('order_number', orderNumber)
+    .order('created_at', { ascending: false })
+    .limit(1) as {
+      data: Array<{ id: string; delivery_status: string; notes: string | null }> | null;
+      error: Error | null;
+    };
+
+  if (existingError) {
+    return { success: false, error: `查詢派車收件失敗: ${existingError.message}` };
+  }
+
+  const autoNote = `由退貨單 ${requestData.request_number} 設為來回件自動同步`;
+
+  if (existingRows && existingRows.length > 0) {
+    const existing = existingRows[0];
+    if (existing.delivery_status === '來回件') {
+      return { success: true, created: false, updated: false };
+    }
+
+    const mergedNotes = existing.notes?.includes(autoNote)
+      ? existing.notes
+      : [existing.notes?.trim(), autoNote].filter(Boolean).join(' ｜ ');
+
+    const { error: updateError } = await untypedAdminClient
+      .from('pickup_records')
+      .update({
+        delivery_status: '來回件',
+        notes: mergedNotes || null,
+        tracking_number: requestData.tracking_number || null,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq('id', existing.id);
+
+    if (updateError) {
+      return { success: false, error: `更新派車收件失敗: ${updateError.message}` };
+    }
+
+    return { success: true, created: false, updated: true };
+  }
+
+  const { error: insertError } = await untypedAdminClient
+    .from('pickup_records')
+    .insert({
+      process_date: new Date().toISOString().slice(0, 10),
+      order_number: orderNumber,
+      tracking_number: requestData.tracking_number || null,
+      platform: mapChannelToPickupPlatform(requestData.channel_source),
+      logistics_provider: '其他',
+      delivery_status: '來回件',
+      received_status: '未收到',
+      notes: autoNote,
+      receiver_info: receiverInfo,
+      is_printed: false,
+    } as never);
+
+  if (insertError) {
+    return { success: false, error: `建立派車收件失敗: ${insertError.message}` };
+  }
+
+  return { success: true, created: true, updated: false };
+}
 
 /**
  * Customer login with order number + phone
@@ -158,6 +278,7 @@ export async function submitReturnApplication(
       product_name: '', // Will be filled from order_items
       quantity: item.quantity,
       reason: item.reason,
+      resolution_type: 'full',
     }));
 
     const { error: itemInsertError } = await adminClient
@@ -240,7 +361,8 @@ export async function getReturnStatus(
           id,
           product_name,
           quantity,
-          reason
+          reason,
+          resolution_type
         ),
         return_images (
           id,
@@ -294,7 +416,8 @@ export async function getReturnRequests(filters?: {
           id,
           product_name,
           product_sku,
-          quantity
+          quantity,
+          resolution_type
         )
       `)
       .order('created_at', { ascending: false });
@@ -613,10 +736,12 @@ export async function updateReturnInfo(
     returnShippingMethod?: string;
     adminNote?: string;
     invoiceStatus?: string;
+    itemResolutionTypes?: Record<string, ReturnItemResolutionType | string>;
   }
 ): Promise<ApiResponse> {
   try {
     const adminClient = createAdminClient();
+    let roundTripSyncMessage = '';
 
     // Update fields in return_requests
     const requestUpdateData: Record<string, unknown> = {};
@@ -666,7 +791,71 @@ export async function updateReturnInfo(
       }
     }
 
-    return { success: true, message: '資訊更新成功' };
+    // Update per-item handling mode (全額退款 / 部分退款 / 換貨 / 來回件)
+    if (data.itemResolutionTypes && Object.keys(data.itemResolutionTypes).length > 0) {
+      let shouldSyncRoundTripToPickup = false;
+      const previousResolutionByItemId: Record<string, ReturnItemResolutionType> = {};
+
+      for (const [itemId, rawResolutionType] of Object.entries(data.itemResolutionTypes)) {
+        if (!itemId || typeof rawResolutionType !== 'string') continue;
+        if (!isReturnItemResolutionType(rawResolutionType)) continue;
+
+        const { data: existingItem, error: existingItemError } = await adminClient
+          .from('return_items')
+          .select('resolution_type')
+          .eq('id', itemId)
+          .eq('return_request_id', returnRequestId)
+          .single() as { data: { resolution_type?: string | null } | null; error: Error | null };
+
+        if (existingItemError || !existingItem) {
+          console.error('Fetch existing return item resolution error:', existingItemError);
+          return { success: false, error: `更新處理方式失敗: ${existingItemError?.message || '找不到退貨商品'}` };
+        }
+
+        previousResolutionByItemId[itemId] = isReturnItemResolutionType(existingItem.resolution_type || '')
+          ? (existingItem.resolution_type as ReturnItemResolutionType)
+          : RETURN_ITEM_RESOLUTION_TYPES.FULL.key;
+
+        const { error: resolutionError } = await adminClient
+          .from('return_items')
+          .update({ resolution_type: rawResolutionType } as never)
+          .eq('id', itemId)
+          .eq('return_request_id', returnRequestId);
+
+        if (resolutionError) {
+          console.error('Update return item resolution error:', resolutionError);
+          return { success: false, error: `更新處理方式失敗: ${resolutionError.message}` };
+        }
+
+        if (rawResolutionType === RETURN_ITEM_RESOLUTION_TYPES.ROUND_TRIP.key) {
+          shouldSyncRoundTripToPickup = true;
+        }
+      }
+
+      if (shouldSyncRoundTripToPickup) {
+        const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId);
+        if (!pickupSyncResult.success) {
+          // Best-effort rollback for resolution updates when pickup sync fails
+          for (const [itemId, previousResolution] of Object.entries(previousResolutionByItemId)) {
+            await adminClient
+              .from('return_items')
+              .update({ resolution_type: previousResolution } as never)
+              .eq('id', itemId)
+              .eq('return_request_id', returnRequestId);
+          }
+          return { success: false, error: `已更新處理方式，但同步派車收件失敗: ${pickupSyncResult.error}` };
+        }
+        if (pickupSyncResult.created) {
+          roundTripSyncMessage = '，已同步新增派車收件「來回件」';
+        } else if (pickupSyncResult.updated) {
+          roundTripSyncMessage = '，已同步更新派車收件為「來回件」';
+        } else {
+          roundTripSyncMessage = '，派車收件已是「來回件」';
+        }
+      }
+    }
+
+    return { success: true, message: `資訊更新成功${roundTripSyncMessage}` };
   } catch (error) {
     console.error('Update return info error:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC };
@@ -706,7 +895,8 @@ export async function getReturnRequestDetail(id: string) {
           product_name,
           quantity,
           unit_price,
-          reason
+          reason,
+          resolution_type
         ),
         return_images (
           id,
@@ -987,7 +1177,8 @@ export async function getReturnsForExport(filters?: {
         ),
         return_items (
           product_name,
-          quantity
+          quantity,
+          resolution_type
         )
       `)
       .order('created_at', { ascending: false });
@@ -1013,24 +1204,41 @@ export async function getReturnsForExport(filters?: {
     }
 
     // Transform data for Excel export
-    const exportData = data?.map((r: Record<string, unknown>) => ({
-      '申請編號': r.request_number,
-      '訂單編號': (r.order as Record<string, unknown>)?.order_number,
-      '客戶姓名': (r.order as Record<string, unknown>)?.customer_name,
-      '客戶電話': (r.order as Record<string, unknown>)?.customer_phone,
-      '通路來源': r.channel_source,
-      '狀態': r.status,
-      '退貨原因': r.reason_category,
-      '原因說明': r.reason_detail,
-      '商品': (r.return_items as Array<{ product_name: string; quantity: number }>)?.map(i => `${i.product_name} x${i.quantity}`).join(', '),
-      '退款金額': r.refund_amount,
-      '退款方式': r.refund_method,
-      '申請時間': r.created_at,
-      '核准時間': r.approved_at,
-      '收貨時間': r.received_at,
-      '退款時間': r.refund_processed_at,
-      '結案時間': r.closed_at,
-    }));
+    const exportData = data?.map((r: Record<string, unknown>) => {
+      const itemResolutions = (r.return_items as Array<{ resolution_type?: string | null }> | undefined) || [];
+      const resolutionLabels = Array.from(
+        new Set(
+          itemResolutions
+            .map((item) => {
+              const key = item.resolution_type;
+              const match = Object.values(RETURN_ITEM_RESOLUTION_TYPES).find((type) => type.key === key);
+              return match?.label;
+            })
+            .filter(Boolean) as string[]
+        )
+      );
+      const resolutionSummary = resolutionLabels.join('、') || RETURN_ITEM_RESOLUTION_TYPES.FULL.label;
+
+      return {
+        '申請編號': r.request_number,
+        '訂單編號': (r.order as Record<string, unknown>)?.order_number,
+        '客戶姓名': (r.order as Record<string, unknown>)?.customer_name,
+        '客戶電話': (r.order as Record<string, unknown>)?.customer_phone,
+        '通路來源': r.channel_source,
+        '狀態': r.status,
+        '退貨原因': r.reason_category,
+        '原因說明': r.reason_detail,
+        '商品': (r.return_items as Array<{ product_name: string; quantity: number }>)?.map((i) => `${i.product_name} x${i.quantity}`).join(', '),
+        '處理方式': resolutionSummary,
+        '退款金額': r.refund_amount,
+        '退款方式(財務)': r.refund_method,
+        '申請時間': r.created_at,
+        '核准時間': r.approved_at,
+        '收貨時間': r.received_at,
+        '退款時間': r.refund_processed_at,
+        '結案時間': r.closed_at,
+      };
+    });
 
     return { success: true, data: exportData };
   } catch (error) {
@@ -1154,6 +1362,7 @@ export async function createManualReturnRequest(input: {
         product_sku: item.productSku?.trim() || null,
         quantity: item.quantity || 1,
         unit_price: item.unitPrice || null,
+        resolution_type: RETURN_ITEM_RESOLUTION_TYPES.FULL.key,
       }));
 
     if (returnItems.length > 0) {

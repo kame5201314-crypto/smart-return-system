@@ -80,6 +80,16 @@ export const REFUND_TYPES = {
 } as const;
 
 // =====================================================
+// Return Item Resolution Types (per-item handling result)
+// =====================================================
+export const RETURN_ITEM_RESOLUTION_TYPES = {
+  FULL: { key: 'full', label: '全額退款' },
+  PARTIAL: { key: 'partial', label: '部分退款' },
+  EXCHANGE: { key: 'exchange', label: '換貨' },
+  ROUND_TRIP: { key: 'round_trip', label: '來回件' },
+} as const;
+
+// =====================================================
 // Return Shipping Methods
 // =====================================================
 export const RETURN_SHIPPING_METHODS = {
