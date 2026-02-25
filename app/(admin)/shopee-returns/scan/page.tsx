@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Camera,
-  CameraOff,
   Keyboard,
   Loader2,
   ScanLine,
@@ -16,7 +15,7 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { scanShopeeReturn } from '@/lib/actions/shopee-returns.actions';
@@ -271,9 +270,6 @@ export default function ShopeeReturnScanPage() {
               <ScanLine className="w-6 h-6" />
               條碼掃描工具
             </h1>
-            <p className="text-sm text-muted-foreground">
-              手機可直接掃描運單上的條碼或 QR Code，掃描成功後會自動標記為「已掃描」。
-            </p>
           </div>
         </div>
       </div>
@@ -284,9 +280,6 @@ export default function ShopeeReturnScanPage() {
             <Smartphone className="w-5 h-5" />
             相機掃描
           </CardTitle>
-          <CardDescription>
-            進入頁面會自動啟動掃描，可辨識訂單編號、寄件編號與常見 1D/2D 條碼格式。
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-lg border bg-black/5 overflow-hidden">
@@ -294,7 +287,7 @@ export default function ShopeeReturnScanPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {!isActive ? (
+            {!isActive && (
               <Button onClick={() => void startScanner()} disabled={isStarting}>
                 {isStarting ? (
                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -302,11 +295,6 @@ export default function ShopeeReturnScanPage() {
                   <Camera className="w-4 h-4 mr-1" />
                 )}
                 開始掃描
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => void stopScanner()}>
-                <CameraOff className="w-4 h-4 mr-1" />
-                停止掃描
               </Button>
             )}
 
@@ -316,7 +304,7 @@ export default function ShopeeReturnScanPage() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             {isProcessing && (
               <Badge className="bg-indigo-100 text-indigo-800">
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -324,7 +312,7 @@ export default function ShopeeReturnScanPage() {
               </Badge>
             )}
             {lastCode && (
-              <span className="font-mono">最近掃描：{lastCode}</span>
+              <span className="font-mono font-medium">最近掃描：{lastCode}</span>
             )}
           </div>
 
