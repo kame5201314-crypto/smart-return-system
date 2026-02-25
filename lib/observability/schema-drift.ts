@@ -30,10 +30,18 @@ export async function emitSchemaDriftAlert(payload: SchemaDriftAlertPayload): Pr
     return;
   }
 
+  const webhookToken = normalizeEnvValue(process.env.SCHEMA_DRIFT_ALERT_TOKEN);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (webhookToken) {
+    headers['x-schema-drift-token'] = webhookToken;
+  }
+
   try {
     await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(event),
     });
   } catch (error) {
@@ -41,4 +49,3 @@ export async function emitSchemaDriftAlert(payload: SchemaDriftAlertPayload): Pr
     console.error('[schema-drift-alert] webhook failed:', message);
   }
 }
-

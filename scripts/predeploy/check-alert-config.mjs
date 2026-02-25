@@ -34,6 +34,7 @@ function main() {
 
   const strict = isProductionDeployment();
   const webhookUrl = normalizeEnvValue(process.env.SCHEMA_DRIFT_ALERT_WEBHOOK_URL);
+  const alertToken = normalizeEnvValue(process.env.SCHEMA_DRIFT_ALERT_TOKEN);
   const cronSecret = normalizeEnvValue(process.env.CRON_SECRET);
 
   const problems = [];
@@ -48,6 +49,12 @@ function main() {
     problems.push('CRON_SECRET is not set');
   } else if (cronSecret.length < 20) {
     problems.push('CRON_SECRET is too short (recommended >= 20 chars)');
+  }
+
+  if (!alertToken) {
+    problems.push('SCHEMA_DRIFT_ALERT_TOKEN is not set');
+  } else if (alertToken.length < 20) {
+    problems.push('SCHEMA_DRIFT_ALERT_TOKEN is too short (recommended >= 20 chars)');
   }
 
   if (problems.length === 0) {
@@ -68,4 +75,3 @@ function main() {
 }
 
 main();
-
