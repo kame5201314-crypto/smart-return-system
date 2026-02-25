@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,6 +44,7 @@ interface ReturnDetail {
 
 export default function InspectionPage() {
   const params = useParams();
+  const returnRequestId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const [returnData, setReturnData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +54,7 @@ export default function InspectionPage() {
   const form = useForm<InspectionInput>({
     resolver: zodResolver(inspectionSchema),
     defaultValues: {
-      returnRequestId: params.id as string,
+      returnRequestId: returnRequestId || '',
       result: undefined,
       conditionGrade: undefined,
       notes: '',
@@ -61,13 +62,14 @@ export default function InspectionPage() {
     },
   });
 
-  useEffect(() => {
-    fetchDetail();
-  }, [params.id]);
+  const fetchDetail = useCallback(async () => {
+    if (!returnRequestId) {
+      setLoading(false);
+      return;
+    }
 
-  async function fetchDetail() {
     try {
-      const result = await getReturnRequestDetail(params.id as string) as { success: boolean; data?: ReturnDetail; error?: string };
+      const result = await getReturnRequestDetail(returnRequestId) as { success: boolean; data?: ReturnDetail; error?: string };
       if (result.success && result.data) {
         setReturnData(result.data);
         form.setValue('returnRequestId', result.data.id);
@@ -78,7 +80,11 @@ export default function InspectionPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [form, returnRequestId]);
+
+  useEffect(() => {
+    void fetchDetail();
+  }, [fetchDetail]);
 
   async function onSubmit(data: InspectionInput) {
     try {
@@ -95,7 +101,11 @@ export default function InspectionPage() {
 
       if (result.success) {
         toast.success('驗貨結果已提交');
-        router.push(`/returns/${params.id}`);
+        if (returnRequestId) {
+          router.push(`/returns/${returnRequestId}`);
+        } else {
+          router.push('/returns');
+        }
       } else {
         toast.error(result.error || ERROR_MESSAGES.GENERIC);
       }

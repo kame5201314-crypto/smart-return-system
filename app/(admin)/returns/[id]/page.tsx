@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -148,6 +148,7 @@ function normalizeItemResolutionType(value?: string | null): ItemRefundOption {
 
 export default function ReturnDetailPage() {
   const params = useParams();
+  const returnRequestId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [returnData, setReturnData] = useState<ReturnDetail | null>(null);
@@ -172,7 +173,7 @@ export default function ReturnDetailPage() {
   const inspectionForm = useForm<InspectionInput>({
     resolver: zodResolver(inspectionSchema),
     defaultValues: {
-      returnRequestId: params.id as string,
+      returnRequestId: returnRequestId || '',
       result: undefined,
       conditionGrade: undefined,
       notes: '',
@@ -180,22 +181,14 @@ export default function ReturnDetailPage() {
     },
   });
 
-  useEffect(() => {
-    fetchDetail();
-  }, [params.id]);
-
-  // Auto-open edit dialog if ?edit=true in URL
-  useEffect(() => {
-    if (searchParams.get('edit') === 'true' && returnData) {
-      openEditInfoDialog();
-      // Clear the query param from URL
-      router.replace(`/returns/${params.id}`, { scroll: false });
+  const fetchDetail = useCallback(async () => {
+    if (!returnRequestId) {
+      setLoading(false);
+      return;
     }
-  }, [searchParams, returnData]);
 
-  async function fetchDetail() {
     try {
-      const result = await getReturnRequestDetail(params.id as string) as { success: boolean; data?: ReturnDetail & { invoice_status?: string }; error?: string };
+      const result = await getReturnRequestDetail(returnRequestId) as { success: boolean; data?: ReturnDetail & { invoice_status?: string }; error?: string };
       if (result.success && result.data) {
         setReturnData(result.data);
         if (result.data.invoice_status) {
@@ -216,7 +209,29 @@ export default function ReturnDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [returnRequestId]);
+
+  useEffect(() => {
+    void fetchDetail();
+  }, [fetchDetail]);
+
+  const openEditInfoDialog = useCallback(() => {
+    const firstItem = returnData?.return_items?.[0];
+    setEditProductName(firstItem?.product_name || '');
+    setEditProductSku(firstItem?.product_sku || '');
+    setEditRefundAmount(returnData?.refund_amount?.toString() || '');
+    setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
+    setEditInfoDialogOpen(true);
+  }, [returnData]);
+
+  // Auto-open edit dialog if ?edit=true in URL
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true' && returnData && returnRequestId) {
+      openEditInfoDialog();
+      // Clear the query param from URL
+      router.replace(`/returns/${returnRequestId}`, { scroll: false });
+    }
+  }, [searchParams, returnData, returnRequestId, openEditInfoDialog, router]);
 
   async function handleStatusUpdate() {
     if (!newStatus || !returnData) return;
@@ -240,7 +255,7 @@ export default function ReturnDetailPage() {
       if (result.success) {
         toast.success('狀態更新成功');
         setStatusDialogOpen(false);
-        fetchDetail();
+        await fetchDetail();
       } else {
         toast.error(result.error || '更新失敗');
       }
@@ -268,7 +283,7 @@ export default function ReturnDetailPage() {
       if (result.success) {
         toast.success(result.message || '資訊更新成功');
         setEditInfoDialogOpen(false);
-        fetchDetail();
+        await fetchDetail();
       } else {
         toast.error(result.error || '更新失敗');
       }
@@ -277,15 +292,6 @@ export default function ReturnDetailPage() {
     } finally {
       setUpdating(false);
     }
-  }
-
-  function openEditInfoDialog() {
-    const firstItem = returnData?.return_items?.[0];
-    setEditProductName(firstItem?.product_name || '');
-    setEditProductSku(firstItem?.product_sku || '');
-    setEditRefundAmount(returnData?.refund_amount?.toString() || '');
-    setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
-    setEditInfoDialogOpen(true);
   }
 
   async function handleItemResolutionChange(itemId: string, nextType: ItemRefundOption) {
@@ -340,7 +346,7 @@ export default function ReturnDetailPage() {
       if (result.success) {
         toast.success('驗貨結果已提交');
         inspectionForm.reset();
-        fetchDetail();
+        await fetchDetail();
       } else {
         toast.error(result.error || ERROR_MESSAGES.GENERIC);
       }
