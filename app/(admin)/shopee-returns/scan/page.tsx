@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { scanShopeeReturn } from '@/lib/actions/shopee-returns.actions';
 
 const SCANNER_ELEMENT_ID = 'shopee-return-scanner';
+const SCAN_HISTORY_STORAGE_KEY = 'shopee-return-scan-history-v1';
 
 type ScannerFacingMode = 'environment' | 'user';
 
@@ -45,6 +46,27 @@ interface ScanHistoryItem {
   alreadyScanned: boolean;
   matchedCount: number;
   updatedCount: number;
+}
+
+function parseHistoryFromStorage(raw: string | null): ScanHistoryItem[] {
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item): item is ScanHistoryItem => (
+        typeof item === 'object'
+        && item !== null
+        && typeof (item as ScanHistoryItem).id === 'string'
+        && typeof (item as ScanHistoryItem).orderNumber === 'string'
+        && typeof (item as ScanHistoryItem).code === 'string'
+      ))
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
 }
 
 function formatDateTime(value: string | null): string {
@@ -85,6 +107,7 @@ export default function ShopeeReturnScanPage() {
   const [cameraError, setCameraError] = useState('');
   const [latestScan, setLatestScan] = useState<ScanHistoryItem | null>(null);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
 
   const handleCode = useCallback(async (rawCode: string) => {
     const code = rawCode.trim();
@@ -244,6 +267,18 @@ export default function ShopeeReturnScanPage() {
   }, [handleCode, manualCode]);
 
   useEffect(() => {
+    const restored = parseHistoryFromStorage(window.localStorage.getItem(SCAN_HISTORY_STORAGE_KEY));
+    setHistory(restored);
+    setLatestScan(restored[0] ?? null);
+    setHistoryReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!historyReady) return;
+    window.localStorage.setItem(SCAN_HISTORY_STORAGE_KEY, JSON.stringify(history));
+  }, [history, historyReady]);
+
+  useEffect(() => {
     if (autoStartRef.current) return;
     autoStartRef.current = true;
     void startScanner();
@@ -350,7 +385,7 @@ export default function ShopeeReturnScanPage() {
               </div>
 
               <div className="text-xs text-muted-foreground">寄件編號</div>
-              <div className="font-mono text-xl font-semibold leading-tight">
+              <div className="font-mono text-base font-semibold leading-tight">
                 {latestScan.trackingNumber || '-'}
               </div>
 
