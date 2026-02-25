@@ -1060,6 +1060,7 @@ export async function updateReturnInfo(
       }
 
       if (resolutionColumnUnavailable) {
+        let savedToRequestLevel = false;
         if (fallbackResolutionType) {
           const { error: fallbackMethodError } = await adminClient
             .from('return_requests')
@@ -1067,8 +1068,14 @@ export async function updateReturnInfo(
             .eq('id', returnRequestId);
 
           if (fallbackMethodError) {
-            console.error('Fallback update return refund_method error:', fallbackMethodError);
-            return { success: false, error: `更新處理方式失敗: ${fallbackMethodError.message}` };
+            if (isMissingColumnError(fallbackMethodError, 'return_requests', 'refund_method')) {
+              console.warn('Fallback refund_method column not available, skipping request-level persistence');
+            } else {
+              console.error('Fallback update return refund_method error:', fallbackMethodError);
+              return { success: false, error: `更新處理方式失敗: ${fallbackMethodError.message}` };
+            }
+          } else {
+            savedToRequestLevel = true;
           }
         }
 
@@ -1086,7 +1093,9 @@ export async function updateReturnInfo(
           }
         }
 
-        resolutionFallbackMessage = '（資料庫尚未升級商品層級處理方式，已改存退貨單層級）';
+        resolutionFallbackMessage = savedToRequestLevel
+          ? '（資料庫尚未升級商品層級處理方式，已改存退貨單層級）'
+          : '（資料庫尚未升級，處理方式本次僅暫時套用；請先套用 migration 以永久儲存）';
       } else if (shouldSyncRoundTripToPickup) {
         const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId);
         if (!pickupSyncResult.success) {
