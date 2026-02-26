@@ -219,6 +219,9 @@ describe('scanShopeeReturn action', () => {
         updated_at: expect.any(String),
       })
     );
+    const scanUpdatePayload = mock.returnsUpdateMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(scanUpdatePayload).not.toHaveProperty('is_inbound');
+    expect(scanUpdatePayload).not.toHaveProperty('inbound_at');
     expect(mock.scanEventsInsertPayloads.at(-1)).toEqual(
       expect.objectContaining({
         scan_status: 'matched',

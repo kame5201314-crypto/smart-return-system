@@ -482,6 +482,14 @@ export async function updateShopeeReturnStatus(
   }
 ): Promise<ApiResponse<void>> {
   try {
+    const hasScanMutation = updates.is_scanned !== undefined || updates.scanned_at !== undefined;
+    const hasInboundMutation = updates.is_inbound !== undefined || updates.inbound_at !== undefined;
+
+    // Keep scan and inbound workflows independent to avoid accidental coupling.
+    if (hasScanMutation && hasInboundMutation) {
+      return { success: false, error: '掃描與入庫需分開操作，請分兩次更新。' };
+    }
+
     const supabase = createUntypedAdminClient();
     const now = new Date().toISOString();
     const payload: Record<string, unknown> = {
@@ -524,7 +532,7 @@ export async function updateShopeeReturnStatus(
  */
 export async function batchUpdateShopeeReturns(
   ids: string[],
-  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; is_inbound?: boolean; color_tag?: ColorTag }
+  updates: { is_processed?: boolean; is_printed?: boolean; color_tag?: ColorTag }
 ): Promise<ApiResponse<void>> {
   try {
     const supabase = createUntypedAdminClient();
