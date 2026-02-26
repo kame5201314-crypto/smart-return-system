@@ -517,7 +517,20 @@ export default function ShopeeReturnsPage() {
     }
   }
 
-  const syncNote = useCallback(async (id: string, note: string) => {
+  const clearLocalNote = useCallback((id: string) => {
+    setLocalNotes((prev) => {
+      if (prev[id] === undefined) return prev;
+      const newNotes = { ...prev };
+      delete newNotes[id];
+      return newNotes;
+    });
+  }, []);
+
+  const syncNote = useCallback(async (
+    id: string,
+    note: string,
+    options?: { clearLocalOnSuccess?: boolean }
+  ) => {
     const result = await updateShopeeReturnStatus(id, { note });
     if (result.success) {
       setReturns((prev) =>
@@ -525,15 +538,13 @@ export default function ShopeeReturnsPage() {
           r.id === id ? { ...r, note } : r
         )
       );
-      setLocalNotes((prev) => {
-        const newNotes = { ...prev };
-        delete newNotes[id];
-        return newNotes;
-      });
+      if (options?.clearLocalOnSuccess) {
+        clearLocalNote(id);
+      }
     } else {
       toast.error(result.error || '備註更新失敗');
     }
-  }, []);
+  }, [clearLocalNote]);
 
   // Debounced note update to avoid excessive API calls
   const debouncedUpdateNote = useCallback((id: string, note: string) => {
@@ -556,16 +567,11 @@ export default function ShopeeReturnsPage() {
     }
     const currentNote = returns.find((r) => r.id === id)?.note || '';
     if (note === currentNote) {
-      setLocalNotes((prev) => {
-        if (prev[id] === undefined) return prev;
-        const newNotes = { ...prev };
-        delete newNotes[id];
-        return newNotes;
-      });
+      clearLocalNote(id);
       return;
     }
-    void syncNote(id, note);
-  }, [returns, syncNote]);
+    void syncNote(id, note, { clearLocalOnSuccess: true });
+  }, [clearLocalNote, returns, syncNote]);
 
   // Get note value (prefer local state for responsiveness)
   const getNoteValue = useCallback((record: ShopeeReturn) => {
