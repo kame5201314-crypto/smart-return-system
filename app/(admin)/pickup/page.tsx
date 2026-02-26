@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
@@ -14,6 +15,7 @@ import {
   Printer,
   Upload,
   Download,
+  ScanLine,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -60,9 +62,9 @@ import {
 import type { PickupRecord } from '@/lib/actions/pickup.actions';
 
 const PLATFORMS = ['商城', '蝦皮', '官網', 'MOMO', '其他'];
-const LOGISTICS_PROVIDERS = ['黑貓', '新竹物流', '7-11', '全家', '郵局', '其他'];
+const LOGISTICS_PROVIDERS = ['黑貓', '新竹物流', '7-11', '全家', '宅配通', '其他'];
 const DELIVERY_STATUSES = ['派車收件', '來回件', '已送達', '配送中', '待收件', '已退回'];
-const RECEIVED_STATUSES = ['未收到', '已收到', '已貼單', '處理中', '完成'];
+const RECEIVED_STATUSES = ['未收到', '已收到', '已貼標', '待確認', '完成'];
 
 const PICKUP_IMPORT_COLUMN_MAPPINGS: Record<string, string> = {
   '處理日期': 'process_date',
@@ -105,7 +107,7 @@ export default function PickupPage() {
     if (result.success && result.data) {
       setRecords(result.data);
     } else {
-      toast.error(result.error || '載入資料失敗');
+      toast.error(result.error || '頛鞈?憭望?');
     }
     setIsLoading(false);
   }, []);
@@ -162,7 +164,7 @@ export default function PickupPage() {
 
       const worksheet = workbook.worksheets[0];
       if (!worksheet || worksheet.rowCount < 2) {
-        toast.error('Excel 檔案沒有資料');
+        toast.error('Excel 瑼?瘝?鞈?');
         return;
       }
 
@@ -184,11 +186,11 @@ export default function PickupPage() {
       });
 
       if (columnIndices.order_number === undefined) {
-        const idx = headers.findIndex((h) => (h?.toString() || '').includes('訂單'));
+        const idx = headers.findIndex((h) => (h?.toString() || '').includes('閮'));
         if (idx >= 0) columnIndices.order_number = idx;
       }
       if (columnIndices.process_date === undefined) {
-        const idx = headers.findIndex((h) => (h?.toString() || '').includes('日期'));
+        const idx = headers.findIndex((h) => (h?.toString() || '').includes('?交?'));
         if (idx >= 0) columnIndices.process_date = idx;
       }
 
@@ -241,7 +243,7 @@ export default function PickupPage() {
       });
 
       if (importedItems.length === 0) {
-        toast.error('無法解析匯入內容，請確認 Excel 欄位');
+        toast.error('?⊥?閫???臬?批捆嚗?蝣箄? Excel 甈?');
         return;
       }
 
@@ -249,10 +251,12 @@ export default function PickupPage() {
       if (result.success && result.data) {
         const { imported, duplicates } = result.data;
         if (imported > 0) {
-          toast.success(`已匯入 ${imported} 筆${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}`);
+          toast.success(
+            `已匯入 ${imported} 筆${duplicates > 0 ? `，略過重複 ${duplicates} 筆` : ''}`
+          );
           await loadRecords();
         } else if (duplicates > 0) {
-          toast.info(`全部都是重複資料（共 ${duplicates} 筆）`);
+          toast.info(`全部為重複資料，略過 ${duplicates} 筆`);
         }
       } else {
         toast.error(result.error || '匯入失敗');
@@ -299,7 +303,7 @@ export default function PickupPage() {
 
   async function handleSave() {
     if (!formData.orderNumber.trim()) {
-      toast.error('請填寫訂單編號');
+      toast.error('請輸入訂單編號');
       return;
     }
 
@@ -342,7 +346,7 @@ export default function PickupPage() {
   }
 
   async function handleDelete(id: string) {
-    if (confirm('確定要刪除此記錄嗎？')) {
+    if (confirm('確定要刪除這筆記錄嗎？')) {
       const result = await deletePickupRecord(id);
       if (result.success) {
         setRecords((prev) => prev.filter((r) => r.id !== id));
@@ -385,7 +389,7 @@ export default function PickupPage() {
       case '完成':
       case '已送達':
         return 'bg-green-100 text-green-800';
-      case '處理中':
+      case '待確認':
       case '配送中':
       case '派車收件':
         return 'bg-blue-100 text-blue-800';
@@ -420,7 +424,7 @@ export default function PickupPage() {
 
   async function handleBatchDelete() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`確定要刪除所選的 ${selectedIds.size} 筆記錄嗎？`)) return;
+    if (!confirm(`確定要刪除選取的 ${selectedIds.size} 筆記錄嗎？`)) return;
 
     const ids = Array.from(selectedIds);
     const result = await batchDeletePickupRecords(ids);
@@ -443,7 +447,7 @@ export default function PickupPage() {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('無法開啟列印視窗，請允許彈出視窗');
+      toast.error('?⊥????閬?嚗??迂敶閬?');
       return;
     }
 
@@ -459,7 +463,7 @@ export default function PickupPage() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>派車收件標籤 - ${format(new Date(), 'yyyy/MM/dd')}</title>
+        <title>瘣曇??嗡辣璅惜 - ${format(new Date(), 'yyyy/MM/dd')}</title>
         <style>
           @page {
             size: A4;
@@ -562,7 +566,7 @@ export default function PickupPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">載入中...</div>
+        <div className="text-muted-foreground">頛銝?..</div>
       </div>
     );
   }
@@ -592,21 +596,27 @@ export default function PickupPage() {
             disabled={isImporting}
           >
             <Upload className="w-4 h-4 mr-2" />
-            {isImporting ? '匯入中...' : '匯入'}
+            {isImporting ? '?臬銝?..' : '?臬'}
           </Button>
           <Button asChild variant="outline">
             <a href="/api/v1/admin/pickup/export" target="_blank" rel="noreferrer">
               <Download className="w-4 h-4 mr-2" />
-              匯出
+              ?臬
             </a>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/pickup/scan">
+              <ScanLine className="w-4 h-4 mr-2" />
+              ??撌亙
+            </Link>
           </Button>
           <Button variant="outline" onClick={handlePrint} disabled={selectedIds.size === 0}>
             <Printer className="w-4 h-4 mr-2" />
-            列印 {selectedIds.size > 0 && `(${selectedIds.size})`}
+            ? {selectedIds.size > 0 && `(${selectedIds.size})`}
           </Button>
           <Button onClick={() => handleOpenDialog()}>
             <Plus className="w-4 h-4 mr-2" />
-            新增記錄
+            ?啣?閮?
           </Button>
         </div>
       </div>
@@ -618,7 +628,7 @@ export default function PickupPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="搜尋訂單編號、收件人姓名..."
+                placeholder="??閮蝺刻??隞嗡犖憪?..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -653,14 +663,14 @@ export default function PickupPage() {
             <CardTitle className="text-lg">收件記錄</CardTitle>
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">已選 {selectedIds.size} 筆</span>
+                <span className="text-sm text-muted-foreground">已選取 {selectedIds.size} 筆</span>
                 <Button
                   size="sm"
                   variant="destructive"
                   onClick={handleBatchDelete}
                 >
                   <Trash2 className="w-3 h-3 mr-1" />
-                  批量刪除
+                  批次刪除
                 </Button>
               </div>
             )}
@@ -669,7 +679,7 @@ export default function PickupPage() {
         <CardContent>
           {filteredRecords.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              {records.length === 0 ? '尚無記錄，點擊上方「新增記錄」開始' : '找不到符合條件的記錄'}
+              {records.length === 0 ? '目前沒有資料，請先新增記錄' : '找不到符合搜尋條件的記錄'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -682,6 +692,7 @@ export default function PickupPage() {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
+                    <TableHead className="w-[70px]">掃描</TableHead>
                     <TableHead className="w-[60px]">列印</TableHead>
                     <TableHead className="w-[100px]">處理日期</TableHead>
                     <TableHead className="w-[180px]">訂單編號</TableHead>
@@ -704,15 +715,24 @@ export default function PickupPage() {
                         />
                       </TableCell>
                       <TableCell>
+                        {record.is_scanned ? (
+                          <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1">
+                            已掃描
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
+                            未掃描
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <button onClick={() => togglePrinted(record.id)}>
                           {record.is_printed ? (
                             <Badge className="bg-purple-100 text-purple-800 text-[10px] px-1">
-                              已列印
-                            </Badge>
+                              撌脣???                            </Badge>
                           ) : (
                             <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
-                              未列印
-                            </Badge>
+                              ?芸???                            </Badge>
                           )}
                         </button>
                       </TableCell>
@@ -765,7 +785,7 @@ export default function PickupPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleOpenDialog(record)}
-                            title="編輯"
+                            title="蝺刻摩"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -773,7 +793,7 @@ export default function PickupPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(record.id)}
-                            title="刪除"
+                            title="?芷"
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -793,15 +813,14 @@ export default function PickupPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingRecord ? '編輯記錄' : '新增派車收件記錄'}</DialogTitle>
+            <DialogTitle>{editingRecord ? '蝺刻摩閮?' : '?啣?瘣曇??嗡辣閮?'}</DialogTitle>
             <DialogDescription>
-              填寫派車收件的相關資訊
-            </DialogDescription>
+              憛怠神瘣曇??嗡辣???閮?            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>處理日期</Label>
+                <Label>???交?</Label>
                 <Input
                   type="date"
                   value={formData.processDate}
@@ -809,7 +828,7 @@ export default function PickupPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>平台</Label>
+                <Label>撟喳</Label>
                 <Select
                   value={formData.platform}
                   onValueChange={(value) => setFormData({ ...formData, platform: value })}
@@ -829,7 +848,7 @@ export default function PickupPage() {
             <div className="space-y-2">
               <Label>訂單編號 *</Label>
               <Textarea
-                placeholder="輸入訂單編號（可多行，例如訂單號+物流單號）"
+                placeholder="請輸入訂單編號，可貼上多行內容"
                 value={formData.orderNumber}
                 onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
                 rows={2}
@@ -839,7 +858,7 @@ export default function PickupPage() {
             <div className="space-y-2">
               <Label>物流單號</Label>
               <Input
-                placeholder="輸入物流單號"
+                placeholder="請輸入物流單號"
                 value={formData.trackingNumber}
                 onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
               />
@@ -847,7 +866,7 @@ export default function PickupPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>物流平台</Label>
+                <Label>物流商</Label>
                 <Select
                   value={formData.logisticsProvider}
                   onValueChange={(value) => setFormData({ ...formData, logisticsProvider: value })}
@@ -900,7 +919,7 @@ export default function PickupPage() {
             <div className="space-y-2">
               <Label>收件人姓名</Label>
               <Input
-                placeholder="輸入收件人姓名"
+                placeholder="請輸入收件人姓名"
                 value={formData.receiverInfo}
                 onChange={(e) => setFormData({ ...formData, receiverInfo: e.target.value })}
               />
@@ -909,7 +928,7 @@ export default function PickupPage() {
             <div className="space-y-2">
               <Label>備註</Label>
               <Textarea
-                placeholder="輸入備註內容"
+                placeholder="請輸入備註內容"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={2}
@@ -931,3 +950,4 @@ export default function PickupPage() {
     </div>
   );
 }
+
