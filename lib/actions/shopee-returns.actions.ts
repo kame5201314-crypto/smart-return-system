@@ -25,6 +25,8 @@ export interface ShopeeReturn {
   is_printed: boolean;
   is_scanned: boolean;
   scanned_at: string | null;
+  is_inbound?: boolean | null;
+  inbound_at?: string | null;
   processed_at: string | null;
   note: string | null;
   platform: 'shopee' | 'mall' | null;
@@ -471,10 +473,12 @@ export async function updateShopeeReturnStatus(
     is_processed?: boolean;
     is_printed?: boolean;
     is_scanned?: boolean;
+    is_inbound?: boolean;
     note?: string;
     tracking_number?: string;
     processed_at?: string | null;
     scanned_at?: string | null;
+    inbound_at?: string | null;
   }
 ): Promise<ApiResponse<void>> {
   try {
@@ -490,6 +494,12 @@ export async function updateShopeeReturnStatus(
     }
     if (updates.is_scanned === false && updates.scanned_at === undefined) {
       payload.scanned_at = null;
+    }
+    if (updates.is_inbound === true && updates.inbound_at === undefined) {
+      payload.inbound_at = now;
+    }
+    if (updates.is_inbound === false && updates.inbound_at === undefined) {
+      payload.inbound_at = null;
     }
 
     const { error } = await supabase
@@ -514,7 +524,7 @@ export async function updateShopeeReturnStatus(
  */
 export async function batchUpdateShopeeReturns(
   ids: string[],
-  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; color_tag?: ColorTag }
+  updates: { is_processed?: boolean; is_printed?: boolean; is_scanned?: boolean; is_inbound?: boolean; color_tag?: ColorTag }
 ): Promise<ApiResponse<void>> {
   try {
     const supabase = createUntypedAdminClient();

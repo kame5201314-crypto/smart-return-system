@@ -102,7 +102,7 @@ export default function ShopeeReturnDetailPage() {
 
   const [record, setRecord] = useState<ShopeeReturn | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'processed' | 'printed' | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'inbound' | 'processed' | 'printed' | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [updatingNote, setUpdatingNote] = useState(false);
 
@@ -135,7 +135,7 @@ export default function ShopeeReturnDetailPage() {
     };
   }, [id]);
 
-  async function toggleStatus(type: 'scanned' | 'processed' | 'printed') {
+  async function toggleStatus(type: 'scanned' | 'inbound' | 'processed' | 'printed') {
     if (!record || updatingStatus) return;
 
     setUpdatingStatus(type);
@@ -144,6 +144,8 @@ export default function ShopeeReturnDetailPage() {
     const updates =
       type === 'scanned'
         ? { is_scanned: !record.is_scanned, scanned_at: !record.is_scanned ? now : null }
+        : type === 'inbound'
+          ? { is_inbound: !record.is_inbound, inbound_at: !record.is_inbound ? now : null }
         : type === 'processed'
           ? { is_processed: !record.is_processed, processed_at: !record.is_processed ? now : null }
           : { is_printed: !record.is_printed };
@@ -293,13 +295,32 @@ export default function ShopeeReturnDetailPage() {
                     className="disabled:opacity-60"
                   >
                     {record.is_scanned ? (
-                      <Badge className="bg-blue-100 text-blue-800 cursor-pointer">
+                      <Badge className="bg-indigo-100 text-indigo-800 cursor-pointer">
                         {updatingStatus === 'scanned' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                        已入庫
+                        已掃描
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="cursor-pointer">
                         {updatingStatus === 'scanned' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                        未掃描
+                      </Badge>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus('inbound')}
+                    disabled={!!updatingStatus}
+                    className="disabled:opacity-60"
+                  >
+                    {record.is_inbound ? (
+                      <Badge className="bg-blue-100 text-blue-800 cursor-pointer">
+                        {updatingStatus === 'inbound' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                        已入庫
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="cursor-pointer">
+                        {updatingStatus === 'inbound' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
                         未入庫
                       </Badge>
                     )}
@@ -351,7 +372,7 @@ export default function ShopeeReturnDetailPage() {
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  入庫時間：{formatDateTime(record.scanned_at)} ｜ 已處理時間：{formatDateTime(record.processed_at)}
+                  掃描時間：{formatDateTime(record.scanned_at)} ｜ 入庫時間：{formatDateTime(record.inbound_at || null)} ｜ 已處理時間：{formatDateTime(record.processed_at)}
                 </div>
                 <div className="text-xs text-muted-foreground">點選上方狀態可切換。</div>
               </div>

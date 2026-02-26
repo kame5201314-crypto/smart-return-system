@@ -21,6 +21,8 @@ interface ShopeeReturnExportData {
   shipping_method: string | null;
   processed_at: string | null;
   is_scanned: boolean;
+  is_inbound?: boolean | null;
+  inbound_at?: string | null;
   is_processed: boolean;
   is_printed: boolean;
   platform: 'shopee' | 'mall' | null;
@@ -108,7 +110,9 @@ async function exportShopeeReturns() {
     { header: '買家備註', key: 'buyer_note', width: 40 },
     { header: '退貨物流方式', key: 'shipping_method', width: 16 },
     { header: '處理日期', key: 'processed_at', width: 12 },
-    { header: '已入庫', key: 'is_scanned', width: 8 },
+    { header: '已掃描', key: 'is_scanned', width: 8 },
+    { header: '已入庫', key: 'is_inbound', width: 8 },
+    { header: '入庫時間', key: 'inbound_at', width: 18 },
     { header: '已處理', key: 'is_processed', width: 8 },
     { header: '已列印', key: 'is_printed', width: 8 },
     { header: '顏色標記', key: 'color_tag', width: 10 },
@@ -137,6 +141,8 @@ async function exportShopeeReturns() {
       shipping_method: r.shipping_method || '',
       processed_at: r.processed_at ? r.processed_at.slice(0, 10) : '',
       is_scanned: r.is_scanned ? 'Y' : '',
+      is_inbound: r.is_inbound ? 'Y' : '',
+      inbound_at: r.inbound_at || '',
       is_processed: r.is_processed ? 'Y' : '',
       is_printed: r.is_printed ? 'Y' : '',
       color_tag: r.color_tag || '',

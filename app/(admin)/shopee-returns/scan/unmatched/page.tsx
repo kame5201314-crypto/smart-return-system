@@ -244,7 +244,7 @@ export default function UnmatchedScanPage() {
                 <SelectContent>
                   {candidates.map((candidate) => (
                     <SelectItem key={candidate.id} value={candidate.id}>
-                      {candidate.order_number}｜{candidate.tracking_number || '-'}｜{getPlatformLabel(candidate.platform)}｜{candidate.is_scanned ? '已入庫' : '未入庫'}
+                      {candidate.order_number}｜{candidate.tracking_number || '-'}｜{getPlatformLabel(candidate.platform)}｜{candidate.is_scanned ? '已掃描' : '未掃描'}
                     </SelectItem>
                   ))}
                 </SelectContent>

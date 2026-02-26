@@ -140,7 +140,7 @@ export default function ShopeeReturnsPage() {
   const [filteredReturns, setFilteredReturns] = useState<ShopeeReturn[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'processed' | 'unprocessed'>('all');
-  const [scanFilter, setScanFilter] = useState<'all' | 'scanned' | 'not_scanned'>('all');
+  const [inboundFilter, setInboundFilter] = useState<'all' | 'inbound' | 'not_inbound'>('all');
   const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
   const [platformFilter, setPlatformFilter] = useState<'all' | 'shopee' | 'mall'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -201,11 +201,11 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => !r.is_processed);
     }
 
-    // Scan filter
-    if (scanFilter === 'scanned') {
-      filtered = filtered.filter((r) => r.is_scanned);
-    } else if (scanFilter === 'not_scanned') {
-      filtered = filtered.filter((r) => !r.is_scanned);
+    // Inbound filter
+    if (inboundFilter === 'inbound') {
+      filtered = filtered.filter((r) => !!r.is_inbound);
+    } else if (inboundFilter === 'not_inbound') {
+      filtered = filtered.filter((r) => !r.is_inbound);
     }
 
     // Print filter
@@ -258,7 +258,7 @@ export default function ShopeeReturnsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilteredReturns(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [returns, searchQuery, statusFilter, scanFilter, printFilter, platformFilter, sortField, sortDirection]);
+  }, [returns, searchQuery, statusFilter, inboundFilter, printFilter, platformFilter, sortField, sortDirection]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredReturns.length / ITEMS_PER_PAGE);
@@ -501,15 +501,17 @@ export default function ShopeeReturnsPage() {
     }
   }
 
-  async function toggleScanned(id: string) {
+  async function toggleInbound(id: string) {
     const record = returns.find((r) => r.id === id);
     if (!record) return;
+    const nextInbound = !record.is_inbound;
+    const now = new Date().toISOString();
 
-    const result = await updateShopeeReturnStatus(id, { is_scanned: !record.is_scanned });
+    const result = await updateShopeeReturnStatus(id, { is_inbound: nextInbound, inbound_at: nextInbound ? now : null });
     if (result.success) {
       setReturns((prev) =>
         prev.map((r) =>
-          r.id === id ? { ...r, is_scanned: !r.is_scanned } : r
+          r.id === id ? { ...r, is_inbound: nextInbound, inbound_at: nextInbound ? now : null } : r
         )
       );
     } else {
@@ -800,6 +802,8 @@ export default function ShopeeReturnsPage() {
   const processedCount = returns.filter((r) => r.is_processed).length;
   const scannedCount = returns.filter((r) => r.is_scanned).length;
   const notScannedCount = returns.filter((r) => !r.is_scanned).length;
+  const inboundCount = returns.filter((r) => !!r.is_inbound).length;
+  const notInboundCount = returns.filter((r) => !r.is_inbound).length;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -926,12 +930,20 @@ export default function ShopeeReturnsPage() {
                 <Badge className="bg-green-100 text-green-800 text-xs">{processedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">已入庫:</span>
+                <span className="text-muted-foreground">已掃描:</span>
                 <Badge className="bg-blue-100 text-blue-800 text-xs">{scannedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground">未掃描:</span>
                 <Badge variant="outline" className="text-xs">{notScannedCount}</Badge>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground">已入庫:</span>
+                <Badge className="bg-cyan-100 text-cyan-800 text-xs">{inboundCount}</Badge>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground">未入庫:</span>
+                <Badge variant="outline" className="text-xs">{notInboundCount}</Badge>
               </div>
 
               {/* Status Filter - moved here */}
@@ -948,15 +960,15 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               {/* Stock Filter */}
-              <Select value={scanFilter} onValueChange={(v) => setScanFilter(v as typeof scanFilter)}>
+              <Select value={inboundFilter} onValueChange={(v) => setInboundFilter(v as typeof inboundFilter)}>
                 <SelectTrigger className="w-[100px] h-7 text-xs">
                   <Package className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="scanned">已入庫</SelectItem>
-                  <SelectItem value="not_scanned">未入庫</SelectItem>
+                  <SelectItem value="inbound">已入庫</SelectItem>
+                  <SelectItem value="not_inbound">未入庫</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1105,7 +1117,7 @@ export default function ShopeeReturnsPage() {
                         record.color_tag === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-400' :
                         record.color_tag === 'red' ? 'bg-red-50 border-l-4 border-l-red-400' :
                         record.is_processed ? 'bg-green-50' :
-                        record.is_scanned ? 'bg-blue-50/50' : ''
+                        record.is_inbound ? 'bg-blue-50/50' : ''
                       }
                     >
                       <TableCell className="sticky left-0 bg-inherit">
@@ -1146,8 +1158,8 @@ export default function ShopeeReturnsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => toggleScanned(record.id)} className="flex items-center">
-                          {record.is_scanned ? (
+                        <button onClick={() => toggleInbound(record.id)} className="flex items-center">
+                          {record.is_inbound ? (
                             <Badge className="bg-blue-100 text-blue-800 cursor-pointer text-[10px] px-1">
                               已入庫
                             </Badge>

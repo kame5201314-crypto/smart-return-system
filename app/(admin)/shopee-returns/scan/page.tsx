@@ -371,7 +371,7 @@ export default function ShopeeReturnScanPage() {
               <div className="text-lg font-semibold">{kpi.duplicateRate.toFixed(1)}%</div>
             </div>
             <div className="rounded-md border p-2">
-              <div className="text-xs text-muted-foreground">入庫完成率</div>
+              <div className="text-xs text-muted-foreground">掃描完成率</div>
               <div className="text-lg font-semibold">{kpi.scannedCompletionRate.toFixed(1)}%</div>
             </div>
           </div>
