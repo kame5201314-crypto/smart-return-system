@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/reconcile-ai-reports",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/shopee-scan-smoke",
+      "schedule": "5 20 * * *"
+    },
+    {
+      "path": "/api/cron/shopee-scan-daily-report",
+      "schedule": "10 20 * * *"
     }
   ]
 }

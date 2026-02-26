@@ -62,6 +62,8 @@ async function main() {
   const targets = [
     '/api/cron/backup',
     '/api/cron/reconcile-ai-reports',
+    '/api/cron/shopee-scan-daily-report',
+    '/api/cron/shopee-scan-smoke',
   ].filter((path) => !only || path.includes(only));
 
   if (targets.length === 0) {
@@ -91,4 +93,3 @@ main().catch((error) => {
   console.error('[cron-drill] Failed:', message);
   process.exitCode = 1;
 });
-

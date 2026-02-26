@@ -133,6 +133,8 @@ node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-t
 
 - `/api/cron/backup`：每日 03:00（UTC+8）
 - `/api/cron/reconcile-ai-reports`：每日 04:00（UTC+8）
+- `/api/cron/shopee-scan-smoke`：每日 04:05（UTC+8）
+- `/api/cron/shopee-scan-daily-report`：每日 04:10（UTC+8）
 
 需要環境變數：
 
@@ -140,11 +142,21 @@ node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-t
 - `SCHEMA_DRIFT_ALERT_WEBHOOK_URL`：schema drift / 對帳異常告警
 - `RECONCILE_CRON_AUTO_FIX`：是否自動修正報告 totals（預設 `1`）
 - `RECONCILE_COMPARE_AMOUNT`：是否一起比對退款金額（預設 `1`）
+- `SHOPEE_SCAN_SLA_HOURS`：未匹配掃描逾時門檻（小時，預設 `24`）
+- `SHOPEE_SCAN_UNMATCHED_RATE_ALERT_THRESHOLD`：未匹配率告警門檻（%，預設 `25`）
+- `SHOPEE_SCAN_DUPLICATE_RATE_ALERT_THRESHOLD`：重掃率告警門檻（%，預設 `35`）
+- `SHOPEE_SCAN_STALE_UNMATCHED_ALERT_THRESHOLD`：逾時未匹配筆數告警門檻（預設 `1`）
 
 手動演練（部署後建議執行）：
 
 ```bash
 node --env-file=.env.vercel.production scripts/maintenance/cron-drill.mjs --base-url=https://smart-return-system.vercel.app
+```
+
+部署後 smoke test（僅檢查，不改客戶資料）：
+
+```bash
+node --env-file=.env.vercel.production scripts/maintenance/postdeploy-shopee-scan-smoke.mjs --base-url=https://smart-return-system.vercel.app
 ```
 
 ## 資安注意事項
