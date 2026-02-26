@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Camera,
+  AlertTriangle,
   Keyboard,
   Loader2,
   ScanLine,
@@ -16,10 +17,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { scanShopeeReturn } from '@/lib/actions/shopee-returns.actions';
+import {
+  getShopeeScanDashboard,
+  scanShopeeReturn,
+  type ScanStatus,
+  type ShopeeScanDashboardData,
+} from '@/lib/actions/shopee-returns.actions';
 
 const SCANNER_ELEMENT_ID = 'shopee-return-scanner';
-const SCAN_HISTORY_STORAGE_KEY = 'shopee-return-scan-history-v1';
 
 type Html5QrcodeScanner = {
   start: (
@@ -34,35 +39,16 @@ type Html5QrcodeScanner = {
 
 interface ScanHistoryItem {
   id: string;
+  eventId: string;
   orderNumber: string;
   platform: 'shopee' | 'mall' | null;
   trackingNumber: string | null;
   scannedAt: string | null;
   code: string;
+  scanStatus: ScanStatus;
   alreadyScanned: boolean;
   matchedCount: number;
   updatedCount: number;
-}
-
-function parseHistoryFromStorage(raw: string | null): ScanHistoryItem[] {
-  if (!raw) return [];
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .filter((item): item is ScanHistoryItem => (
-        typeof item === 'object'
-        && item !== null
-        && typeof (item as ScanHistoryItem).id === 'string'
-        && typeof (item as ScanHistoryItem).orderNumber === 'string'
-        && typeof (item as ScanHistoryItem).code === 'string'
-      ))
-      .slice(0, 20);
-  } catch {
-    return [];
-  }
 }
 
 function formatDateTime(value: string | null): string {
@@ -85,6 +71,16 @@ function getPlatformLabel(platform: 'shopee' | 'mall' | null): string {
   return platform === 'mall' ? '商城' : '蝦皮';
 }
 
+const EMPTY_KPI: ShopeeScanDashboardData['kpi'] = {
+  todayTotalScans: 0,
+  todayMatchedScans: 0,
+  todayUnmatchedScans: 0,
+  todayDuplicateScans: 0,
+  unmatchedRate: 0,
+  duplicateRate: 0,
+  scannedCompletionRate: 0,
+};
+
 export default function ShopeeReturnScanPage() {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const autoStartRef = useRef(false);
@@ -102,7 +98,37 @@ export default function ShopeeReturnScanPage() {
   const [cameraError, setCameraError] = useState('');
   const [latestScan, setLatestScan] = useState<ScanHistoryItem | null>(null);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
-  const [historyReady, setHistoryReady] = useState(false);
+  const [kpi, setKpi] = useState<ShopeeScanDashboardData['kpi']>(EMPTY_KPI);
+  const [unmatchedOpenCount, setUnmatchedOpenCount] = useState(0);
+
+  const loadDashboard = useCallback(async () => {
+    const result = await getShopeeScanDashboard(30);
+    if (!result.success || !result.data) {
+      if (result.error) toast.error(result.error);
+      return;
+    }
+
+    const mapped = result.data.recentEvents
+      .filter((event) => !!event.matched_order_id && !!event.matched_order_number)
+      .map((event) => ({
+        id: event.matched_order_id as string,
+        eventId: event.id,
+        orderNumber: event.matched_order_number as string,
+        platform: event.platform,
+        trackingNumber: event.matched_tracking_number,
+        scannedAt: event.scanned_at,
+        code: event.scanned_code,
+        scanStatus: event.scan_status,
+        alreadyScanned: event.updated_count === 0,
+        matchedCount: event.matched_count,
+        updatedCount: event.updated_count,
+      }));
+
+    setHistory(mapped);
+    setLatestScan(mapped[0] || null);
+    setKpi(result.data.kpi);
+    setUnmatchedOpenCount(result.data.unmatchedOpenCount);
+  }, []);
 
   const handleCode = useCallback(async (rawCode: string) => {
     const code = rawCode.trim();
@@ -136,11 +162,13 @@ export default function ShopeeReturnScanPage() {
 
       const historyItem: ScanHistoryItem = {
         id: matched.id,
+        eventId: result.data.eventId || `${matched.id}-${Date.now()}`,
         orderNumber: matched.order_number,
         platform: matched.platform,
         trackingNumber: matched.tracking_number,
         scannedAt: matched.scanned_at,
         code,
+        scanStatus: result.data.scanStatus,
         alreadyScanned,
         matchedCount,
         updatedCount,
@@ -159,13 +187,15 @@ export default function ShopeeReturnScanPage() {
         const countText = matchedCount > 1 ? `（同單共 ${matchedCount} 筆）` : '';
         toast.success(`掃描成功：${matched.order_number}（${platformLabel}）${countText}`);
       }
+      await loadDashboard();
     } else {
       toast.error(result.error || '掃描失敗');
+      await loadDashboard();
     }
 
     processingRef.current = false;
     setIsProcessing(false);
-  }, []);
+  }, [loadDashboard]);
 
   const stopScanner = useCallback(async () => {
     if (!scannerRef.current) {
@@ -250,16 +280,8 @@ export default function ShopeeReturnScanPage() {
   }, [handleCode, manualCode]);
 
   useEffect(() => {
-    const restored = parseHistoryFromStorage(window.localStorage.getItem(SCAN_HISTORY_STORAGE_KEY));
-    setHistory(restored);
-    setLatestScan(restored[0] ?? null);
-    setHistoryReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!historyReady) return;
-    window.localStorage.setItem(SCAN_HISTORY_STORAGE_KEY, JSON.stringify(history));
-  }, [history, historyReady]);
+    void loadDashboard();
+  }, [loadDashboard]);
 
   useEffect(() => {
     if (autoStartRef.current) return;
@@ -329,6 +351,44 @@ export default function ShopeeReturnScanPage() {
               相機錯誤：{cameraError}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            掃描 KPI
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">今日掃描量</div>
+              <div className="text-lg font-semibold">{kpi.todayTotalScans}</div>
+            </div>
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">未匹配率</div>
+              <div className="text-lg font-semibold">{kpi.unmatchedRate.toFixed(1)}%</div>
+            </div>
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">重掃率</div>
+              <div className="text-lg font-semibold">{kpi.duplicateRate.toFixed(1)}%</div>
+            </div>
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">入庫完成率</div>
+              <div className="text-lg font-semibold">{kpi.scannedCompletionRate.toFixed(1)}%</div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-2">
+            <div>
+              <div className="text-xs text-muted-foreground">未匹配待處理</div>
+              <div className="text-base font-semibold">{unmatchedOpenCount} 筆</div>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/shopee-returns/scan/unmatched">前往清單</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -415,7 +475,7 @@ export default function ShopeeReturnScanPage() {
             <div className="space-y-2">
               {history.map((item) => (
                 <div
-                  key={`${item.id}-${item.scannedAt || item.code}`}
+                  key={item.eventId}
                   className="rounded-lg border p-3 space-y-1 text-sm"
                 >
                   <div className="flex flex-wrap items-center gap-2">

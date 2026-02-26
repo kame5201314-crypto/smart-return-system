@@ -2,8 +2,9 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { scanShopeeReturnMock, toastMock } = vi.hoisted(() => ({
+const { scanShopeeReturnMock, getShopeeScanDashboardMock, toastMock } = vi.hoisted(() => ({
   scanShopeeReturnMock: vi.fn(),
+  getShopeeScanDashboardMock: vi.fn(),
   toastMock: {
     success: vi.fn(),
     error: vi.fn(),
@@ -25,19 +26,64 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/actions/shopee-returns.actions', () => ({
   scanShopeeReturn: (...args: unknown[]) => scanShopeeReturnMock(...args),
+  getShopeeScanDashboard: (...args: unknown[]) => getShopeeScanDashboardMock(...args),
 }));
 
 import ShopeeReturnScanPage from '@/app/(admin)/shopee-returns/scan/page';
 
+const EMPTY_DASHBOARD = {
+  success: true,
+  data: {
+    kpi: {
+      todayTotalScans: 0,
+      todayMatchedScans: 0,
+      todayUnmatchedScans: 0,
+      todayDuplicateScans: 0,
+      unmatchedRate: 0,
+      duplicateRate: 0,
+      scannedCompletionRate: 0,
+    },
+    recentEvents: [],
+    unmatchedOpenCount: 0,
+  },
+};
+
 describe('ShopeeReturnScanPage UI', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getShopeeScanDashboardMock.mockResolvedValue(EMPTY_DASHBOARD);
   });
   afterEach(() => {
     cleanup();
   });
 
   it('shows platform and write count after manual scan success', async () => {
+    getShopeeScanDashboardMock
+      .mockResolvedValueOnce(EMPTY_DASHBOARD)
+      .mockResolvedValue({
+        success: true,
+        data: {
+          ...EMPTY_DASHBOARD.data,
+          recentEvents: [
+            {
+              id: 'event-1',
+              scanned_code: '260130D0X7N6FH',
+              normalized_code: '260130D0X7N6FH',
+              scan_status: 'matched',
+              matched_order_id: 'scan-row-1',
+              matched_order_number: '260130D0X7N6FH',
+              matched_tracking_number: 'TW2631984572320',
+              platform: 'mall',
+              matched_count: 2,
+              updated_count: 2,
+              message: '掃描成功',
+              scanned_at: '2026-02-25T11:00:00.000Z',
+              created_at: '2026-02-25T11:00:00.000Z',
+            },
+          ],
+        },
+      });
+
     scanShopeeReturnMock.mockResolvedValue({
       success: true,
       data: {
@@ -51,6 +97,8 @@ describe('ShopeeReturnScanPage UI', () => {
         alreadyScanned: false,
         matchedCount: 2,
         updatedCount: 2,
+        scanStatus: 'matched',
+        eventId: 'event-1',
       },
     });
 

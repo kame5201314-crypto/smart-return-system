@@ -6,7 +6,9 @@ import type { ApiResponse } from '@/types';
 export interface ShopeeReturn {
   id: string;
   order_number: string;
+  order_number_norm?: string | null;
   tracking_number: string | null;
+  tracking_number_norm?: string | null;
   order_date: string | null;
   total_price: number;
   product_name: string | null;
@@ -51,6 +53,58 @@ export interface ShopeeReturnInput {
   shippingMethod?: string;
 }
 
+export type ScanStatus = 'matched' | 'unmatched' | 'duplicate' | 'error';
+
+export interface ShopeeScanEvent {
+  id: string;
+  scanned_code: string;
+  normalized_code: string;
+  scan_status: ScanStatus;
+  matched_order_id: string | null;
+  matched_order_number: string | null;
+  matched_tracking_number: string | null;
+  platform: 'shopee' | 'mall' | null;
+  matched_count: number;
+  updated_count: number;
+  message: string | null;
+  scanned_at: string;
+  created_at: string;
+}
+
+export interface ShopeeUnmatchedScan {
+  id: string;
+  normalized_code: string;
+  sample_scanned_code: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  hit_count: number;
+  status: 'open' | 'resolved';
+  resolved_order_id: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShopeeScanKpi {
+  todayTotalScans: number;
+  todayMatchedScans: number;
+  todayUnmatchedScans: number;
+  todayDuplicateScans: number;
+  unmatchedRate: number;
+  duplicateRate: number;
+  scannedCompletionRate: number;
+}
+
+export interface ShopeeScanDashboardData {
+  kpi: ShopeeScanKpi;
+  recentEvents: ShopeeScanEvent[];
+  unmatchedOpenCount: number;
+}
+
+const DUPLICATE_SCAN_WINDOW_MS = 3000;
+
 function normalizeCodeToken(value: string): string {
   return value
     .trim()
@@ -87,6 +141,140 @@ function extractScanCandidates(scannedCode: string): string[] {
   }
 
   return [...candidates];
+}
+
+function isRelationMissingError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const message = 'message' in error ? String((error as { message?: string }).message || '') : '';
+  return message.includes('does not exist') || message.includes('relation') || message.includes('42P01');
+}
+
+function pickPrimaryNormalizedCode(cleanCode: string, candidates: string[]): string {
+  return candidates[0] || normalizeCodeToken(cleanCode);
+}
+
+async function recordScanEvent(event: {
+  scannedCode: string;
+  normalizedCode: string;
+  scanStatus: ScanStatus;
+  matchedOrder?: ShopeeReturn | null;
+  matchedCount?: number;
+  updatedCount?: number;
+  message?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<ShopeeScanEvent | null> {
+  try {
+    const supabase = createUntypedAdminClient();
+    const { data, error } = await supabase
+      .from('shopee_scan_events')
+      .insert({
+        scanned_code: event.scannedCode,
+        normalized_code: event.normalizedCode,
+        scan_status: event.scanStatus,
+        matched_order_id: event.matchedOrder?.id || null,
+        matched_order_number: event.matchedOrder?.order_number || null,
+        matched_tracking_number: event.matchedOrder?.tracking_number || null,
+        platform: event.matchedOrder?.platform || null,
+        matched_count: event.matchedCount || 0,
+        updated_count: event.updatedCount || 0,
+        message: event.message || null,
+        metadata: event.metadata || null,
+      } as never)
+      .select('*')
+      .single();
+
+    if (error) {
+      if (!isRelationMissingError(error)) {
+        console.error('recordScanEvent error:', error);
+      }
+      return null;
+    }
+
+    return (data as ShopeeScanEvent) || null;
+  } catch (error) {
+    if (!isRelationMissingError(error)) {
+      console.error('recordScanEvent unexpected error:', error);
+    }
+    return null;
+  }
+}
+
+async function upsertUnmatchedScan(normalizedCode: string, scannedCode: string): Promise<void> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { data: existing, error: existingError } = await supabase
+      .from('shopee_unmatched_scans')
+      .select('id, hit_count')
+      .eq('normalized_code', normalizedCode)
+      .eq('status', 'open')
+      .limit(1);
+
+    if (existingError) {
+      if (!isRelationMissingError(existingError)) {
+        console.error('upsertUnmatchedScan load error:', existingError);
+      }
+      return;
+    }
+
+    if (existing && existing.length > 0) {
+      const row = existing[0] as { id: string; hit_count: number };
+      const { error: updateError } = await supabase
+        .from('shopee_unmatched_scans')
+        .update({
+          sample_scanned_code: scannedCode,
+          last_seen_at: new Date().toISOString(),
+          hit_count: (row.hit_count || 0) + 1,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq('id', row.id);
+
+      if (updateError && !isRelationMissingError(updateError)) {
+        console.error('upsertUnmatchedScan update error:', updateError);
+      }
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from('shopee_unmatched_scans')
+      .insert({
+        normalized_code: normalizedCode,
+        sample_scanned_code: scannedCode,
+        status: 'open',
+      } as never);
+
+    if (insertError && !isRelationMissingError(insertError)) {
+      console.error('upsertUnmatchedScan insert error:', insertError);
+    }
+  } catch (error) {
+    if (!isRelationMissingError(error)) {
+      console.error('upsertUnmatchedScan unexpected error:', error);
+    }
+  }
+}
+
+async function resolveOpenUnmatchedByCode(normalizedCode: string, orderId: string): Promise<void> {
+  try {
+    const supabase = createUntypedAdminClient();
+    const { error } = await supabase
+      .from('shopee_unmatched_scans')
+      .update({
+        status: 'resolved',
+        resolved_order_id: orderId,
+        resolved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq('normalized_code', normalizedCode)
+      .eq('status', 'open');
+
+    if (error && !isRelationMissingError(error)) {
+      console.error('resolveOpenUnmatchedByCode error:', error);
+    }
+  } catch (error) {
+    if (!isRelationMissingError(error)) {
+      console.error('resolveOpenUnmatchedByCode unexpected error:', error);
+    }
+  }
 }
 
 /**
@@ -381,7 +569,7 @@ export async function deleteShopeeReturns(ids: string[]): Promise<ApiResponse<vo
  */
 export async function scanShopeeReturn(
   scannedCode: string
-): Promise<ApiResponse<{ matched: ShopeeReturn; alreadyScanned: boolean; matchedCount: number; updatedCount: number } | null>> {
+): Promise<ApiResponse<{ matched: ShopeeReturn; alreadyScanned: boolean; matchedCount: number; updatedCount: number; scanStatus: ScanStatus; eventId?: string | null } | null>> {
   try {
     const supabase = createUntypedAdminClient();
     const cleanCode = scannedCode.trim();
@@ -390,28 +578,111 @@ export async function scanShopeeReturn(
       return { success: false, error: '請掃描有效的條碼' };
     }
 
-    // Check if this looks like a Taiwan shipping/tracking number (寄件編號)
-    const isTrackingNumber = /^TW\d+$/i.test(cleanCode);
     const candidates = extractScanCandidates(cleanCode);
+    const primaryNormalizedCode = pickPrimaryNormalizedCode(cleanCode, candidates);
+    const isTrackingNumber = /^TW\d+$/i.test(cleanCode);
+    const nowMs = Date.now();
 
-    // Search for matching order
-    const { data: allReturns, error: fetchError } = await supabase
-      .from('shopee_returns')
-      .select('*');
+    // Duplicate protection (short window, no re-write)
+    try {
+      const { data: recentEvents, error: duplicateCheckError } = await supabase
+        .from('shopee_scan_events')
+        .select('id, scanned_at')
+        .eq('normalized_code', primaryNormalizedCode)
+        .order('scanned_at', { ascending: false })
+        .limit(1);
 
-    if (fetchError) {
-      console.error('Fetch returns error:', fetchError);
-      return { success: false, error: '讀取資料失敗' };
+      if (!duplicateCheckError && recentEvents && recentEvents.length > 0) {
+        const recent = recentEvents[0] as { id: string; scanned_at: string };
+        const recentMs = new Date(recent.scanned_at).getTime();
+        if (!Number.isNaN(recentMs) && nowMs - recentMs <= DUPLICATE_SCAN_WINDOW_MS) {
+          const msg = '重複掃描：3 秒內相同條碼已處理，已略過寫入';
+          await recordScanEvent({
+            scannedCode: cleanCode,
+            normalizedCode: primaryNormalizedCode,
+            scanStatus: 'duplicate',
+            message: msg,
+            metadata: { blockedByRecentEventId: recent.id },
+          });
+          return { success: false, error: msg };
+        }
+      } else if (duplicateCheckError && !isRelationMissingError(duplicateCheckError)) {
+        console.error('Duplicate scan check error:', duplicateCheckError);
+      }
+    } catch (error) {
+      if (!isRelationMissingError(error)) {
+        console.error('Duplicate scan check unexpected error:', error);
+      }
     }
 
-    if (!allReturns || allReturns.length === 0) {
-      return { success: false, error: '找不到任何退貨資料' };
+    let sourceRows: ShopeeReturn[] = [];
+    const uniqueCandidates = [...new Set(candidates)];
+
+    if (uniqueCandidates.length > 0) {
+      try {
+        const [orderLookup, trackingLookup] = await Promise.all([
+          supabase
+            .from('shopee_returns')
+            .select('*')
+            .in('order_number_norm', uniqueCandidates),
+          supabase
+            .from('shopee_returns')
+            .select('*')
+            .in('tracking_number_norm', uniqueCandidates),
+        ]);
+
+        if (!orderLookup.error && !trackingLookup.error) {
+          const fastRows = [
+            ...((orderLookup.data as ShopeeReturn[]) || []),
+            ...((trackingLookup.data as ShopeeReturn[]) || []),
+          ];
+          sourceRows = fastRows.filter((row, idx, arr) => arr.findIndex((r) => r.id === row.id) === idx);
+        } else {
+          const knownSchemaMiss = isRelationMissingError(orderLookup.error) || isRelationMissingError(trackingLookup.error);
+          if (!knownSchemaMiss) {
+            if (orderLookup.error) console.error('order_number_norm lookup error:', orderLookup.error);
+            if (trackingLookup.error) console.error('tracking_number_norm lookup error:', trackingLookup.error);
+          }
+        }
+      } catch (error) {
+        if (!isRelationMissingError(error)) {
+          console.error('normalized lookup unexpected error:', error);
+        }
+      }
     }
 
-    const sourceRows = allReturns as ShopeeReturn[];
+    if (sourceRows.length === 0) {
+      const { data: allReturns, error: fetchError } = await supabase
+        .from('shopee_returns')
+        .select('*');
+
+      if (fetchError) {
+        console.error('Fetch returns error:', fetchError);
+        await recordScanEvent({
+          scannedCode: cleanCode,
+          normalizedCode: primaryNormalizedCode,
+          scanStatus: 'error',
+          message: '讀取資料失敗',
+        });
+        return { success: false, error: '讀取資料失敗' };
+      }
+
+      if (!allReturns || allReturns.length === 0) {
+        await recordScanEvent({
+          scannedCode: cleanCode,
+          normalizedCode: primaryNormalizedCode,
+          scanStatus: 'unmatched',
+          message: '找不到任何退貨資料',
+        });
+        await upsertUnmatchedScan(primaryNormalizedCode, cleanCode);
+        return { success: false, error: '找不到任何退貨資料' };
+      }
+      sourceRows = allReturns as ShopeeReturn[];
+    }
+
     const matchedRows = sourceRows.filter((row) => {
-      const orderNum = normalizeCodeToken(row.order_number);
-      const trackingNum = normalizeCodeToken(row.tracking_number || '');
+      const orderNum = row.order_number_norm || normalizeCodeToken(row.order_number);
+      const trackingNum = row.tracking_number_norm || normalizeCodeToken(row.tracking_number || '');
       const rowTokens = [orderNum, trackingNum].filter(Boolean);
 
       return candidates.some((candidate) =>
@@ -422,17 +693,22 @@ export async function scanShopeeReturn(
     });
 
     if (matchedRows.length === 0) {
-      // Provide helpful error message based on what was scanned
+      const unmatchedMessage = isTrackingNumber
+        ? `這是寄件編號 (${cleanCode})，請掃描「蝦皮訂單編號」旁的條碼`
+        : `找不到符合的訂單：${cleanCode.substring(0, 30)}${cleanCode.length > 30 ? '...' : ''}`;
+
+      await upsertUnmatchedScan(primaryNormalizedCode, cleanCode);
+      await recordScanEvent({
+        scannedCode: cleanCode,
+        normalizedCode: primaryNormalizedCode,
+        scanStatus: 'unmatched',
+        message: unmatchedMessage,
+      });
+
       if (isTrackingNumber) {
-        return {
-          success: false,
-          error: `這是寄件編號 (${cleanCode})，請掃描「蝦皮訂單編號」旁的條碼`
-        };
+        return { success: false, error: unmatchedMessage };
       }
-      return {
-        success: false,
-        error: `找不到符合的訂單：${cleanCode.substring(0, 30)}${cleanCode.length > 30 ? '...' : ''}`
-      };
+      return { success: false, error: unmatchedMessage };
     }
 
     const matched = matchedRows.find((row) => !row.is_scanned) || matchedRows[0];
@@ -441,6 +717,16 @@ export async function scanShopeeReturn(
 
     // Check if already scanned
     if (toUpdateRows.length === 0) {
+      const event = await recordScanEvent({
+        scannedCode: cleanCode,
+        normalizedCode: primaryNormalizedCode,
+        scanStatus: 'matched',
+        matchedOrder: matched,
+        matchedCount: matchedRows.length,
+        updatedCount: 0,
+        message: '已掃描過',
+      });
+
       return {
         success: true,
         data: {
@@ -448,6 +734,8 @@ export async function scanShopeeReturn(
           alreadyScanned: true,
           matchedCount: matchedRows.length,
           updatedCount: 0,
+          scanStatus: 'matched',
+          eventId: event?.id || null,
         }
       };
     }
@@ -464,8 +752,28 @@ export async function scanShopeeReturn(
 
     if (updateError) {
       console.error('Update scan status error:', updateError);
+      await recordScanEvent({
+        scannedCode: cleanCode,
+        normalizedCode: primaryNormalizedCode,
+        scanStatus: 'error',
+        matchedOrder: matched,
+        matchedCount: matchedRows.length,
+        updatedCount: 0,
+        message: '更新掃描狀態失敗',
+      });
       return { success: false, error: '更新掃描狀態失敗' };
     }
+
+    await resolveOpenUnmatchedByCode(primaryNormalizedCode, matched.id);
+    const event = await recordScanEvent({
+      scannedCode: cleanCode,
+      normalizedCode: primaryNormalizedCode,
+      scanStatus: 'matched',
+      matchedOrder: matched,
+      matchedCount: matchedRows.length,
+      updatedCount: toUpdateRows.length,
+      message: '掃描成功',
+    });
 
     return {
       success: true,
@@ -474,10 +782,21 @@ export async function scanShopeeReturn(
         alreadyScanned: false,
         matchedCount: matchedRows.length,
         updatedCount: toUpdateRows.length,
+        scanStatus: 'matched',
+        eventId: event?.id || null,
       }
     };
   } catch (error) {
     console.error('Scan shopee return error:', error);
+    const cleanCode = scannedCode.trim();
+    const candidates = extractScanCandidates(cleanCode);
+    const primaryNormalizedCode = pickPrimaryNormalizedCode(cleanCode, candidates);
+    await recordScanEvent({
+      scannedCode: cleanCode,
+      normalizedCode: primaryNormalizedCode,
+      scanStatus: 'error',
+      message: '掃描比對失敗',
+    });
     return { success: false, error: '掃描比對失敗' };
   }
 }
@@ -682,5 +1001,262 @@ export async function updateShopeeReturn(
     console.error('Update shopee return detail error:', error);
     const message = error instanceof Error ? error.message : '未知錯誤';
     return { success: false, error: `更新失敗: ${message}` };
+  }
+}
+
+export interface ShopeeReturnScanCandidate {
+  id: string;
+  order_number: string;
+  tracking_number: string | null;
+  platform: 'shopee' | 'mall' | null;
+  is_scanned: boolean;
+}
+
+export async function getShopeeScanDashboard(
+  recentLimit = 30
+): Promise<ApiResponse<ShopeeScanDashboardData>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayIso = todayStart.toISOString();
+
+    const [recentEventsResult, todayEventsResult, unmatchedCountResult, returnsResult] = await Promise.all([
+      supabase
+        .from('shopee_scan_events')
+        .select('*')
+        .order('scanned_at', { ascending: false })
+        .limit(recentLimit),
+      supabase
+        .from('shopee_scan_events')
+        .select('scan_status, scanned_at')
+        .gte('scanned_at', todayIso),
+      supabase
+        .from('shopee_unmatched_scans')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open'),
+      supabase
+        .from('shopee_returns')
+        .select('id, is_scanned'),
+    ]);
+
+    const recentEvents = !recentEventsResult.error
+      ? ((recentEventsResult.data as ShopeeScanEvent[]) || [])
+      : [];
+    const todayEvents = !todayEventsResult.error
+      ? ((todayEventsResult.data as { scan_status: ScanStatus }[]) || [])
+      : [];
+    const unmatchedOpenCount = !unmatchedCountResult.error
+      ? (unmatchedCountResult.count || 0)
+      : 0;
+    const returnRows = !returnsResult.error
+      ? ((returnsResult.data as { id: string; is_scanned: boolean }[]) || [])
+      : [];
+
+    if (recentEventsResult.error && !isRelationMissingError(recentEventsResult.error)) {
+      return { success: false, error: `載入掃描儀表失敗: ${recentEventsResult.error.message}` };
+    }
+    if (todayEventsResult.error && !isRelationMissingError(todayEventsResult.error)) {
+      return { success: false, error: `載入掃描儀表失敗: ${todayEventsResult.error.message}` };
+    }
+    if (unmatchedCountResult.error && !isRelationMissingError(unmatchedCountResult.error)) {
+      return { success: false, error: `載入掃描儀表失敗: ${unmatchedCountResult.error.message}` };
+    }
+    if (returnsResult.error) {
+      return { success: false, error: `載入掃描儀表失敗: ${returnsResult.error.message}` };
+    }
+
+    const todayTotalScans = todayEvents.length;
+    const todayMatchedScans = todayEvents.filter((item) => item.scan_status === 'matched').length;
+    const todayUnmatchedScans = todayEvents.filter((item) => item.scan_status === 'unmatched').length;
+    const todayDuplicateScans = todayEvents.filter((item) => item.scan_status === 'duplicate').length;
+    const scannedCount = returnRows.filter((row) => row.is_scanned).length;
+    const scannedCompletionRate = returnRows.length > 0
+      ? (scannedCount / returnRows.length) * 100
+      : 0;
+
+    return {
+      success: true,
+      data: {
+        recentEvents,
+        unmatchedOpenCount,
+        kpi: {
+          todayTotalScans,
+          todayMatchedScans,
+          todayUnmatchedScans,
+          todayDuplicateScans,
+          unmatchedRate: todayTotalScans > 0 ? (todayUnmatchedScans / todayTotalScans) * 100 : 0,
+          duplicateRate: todayTotalScans > 0 ? (todayDuplicateScans / todayTotalScans) * 100 : 0,
+          scannedCompletionRate,
+        },
+      },
+    };
+  } catch (error) {
+    console.error('getShopeeScanDashboard error:', error);
+    return { success: false, error: '載入掃描儀表失敗' };
+  }
+}
+
+export async function getShopeeUnmatchedScans(
+  limit = 100
+): Promise<ApiResponse<ShopeeUnmatchedScan[]>> {
+  try {
+    const supabase = createUntypedAdminClient();
+    const { data, error } = await supabase
+      .from('shopee_unmatched_scans')
+      .select('*')
+      .eq('status', 'open')
+      .order('last_seen_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      if (isRelationMissingError(error)) {
+        return { success: true, data: [] };
+      }
+      return { success: false, error: `載入未匹配清單失敗: ${error.message}` };
+    }
+
+    return { success: true, data: (data as ShopeeUnmatchedScan[]) || [] };
+  } catch (error) {
+    console.error('getShopeeUnmatchedScans error:', error);
+    return { success: false, error: '載入未匹配清單失敗' };
+  }
+}
+
+export async function searchShopeeReturnScanCandidates(
+  keyword: string,
+  limit = 20
+): Promise<ApiResponse<ShopeeReturnScanCandidate[]>> {
+  try {
+    const q = keyword.trim();
+    if (!q) return { success: true, data: [] };
+
+    const supabase = createUntypedAdminClient();
+    const normalized = normalizeCodeToken(q);
+
+    let rows: ShopeeReturnScanCandidate[] = [];
+
+    const fastLookup = await supabase
+      .from('shopee_returns')
+      .select('id, order_number, tracking_number, platform, is_scanned')
+      .or(`order_number_norm.eq.${normalized},tracking_number_norm.eq.${normalized}`)
+      .limit(limit);
+
+    if (!fastLookup.error && fastLookup.data) {
+      rows = fastLookup.data as ShopeeReturnScanCandidate[];
+    } else if (fastLookup.error && !isRelationMissingError(fastLookup.error)) {
+      return { success: false, error: `搜尋候選訂單失敗: ${fastLookup.error.message}` };
+    }
+
+    if (rows.length === 0) {
+      const fallback = await supabase
+        .from('shopee_returns')
+        .select('id, order_number, tracking_number, platform, is_scanned')
+        .or(`order_number.ilike.%${q}%,tracking_number.ilike.%${q}%`)
+        .limit(limit);
+
+      if (fallback.error) {
+        return { success: false, error: `搜尋候選訂單失敗: ${fallback.error.message}` };
+      }
+      rows = (fallback.data as ShopeeReturnScanCandidate[]) || [];
+    }
+
+    return { success: true, data: rows };
+  } catch (error) {
+    console.error('searchShopeeReturnScanCandidates error:', error);
+    return { success: false, error: '搜尋候選訂單失敗' };
+  }
+}
+
+export async function bindShopeeUnmatchedScan(input: {
+  unmatchedScanId: string;
+  shopeeReturnId: string;
+  resolvedBy?: string;
+  note?: string;
+}): Promise<ApiResponse<{ eventId: string | null; matchedOrderId: string }>> {
+  try {
+    const supabase = createUntypedAdminClient();
+    const now = new Date().toISOString();
+
+    const { data: unmatched, error: unmatchedError } = await supabase
+      .from('shopee_unmatched_scans')
+      .select('*')
+      .eq('id', input.unmatchedScanId)
+      .single();
+
+    if (unmatchedError || !unmatched) {
+      return { success: false, error: `找不到未匹配記錄: ${unmatchedError?.message || 'Not found'}` };
+    }
+
+    if ((unmatched as ShopeeUnmatchedScan).status !== 'open') {
+      return { success: false, error: '此未匹配記錄已處理' };
+    }
+
+    const { data: targetOrder, error: orderError } = await supabase
+      .from('shopee_returns')
+      .select('*')
+      .eq('id', input.shopeeReturnId)
+      .single();
+
+    if (orderError || !targetOrder) {
+      return { success: false, error: `找不到目標訂單: ${orderError?.message || 'Not found'}` };
+    }
+
+    const order = targetOrder as ShopeeReturn;
+    const { error: updateOrderError } = await supabase
+      .from('shopee_returns')
+      .update({
+        is_scanned: true,
+        scanned_at: order.scanned_at || now,
+        updated_at: now,
+      } as never)
+      .eq('id', order.id);
+
+    if (updateOrderError) {
+      return { success: false, error: `綁定失敗: ${updateOrderError.message}` };
+    }
+
+    const { error: resolveError } = await supabase
+      .from('shopee_unmatched_scans')
+      .update({
+        status: 'resolved',
+        resolved_order_id: order.id,
+        resolved_at: now,
+        resolved_by: input.resolvedBy || null,
+        note: input.note || null,
+        updated_at: now,
+      } as never)
+      .eq('id', input.unmatchedScanId)
+      .eq('status', 'open');
+
+    if (resolveError) {
+      return { success: false, error: `綁定失敗: ${resolveError.message}` };
+    }
+
+    const event = await recordScanEvent({
+      scannedCode: (unmatched as ShopeeUnmatchedScan).sample_scanned_code,
+      normalizedCode: (unmatched as ShopeeUnmatchedScan).normalized_code,
+      scanStatus: 'matched',
+      matchedOrder: order,
+      matchedCount: 1,
+      updatedCount: order.is_scanned ? 0 : 1,
+      message: 'manual_bind',
+      metadata: {
+        source: 'manual_bind',
+        unmatchedScanId: input.unmatchedScanId,
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        eventId: event?.id || null,
+        matchedOrderId: order.id,
+      },
+    };
+  } catch (error) {
+    console.error('bindShopeeUnmatchedScan error:', error);
+    return { success: false, error: '綁定失敗' };
   }
 }
