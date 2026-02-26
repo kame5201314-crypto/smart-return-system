@@ -8,8 +8,6 @@ import {
   Keyboard,
   Loader2,
   ScanLine,
-  Smartphone,
-  SwitchCamera,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -23,11 +21,9 @@ import { scanShopeeReturn } from '@/lib/actions/shopee-returns.actions';
 const SCANNER_ELEMENT_ID = 'shopee-return-scanner';
 const SCAN_HISTORY_STORAGE_KEY = 'shopee-return-scan-history-v1';
 
-type ScannerFacingMode = 'environment' | 'user';
-
 type Html5QrcodeScanner = {
   start: (
-    cameraConfig: { facingMode: ScannerFacingMode } | string,
+    cameraConfig: { facingMode: 'environment' | 'user' } | string,
     config: Record<string, unknown>,
     onSuccess: (decodedText: string) => void,
     onError?: (errorMessage: string) => void
@@ -101,7 +97,6 @@ export default function ShopeeReturnScanPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [facingMode, setFacingMode] = useState<ScannerFacingMode>('environment');
   const [manualCode, setManualCode] = useState('');
   const [lastCode, setLastCode] = useState('');
   const [cameraError, setCameraError] = useState('');
@@ -209,7 +204,7 @@ export default function ShopeeReturnScanPage() {
       }
 
       await scannerRef.current.start(
-        { facingMode },
+        { facingMode: 'environment' },
         {
           fps: 10,
           qrbox: { width: 280, height: 140 },
@@ -241,19 +236,7 @@ export default function ShopeeReturnScanPage() {
     } finally {
       setIsStarting(false);
     }
-  }, [facingMode, handleCode, isActive, isStarting]);
-
-  const switchCamera = useCallback(async () => {
-    const nextFacing: ScannerFacingMode = facingMode === 'environment' ? 'user' : 'environment';
-    setFacingMode(nextFacing);
-
-    if (isActive) {
-      await stopScanner();
-      setTimeout(() => {
-        void startScanner();
-      }, 100);
-    }
-  }, [facingMode, isActive, startScanner, stopScanner]);
+  }, [handleCode, isActive, isStarting]);
 
   const submitManualCode = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -310,12 +293,6 @@ export default function ShopeeReturnScanPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Smartphone className="w-5 h-5" />
-            相機掃描
-          </CardTitle>
-        </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-lg border bg-black/5 overflow-hidden">
             <div id={SCANNER_ELEMENT_ID} className="w-full min-h-[260px] [&_video]:w-full [&_video]:h-[260px] [&_video]:object-cover" />
@@ -333,10 +310,6 @@ export default function ShopeeReturnScanPage() {
               </Button>
             )}
 
-            <Button variant="outline" onClick={() => void switchCamera()} disabled={isStarting}>
-              <SwitchCamera className="w-4 h-4 mr-1" />
-              切換鏡頭
-            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -367,13 +340,13 @@ export default function ShopeeReturnScanPage() {
           {!latestScan ? (
             <p className="text-sm text-muted-foreground">尚未掃描</p>
           ) : (
-            <div className="rounded-lg border p-3 space-y-2 text-sm">
+            <div className="rounded-lg p-3 space-y-2 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-sm px-2 py-0.5">
+                <Badge variant="outline" className="text-base font-semibold px-2.5 py-0.5">
                   {getPlatformLabel(latestScan.platform)}
                 </Badge>
                 <Badge
-                  className={`text-sm px-2 py-0.5 ${latestScan.alreadyScanned ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}
+                  className={`text-base font-semibold px-2.5 py-0.5 ${latestScan.alreadyScanned ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}
                 >
                   {latestScan.alreadyScanned ? '已掃描過' : '新掃描'}
                 </Badge>
