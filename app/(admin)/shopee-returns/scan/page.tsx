@@ -94,7 +94,6 @@ export default function ShopeeReturnScanPage() {
   const [isActive, setIsActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [manualCode, setManualCode] = useState('');
-  const [lastCode, setLastCode] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [latestScan, setLatestScan] = useState<ScanHistoryItem | null>(null);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
@@ -149,7 +148,6 @@ export default function ShopeeReturnScanPage() {
 
     processingRef.current = true;
     setIsProcessing(true);
-    setLastCode(code);
 
     const result = await scanShopeeReturn(code);
     if (result.success && result.data) {
@@ -341,9 +339,6 @@ export default function ShopeeReturnScanPage() {
                 比對中
               </Badge>
             )}
-            {lastCode && (
-              <span className="font-mono font-medium">最近掃描：{lastCode}</span>
-            )}
           </div>
 
           {cameraError && (
@@ -393,20 +388,20 @@ export default function ShopeeReturnScanPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">最新掃描結果</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {!latestScan ? (
             <p className="text-sm text-muted-foreground">尚未掃描</p>
           ) : (
-            <div className="rounded-lg p-3 space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-base font-semibold px-2.5 py-0.5">
+                <Badge variant="outline" className="text-lg font-semibold px-3 py-1 h-auto leading-tight">
                   {getPlatformLabel(latestScan.platform)}
                 </Badge>
                 <Badge
-                  className={`text-base font-semibold px-2.5 py-0.5 ${latestScan.alreadyScanned ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}
+                  className={`text-lg font-semibold px-3 py-1 h-auto leading-tight ${latestScan.alreadyScanned ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}
                 >
                   {latestScan.alreadyScanned ? '已掃描過' : '新掃描'}
                 </Badge>
