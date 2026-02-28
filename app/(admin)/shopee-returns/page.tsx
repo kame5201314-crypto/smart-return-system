@@ -87,8 +87,25 @@ const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
   { value: 'red', label: '爭議中', color: 'bg-red-100 text-red-800 border-red-300' },
 ];
 
+type ImportColumnKey = keyof ShopeeReturnInput | 'returnRefundStatus' | 'returnRefundScheme';
+
+const EXCLUDED_RETURN_REFUND_STATUSES = new Set([
+  '\u7533\u8acb\u5df2\u53d6\u6d88', // 申請已取消
+  '\u722d\u8b70\u5df2\u64a4\u56de', // 爭議已撤回
+]);
+
+const EXCLUDED_RETURN_REFUND_SCHEMES = new Set([
+  '\u50c5\u9000\u6b3e', // 僅退款
+]);
+
+const AUTO_PICKUP_SHIPPING_METHOD = '\u5b89\u6392\u6536\u4ef6'; // 安排收件
+
+function normalizeImportRuleValue(value: string): string {
+  return value.replace(/\s+/g, '');
+}
+
 // Column mappings for Shopee export file
-const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
+const COLUMN_MAPPINGS: Record<string, ImportColumnKey> = {
   '訂單編號': 'orderNumber',
   '訂單號碼': 'orderNumber',
   '訂單成立日期': 'orderDate',
@@ -128,6 +145,12 @@ const COLUMN_MAPPINGS: Record<string, keyof ShopeeReturnInput> = {
   '買家退貨備註': 'buyerNote',
   '買家備註': 'buyerNote',
   '退貨運送方式': 'shippingMethod',
+  '\u9000\u8ca8 / \u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
+  '\u9000\u8ca8/\u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
+  '\u9000\u8ca8\u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
+  '\u9000\u8ca8 / \u9000\u6b3e\u65b9\u6848': 'returnRefundScheme',
+  '\u9000\u8ca8/\u9000\u6b3e\u65b9\u6848': 'returnRefundScheme',
+  '\u9000\u8ca8\u9000\u6b3e\u65b9\u6848': 'returnRefundScheme',
 };
 
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
@@ -349,16 +372,18 @@ export default function ShopeeReturnsPage() {
         headers[colNumber - 1] = cell.value;
       });
 
-      const columnIndices: Record<string, number> = {};
+      const columnIndices: Partial<Record<ImportColumnKey, number>> = {};
       const foundHeaders: string[] = [];
 
       headers.forEach((header, index) => {
         const cleanHeader = header?.toString().trim();
         if (cleanHeader) {
           foundHeaders.push(cleanHeader);
-          if (COLUMN_MAPPINGS[cleanHeader]) {
-            if (columnIndices[COLUMN_MAPPINGS[cleanHeader]] === undefined) {
-              columnIndices[COLUMN_MAPPINGS[cleanHeader]] = index;
+          const normalizedHeader = cleanHeader.replace(/\s+/g, '');
+          const mappedKey = COLUMN_MAPPINGS[cleanHeader] ?? COLUMN_MAPPINGS[normalizedHeader];
+          if (mappedKey) {
+            if (columnIndices[mappedKey] === undefined) {
+              columnIndices[mappedKey] = index;
             }
           }
         }
@@ -377,6 +402,8 @@ export default function ShopeeReturnsPage() {
       }
 
       const newItems: ShopeeReturnInput[] = [];
+      let skippedByBusinessRules = 0;
+      let autoPickupCount = 0;
 
       // Process data rows (starting from row 2)
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
@@ -390,14 +417,15 @@ export default function ShopeeReturnsPage() {
         if (rowValues.length === 0) return;
 
         let orderNumber = '';
-        const orderVal = rowValues[columnIndices.orderNumber];
+        const orderColIdx = columnIndices.orderNumber;
+        const orderVal = orderColIdx === undefined ? undefined : rowValues[orderColIdx];
         if (orderVal !== undefined && orderVal !== null && orderVal !== '') {
           orderNumber = String(orderVal).trim();
         }
 
         if (!orderNumber) return;
 
-        const getCellValue = (key: string): string => {
+        const getCellValue = (key: ImportColumnKey): string => {
           const idx = columnIndices[key];
           if (idx === undefined) return '';
           const val = rowValues[idx];
@@ -409,7 +437,7 @@ export default function ShopeeReturnsPage() {
           return String(val).trim();
         };
 
-        const getCellNumber = (key: string, defaultVal: number = 0): number => {
+        const getCellNumber = (key: ImportColumnKey, defaultVal: number = 0): number => {
           const idx = columnIndices[key];
           if (idx === undefined) return defaultVal;
           const val = rowValues[idx];
@@ -417,6 +445,21 @@ export default function ShopeeReturnsPage() {
           const num = typeof val === 'number' ? val : parseFloat(String(val));
           return isNaN(num) ? defaultVal : num;
         };
+
+        const returnRefundStatus = normalizeImportRuleValue(getCellValue('returnRefundStatus'));
+        const returnRefundScheme = normalizeImportRuleValue(getCellValue('returnRefundScheme'));
+        const shouldSkipByStatus = EXCLUDED_RETURN_REFUND_STATUSES.has(returnRefundStatus);
+        const shouldSkipByScheme = EXCLUDED_RETURN_REFUND_SCHEMES.has(returnRefundScheme);
+        if (shouldSkipByStatus || shouldSkipByScheme) {
+          skippedByBusinessRules++;
+          return;
+        }
+
+        const shippingMethodRaw = getCellValue('shippingMethod');
+        const shippingMethod = shippingMethodRaw || AUTO_PICKUP_SHIPPING_METHOD;
+        if (!shippingMethodRaw) {
+          autoPickupCount++;
+        }
 
         newItems.push({
           orderNumber,
@@ -432,7 +475,7 @@ export default function ShopeeReturnsPage() {
           refundAmount: getCellNumber('refundAmount') || undefined,
           returnReason: getCellValue('returnReason') || undefined,
           buyerNote: getCellValue('buyerNote') || undefined,
-          shippingMethod: getCellValue('shippingMethod') || undefined,
+          shippingMethod,
         });
       });
 
@@ -442,10 +485,14 @@ export default function ShopeeReturnsPage() {
         if (result.success && result.data) {
           const { imported, duplicates } = result.data;
           if (imported > 0) {
-            toast.success(`成功匯入 ${imported} 筆${platformLabel}資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}`);
+            const skippedInfo = skippedByBusinessRules > 0 ? `，排除 ${skippedByBusinessRules} 筆（取消/撤回/僅退款）` : '';
+            const autoPickupInfo = autoPickupCount > 0 ? `，${autoPickupCount} 筆空白運送方式已改為「${AUTO_PICKUP_SHIPPING_METHOD}」` : '';
+            toast.success(`成功匯入 ${imported} 筆${platformLabel}資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}${skippedInfo}${autoPickupInfo}`);
             loadReturns();
           } else if (duplicates > 0) {
             toast.info(`所有 ${duplicates} 筆資料都是重複的`);
+          } else if (skippedByBusinessRules > 0) {
+            toast.info(`沒有可匯入資料：已排除 ${skippedByBusinessRules} 筆（取消/撤回/僅退款）`);
           }
         } else {
           toast.error(result.error || '匯入失敗');
