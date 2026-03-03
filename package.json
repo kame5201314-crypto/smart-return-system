@@ -18,7 +18,8 @@
     "prebuild:encoding": "node scripts/predeploy/check-encoding-hygiene.mjs",
     "maintenance:reconcile-ai-totals": "node scripts/maintenance/reconcile-ai-report-totals.mjs",
     "maintenance:cron-drill": "node scripts/maintenance/cron-drill.mjs",
-    "maintenance:smoke-shopee-scan": "node scripts/maintenance/postdeploy-shopee-scan-smoke.mjs"
+    "maintenance:smoke-shopee-scan": "node scripts/maintenance/postdeploy-shopee-scan-smoke.mjs",
+    "maintenance:shopee-inbound-backfill": "node scripts/maintenance/shopee-inbound-backfill-with-snapshot.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

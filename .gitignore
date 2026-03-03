@@ -62,6 +62,7 @@ temp/
 # Supabase
 supabase/.branches
 supabase/.temp
+supabase/backups/
 
 # Docker
 .docker/
