@@ -11,15 +11,34 @@ vi.mock('@/lib/supabase/admin', () => ({
 import { updateShopeeReturnStatus } from '@/lib/actions/shopee-returns.actions';
 
 function buildMockClient() {
-  const eqMock = vi.fn().mockResolvedValue({ error: null });
-  const updateMock = vi.fn().mockReturnValue({ eq: eqMock });
-  const fromMock = vi.fn().mockReturnValue({ update: updateMock });
+  const updateEqMock = vi.fn().mockResolvedValue({ error: null });
+  const updateMock = vi.fn().mockReturnValue({ eq: updateEqMock });
+
+  const selectSingleMock = vi.fn().mockResolvedValue({
+    data: {
+      is_scanned: false,
+      scanned_at: null,
+      is_inbound: false,
+      inbound_at: null,
+    },
+    error: null,
+  });
+  const selectEqMock = vi.fn().mockReturnValue({ single: selectSingleMock });
+  const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
+
+  const fromMock = vi.fn().mockReturnValue({
+    select: selectMock,
+    update: updateMock,
+  });
 
   return {
     client: { from: fromMock },
     fromMock,
+    selectMock,
+    selectEqMock,
+    selectSingleMock,
     updateMock,
-    eqMock,
+    updateEqMock,
   };
 }
 
@@ -35,13 +54,18 @@ describe('shopee status separation', () => {
     const result = await updateShopeeReturnStatus('row-1', { is_inbound: true });
 
     expect(result.success).toBe(true);
-    expect(mock.updateMock).toHaveBeenCalledTimes(1);
+    expect(mock.selectMock).toHaveBeenCalledTimes(1);
+    expect(mock.updateMock).toHaveBeenCalledTimes(2);
 
-    const payload = mock.updateMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(payload.is_inbound).toBe(true);
-    expect(payload).toHaveProperty('inbound_at');
-    expect(payload).not.toHaveProperty('is_scanned');
-    expect(payload).not.toHaveProperty('scanned_at');
+    const inboundPayload = mock.updateMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(inboundPayload.is_inbound).toBe(true);
+    expect(inboundPayload).toHaveProperty('inbound_at');
+    expect(inboundPayload).not.toHaveProperty('is_scanned');
+    expect(inboundPayload).not.toHaveProperty('scanned_at');
+
+    const restoreScanPayload = mock.updateMock.mock.calls[1]?.[0] as Record<string, unknown>;
+    expect(restoreScanPayload.is_scanned).toBe(false);
+    expect(restoreScanPayload.scanned_at).toBeNull();
   });
 
   it('updating scan status does not mutate inbound fields', async () => {
@@ -51,13 +75,18 @@ describe('shopee status separation', () => {
     const result = await updateShopeeReturnStatus('row-2', { is_scanned: true });
 
     expect(result.success).toBe(true);
-    expect(mock.updateMock).toHaveBeenCalledTimes(1);
+    expect(mock.selectMock).toHaveBeenCalledTimes(1);
+    expect(mock.updateMock).toHaveBeenCalledTimes(2);
 
-    const payload = mock.updateMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(payload.is_scanned).toBe(true);
-    expect(payload).toHaveProperty('scanned_at');
-    expect(payload).not.toHaveProperty('is_inbound');
-    expect(payload).not.toHaveProperty('inbound_at');
+    const scanPayload = mock.updateMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(scanPayload.is_scanned).toBe(true);
+    expect(scanPayload).toHaveProperty('scanned_at');
+    expect(scanPayload).not.toHaveProperty('is_inbound');
+    expect(scanPayload).not.toHaveProperty('inbound_at');
+
+    const restoreInboundPayload = mock.updateMock.mock.calls[1]?.[0] as Record<string, unknown>;
+    expect(restoreInboundPayload.is_inbound).toBe(false);
+    expect(restoreInboundPayload.inbound_at).toBeNull();
   });
 
   it('rejects mixed scan and inbound updates in one request', async () => {

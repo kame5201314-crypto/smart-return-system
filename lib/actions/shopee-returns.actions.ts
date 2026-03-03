@@ -491,6 +491,31 @@ export async function updateShopeeReturnStatus(
     }
 
     const supabase = createUntypedAdminClient();
+    let originalStatus: {
+      is_scanned: boolean;
+      scanned_at: string | null;
+      is_inbound: boolean | null;
+      inbound_at: string | null;
+    } | null = null;
+
+    if (hasScanMutation || hasInboundMutation) {
+      const { data: snapshot, error: snapshotError } = await supabase
+        .from('shopee_returns')
+        .select('is_scanned, scanned_at, is_inbound, inbound_at')
+        .eq('id', id)
+        .single();
+
+      if (snapshotError) {
+        console.warn('Load shopee return status snapshot warning:', snapshotError);
+      } else if (snapshot) {
+        originalStatus = snapshot as {
+          is_scanned: boolean;
+          scanned_at: string | null;
+          is_inbound: boolean | null;
+          inbound_at: string | null;
+        };
+      }
+    }
     const now = new Date().toISOString();
     const payload: Record<string, unknown> = {
       ...updates,
@@ -518,6 +543,37 @@ export async function updateShopeeReturnStatus(
     if (error) {
       console.error('Update shopee return error:', error);
       return { success: false, error: `更新失敗: ${error.message}` };
+    }
+
+    // Defensive restore: keep scan/inbound independent even if legacy DB triggers still couple them.
+    if (originalStatus && hasScanMutation && !hasInboundMutation) {
+      const { error: restoreInboundError } = await supabase
+        .from('shopee_returns')
+        .update({
+          is_inbound: !!originalStatus.is_inbound,
+          inbound_at: originalStatus.inbound_at || null,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq('id', id);
+
+      if (restoreInboundError) {
+        console.warn('Restore inbound status warning:', restoreInboundError);
+      }
+    }
+
+    if (originalStatus && hasInboundMutation && !hasScanMutation) {
+      const { error: restoreScanError } = await supabase
+        .from('shopee_returns')
+        .update({
+          is_scanned: !!originalStatus.is_scanned,
+          scanned_at: originalStatus.scanned_at || null,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq('id', id);
+
+      if (restoreScanError) {
+        console.warn('Restore scan status warning:', restoreScanError);
+      }
     }
 
     return { success: true };
