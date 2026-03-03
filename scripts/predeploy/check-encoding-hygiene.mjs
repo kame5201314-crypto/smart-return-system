@@ -20,10 +20,7 @@ const SKIP_DIRECTORIES = new Set([
   'coverage',
 ]);
 
-const SKIP_FILES = new Set([
-  // Legacy file with known mojibake content; tracked separately for cleanup.
-  'app/(admin)/pickup/page.tsx',
-]);
+const SKIP_FILES = new Set();
 
 function normalizeFilePath(filePath) {
   return filePath.replace(/\\/g, '/');
