@@ -148,7 +148,16 @@ function extractScanCandidates(scannedCode: string): string[] {
 function isRelationMissingError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const message = 'message' in error ? String((error as { message?: string }).message || '') : '';
-  return message.includes('does not exist') || message.includes('relation') || message.includes('42P01');
+  const code = 'code' in error ? String((error as { code?: string }).code || '') : '';
+  return (
+    message.includes('does not exist')
+    || message.includes('relation')
+    || message.includes('42P01')
+    || message.includes('Could not find the table')
+    || message.includes('schema cache')
+    || code === '42P01'
+    || code === 'PGRST205'
+  );
 }
 
 function pickPrimaryNormalizedCode(cleanCode: string, candidates: string[]): string {
