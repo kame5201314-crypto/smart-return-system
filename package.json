@@ -13,6 +13,8 @@
     "test:scripts-backend": "npm run test:scripts && npm run test:backend",
     "test:unit": "vitest run tests/unit",
     "test:ui": "vitest run tests/ui",
+    "test:e2e": "vitest run tests/e2e",
+    "test:e2e-all": "npm run test:e2e && npm run test:ui && npm run test:backend",
     "verify-env": "npx dotenv -e .env.local -- npx ts-node --esm scripts/verify-env.ts",
     "prebuild:check": "node -e \"const id='fdzfnenizyppxglypden'; const url=process.env.NEXT_PUBLIC_SUPABASE_URL||''; if(!url.includes(id)){console.error('ERROR: Wrong Supabase project! Expected:',id);process.exit(1)}else{console.log('Supabase project verified:',id)}\"",
     "prebuild:schema-gate": "node scripts/predeploy/schema-gate.mjs",
