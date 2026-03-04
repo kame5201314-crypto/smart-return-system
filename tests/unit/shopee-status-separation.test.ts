@@ -54,7 +54,7 @@ describe('shopee status separation', () => {
     const result = await updateShopeeReturnStatus('row-1', { is_inbound: true });
 
     expect(result.success).toBe(true);
-    expect(mock.selectMock).toHaveBeenCalledTimes(1);
+    expect(mock.selectMock).toHaveBeenCalledTimes(2);
     expect(mock.updateMock).toHaveBeenCalledTimes(2);
 
     const inboundPayload = mock.updateMock.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -75,7 +75,7 @@ describe('shopee status separation', () => {
     const result = await updateShopeeReturnStatus('row-2', { is_scanned: true });
 
     expect(result.success).toBe(true);
-    expect(mock.selectMock).toHaveBeenCalledTimes(1);
+    expect(mock.selectMock).toHaveBeenCalledTimes(2);
     expect(mock.updateMock).toHaveBeenCalledTimes(2);
 
     const scanPayload = mock.updateMock.mock.calls[0]?.[0] as Record<string, unknown>;

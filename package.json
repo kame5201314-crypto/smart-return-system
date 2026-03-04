@@ -11,6 +11,7 @@
     "test:scripts": "node scripts/testing/validate-node-scripts.mjs",
     "test:backend": "vitest run tests/backend tests/unit/upload-session.route.test.ts tests/unit/upload-signed-url.route.test.ts tests/unit/shopee-scan.actions.test.ts tests/unit/shopee-status-separation.test.ts",
     "test:scripts-backend": "npm run test:scripts && npm run test:backend",
+    "test:all": "npm run test:scripts-backend && npm run test:unit && npm run test:e2e && npm run test:integration",
     "test:unit": "vitest run tests/unit",
     "test:ui": "vitest run tests/ui",
     "test:e2e": "vitest run tests/e2e",
@@ -25,7 +26,8 @@
     "maintenance:reconcile-ai-totals": "node scripts/maintenance/reconcile-ai-report-totals.mjs",
     "maintenance:cron-drill": "node scripts/maintenance/cron-drill.mjs",
     "maintenance:smoke-shopee-scan": "node scripts/maintenance/postdeploy-shopee-scan-smoke.mjs",
-    "maintenance:shopee-inbound-backfill": "node scripts/maintenance/shopee-inbound-backfill-with-snapshot.mjs"
+    "maintenance:shopee-inbound-backfill": "node scripts/maintenance/shopee-inbound-backfill-with-snapshot.mjs",
+    "maintenance:archive-scan-retention": "node scripts/maintenance/archive-scan-retention.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -1,6 +1,7 @@
 'use server';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import { recordScanAuditLog } from '@/lib/observability/scan-audit';
 import type { ApiResponse } from '@/types';
 
 export interface ShopeeReturn {
@@ -488,6 +489,10 @@ export async function updateShopeeReturnStatus(
     processed_at?: string | null;
     scanned_at?: string | null;
     inbound_at?: string | null;
+  },
+  auditOptions?: {
+    actor?: string;
+    reason?: string;
   }
 ): Promise<ApiResponse<void>> {
   try {
@@ -501,16 +506,24 @@ export async function updateShopeeReturnStatus(
 
     const supabase = createUntypedAdminClient();
     let originalStatus: {
+      is_processed: boolean;
+      is_printed: boolean;
       is_scanned: boolean;
       scanned_at: string | null;
       is_inbound: boolean | null;
       inbound_at: string | null;
+      processed_at: string | null;
+      note: string | null;
+      tracking_number: string | null;
     } | null = null;
 
-    if (hasScanMutation || hasInboundMutation) {
+    const shouldLoadSnapshot = hasScanMutation || hasInboundMutation || Object.keys(updates).length > 0;
+    if (shouldLoadSnapshot) {
       const { data: snapshot, error: snapshotError } = await supabase
         .from('shopee_returns')
-        .select('is_scanned, scanned_at, is_inbound, inbound_at')
+        .select(
+          'is_processed, is_printed, is_scanned, scanned_at, is_inbound, inbound_at, processed_at, note, tracking_number'
+        )
         .eq('id', id)
         .single();
 
@@ -518,10 +531,15 @@ export async function updateShopeeReturnStatus(
         console.warn('Load shopee return status snapshot warning:', snapshotError);
       } else if (snapshot) {
         originalStatus = snapshot as {
+          is_processed: boolean;
+          is_printed: boolean;
           is_scanned: boolean;
           scanned_at: string | null;
           is_inbound: boolean | null;
           inbound_at: string | null;
+          processed_at: string | null;
+          note: string | null;
+          tracking_number: string | null;
         };
       }
     }
@@ -584,6 +602,33 @@ export async function updateShopeeReturnStatus(
         console.warn('Restore scan status warning:', restoreScanError);
       }
     }
+
+    const { data: latestStatus, error: latestStatusError } = await supabase
+      .from('shopee_returns')
+      .select(
+        'is_processed, is_printed, is_scanned, scanned_at, is_inbound, inbound_at, processed_at, note, tracking_number'
+      )
+      .eq('id', id)
+      .single();
+
+    if (latestStatusError) {
+      console.warn('Load latest shopee return status warning:', latestStatusError);
+    }
+
+    await recordScanAuditLog({
+      actionType: 'update_shopee_status',
+      entityTable: 'shopee_returns',
+      entityId: id,
+      actor: auditOptions?.actor || 'system',
+      reason: auditOptions?.reason || 'status_update',
+      beforeState: originalStatus || null,
+      afterState: (latestStatus as Record<string, unknown>) || null,
+      metadata: {
+        updatedFields: Object.keys(updates).sort(),
+        hasScanMutation,
+        hasInboundMutation,
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -1328,6 +1373,28 @@ export async function bindShopeeUnmatchedScan(input: {
       metadata: {
         source: 'manual_bind',
         unmatchedScanId: input.unmatchedScanId,
+      },
+    });
+
+    await recordScanAuditLog({
+      actionType: 'manual_bind_unmatched',
+      entityTable: 'shopee_unmatched_scans',
+      entityId: input.unmatchedScanId,
+      actor: input.resolvedBy || 'admin',
+      reason: input.note || 'manual_bind',
+      beforeState: {
+        unmatchedStatus: (unmatched as ShopeeUnmatchedScan).status,
+        unresolvedOrderId: (unmatched as ShopeeUnmatchedScan).resolved_order_id,
+        orderScannedBefore: order.is_scanned,
+      },
+      afterState: {
+        unmatchedStatus: 'resolved',
+        resolvedOrderId: order.id,
+        orderScannedAfter: true,
+      },
+      metadata: {
+        shopeeReturnId: order.id,
+        eventId: event?.id || null,
       },
     });
 

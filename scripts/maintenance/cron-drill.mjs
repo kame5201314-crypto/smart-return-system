@@ -64,6 +64,7 @@ async function main() {
     '/api/cron/reconcile-ai-reports',
     '/api/cron/shopee-scan-daily-report',
     '/api/cron/shopee-scan-smoke',
+    '/api/cron/scan-retention',
   ].filter((path) => !only || path.includes(only));
 
   if (targets.length === 0) {

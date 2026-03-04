@@ -192,7 +192,8 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
       if (options?.head) {
         return {
           eq: vi.fn().mockImplementation((field: string, value: string) => {
-            const count = unmatchedRows.filter((row) => (row as Record<string, unknown>)[field] === value).length;
+            const key = field as keyof MockUnmatchedRow;
+            const count = unmatchedRows.filter((row) => String(row[key] || '') === value).length;
             return Promise.resolve({ data: null, error: null, count });
           }),
         };
@@ -211,9 +212,10 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
   const unmatchedUpdateMock = vi.fn().mockImplementation((payload: Record<string, unknown>) => ({
     eq: vi.fn().mockImplementation((fieldA: string, valueA: string) => ({
       eq: vi.fn().mockImplementation((fieldB: string, valueB: string) => {
+        const keyA = fieldA as keyof MockUnmatchedRow;
+        const keyB = fieldB as keyof MockUnmatchedRow;
         for (const row of unmatchedRows) {
-          const entry = row as Record<string, unknown>;
-          if (entry[fieldA] === valueA && entry[fieldB] === valueB) {
+          if (String(row[keyA] || '') === valueA && String(row[keyB] || '') === valueB) {
             Object.assign(row, payload);
           }
         }

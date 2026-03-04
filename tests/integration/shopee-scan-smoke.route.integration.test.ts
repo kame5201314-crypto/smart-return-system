@@ -69,24 +69,16 @@ const FAILING_SNAPSHOT = {
 };
 
 describe('GET /api/cron/shopee-scan-smoke integration', () => {
-  const envBackup = {
-    CRON_SECRET: process.env.CRON_SECRET,
-    NODE_ENV: process.env.NODE_ENV,
-    VERCEL_ENV: process.env.VERCEL_ENV,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
     createUntypedAdminClientMock.mockReturnValue({ from: vi.fn() });
-    process.env.CRON_SECRET = 'cron-secret';
-    process.env.NODE_ENV = 'production';
-    process.env.VERCEL_ENV = 'production';
+    vi.stubEnv('CRON_SECRET', 'cron-secret');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'production');
   });
 
   afterEach(() => {
-    process.env.CRON_SECRET = envBackup.CRON_SECRET;
-    process.env.NODE_ENV = envBackup.NODE_ENV;
-    process.env.VERCEL_ENV = envBackup.VERCEL_ENV;
+    vi.unstubAllEnvs();
   });
 
   it('returns 401 when authorization header is missing', async () => {

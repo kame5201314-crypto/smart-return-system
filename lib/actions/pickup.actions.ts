@@ -1,6 +1,7 @@
 'use server';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import { recordScanAuditLog } from '@/lib/observability/scan-audit';
 import type { ApiResponse } from '@/types';
 
 export interface PickupRecord {
@@ -281,10 +282,25 @@ export async function updatePickupRecord(
     is_printed?: boolean;
     is_scanned?: boolean;
     scanned_at?: string | null;
+  },
+  auditOptions?: {
+    actor?: string;
+    reason?: string;
   }
 ): Promise<ApiResponse<PickupRecord>> {
   try {
     const supabase = createUntypedAdminClient();
+    const { data: beforeRow, error: beforeError } = await supabase
+      .from('pickup_records')
+      .select(
+        'delivery_status, received_status, is_scanned, scanned_at, is_printed, process_date, order_number, tracking_number'
+      )
+      .eq('id', id)
+      .single();
+
+    if (beforeError) {
+      console.warn('Load pickup record snapshot warning:', beforeError);
+    }
 
     const { data, error } = await supabase
       .from('pickup_records')
@@ -298,14 +314,34 @@ export async function updatePickupRecord(
 
     if (error) {
       console.error('Update pickup record error:', error);
-      return { success: false, error: `更新失敗: ${error.message}` };
+      return { success: false, error: `更新資料失敗: ${error.message}` };
+    }
+
+    const updatedFields = Object.keys(updates).sort();
+    const shouldAuditStatusChange = updatedFields.some((field) =>
+      ['delivery_status', 'received_status', 'is_scanned', 'scanned_at', 'is_printed'].includes(field)
+    );
+
+    if (shouldAuditStatusChange) {
+      await recordScanAuditLog({
+        actionType: 'update_pickup_status',
+        entityTable: 'pickup_records',
+        entityId: id,
+        actor: auditOptions?.actor || 'system',
+        reason: auditOptions?.reason || 'status_update',
+        beforeState: (beforeRow as Record<string, unknown>) || null,
+        afterState: (data as Record<string, unknown>) || null,
+        metadata: {
+          updatedFields,
+        },
+      });
     }
 
     return { success: true, data: data as PickupRecord };
   } catch (error) {
     console.error('Update pickup record error:', error);
     const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `更新失敗: ${msg}` };
+    return { success: false, error: `更新資料失敗: ${msg}` };
   }
 }
 

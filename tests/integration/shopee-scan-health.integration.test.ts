@@ -32,9 +32,22 @@ function createInMemorySupabase(state: InMemoryState): SupabaseClient {
     shopee_unmatched_scans: structuredClone(state.shopee_unmatched_scans),
   };
 
+  const getSourceRows = (tableName: string): TableRow[] => {
+    switch (tableName) {
+      case 'shopee_scan_events':
+        return tables.shopee_scan_events;
+      case 'shopee_returns':
+        return tables.shopee_returns;
+      case 'shopee_unmatched_scans':
+        return tables.shopee_unmatched_scans;
+      default:
+        return [];
+    }
+  };
+
   const from = (tableName: string) => ({
     select: (columns: string, options?: { count?: 'exact'; head?: boolean }) => {
-      const sourceRows = [...((tables as Record<string, TableRow[]>)[tableName] || [])];
+      const sourceRows = [...getSourceRows(tableName)];
       const filters: Array<(row: TableRow) => boolean> = [];
       let sortField: string | null = null;
       let sortAscending = true;
@@ -125,7 +138,7 @@ function createInMemorySupabase(state: InMemoryState): SupabaseClient {
   });
 
   return {
-    from: from as SupabaseClient['from'],
+    from: from as unknown as SupabaseClient['from'],
   } as unknown as SupabaseClient;
 }
 

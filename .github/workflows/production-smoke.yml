@@ -1,0 +1,76 @@
+name: Production Smoke
+
+on:
+  schedule:
+    - cron: "30 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  run-production-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate required secrets
+        env:
+          PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$PRODUCTION_BASE_URL" ]; then
+            echo "Missing PRODUCTION_BASE_URL"
+            exit 1
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing CRON_SECRET"
+            exit 1
+          fi
+
+      - name: Run cron smoke endpoints
+        env:
+          PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          node - <<'NODE'
+          const baseUrl = String(process.env.PRODUCTION_BASE_URL || '').replace(/\/+$/, '');
+          const cronSecret = String(process.env.CRON_SECRET || '').trim();
+
+          const targets = [
+            '/api/cron/shopee-scan-smoke',
+            '/api/cron/shopee-scan-daily-report',
+            '/api/cron/scan-retention',
+          ];
+
+          async function run() {
+            for (const path of targets) {
+              const response = await fetch(`${baseUrl}${path}`, {
+                headers: { authorization: `Bearer ${cronSecret}` },
+              });
+              let payload = null;
+              try {
+                payload = await response.json();
+              } catch {
+                payload = null;
+              }
+
+              console.log(JSON.stringify({
+                path,
+                status: response.status,
+                ok: response.ok,
+                success: payload?.success,
+              }));
+
+              if (!response.ok || !payload?.success) {
+                throw new Error(`Smoke check failed at ${path}: status=${response.status}`);
+              }
+            }
+          }
+
+          run().catch((error) => {
+            console.error(error instanceof Error ? error.message : String(error));
+            process.exitCode = 1;
+          });
+          NODE
