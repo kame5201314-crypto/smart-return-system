@@ -71,6 +71,15 @@ function getChannelLabel(channelSource: string | null): string {
   return channel?.label || channelSource;
 }
 
+function getOrderAccountId(order: ReturnDetail['order']): string {
+  const metadata = order?.metadata;
+  if (!metadata || typeof metadata !== 'object') return '-';
+  const accountId = (metadata as { account_id?: unknown }).account_id;
+  if (typeof accountId !== 'string') return '-';
+  const normalized = accountId.trim();
+  return normalized.length > 0 ? normalized : '-';
+}
+
 interface ReturnDetail {
   id: string;
   request_number: string;
@@ -98,6 +107,7 @@ interface ReturnDetail {
     customer_phone: string;
     channel_source: string;
     total_amount: number | null;
+    metadata?: Record<string, unknown> | null;
     created_at: string | null;
   } | null;
   customer?: {
@@ -492,6 +502,10 @@ export default function ReturnDetailPage() {
                 <div>
                   <p className="text-muted-foreground">退貨來源</p>
                   <Badge variant="outline">{getChannelLabel(returnData.channel_source)}</Badge>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-muted-foreground">客戶帳號 (官網 / 蝦皮)</p>
+                  <p className="font-medium">{getOrderAccountId(returnData.order)}</p>
                 </div>
               </div>
             </CardContent>

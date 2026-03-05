@@ -49,6 +49,13 @@ function isMissingColumnError(error: unknown, table: string, column: string): bo
   );
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
 function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = rateLimitMap.get(identifier);
@@ -250,10 +257,10 @@ export async function submitCustomerReturn(
           .then((res) => res as { data: { id: string } | null; error: Error | null }),
         adminClient
           .from('orders')
-          .select('id')
+          .select('id, metadata')
           .eq('order_number', formData.orderNumber)
           .single()
-          .then((res) => res as { data: { id: string } | null; error: Error | null }),
+          .then((res) => res as { data: { id: string; metadata?: unknown } | null; error: Error | null }),
       ]);
     } catch {
       return { success: false, error: '資料庫連線失敗，請稍後再試' };
@@ -304,6 +311,29 @@ export async function submitCustomerReturn(
         return { success: false, error: `建立訂單失敗: ${orderError?.message || '未知錯誤'}` };
       }
       orderId = newOrder.id;
+    } else {
+      const currentMetadata = toRecord(orderResult.data?.metadata);
+      const nextAccountId = formData.accountId.trim();
+
+      if (nextAccountId && currentMetadata.account_id !== nextAccountId) {
+        const mergedMetadata: Record<string, unknown> = {
+          ...currentMetadata,
+          account_id: nextAccountId,
+        };
+
+        if (typeof currentMetadata.source_channel_raw !== 'string' || !currentMetadata.source_channel_raw.trim()) {
+          mergedMetadata.source_channel_raw = formData.channelSource;
+        }
+
+        const { error: updateOrderMetadataError } = await adminClient
+          .from('orders')
+          .update({ metadata: mergedMetadata } as never)
+          .eq('id', orderId);
+
+        if (updateOrderMetadataError) {
+          return { success: false, error: '更新客戶帳號資料失敗，請稍後再試' };
+        }
+      }
     }
 
     const isPreUploaded = isPreUploadedImageArray(imageFiles);

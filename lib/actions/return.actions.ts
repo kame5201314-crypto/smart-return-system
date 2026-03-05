@@ -1142,6 +1142,7 @@ export async function getReturnRequestDetail(id: string) {
             customer_phone,
             channel_source,
             total_amount,
+            metadata,
             created_at
           ),
           customer:customers (
