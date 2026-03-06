@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const TEXT_EXTENSIONS = new Set([
@@ -153,6 +153,10 @@ function main() {
   const violations = [];
 
   for (const file of files) {
+    if (!existsSync(file)) {
+      continue;
+    }
+
     const buffer = readFileSync(file);
     if (hasNullByte(buffer)) {
       continue;

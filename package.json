@@ -17,7 +17,7 @@
     "test:e2e": "vitest run tests/e2e",
     "test:e2e-all": "npm run test:e2e && npm run test:ui && npm run test:backend",
     "test:integration": "vitest run tests/integration",
-    "verify-env": "npx dotenv -e .env.local -- npx ts-node --esm scripts/verify-env.ts",
+    "verify-env": "node scripts/verify-env.mjs",
     "prebuild:check": "node scripts/predeploy/check-supabase-project.mjs",
     "prebuild:schema-gate": "node scripts/predeploy/schema-gate.mjs",
     "prebuild:alerts": "node scripts/predeploy/check-alert-config.mjs",
