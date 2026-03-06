@@ -252,6 +252,7 @@ export default function ShopeeReturnsPage() {
         (r) =>
           r.order_number.toLowerCase().includes(query) ||
           (r.tracking_number?.toLowerCase().includes(query) ?? false) ||
+          (r.shipping_method?.toLowerCase().includes(query) ?? false) ||
           (r.product_name?.toLowerCase().includes(query) ?? false) ||
           (r.option_sku?.toLowerCase().includes(query) ?? false) ||
           (r.note?.toLowerCase().includes(query) ?? false)
@@ -1151,6 +1152,7 @@ export default function ShopeeReturnsPage() {
                     <TableHead className="w-[60px]">列印</TableHead>
                     <TableHead className="w-[50px]">平台</TableHead>
                     <TableHead className="min-w-[120px]">訂單編號</TableHead>
+                    <TableHead className="min-w-[120px]">退貨運送方式</TableHead>
                     <TableHead className="min-w-[100px]">退貨寄件編號</TableHead>
                     <TableHead className="w-[100px] hidden md:table-cell">爭議申請期限</TableHead>
                     <TableHead className="min-w-[150px]">備註</TableHead>
@@ -1253,6 +1255,9 @@ export default function ShopeeReturnsPage() {
                         >
                           {record.order_number}
                         </Link>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {record.shipping_method || AUTO_PICKUP_SHIPPING_METHOD}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {record.tracking_number || '-'}
