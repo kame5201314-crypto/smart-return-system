@@ -48,6 +48,7 @@ interface EditFormState {
   optionSku: string;
   returnReason: string;
   buyerNote: string;
+  returnReasonNote: string;
   note: string;
 }
 
@@ -91,6 +92,7 @@ function buildEditForm(record: ShopeeReturn): EditFormState {
     optionSku: record.option_sku || '',
     returnReason: record.return_reason || '',
     buyerNote: record.buyer_note || '',
+    returnReasonNote: record.return_reason_note || '',
     note: record.note || '',
   };
 }
@@ -104,7 +106,9 @@ export default function ShopeeReturnDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'inbound' | 'processed' | 'printed' | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [returnReasonNoteDraft, setReturnReasonNoteDraft] = useState('');
   const [updatingNote, setUpdatingNote] = useState(false);
+  const [updatingReturnReasonNote, setUpdatingReturnReasonNote] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -123,6 +127,7 @@ export default function ShopeeReturnDetailPage() {
       if (result.success && result.data) {
         setRecord(result.data);
         setNoteDraft(result.data.note || '');
+        setReturnReasonNoteDraft(result.data.return_reason_note || '');
       } else {
         toast.error(result.error || '載入失敗');
       }
@@ -181,6 +186,25 @@ export default function ShopeeReturnDetailPage() {
     setUpdatingNote(false);
   }
 
+  async function saveReturnReasonNote() {
+    if (!record || updatingReturnReasonNote) return;
+    const currentReasonNote = record.return_reason_note || '';
+    if (returnReasonNoteDraft === currentReasonNote) return;
+
+    setUpdatingReturnReasonNote(true);
+    const result = await updateShopeeReturnStatus(record.id, { return_reason_note: returnReasonNoteDraft });
+
+    if (result.success) {
+      setRecord((prev) => (prev ? { ...prev, return_reason_note: returnReasonNoteDraft } : prev));
+      toast.success('退貨原因備註已儲存');
+    } else {
+      setReturnReasonNoteDraft(currentReasonNote);
+      toast.error(result.error || '退貨原因備註儲存失敗');
+    }
+
+    setUpdatingReturnReasonNote(false);
+  }
+
   function updateEditField<K extends keyof EditFormState>(key: K, value: EditFormState[K]) {
     setEditForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
@@ -232,12 +256,14 @@ export default function ShopeeReturnDetailPage() {
       optionSku: editForm.optionSku,
       returnReason: editForm.returnReason,
       buyerNote: editForm.buyerNote,
+      returnReasonNote: editForm.returnReasonNote,
       note: editForm.note,
     });
 
     if (result.success && result.data) {
       setRecord(result.data);
       setNoteDraft(result.data.note || '');
+      setReturnReasonNoteDraft(result.data.return_reason_note || '');
       setEditOpen(false);
       toast.success('內容已更新');
     } else {
@@ -451,16 +477,29 @@ export default function ShopeeReturnDetailPage() {
                 <div className="text-xs text-muted-foreground">買家備註</div>
                 <div className="text-sm whitespace-pre-wrap break-words">{record.buyer_note || '-'}</div>
               </div>
-              <div className="md:col-span-2">
-                <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
-                <Textarea
-                  value={noteDraft}
-                  placeholder="輸入備註..."
-                  className="mt-1 min-h-[84px] text-sm"
-                  disabled={updatingNote}
-                  onChange={(event) => setNoteDraft(event.target.value)}
-                  onBlur={saveNote}
-                />
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
+                  <Textarea
+                    value={noteDraft}
+                    placeholder="輸入備註..."
+                    className="mt-1 min-h-[84px] text-sm"
+                    disabled={updatingNote}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                    onBlur={saveNote}
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">退貨原因備註（離開欄位後自動儲存）</div>
+                  <Textarea
+                    value={returnReasonNoteDraft}
+                    placeholder="輸入退貨原因備註..."
+                    className="mt-1 min-h-[84px] text-sm"
+                    disabled={updatingReturnReasonNote}
+                    onChange={(event) => setReturnReasonNoteDraft(event.target.value)}
+                    onBlur={saveReturnReasonNote}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -606,6 +645,15 @@ export default function ShopeeReturnDetailPage() {
                   rows={2}
                   value={editForm.note}
                   onChange={(event) => updateEditField('note', event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>退貨原因備註</Label>
+                <Textarea
+                  rows={2}
+                  value={editForm.returnReasonNote}
+                  onChange={(event) => updateEditField('returnReasonNote', event.target.value)}
                 />
               </div>
             </div>

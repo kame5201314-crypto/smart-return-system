@@ -22,6 +22,7 @@ export interface ShopeeReturn {
   return_reason: string | null;
   buyer_note: string | null;
   shipping_method: string | null;
+  return_reason_note: string | null;
   is_processed: boolean;
   is_printed: boolean;
   is_scanned: boolean;
@@ -485,6 +486,7 @@ export async function updateShopeeReturnStatus(
     is_scanned?: boolean;
     is_inbound?: boolean;
     note?: string;
+    return_reason_note?: string;
     tracking_number?: string;
     processed_at?: string | null;
     scanned_at?: string | null;
@@ -514,6 +516,7 @@ export async function updateShopeeReturnStatus(
       inbound_at: string | null;
       processed_at: string | null;
       note: string | null;
+      return_reason_note: string | null;
       tracking_number: string | null;
     } | null = null;
 
@@ -522,7 +525,7 @@ export async function updateShopeeReturnStatus(
       const { data: snapshot, error: snapshotError } = await supabase
         .from('shopee_returns')
         .select(
-          'is_processed, is_printed, is_scanned, scanned_at, is_inbound, inbound_at, processed_at, note, tracking_number'
+          'is_processed, is_printed, is_scanned, scanned_at, is_inbound, inbound_at, processed_at, note, return_reason_note, tracking_number'
         )
         .eq('id', id)
         .single();
@@ -539,6 +542,7 @@ export async function updateShopeeReturnStatus(
           inbound_at: string | null;
           processed_at: string | null;
           note: string | null;
+          return_reason_note: string | null;
           tracking_number: string | null;
         };
       }
@@ -604,10 +608,10 @@ export async function updateShopeeReturnStatus(
     }
 
     const { data: latestStatus, error: latestStatusError } = await supabase
-      .from('shopee_returns')
-      .select(
-        'is_processed, is_printed, is_scanned, scanned_at, is_inbound, inbound_at, processed_at, note, tracking_number'
-      )
+        .from('shopee_returns')
+        .select(
+          'is_processed, is_printed, is_scanned, scanned_at, is_inbound, inbound_at, processed_at, note, return_reason_note, tracking_number'
+        )
       .eq('id', id)
       .single();
 
@@ -1022,6 +1026,7 @@ export interface ShopeeReturnUpdateInput {
   optionSku?: string;
   returnReason?: string;
   buyerNote?: string;
+  returnReasonNote?: string;
   note?: string;
 }
 
@@ -1111,6 +1116,7 @@ export async function updateShopeeReturn(
     if (input.optionSku !== undefined) payload.option_sku = nextOptionSku;
     if (input.returnReason !== undefined) payload.return_reason = toNullableString(input.returnReason);
     if (input.buyerNote !== undefined) payload.buyer_note = toNullableString(input.buyerNote);
+    if (input.returnReasonNote !== undefined) payload.return_reason_note = toNullableString(input.returnReasonNote);
     if (input.note !== undefined) payload.note = toNullableString(input.note);
 
     const { data: updatedRow, error: updateError } = await supabase
