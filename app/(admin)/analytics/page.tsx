@@ -46,6 +46,7 @@ import {
   RETURN_REASONS,
   RETURN_ITEM_RESOLUTION_TYPES,
 } from '@/config/constants';
+import { aggregateReturnRanking } from '@/lib/utils/return-ranking';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 const PRODUCT_RANKING_COMPACT_LIMIT = 10;
@@ -252,8 +253,8 @@ export default function AnalyticsPage() {
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12);
 
-    // Product ranking - aggregate by product name + sku + channel
-    const productCounts: Record<string, { name: string; sku: string | null; channel: string; quantity: number }> = {};
+    // Product ranking - aggregate by classified sku group + channel
+    const productRankingInputs: Array<{ name: string; sku: string | null; channel: string; quantity: number }> = [];
     filteredReturns.forEach(r => {
       // Ranking only counts closed or abnormal cases
       if (r.status !== RETURN_STATUS.COMPLETED && r.status !== RETURN_STATUS.ABNORMAL_DISPUTED) return;
@@ -264,11 +265,12 @@ export default function AnalyticsPage() {
         // No SKU => don't enter ranking (prevents "-" items from polluting the leaderboard)
         if (!sku) return;
 
-        const key = `${item.product_name}||${sku}||${channelLabel}`;
-        if (!productCounts[key]) {
-          productCounts[key] = { name: item.product_name, sku, channel: channelLabel, quantity: 0 };
-        }
-        productCounts[key].quantity += item.quantity;
+        productRankingInputs.push({
+          name: item.product_name,
+          sku,
+          channel: channelLabel,
+          quantity: item.quantity,
+        });
       });
     });
     // Add shopee returns to product ranking
@@ -279,14 +281,14 @@ export default function AnalyticsPage() {
       if (!sku) return;
 
       const channelLabel = r.platform === 'mall' ? '商城' : '蝦皮';
-      const key = `${r.product_name}||${sku}||${channelLabel}`;
-      if (!productCounts[key]) {
-        productCounts[key] = { name: r.product_name, sku, channel: channelLabel, quantity: 0 };
-      }
-      productCounts[key].quantity += r.return_quantity;
+      productRankingInputs.push({
+        name: r.product_name,
+        sku,
+        channel: channelLabel,
+        quantity: r.return_quantity,
+      });
     });
-    const productRanking = Object.values(productCounts)
-      .sort((a, b) => b.quantity - a.quantity);
+    const productRanking = aggregateReturnRanking(productRankingInputs);
 
     return {
       totalReturns,
