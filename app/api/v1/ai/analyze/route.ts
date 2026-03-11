@@ -9,6 +9,10 @@ import {
   buildAISkuAnalysisGroups,
   type AISkuAnalysisGroupInput,
 } from '@/lib/utils/ai-sku-analysis';
+import {
+  buildAIAnalysisPromptPayload,
+  buildTextOnlyAIAnalysisPrompt,
+} from '@/lib/utils/ai-analysis-prompt';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -212,10 +216,6 @@ function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
   };
 }
 
-function compactStringify(value: unknown): string {
-  return JSON.stringify(value);
-}
-
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -315,20 +315,12 @@ function extractFirstJsonObject(text: string): string {
   throw new Error('Incomplete JSON object in AI response');
 }
 
-// First, list available models to find one that works
-async function listAvailableModels(apiKey: string): Promise<string[]> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-  );
-
-  if (!response.ok) {
-    console.error('Failed to list models:', await response.text());
-    return [];
-  }
-
-  const data = await response.json();
-  return data.models?.map((m: { name: string }) => m.name) || [];
-}
+const GEMINI_TEXT_MODELS = [
+  process.env.GEMINI_TEXT_MODEL?.replace(/\\n/g, '').trim(),
+  'models/gemini-2.0-flash-lite',
+  'models/gemini-2.0-flash',
+  'models/gemini-flash-latest',
+].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
 
 // Direct REST API call for Gemini
 async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
@@ -336,49 +328,45 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
     throw new Error('GEMINI_API_KEY is not configured');
   }
 
-  // Try to find an available model
-  const availableModels = await listAvailableModels(apiKey);
+  let lastError = 'Unknown Gemini API error';
 
-  // Find a suitable model for text generation (updated for 2025+ API)
-  const preferredModels = [
-    'models/gemini-2.0-flash-lite',
-    'models/gemini-2.0-flash',
-    'models/gemini-flash-latest',
-    'models/gemini-pro-latest',
-  ];
+  for (const modelToUse of GEMINI_TEXT_MODELS) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1800,
+            responseMimeType: 'application/json',
+          },
+        }),
+      }
+    );
 
-  let modelToUse = 'models/gemini-2.0-flash-lite'; // default fallback
-  for (const preferred of preferredModels) {
-    if (availableModels.includes(preferred)) {
-      modelToUse = preferred;
+    if (response.ok) {
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
+
+    const errorText = await response.text();
+    lastError = `Gemini API error (model: ${modelToUse}): ${response.status} - ${errorText}`;
+
+    if (response.status !== 404) {
       break;
     }
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (model: ${modelToUse}, available: ${availableModels.join(', ')}): ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  throw new Error(lastError);
 }
 
 export async function POST(request: NextRequest) {
@@ -544,59 +532,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ============ Prepare data for AI analysis ============
-
-    // 1. Return requests data
-    const returnAnalysisData = returns.map((r) => ({
-      source: '退貨管理',
-      request_number: r.request_number,
-      channel: r.channel_source,
-      reason_category: r.reason_category,
-      reason_detail: r.reason_detail,
-      refund_amount: r.refund_amount,
-      products: r.return_items?.map((item) => ({
-        name: item.product_name,
-        sku: item.sku,
-        quantity: item.quantity,
-        reason: item.reason,
-        resolution_type: item.resolution_type,
-      })),
-      inspection: r.inspection_records?.[0]
-        ? {
-            result: r.inspection_records[0].result,
-            grade: r.inspection_records[0].condition_grade,
-            comment: r.inspection_records[0].inspector_comment,
-          }
-        : null,
-    }));
-
-    // 2. Shopee returns data
-    const shopeeAnalysisData = shopeeReturns.map((r) => ({
-      source: r.platform === 'mall' ? '蝦皮商城' : '蝦皮',
-      order_number: r.order_number,
-      product_name: r.product_name,
-      option_name: r.option_name,
-      sku: r.option_sku,
-      return_quantity: r.return_quantity,
-      refund_amount: r.refund_amount,
-      return_reason: r.return_reason,
-      buyer_note: r.buyer_note,
-      return_reason_note: r.return_reason_note,
-      admin_note: r.note,
-      is_processed: r.is_processed,
-    }));
-
-    // 3. Pickup records data
-    const pickupAnalysisData = pickupRecords.map((r) => ({
-      source: '派車收件',
-      order_number: r.order_number,
-      platform: r.platform,
-      logistics_provider: r.logistics_provider,
-      delivery_status: r.delivery_status,
-      received_status: r.received_status,
-      notes: r.notes,
-    }));
-
+    // ============ Prepare token-lean text summary for AI analysis ============
     const skuGroupAnalysisData = buildAISkuAnalysisGroups([
       ...returns.flatMap((r) =>
         (r.return_items || []).map((item) => ({
@@ -611,94 +547,21 @@ export async function POST(request: NextRequest) {
         productName: r.product_name,
         sku: r.option_sku,
         quantity: r.return_quantity,
-        channel: r.platform === 'mall' ? '蝦皮商城' : '蝦皮',
+        channel: r.platform === 'mall' ? 'mall' : 'shopee',
         reasonTexts: [r.return_reason],
         buyerNoteTexts: [r.buyer_note],
         returnReasonNoteTexts: [r.return_reason_note],
       })),
     ]);
 
-    // Build prompt for AI
-    const prompt = `你是一位專業的電商營運分析師。請分析以下 ${period} 月份的所有退貨與物流數據，並提供可執行的商業洞察。
-
-===== 資料來源統計 =====
-- 退貨管理系統: ${returns.length} 筆
-- 蝦皮退貨: ${shopeeReturns.length} 筆
-- 派車收件: ${pickupRecords.length} 筆
-- 合計: ${totalDataCount} 筆
-
-===== 退貨型號分組排行候選（已依規則完成分組與排序） =====
-${skuGroupAnalysisData.length > 0 ? compactStringify(skuGroupAnalysisData) : '[]'}
-
-===== 退貨管理資料 =====
-${returnAnalysisData.length > 0 ? compactStringify(returnAnalysisData) : '[]'}
-
-===== 蝦皮退貨資料（含買家備註、退貨原因、退貨原因備註） =====
-${shopeeAnalysisData.length > 0 ? compactStringify(shopeeAnalysisData) : '[]'}
-
-===== 派車收件資料 =====
-${pickupAnalysisData.length > 0 ? compactStringify(pickupAnalysisData) : '[]'}
-
-請以 JSON 格式回覆，包含以下部分：
-
-{
-  "summary": "一段簡短的總結 (150字以內)，綜合分析所有資料來源（退貨管理、蝦皮退貨、派車收件）",
-  "pain_points": [
-    {
-      "issue": "問題描述",
-      "frequency": "出現頻率 (high/medium/low)",
-      "impact": "影響程度 (high/medium/low)",
-      "affected_products": ["受影響的產品列表"]
-    }
-  ],
-  "recommendations": [
-    {
-      "title": "建議標題",
-      "description": "詳細描述",
-      "priority": "優先級 (high/medium/low)",
-      "category": "類別 (product/logistics/customer_service/marketing)"
-    }
-  ],
-  "sku_analysis": [
-    {
-      "sku_group": "22X105",
-      "product_name": "該型號群組代表商品名稱",
-      "return_count": 數量,
-      "main_issues": ["該型號群組的共通主要問題"],
-      "suggestion": "該型號群組的改善建議",
-      "variants": [
-        {
-          "product_name": "商品名稱 A",
-          "sku": "APL-22X105-A",
-          "return_count": 數量,
-          "main_issues": ["此型號的主要問題"],
-          "suggestion": "此型號的改善建議"
-        }
-      ]
-    }
-  ],
-  "channel_analysis": [
-    {
-      "channel": "通路名稱",
-      "return_count": 數量,
-      "common_issues": ["常見問題"]
-    }
-  ]
-}
-
-重要指示：
-1. sku_analysis 請列出退貨次數最高的前 20 名型號群組，按退貨次數由高到低排序；如果不足 20 個則列出全部
-2. sku_analysis 必須使用「退貨型號分組排行候選」中的 sku_group 與 return_count，不可自行拆散或重組同一群組
-3. APL 系列已依 APL 後面的 6 個字分組；其他貨號已依前 5 個字分組。請直接沿用，不要更改規則
-4. 每個 sku_group 底下都要列出實際型號 variants，並依 return_count 由高到低排序
-5. 請同時分析以下欄位內容來判斷問題與建議：
-   - 退貨管理：reason_category、reason_detail、return_items.reason
-   - 蝦皮退貨：return_reason、buyer_note、return_reason_note
-6. 如果同一個 sku_group 底下多個型號有共通問題，請寫在 sku_group 的 main_issues 和 suggestion；各型號的差異再寫在 variants 裡
-7. channel_analysis 的 return_count 必須是該通路實際的退貨筆數，要把退貨管理和蝦皮退貨的資料都計入
-8. 派車收件資料請分析物流狀態分布，如有異常（如大量已退回、未收到）請在 pain_points 和 recommendations 中反映
-
-請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
+    const promptPayload = buildAIAnalysisPromptPayload({
+      period,
+      returns,
+      shopeeReturns,
+      pickupRecords,
+      skuGroups: skuGroupAnalysisData,
+    });
+    const prompt = buildTextOnlyAIAnalysisPrompt(promptPayload);
 
     // Call Gemini API using direct REST API (more reliable)
     let aiResponse = await callGeminiAPI(prompt, geminiApiKey);
