@@ -46,12 +46,20 @@ interface AIAnalysisResult {
     category: string;
   }[];
   skuAnalysis: {
-    sku: string;
+    sku_group?: string;
+    sku?: string;
     product_name: string;
     return_count: number;
     return_rate?: string;
     main_issues: string[];
     suggestion: string;
+    variants?: {
+      product_name: string;
+      sku: string;
+      return_count: number;
+      main_issues: string[];
+      suggestion: string;
+    }[];
   }[];
   channelAnalysis: {
     channel: string;
@@ -63,6 +71,10 @@ interface AIAnalysisResult {
     totalRefundAmount: number;
     storeCreditRate: number;
   };
+}
+
+function getSkuGroupLabel(item: AIAnalysisResult['skuAnalysis'][number]): string {
+  return item.sku_group || item.sku || '-';
 }
 
 export default function AIReportPage() {
@@ -390,39 +402,90 @@ export default function AIReportPage() {
                     key={index}
                     className="p-4 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-sm font-bold">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <p className="font-medium">{sku.product_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            SKU: {sku.sku}
-                          </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-orange-100 text-orange-700 text-sm font-bold shrink-0">
+                            {index + 1}
+                          </span>
+                          <div>
+                            <p className="font-semibold">第 {index + 1} 名</p>
+                            <p className="text-sm text-muted-foreground">
+                              退貨型號：{getSkuGroupLabel(sku)}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              代表商品：{sku.product_name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant="destructive">
+                            {sku.return_count} 件退貨
+                          </Badge>
+                          {sku.return_rate && (
+                            <Badge variant="outline" className="text-orange-600 border-orange-300">
+                              退貨率 {sku.return_rate}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Badge variant="destructive">
-                          {sku.return_count} 件退貨
-                        </Badge>
-                        {sku.return_rate && (
-                          <Badge variant="outline" className="text-orange-600 border-orange-300">
-                            退貨率 {sku.return_rate}
-                          </Badge>
-                        )}
-                      </div>
+
+                      {sku.main_issues?.length > 0 && (
+                        <div className="text-sm space-y-1">
+                          <p className="font-medium">群組主要問題</p>
+                          <p className="text-muted-foreground">{sku.main_issues.join('、')}</p>
+                        </div>
+                      )}
+
+                      {sku.suggestion && (
+                        <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                          群組建議：{sku.suggestion}
+                        </p>
+                      )}
+
+                      {sku.variants?.length ? (
+                        <div className="space-y-3">
+                          {sku.variants.map((variant, variantIndex) => (
+                            <div key={`${variant.sku}-${variantIndex}`} className="rounded-md border bg-white p-3 space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{variant.product_name}</p>
+                                  <p className="text-sm text-muted-foreground">型號：{variant.sku}</p>
+                                </div>
+                                <Badge variant="outline">{variant.return_count} 件</Badge>
+                              </div>
+
+                              {variant.main_issues?.length > 0 && (
+                                <p className="text-sm">
+                                  <span className="font-medium">主要問題：</span>
+                                  <span className="text-muted-foreground">{variant.main_issues.join('、')}</span>
+                                </p>
+                              )}
+
+                              {variant.suggestion && (
+                                <p className="text-sm text-blue-600">
+                                  <span className="font-medium">建議：</span>
+                                  <span>{variant.suggestion}</span>
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          {sku.main_issues?.length > 0 && (
+                            <p className="text-sm mb-2">
+                              主要問題：{sku.main_issues.join('、')}
+                            </p>
+                          )}
+                          {sku.suggestion && (
+                            <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                              建議：{sku.suggestion}
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
-                    {sku.main_issues?.length > 0 && (
-                      <p className="text-sm mb-2">
-                        主要問題：{sku.main_issues.join('、')}
-                      </p>
-                    )}
-                    {sku.suggestion && (
-                      <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                        建議：{sku.suggestion}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>

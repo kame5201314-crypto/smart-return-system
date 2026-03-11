@@ -59,18 +59,30 @@ interface HistoricalReport {
     category: string;
   }[];
   sku_analysis: {
-    sku: string;
+    sku_group?: string;
+    sku?: string;
     product_name: string;
     return_count: number;
     return_rate?: string;
     main_issues: string[];
     suggestion: string;
+    variants?: {
+      product_name: string;
+      sku: string;
+      return_count: number;
+      main_issues: string[];
+      suggestion: string;
+    }[];
   }[];
   channel_analysis: {
     channel: string;
     return_count: number;
     common_issues: string[];
   }[];
+}
+
+function getSkuGroupLabel(item: HistoricalReport['sku_analysis'][number]): string {
+  return item.sku_group || item.sku || '-';
 }
 
 export default function AIReportHistoryPage() {
@@ -413,7 +425,9 @@ export default function AIReportHistoryPage() {
                           <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 text-xs flex items-center justify-center font-bold">
                             {index + 1}
                           </span>
-                          <span className="text-sm">{sku.product_name}</span>
+                          <span className="text-sm">
+                            {getSkuGroupLabel(sku)} {sku.product_name ? `· ${sku.product_name}` : ''}
+                          </span>
                         </div>
                         <Badge variant="destructive" className="text-xs">
                           {sku.return_count} 件
@@ -596,7 +610,9 @@ export default function AIReportHistoryPage() {
                                     <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 text-xs flex items-center justify-center font-bold shrink-0">
                                       {index + 1}
                                     </span>
-                                    <span className="truncate">{sku.product_name}</span>
+                                    <span className="truncate">
+                                      {getSkuGroupLabel(sku)} {sku.product_name ? `· ${sku.product_name}` : ''}
+                                    </span>
                                   </div>
                                   <Badge variant="outline" className="text-xs shrink-0 ml-2">
                                     {sku.return_count}件
@@ -614,7 +630,9 @@ export default function AIReportHistoryPage() {
                                     <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 text-xs flex items-center justify-center font-bold shrink-0">
                                       {index + 1}
                                     </span>
-                                    <span className="truncate">{sku.product_name}</span>
+                                    <span className="truncate">
+                                      {getSkuGroupLabel(sku)} {sku.product_name ? `· ${sku.product_name}` : ''}
+                                    </span>
                                   </div>
                                   <Badge variant="outline" className="text-xs shrink-0 ml-2">
                                     {sku.return_count}件

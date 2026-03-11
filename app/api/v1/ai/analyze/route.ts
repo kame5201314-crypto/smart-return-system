@@ -5,6 +5,10 @@ import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
 import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
+import {
+  buildAISkuAnalysisGroups,
+  type AISkuAnalysisGroupInput,
+} from '@/lib/utils/ai-sku-analysis';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -41,6 +45,7 @@ interface ShopeeReturnData {
   refund_amount: number | null;
   return_reason: string | null;
   buyer_note: string | null;
+  return_reason_note: string | null;
   shipping_method: string | null;
   platform: string | null;
   is_processed: boolean;
@@ -205,6 +210,77 @@ function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
     store_credit_rate:
       toNumberOrNull(report.store_credit_rate) ?? fallbackStoreCreditRate,
   };
+}
+
+function compactStringify(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toStringOrEmpty(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeSkuAnalysis(
+  rawValue: unknown,
+  candidates: AISkuAnalysisGroupInput[]
+) {
+  const rawItems = Array.isArray(rawValue) ? rawValue : [];
+  const rawByGroup = new Map<string, Record<string, unknown>>();
+
+  rawItems.forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+
+    const itemRecord = item as Record<string, unknown>;
+    const skuGroup = toStringOrEmpty(itemRecord.sku_group) || toStringOrEmpty(itemRecord.sku);
+    if (!skuGroup) return;
+
+    rawByGroup.set(skuGroup, itemRecord);
+  });
+
+  return candidates.map((candidate) => {
+    const rawItem = rawByGroup.get(candidate.sku_group);
+    const rawVariants = Array.isArray(rawItem?.variants) ? rawItem.variants : [];
+    const rawVariantBySku = new Map<string, Record<string, unknown>>();
+
+    rawVariants.forEach((variant) => {
+      if (!variant || typeof variant !== 'object') return;
+      const variantRecord = variant as Record<string, unknown>;
+      const sku = toStringOrEmpty(variantRecord.sku);
+      if (!sku) return;
+      rawVariantBySku.set(sku.toUpperCase(), variantRecord);
+    });
+
+    return {
+      sku_group: candidate.sku_group,
+      sku: candidate.sku_group,
+      product_name: toStringOrEmpty(rawItem?.product_name) || candidate.product_name,
+      return_count: candidate.return_count,
+      main_issues: toStringArray(rawItem?.main_issues),
+      suggestion: toStringOrEmpty(rawItem?.suggestion),
+      variants: candidate.variants.map((candidateVariant) => {
+        const rawVariant = rawVariantBySku.get(candidateVariant.sku);
+
+        return {
+          product_name: toStringOrEmpty(rawVariant?.product_name) || candidateVariant.product_name,
+          sku: candidateVariant.sku,
+          return_count: candidateVariant.return_count,
+          main_issues: toStringArray(rawVariant?.main_issues),
+          suggestion: toStringOrEmpty(rawVariant?.suggestion),
+        };
+      }),
+    };
+  });
 }
 
 function extractFirstJsonObject(text: string): string {
@@ -494,7 +570,7 @@ export async function POST(request: NextRequest) {
         : null,
     }));
 
-    // 2. Shopee returns data (including buyer_note)
+    // 2. Shopee returns data
     const shopeeAnalysisData = shopeeReturns.map((r) => ({
       source: r.platform === 'mall' ? '蝦皮商城' : '蝦皮',
       order_number: r.order_number,
@@ -505,6 +581,7 @@ export async function POST(request: NextRequest) {
       refund_amount: r.refund_amount,
       return_reason: r.return_reason,
       buyer_note: r.buyer_note,
+      return_reason_note: r.return_reason_note,
       admin_note: r.note,
       is_processed: r.is_processed,
     }));
@@ -520,6 +597,27 @@ export async function POST(request: NextRequest) {
       notes: r.notes,
     }));
 
+    const skuGroupAnalysisData = buildAISkuAnalysisGroups([
+      ...returns.flatMap((r) =>
+        (r.return_items || []).map((item) => ({
+          productName: item.product_name,
+          sku: item.sku,
+          quantity: item.quantity,
+          channel: r.channel_source,
+          reasonTexts: [r.reason_category, r.reason_detail, item.reason],
+        }))
+      ),
+      ...shopeeReturns.map((r) => ({
+        productName: r.product_name,
+        sku: r.option_sku,
+        quantity: r.return_quantity,
+        channel: r.platform === 'mall' ? '蝦皮商城' : '蝦皮',
+        reasonTexts: [r.return_reason],
+        buyerNoteTexts: [r.buyer_note],
+        returnReasonNoteTexts: [r.return_reason_note],
+      })),
+    ]);
+
     // Build prompt for AI
     const prompt = `你是一位專業的電商營運分析師。請分析以下 ${period} 月份的所有退貨與物流數據，並提供可執行的商業洞察。
 
@@ -529,14 +627,17 @@ export async function POST(request: NextRequest) {
 - 派車收件: ${pickupRecords.length} 筆
 - 合計: ${totalDataCount} 筆
 
-===== 退貨管理資料 =====
-${returnAnalysisData.length > 0 ? JSON.stringify(returnAnalysisData, null, 2) : '（無資料）'}
+===== 退貨型號分組排行候選（已依規則完成分組與排序） =====
+${skuGroupAnalysisData.length > 0 ? compactStringify(skuGroupAnalysisData) : '[]'}
 
-===== 蝦皮退貨資料（含買家備註） =====
-${shopeeAnalysisData.length > 0 ? JSON.stringify(shopeeAnalysisData, null, 2) : '（無資料）'}
+===== 退貨管理資料 =====
+${returnAnalysisData.length > 0 ? compactStringify(returnAnalysisData) : '[]'}
+
+===== 蝦皮退貨資料（含買家備註、退貨原因、退貨原因備註） =====
+${shopeeAnalysisData.length > 0 ? compactStringify(shopeeAnalysisData) : '[]'}
 
 ===== 派車收件資料 =====
-${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : '（無資料）'}
+${pickupAnalysisData.length > 0 ? compactStringify(pickupAnalysisData) : '[]'}
 
 請以 JSON 格式回覆，包含以下部分：
 
@@ -560,12 +661,20 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
   ],
   "sku_analysis": [
     {
-      "sku": "SKU編號",
-      "product_name": "產品名稱",
+      "sku_group": "22X105",
+      "product_name": "該型號群組代表商品名稱",
       "return_count": 數量,
-      "return_rate": "退貨率百分比（若可計算）",
-      "main_issues": ["主要問題"],
-      "suggestion": "改善建議"
+      "main_issues": ["該型號群組的共通主要問題"],
+      "suggestion": "該型號群組的改善建議",
+      "variants": [
+        {
+          "product_name": "商品名稱 A",
+          "sku": "APL-22X105-A",
+          "return_count": 數量,
+          "main_issues": ["此型號的主要問題"],
+          "suggestion": "此型號的改善建議"
+        }
+      ]
     }
   ],
   "channel_analysis": [
@@ -578,13 +687,15 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
 }
 
 重要指示：
-1. sku_analysis 請列出退貨次數最高的前 20 名商品，按退貨次數由高到低排序
-2. 如果商品數量不足 20 個，則列出所有商品
-3. 每個商品都要提供具體的改善建議
-4. 【重要】不要合併或歸類商品！必須按照原始數據中的每個獨立產品名稱分別列出，不同的 product_name 就是不同的商品
-5. 統計每個獨立商品名稱出現的退貨次數
-6. 【重要】channel_analysis 的 return_count 必須是該通路實際的退貨筆數，要把退貨管理和蝦皮退貨的資料都計入
-7. 【重要】買家備註(buyer_note)包含客戶的真實反饋，請特別分析這些內容來識別產品問題和客戶痛點
+1. sku_analysis 請列出退貨次數最高的前 20 名型號群組，按退貨次數由高到低排序；如果不足 20 個則列出全部
+2. sku_analysis 必須使用「退貨型號分組排行候選」中的 sku_group 與 return_count，不可自行拆散或重組同一群組
+3. APL 系列已依 APL 後面的 6 個字分組；其他貨號已依前 5 個字分組。請直接沿用，不要更改規則
+4. 每個 sku_group 底下都要列出實際型號 variants，並依 return_count 由高到低排序
+5. 請同時分析以下欄位內容來判斷問題與建議：
+   - 退貨管理：reason_category、reason_detail、return_items.reason
+   - 蝦皮退貨：return_reason、buyer_note、return_reason_note
+6. 如果同一個 sku_group 底下多個型號有共通問題，請寫在 sku_group 的 main_issues 和 suggestion；各型號的差異再寫在 variants 裡
+7. channel_analysis 的 return_count 必須是該通路實際的退貨筆數，要把退貨管理和蝦皮退貨的資料都計入
 8. 派車收件資料請分析物流狀態分布，如有異常（如大量已退回、未收到）請在 pain_points 和 recommendations 中反映
 
 請用繁體中文回覆，並確保建議具有可執行性。只回覆 JSON，不要加任何其他文字或 markdown 標記。`;
@@ -612,6 +723,11 @@ ${pickupAnalysisData.length > 0 ? JSON.stringify(pickupAnalysisData, null, 2) : 
         { status: 500 }
       );
     }
+
+    analysisResult = {
+      ...analysisResult,
+      sku_analysis: normalizeSkuAnalysis(analysisResult?.sku_analysis, skuGroupAnalysisData),
+    };
 
     if (containsLikelyMojibake(analysisResult)) {
       console.error('AI response appears to contain mojibake-like content:', aiResponse);

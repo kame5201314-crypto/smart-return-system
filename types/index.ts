@@ -101,11 +101,19 @@ export interface AIAnalysisResult {
     category: 'product' | 'logistics' | 'customer_service' | 'marketing';
   }[];
   skuAnalysis: {
-    sku: string;
+    skuGroup?: string;
+    sku?: string;
     productName: string;
     returnRate: number;
     mainIssues: string[];
     suggestion: string;
+    variants?: {
+      productName: string;
+      sku: string;
+      returnCount: number;
+      mainIssues: string[];
+      suggestion: string;
+    }[];
   }[];
   channelAnalysis: {
     channel: string;
