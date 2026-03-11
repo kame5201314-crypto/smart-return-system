@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS return_requests (
   ai_analysis_tag VARCHAR(100),
   reason_category VARCHAR(100),
   reason_detail TEXT,
+  return_reason_note TEXT,
   return_shipping_method VARCHAR(50),
   tracking_number VARCHAR(100),
   logistics_company VARCHAR(100),

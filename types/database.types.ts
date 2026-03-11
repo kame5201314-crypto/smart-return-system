@@ -244,6 +244,7 @@ export interface Database {
           ai_analysis_tag: string | null;
           reason_category: string | null;
           reason_detail: string | null;
+          return_reason_note: string | null;
           return_shipping_method: 'self_ship' | 'convenience_store' | 'company_pickup' | null;
           tracking_number: string | null;
           logistics_company: string | null;
@@ -276,6 +277,7 @@ export interface Database {
           ai_analysis_tag?: string | null;
           reason_category?: string | null;
           reason_detail?: string | null;
+          return_reason_note?: string | null;
           return_shipping_method?: 'self_ship' | 'convenience_store' | 'company_pickup' | null;
           tracking_number?: string | null;
           logistics_company?: string | null;
@@ -308,6 +310,7 @@ export interface Database {
           ai_analysis_tag?: string | null;
           reason_category?: string | null;
           reason_detail?: string | null;
+          return_reason_note?: string | null;
           return_shipping_method?: 'self_ship' | 'convenience_store' | 'company_pickup' | null;
           tracking_number?: string | null;
           logistics_company?: string | null;

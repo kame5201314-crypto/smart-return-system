@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS public.return_requests (
     status VARCHAR(30) DEFAULT 'pending_review',
     reason_category VARCHAR(50),
     reason_detail TEXT,
+    return_reason_note TEXT,
     review_notes TEXT,
     refund_amount DECIMAL(12,2),
     refund_type VARCHAR(30),

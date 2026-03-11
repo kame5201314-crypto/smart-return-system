@@ -87,6 +87,7 @@ interface ReturnDetail {
   channel_source: string | null;
   reason_category: string | null;
   reason_detail: string | null;
+  return_reason_note: string | null;
   return_shipping_method: string | null;
   tracking_number: string | null;
   logistics_company: string | null;
@@ -172,9 +173,12 @@ export default function ReturnDetailPage() {
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
   const [editAdminNote, setEditAdminNote] = useState('');
+  const [editReturnReasonNote, setEditReturnReasonNote] = useState('');
+  const [returnReasonNoteDraft, setReturnReasonNoteDraft] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
   const [itemRefundTypes, setItemRefundTypes] = useState<Record<string, ItemRefundOption>>({});
   const [updatingResolutionItemId, setUpdatingResolutionItemId] = useState<string | null>(null);
+  const [updatingReturnReasonNote, setUpdatingReturnReasonNote] = useState(false);
   const [invoiceStatus, setInvoiceStatus] = useState('未作廢');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -201,6 +205,7 @@ export default function ReturnDetailPage() {
       const result = await getReturnRequestDetail(returnRequestId) as { success: boolean; data?: ReturnDetail & { invoice_status?: string }; error?: string };
       if (result.success && result.data) {
         setReturnData(result.data);
+        setReturnReasonNoteDraft(result.data.return_reason_note || '');
         if (result.data.invoice_status) {
           setInvoiceStatus(result.data.invoice_status);
         }
@@ -231,6 +236,7 @@ export default function ReturnDetailPage() {
     setEditProductSku(firstItem?.product_sku || '');
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
     setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
+    setEditReturnReasonNote(returnData?.return_reason_note || '');
     setEditInfoDialogOpen(true);
   }, [returnData]);
 
@@ -286,6 +292,7 @@ export default function ReturnDetailPage() {
         productSku: editProductSku || undefined,
         refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
         adminNote: editAdminNote,
+        returnReasonNote: editReturnReasonNote,
         invoiceStatus,
         itemResolutionTypes: itemRefundTypes,
       });
@@ -340,6 +347,34 @@ export default function ReturnDetailPage() {
       toast.error('更新處理方式失敗');
     } finally {
       setUpdatingResolutionItemId(null);
+    }
+  }
+
+  async function handleReturnReasonNoteSave() {
+    if (!returnData || updatingReturnReasonNote) return;
+
+    const currentValue = returnData.return_reason_note || '';
+    if (returnReasonNoteDraft === currentValue) return;
+
+    try {
+      setUpdatingReturnReasonNote(true);
+      const result = await updateReturnInfo(returnData.id, {
+        returnReasonNote: returnReasonNoteDraft,
+      });
+
+      if (!result.success) {
+        setReturnReasonNoteDraft(currentValue);
+        toast.error(result.error || '退貨原因備註儲存失敗');
+        return;
+      }
+
+      setReturnData((prev) => (prev ? { ...prev, return_reason_note: returnReasonNoteDraft } : prev));
+      toast.success('退貨原因備註已儲存');
+    } catch {
+      setReturnReasonNoteDraft(currentValue);
+      toast.error('退貨原因備註儲存失敗');
+    } finally {
+      setUpdatingReturnReasonNote(false);
     }
   }
 
@@ -613,6 +648,18 @@ export default function ReturnDetailPage() {
                 </div>
               )}
 
+              <div>
+                <p className="text-muted-foreground text-sm mb-1">退貨原因備註（離開欄位後自動儲存）</p>
+                <Textarea
+                  value={returnReasonNoteDraft}
+                  onChange={(event) => setReturnReasonNoteDraft(event.target.value)}
+                  onBlur={handleReturnReasonNoteSave}
+                  disabled={updatingReturnReasonNote}
+                  placeholder="輸入退貨原因備註..."
+                  className="min-h-[96px] text-sm"
+                />
+              </div>
+
             </CardContent>
           </Card>
 
@@ -745,6 +792,15 @@ export default function ReturnDetailPage() {
                     value={editAdminNote}
                     onChange={(e) => setEditAdminNote(e.target.value)}
                     placeholder="輸入備註內容"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>退貨原因備註</Label>
+                  <Textarea
+                    value={editReturnReasonNote}
+                    onChange={(e) => setEditReturnReasonNote(e.target.value)}
+                    placeholder="輸入退貨原因備註"
                     rows={3}
                   />
                 </div>

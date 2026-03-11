@@ -884,6 +884,7 @@ export async function updateReturnInfo(
     refundAmount?: number;
     returnShippingMethod?: string;
     adminNote?: string;
+    returnReasonNote?: string;
     invoiceStatus?: string;
     itemResolutionTypes?: Record<string, ReturnItemResolutionType | string>;
   }
@@ -902,6 +903,9 @@ export async function updateReturnInfo(
     }
     if (data.adminNote !== undefined) {
       requestUpdateData.admin_note = data.adminNote;
+    }
+    if (data.returnReasonNote !== undefined) {
+      requestUpdateData.return_reason_note = data.returnReasonNote;
     }
     if (data.invoiceStatus !== undefined) {
       requestUpdateData.invoice_status = data.invoiceStatus;

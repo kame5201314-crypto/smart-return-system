@@ -155,6 +155,7 @@ CREATE TABLE return_requests (
   -- ========================================
   reason_category VARCHAR(100),
   reason_detail TEXT,
+  return_reason_note TEXT,
 
   -- Return shipping method
   return_shipping_method VARCHAR(50) CHECK (return_shipping_method IN (
