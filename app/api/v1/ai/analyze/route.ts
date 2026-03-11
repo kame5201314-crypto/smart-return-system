@@ -11,6 +11,8 @@ import {
 } from '@/lib/utils/ai-sku-analysis';
 import {
   buildAIAnalysisPromptPayload,
+  buildAIAnalysisPromptStorageSnapshot,
+  buildAIAnalysisResponseSnapshot,
   buildTextOnlyAIAnalysisPrompt,
 } from '@/lib/utils/ai-analysis-prompt';
 
@@ -322,8 +324,14 @@ const GEMINI_TEXT_MODELS = [
   'models/gemini-flash-latest',
 ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
 
+interface GeminiTextResponse {
+  text: string;
+  model: string;
+  usageMetadata: Record<string, unknown> | null;
+}
+
 // Direct REST API call for Gemini
-async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
+async function callGeminiAPI(prompt: string, apiKey: string): Promise<GeminiTextResponse> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
@@ -355,7 +363,14 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
 
     if (response.ok) {
       const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return {
+        text: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+        model: modelToUse,
+        usageMetadata:
+          data.usageMetadata && typeof data.usageMetadata === 'object'
+            ? (data.usageMetadata as Record<string, unknown>)
+            : null,
+      };
     }
 
     const errorText = await response.text();
@@ -564,7 +579,15 @@ export async function POST(request: NextRequest) {
     const prompt = buildTextOnlyAIAnalysisPrompt(promptPayload);
 
     // Call Gemini API using direct REST API (more reliable)
-    let aiResponse = await callGeminiAPI(prompt, geminiApiKey);
+    const promptStorageSnapshot = buildAIAnalysisPromptStorageSnapshot({
+      period,
+      prompt,
+      payload: promptPayload,
+      modelCandidates: GEMINI_TEXT_MODELS,
+    });
+
+    const aiResult = await callGeminiAPI(prompt, geminiApiKey);
+    let aiResponse = aiResult.text;
 
     if (!aiResponse) {
       return NextResponse.json(
@@ -625,8 +648,14 @@ export async function POST(request: NextRequest) {
       sku_analysis: analysisResult.sku_analysis,
       channel_analysis: analysisResult.channel_analysis,
       trend_analysis: { summary: analysisResult.summary },
-      raw_prompt: prompt,
-      raw_response: aiResponse,
+      raw_prompt: JSON.stringify(promptStorageSnapshot),
+      raw_response: JSON.stringify(
+        buildAIAnalysisResponseSnapshot({
+          model: aiResult.model,
+          text: aiResponse,
+          usageMetadata: aiResult.usageMetadata,
+        })
+      ),
       total_returns: totalReturns,
       total_refund_amount: totalRefundAmount,
       store_credit_rate: storeCreditRate,
@@ -662,6 +691,11 @@ export async function POST(request: NextRequest) {
           returnRequestsCount: returns.length,
           shopeeReturnsCount: shopeeReturns.length,
           pickupRecordsCount: pickupRecords.length,
+        },
+        diagnostics: {
+          model: aiResult.model,
+          promptCharacterCount: prompt.length,
+          usageMetadata: aiResult.usageMetadata,
         },
       },
     });

@@ -90,6 +90,37 @@ export interface AIAnalysisPromptPayload {
   }>;
 }
 
+export interface AIAnalysisPromptStorageSnapshot {
+  version: 1;
+  mode: 'text-only-summary';
+  period: string;
+  prompt_character_count: number;
+  model_candidates: string[];
+  dataset_counts: AIAnalysisPromptPayload['dataset_counts'];
+  official_summary: AIAnalysisPromptPayload['official_summary'];
+  shopee_summary: AIAnalysisPromptPayload['shopee_summary'];
+  pickup_summary: AIAnalysisPromptPayload['pickup_summary'];
+  sku_group_overview: Array<{
+    sku_group: string;
+    product_name: string;
+    return_count: number;
+    variant_count: number;
+    channels: string[];
+    reason_sample_count: number;
+    buyer_note_sample_count: number;
+    return_reason_note_sample_count: number;
+  }>;
+}
+
+export interface AIAnalysisResponseSnapshot {
+  version: 1;
+  mode: 'text-only-summary';
+  model: string;
+  usage_metadata: Record<string, unknown> | null;
+  response_character_count: number;
+  text: string;
+}
+
 const DEFAULT_COUNT_LIMIT = 10;
 const DEFAULT_SAMPLE_LIMIT = 8;
 const MAX_TEXT_LENGTH = 80;
@@ -101,7 +132,7 @@ function normalizeValue(value: string | null | undefined): string | null {
   if (!normalized) return null;
 
   return normalized.length > MAX_TEXT_LENGTH
-    ? `${normalized.slice(0, MAX_TEXT_LENGTH - 1)}…`
+    ? `${normalized.slice(0, MAX_TEXT_LENGTH - 3)}...`
     : normalized;
 }
 
@@ -188,7 +219,10 @@ export function buildAIAnalysisPromptPayload(params: {
     },
     pickup_summary: {
       platform_counts: countTopValues(pickupRecords.map((row) => row.platform), 4),
-      logistics_provider_counts: countTopValues(pickupRecords.map((row) => row.logistics_provider), 6),
+      logistics_provider_counts: countTopValues(
+        pickupRecords.map((row) => row.logistics_provider),
+        6
+      ),
       delivery_status_counts: countTopValues(pickupRecords.map((row) => row.delivery_status), 8),
       received_status_counts: countTopValues(pickupRecords.map((row) => row.received_status), 8),
       note_samples: limitTextRows(
@@ -228,4 +262,52 @@ export function buildTextOnlyAIAnalysisPrompt(payload: AIAnalysisPromptPayload):
     'Payload:',
     JSON.stringify(payload),
   ].join('\n');
+}
+
+export function buildAIAnalysisPromptStorageSnapshot(params: {
+  period: string;
+  prompt: string;
+  payload: AIAnalysisPromptPayload;
+  modelCandidates: string[];
+}): AIAnalysisPromptStorageSnapshot {
+  const { period, prompt, payload, modelCandidates } = params;
+
+  return {
+    version: 1,
+    mode: 'text-only-summary',
+    period,
+    prompt_character_count: prompt.length,
+    model_candidates: modelCandidates,
+    dataset_counts: payload.dataset_counts,
+    official_summary: payload.official_summary,
+    shopee_summary: payload.shopee_summary,
+    pickup_summary: payload.pickup_summary,
+    sku_group_overview: payload.sku_groups.map((group) => ({
+      sku_group: group.sku_group,
+      product_name: group.product_name,
+      return_count: group.return_count,
+      variant_count: group.variants.length,
+      channels: group.channels,
+      reason_sample_count: group.reason_texts.length,
+      buyer_note_sample_count: group.buyer_note_texts.length,
+      return_reason_note_sample_count: group.return_reason_note_texts.length,
+    })),
+  };
+}
+
+export function buildAIAnalysisResponseSnapshot(params: {
+  model: string;
+  text: string;
+  usageMetadata?: Record<string, unknown> | null;
+}): AIAnalysisResponseSnapshot {
+  const { model, text, usageMetadata = null } = params;
+
+  return {
+    version: 1,
+    mode: 'text-only-summary',
+    model,
+    usage_metadata: usageMetadata,
+    response_character_count: text.length,
+    text,
+  };
 }
