@@ -85,6 +85,17 @@ function getSkuGroupLabel(item: HistoricalReport['sku_analysis'][number]): strin
   return item.sku_group || item.sku || '-';
 }
 
+function getRankingLabel(index: number): string {
+  const numerals = [
+    '一', '二', '三', '四', '五',
+    '六', '七', '八', '九', '十',
+    '十一', '十二', '十三', '十四', '十五',
+    '十六', '十七', '十八', '十九', '二十',
+  ];
+
+  return numerals[index] || String(index + 1);
+}
+
 export default function AIReportHistoryPage() {
   const [reports, setReports] = useState<HistoricalReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -426,7 +437,7 @@ export default function AIReportHistoryPage() {
                             {index + 1}
                           </span>
                           <span className="text-sm">
-                            {getSkuGroupLabel(sku)} {sku.product_name ? `· ${sku.product_name}` : ''}
+                            退貨第{getRankingLabel(index)}名：{getSkuGroupLabel(sku)}
                           </span>
                         </div>
                         <Badge variant="destructive" className="text-xs">
@@ -611,7 +622,7 @@ export default function AIReportHistoryPage() {
                                       {index + 1}
                                     </span>
                                     <span className="truncate">
-                                      {getSkuGroupLabel(sku)} {sku.product_name ? `· ${sku.product_name}` : ''}
+                                      第{getRankingLabel(index)}名：{getSkuGroupLabel(sku)}
                                     </span>
                                   </div>
                                   <Badge variant="outline" className="text-xs shrink-0 ml-2">
@@ -631,7 +642,7 @@ export default function AIReportHistoryPage() {
                                       {index + 1}
                                     </span>
                                     <span className="truncate">
-                                      {getSkuGroupLabel(sku)} {sku.product_name ? `· ${sku.product_name}` : ''}
+                                      第{getRankingLabel(index)}名：{getSkuGroupLabel(sku)}
                                     </span>
                                   </div>
                                   <Badge variant="outline" className="text-xs shrink-0 ml-2">

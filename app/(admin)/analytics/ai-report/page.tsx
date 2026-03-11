@@ -77,6 +77,17 @@ function getSkuGroupLabel(item: AIAnalysisResult['skuAnalysis'][number]): string
   return item.sku_group || item.sku || '-';
 }
 
+function getRankingLabel(index: number): string {
+  const numerals = [
+    '一', '二', '三', '四', '五',
+    '六', '七', '八', '九', '十',
+    '十一', '十二', '十三', '十四', '十五',
+    '十六', '十七', '十八', '十九', '二十',
+  ];
+
+  return numerals[index] || String(index + 1);
+}
+
 export default function AIReportPage() {
   const [selectedPeriod, setSelectedPeriod] = useState(
     format(new Date(), 'yyyy-MM')
@@ -409,9 +420,11 @@ export default function AIReportPage() {
                             {index + 1}
                           </span>
                           <div>
-                            <p className="font-semibold">第 {index + 1} 名</p>
+                            <p className="font-semibold">
+                              退貨第{getRankingLabel(index)}名：{getSkuGroupLabel(sku)}
+                            </p>
                             <p className="text-sm text-muted-foreground">
-                              退貨型號：{getSkuGroupLabel(sku)}
+                              型號群組：{getSkuGroupLabel(sku)}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               代表商品：{sku.product_name}
