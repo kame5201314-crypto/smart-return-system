@@ -75,8 +75,44 @@ describe('buildAIAnalysisPromptPayload', () => {
       label: 'inspection note',
       count: 1,
     });
-    expect(payload.sku_groups[0].buyer_note_texts).toEqual(['hard to open']);
-    expect(payload.sku_groups[0].return_reason_note_texts).toEqual(['inspection note']);
+    expect(payload.sku_groups[0].buyer_note_summaries).toEqual([
+      { label: 'hard to open', count: 1 },
+    ]);
+    expect(payload.sku_groups[0].return_reason_note_summaries).toEqual([
+      { label: 'inspection note', count: 1 },
+    ]);
+  });
+
+  it('aggregates repeated sku group text into compact summaries', () => {
+    const skuGroups = buildAISkuAnalysisGroups([
+      {
+        productName: 'Lens A',
+        sku: 'CY139-A',
+        quantity: 2,
+        reasonTexts: ['尺寸太大', '尺寸太大', '太緊難開合'],
+        buyerNoteTexts: ['尺寸太大', '尺寸太大'],
+        returnReasonNoteTexts: ['驗貨確認太緊', '驗貨確認太緊'],
+      },
+    ]);
+
+    const payload = buildAIAnalysisPromptPayload({
+      period: '2026-03',
+      returns: [],
+      shopeeReturns: [],
+      pickupRecords: [],
+      skuGroups,
+    });
+
+    expect(payload.sku_groups[0].reason_summaries).toEqual([
+      { label: '太緊難開合', count: 1 },
+      { label: '尺寸太大', count: 1 },
+    ]);
+    expect(payload.sku_groups[0].buyer_note_summaries).toEqual([
+      { label: '尺寸太大', count: 1 },
+    ]);
+    expect(payload.sku_groups[0].return_reason_note_summaries).toEqual([
+      { label: '驗貨確認太緊', count: 1 },
+    ]);
   });
 
   it('builds a compact text-only prompt', () => {
@@ -91,8 +127,10 @@ describe('buildAIAnalysisPromptPayload', () => {
     const prompt = buildTextOnlyAIAnalysisPrompt(payload);
 
     expect(prompt).toContain('No images are provided');
-    expect(prompt).toContain('"dataset_counts"');
+    expect(prompt).toContain('"dc"');
+    expect(prompt).toContain('Count rows use [label,count]');
     expect(prompt).not.toContain('request_number');
+    expect(prompt).not.toContain('"dataset_counts"');
   });
 
   it('stores a prompt snapshot without raw text arrays', () => {

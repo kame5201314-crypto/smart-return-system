@@ -77,17 +77,17 @@ export interface AIAnalysisPromptPayload {
     product_name: string;
     return_count: number;
     channels: string[];
-    reason_texts: string[];
-    buyer_note_texts: string[];
-    return_reason_note_texts: string[];
+    reason_summaries: PromptCountRow[];
+    buyer_note_summaries: PromptCountRow[];
+    return_reason_note_summaries: PromptCountRow[];
     variants: Array<{
       product_name: string;
       sku: string;
       return_count: number;
       channels: string[];
-      reason_texts: string[];
-      buyer_note_texts: string[];
-      return_reason_note_texts: string[];
+      reason_summaries: PromptCountRow[];
+      buyer_note_summaries: PromptCountRow[];
+      return_reason_note_summaries: PromptCountRow[];
     }>;
   }>;
 }
@@ -128,6 +128,8 @@ export interface AIAnalysisResponseSnapshot {
 const DEFAULT_COUNT_LIMIT = 10;
 const DEFAULT_SAMPLE_LIMIT = 8;
 const MAX_TEXT_LENGTH = 80;
+const SKU_GROUP_TEXT_SUMMARY_LIMIT = 4;
+const SKU_VARIANT_TEXT_SUMMARY_LIMIT = 3;
 export const AI_ANALYSIS_PROMPT_TEMPLATE_VERSION = 'text-only-summary-v2';
 
 function normalizeValue(value: string | null | undefined): string | null {
@@ -165,6 +167,65 @@ function countTopValues(
 
 function limitTextRows(rows: PromptCountRow[], limit = DEFAULT_SAMPLE_LIMIT): PromptCountRow[] {
   return rows.slice(0, limit);
+}
+
+function toCompactCountRows(rows: PromptCountRow[]): Array<[string, number]> {
+  return rows.map((row) => [row.label, row.count]);
+}
+
+function buildCompactPromptPayload(payload: AIAnalysisPromptPayload) {
+  return {
+    p: payload.period,
+    dc: {
+      o: payload.dataset_counts.official_returns,
+      s: payload.dataset_counts.shopee_returns,
+      pk: payload.dataset_counts.pickup_records,
+      t: payload.dataset_counts.total_rows,
+    },
+    os: {
+      ch: toCompactCountRows(payload.official_summary.channel_counts),
+      rc: toCompactCountRows(payload.official_summary.reason_category_counts),
+      rd: toCompactCountRows(payload.official_summary.reason_detail_counts),
+      ir: toCompactCountRows(payload.official_summary.item_reason_counts),
+      rf: toCompactCountRows(payload.official_summary.refund_type_counts),
+      rz: toCompactCountRows(payload.official_summary.resolution_type_counts),
+      ins: toCompactCountRows(payload.official_summary.inspection_result_counts),
+      ic: toCompactCountRows(payload.official_summary.inspection_comment_samples),
+    },
+    ss: {
+      pf: toCompactCountRows(payload.shopee_summary.platform_counts),
+      sm: toCompactCountRows(payload.shopee_summary.shipping_method_counts),
+      rr: toCompactCountRows(payload.shopee_summary.return_reason_counts),
+      bn: toCompactCountRows(payload.shopee_summary.buyer_note_samples),
+      rn: toCompactCountRows(payload.shopee_summary.return_reason_note_samples),
+      an: toCompactCountRows(payload.shopee_summary.admin_note_samples),
+    },
+    ps: {
+      pf: toCompactCountRows(payload.pickup_summary.platform_counts),
+      lg: toCompactCountRows(payload.pickup_summary.logistics_provider_counts),
+      ds: toCompactCountRows(payload.pickup_summary.delivery_status_counts),
+      rs: toCompactCountRows(payload.pickup_summary.received_status_counts),
+      nt: toCompactCountRows(payload.pickup_summary.note_samples),
+    },
+    sg: payload.sku_groups.map((group) => ({
+      g: group.sku_group,
+      p: group.product_name,
+      c: group.return_count,
+      ch: group.channels,
+      rs: toCompactCountRows(group.reason_summaries),
+      bn: toCompactCountRows(group.buyer_note_summaries),
+      rn: toCompactCountRows(group.return_reason_note_summaries),
+      v: group.variants.map((variant) => ({
+        p: variant.product_name,
+        s: variant.sku,
+        c: variant.return_count,
+        ch: variant.channels,
+        rs: toCompactCountRows(variant.reason_summaries),
+        bn: toCompactCountRows(variant.buyer_note_summaries),
+        rn: toCompactCountRows(variant.return_reason_note_summaries),
+      })),
+    })),
+  };
 }
 
 export function buildAIAnalysisDatasetFingerprint(
@@ -249,23 +310,40 @@ export function buildAIAnalysisPromptPayload(params: {
       product_name: group.product_name,
       return_count: group.return_count,
       channels: group.channels,
-      reason_texts: group.reason_texts.slice(0, 4),
-      buyer_note_texts: group.buyer_note_texts.slice(0, 4),
-      return_reason_note_texts: group.return_reason_note_texts.slice(0, 4),
+      reason_summaries: countTopValues(group.reason_texts, SKU_GROUP_TEXT_SUMMARY_LIMIT),
+      buyer_note_summaries: countTopValues(
+        group.buyer_note_texts,
+        SKU_GROUP_TEXT_SUMMARY_LIMIT
+      ),
+      return_reason_note_summaries: countTopValues(
+        group.return_reason_note_texts,
+        SKU_GROUP_TEXT_SUMMARY_LIMIT
+      ),
       variants: group.variants.slice(0, 6).map((variant) => ({
         product_name: variant.product_name,
         sku: variant.sku,
         return_count: variant.return_count,
         channels: variant.channels,
-        reason_texts: variant.reason_texts.slice(0, 4),
-        buyer_note_texts: variant.buyer_note_texts.slice(0, 4),
-        return_reason_note_texts: variant.return_reason_note_texts.slice(0, 4),
+        reason_summaries: countTopValues(
+          variant.reason_texts,
+          SKU_VARIANT_TEXT_SUMMARY_LIMIT
+        ),
+        buyer_note_summaries: countTopValues(
+          variant.buyer_note_texts,
+          SKU_VARIANT_TEXT_SUMMARY_LIMIT
+        ),
+        return_reason_note_summaries: countTopValues(
+          variant.return_reason_note_texts,
+          SKU_VARIANT_TEXT_SUMMARY_LIMIT
+        ),
       })),
     })),
   };
 }
 
 export function buildTextOnlyAIAnalysisPrompt(payload: AIAnalysisPromptPayload): string {
+  const compactPayload = buildCompactPromptPayload(payload);
+
   return [
     `You are a returns analyst. Analyze only the text data for ${payload.period}.`,
     'No images are provided. Do not infer from images.',
@@ -274,8 +352,10 @@ export function buildTextOnlyAIAnalysisPrompt(payload: AIAnalysisPromptPayload):
     'sku_analysis must follow the provided sku_groups exactly, keep the same order, keep the same sku_group and return_count, and provide group-level plus variant-level issues/suggestions.',
     'Use these text sources when reasoning: official return reason_category/reason_detail/item reason; shopee return_reason/buyer_note/return_reason_note; pickup logistics statuses/notes.',
     'channel_analysis.return_count must reflect actual counts across official returns and shopee returns.',
+    'Payload key map: dc=dataset_counts, os=official_summary, ss=shopee_summary, ps=pickup_summary, sg=sku_groups.',
+    'Count rows use [label,count]. In sku_groups, rs=reason summaries, bn=buyer note summaries, rn=return reason note summaries, v=variants.',
     'Payload:',
-    JSON.stringify(payload),
+    JSON.stringify(compactPayload),
   ].join('\n');
 }
 
@@ -305,9 +385,9 @@ export function buildAIAnalysisPromptStorageSnapshot(params: {
       return_count: group.return_count,
       variant_count: group.variants.length,
       channels: group.channels,
-      reason_sample_count: group.reason_texts.length,
-      buyer_note_sample_count: group.buyer_note_texts.length,
-      return_reason_note_sample_count: group.return_reason_note_texts.length,
+      reason_sample_count: group.reason_summaries.length,
+      buyer_note_sample_count: group.buyer_note_summaries.length,
+      return_reason_note_sample_count: group.return_reason_note_summaries.length,
     })),
   };
 }
