@@ -28,7 +28,8 @@ class Settings(BaseSettings):
     supabase_service_key: str
 
     # OpenAI
-    openai_api_key: str
+    enable_image_ai: bool = False
+    openai_api_key: str = ""
     openai_model: str = "gpt-4o"
     openai_vision_max_tokens: int = 4096
 

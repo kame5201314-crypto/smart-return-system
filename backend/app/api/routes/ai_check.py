@@ -26,6 +26,16 @@ router = APIRouter(prefix="/ai-check", tags=["AI 檢查"])
 _task_status: dict = {}
 
 
+def require_vision_service():
+    try:
+        return get_vision_service()
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+
 @router.post(
     "/image",
     response_model=AICheckResponse,
@@ -47,7 +57,7 @@ async def check_image(
     start_time = time.time()
 
     try:
-        vision_service = get_vision_service()
+        vision_service = require_vision_service()
 
         # 呼叫 AI 分析
         result = await vision_service.analyze_image(
@@ -92,6 +102,8 @@ async def check_image(
             processing_time_ms=processing_time,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"AI 檢查失敗: {str(e)}")
         raise HTTPException(
@@ -126,7 +138,7 @@ async def check_batch(
     async def process_single(req: AICheckRequest) -> AICheckResponse:
         try:
             # 複用單一檢查邏輯
-            vision_service = get_vision_service()
+            vision_service = require_vision_service()
             result = await vision_service.analyze_image(
                 image_url=req.file_url,
                 rules=req.rules,
@@ -224,7 +236,7 @@ async def check_async(
             _task_status[task_id]["progress"] = 10
             _task_status[task_id]["updated_at"] = datetime.now(timezone.utc)
 
-            vision_service = get_vision_service()
+            vision_service = require_vision_service()
             result = await vision_service.analyze_image(
                 image_url=request.file_url,
                 rules=request.rules,

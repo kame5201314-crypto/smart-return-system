@@ -27,6 +27,10 @@ class OpenAIVisionService:
     """OpenAI Vision 服務"""
 
     def __init__(self):
+        if not settings.enable_image_ai:
+            raise RuntimeError("Image AI is disabled")
+        if not settings.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
         self.model = settings.openai_model
         self.max_tokens = settings.openai_vision_max_tokens
