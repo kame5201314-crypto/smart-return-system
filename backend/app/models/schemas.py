@@ -181,6 +181,7 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     version: str = "1.0.0"
     timestamp: datetime
+    image_ai_enabled: bool = False
 
 
 class ErrorResponse(BaseModel):

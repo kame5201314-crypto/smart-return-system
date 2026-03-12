@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 AI Visual QC Automator 後端服務啟動中...")
     logger.info(f"📍 監聽地址: {settings.host}:{settings.port}")
     logger.info(f"🔧 偵錯模式: {settings.debug}")
+    logger.info(f"image_ai_enabled: {settings.enable_image_ai}")
     yield
     # 關閉時執行
     logger.info("👋 服務關閉中...")
@@ -100,6 +101,7 @@ async def health_check():
         status="healthy",
         version="1.0.0",
         timestamp=datetime.now(timezone.utc),
+        image_ai_enabled=settings.enable_image_ai,
     )
 
 
@@ -110,6 +112,7 @@ async def root():
         "name": "AI Visual QC Automator API",
         "version": "1.0.0",
         "status": "running",
+        "image_ai_enabled": settings.enable_image_ai,
         "docs": "/docs",
     }
 
