@@ -8,6 +8,7 @@ import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
 import {
   buildAISkuAnalysisGroups,
   type AISkuAnalysisGroupInput,
+  normalizeAISkuAnalysisOutput,
 } from '@/lib/utils/ai-sku-analysis';
 import {
   buildAIAnalysisPromptPayload,
@@ -218,71 +219,11 @@ function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
   };
 }
 
-function toStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .filter((item): item is string => typeof item === 'string')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function toStringOrEmpty(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function normalizeSkuAnalysis(
   rawValue: unknown,
   candidates: AISkuAnalysisGroupInput[]
 ) {
-  const rawItems = Array.isArray(rawValue) ? rawValue : [];
-  const rawByGroup = new Map<string, Record<string, unknown>>();
-
-  rawItems.forEach((item) => {
-    if (!item || typeof item !== 'object') return;
-
-    const itemRecord = item as Record<string, unknown>;
-    const skuGroup = toStringOrEmpty(itemRecord.sku_group) || toStringOrEmpty(itemRecord.sku);
-    if (!skuGroup) return;
-
-    rawByGroup.set(skuGroup, itemRecord);
-  });
-
-  return candidates.map((candidate) => {
-    const rawItem = rawByGroup.get(candidate.sku_group);
-    const rawVariants = Array.isArray(rawItem?.variants) ? rawItem.variants : [];
-    const rawVariantBySku = new Map<string, Record<string, unknown>>();
-
-    rawVariants.forEach((variant) => {
-      if (!variant || typeof variant !== 'object') return;
-      const variantRecord = variant as Record<string, unknown>;
-      const sku = toStringOrEmpty(variantRecord.sku);
-      if (!sku) return;
-      rawVariantBySku.set(sku.toUpperCase(), variantRecord);
-    });
-
-    return {
-      sku_group: candidate.sku_group,
-      sku: candidate.sku_group,
-      product_name: toStringOrEmpty(rawItem?.product_name) || candidate.product_name,
-      return_count: candidate.return_count,
-      main_issues: toStringArray(rawItem?.main_issues),
-      suggestion: toStringOrEmpty(rawItem?.suggestion),
-      variants: candidate.variants.map((candidateVariant) => {
-        const rawVariant = rawVariantBySku.get(candidateVariant.sku);
-
-        return {
-          product_name: toStringOrEmpty(rawVariant?.product_name) || candidateVariant.product_name,
-          sku: candidateVariant.sku,
-          return_count: candidateVariant.return_count,
-          main_issues: toStringArray(rawVariant?.main_issues),
-          suggestion: toStringOrEmpty(rawVariant?.suggestion),
-        };
-      }),
-    };
-  });
+  return normalizeAISkuAnalysisOutput(rawValue, candidates);
 }
 
 function extractFirstJsonObject(text: string): string {
@@ -612,7 +553,9 @@ export async function POST(request: NextRequest) {
 
     analysisResult = {
       ...analysisResult,
-      sku_analysis: normalizeSkuAnalysis(analysisResult?.sku_analysis, skuGroupAnalysisData),
+      sku_analysis: normalizeAISkuAnalysisOutput(
+        normalizeSkuAnalysis(analysisResult?.sku_analysis, skuGroupAnalysisData)
+      ),
     };
 
     if (containsLikelyMojibake(analysisResult)) {
@@ -749,9 +692,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedData = (data || []).map((report) =>
-      normalizeLegacyReportStatistics(report as unknown as Record<string, unknown>)
-    );
+    const normalizedData = (data || []).map((report) => {
+      const rawReport = report as unknown as Record<string, unknown>;
+      const normalizedStats = normalizeLegacyReportStatistics(rawReport);
+
+      return {
+        ...rawReport,
+        ...normalizedStats,
+        sku_analysis: normalizeAISkuAnalysisOutput(rawReport.sku_analysis),
+      };
+    });
 
     return NextResponse.json({ success: true, data: normalizedData });
   } catch (error) {

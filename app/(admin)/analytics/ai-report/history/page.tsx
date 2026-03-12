@@ -35,6 +35,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { normalizeAISkuAnalysisOutput } from '@/lib/utils/ai-sku-analysis';
 
 interface HistoricalReport {
   id: string;
@@ -113,7 +114,12 @@ export default function AIReportHistoryPage() {
       const data = await response.json();
 
       if (data.success && data.data) {
-        setReports(data.data);
+        setReports(
+          data.data.map((report: HistoricalReport) => ({
+            ...report,
+            sku_analysis: normalizeAISkuAnalysisOutput(report.sku_analysis || []),
+          }))
+        );
       }
     } catch (error) {
       console.error('Load reports error:', error);
@@ -128,7 +134,10 @@ export default function AIReportHistoryPage() {
 
   // Open detail dialog
   function viewReportDetail(report: HistoricalReport) {
-    setSelectedReport(report);
+    setSelectedReport({
+      ...report,
+      sku_analysis: normalizeAISkuAnalysisOutput(report.sku_analysis || []),
+    });
     setDetailDialogOpen(true);
   }
 

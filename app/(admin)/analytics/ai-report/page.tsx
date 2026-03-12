@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { normalizeAISkuAnalysisOutput } from '@/lib/utils/ai-sku-analysis';
 
 interface AIAnalysisResult {
   id?: string;
@@ -122,7 +123,7 @@ export default function AIReportPage() {
           summary: report.trend_analysis?.summary || '',
           painPoints: report.pain_points || [],
           recommendations: report.recommendations || [],
-          skuAnalysis: report.sku_analysis || [],
+          skuAnalysis: normalizeAISkuAnalysisOutput(report.sku_analysis || []),
           channelAnalysis: report.channel_analysis || [],
           statistics: {
             totalReturns: report.total_returns || 0,
@@ -162,7 +163,10 @@ export default function AIReportPage() {
       const data = await response.json();
 
       if (data.success) {
-        setResult(data.data);
+        setResult({
+          ...data.data,
+          skuAnalysis: normalizeAISkuAnalysisOutput(data.data?.skuAnalysis || []),
+        });
         if (data.saved !== false) {
           setHasExistingReport(true);
           toast.success('分析完成，報告已儲存');
