@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+
 import type { AISkuAnalysisGroupInput } from '@/lib/utils/ai-sku-analysis';
 
 export interface PromptReturnAnalysisData {
@@ -91,8 +93,10 @@ export interface AIAnalysisPromptPayload {
 }
 
 export interface AIAnalysisPromptStorageSnapshot {
-  version: 1;
+  version: 2;
   mode: 'text-only-summary';
+  prompt_template_version: string;
+  payload_fingerprint: string;
   period: string;
   prompt_character_count: number;
   model_candidates: string[];
@@ -124,6 +128,7 @@ export interface AIAnalysisResponseSnapshot {
 const DEFAULT_COUNT_LIMIT = 10;
 const DEFAULT_SAMPLE_LIMIT = 8;
 const MAX_TEXT_LENGTH = 80;
+export const AI_ANALYSIS_PROMPT_TEMPLATE_VERSION = 'text-only-summary-v2';
 
 function normalizeValue(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
@@ -160,6 +165,16 @@ function countTopValues(
 
 function limitTextRows(rows: PromptCountRow[], limit = DEFAULT_SAMPLE_LIMIT): PromptCountRow[] {
   return rows.slice(0, limit);
+}
+
+export function buildAIAnalysisDatasetFingerprint(
+  payload: AIAnalysisPromptPayload
+): string {
+  return createHash('sha256')
+    .update(AI_ANALYSIS_PROMPT_TEMPLATE_VERSION)
+    .update('\n')
+    .update(JSON.stringify(payload))
+    .digest('hex');
 }
 
 export function buildAIAnalysisPromptPayload(params: {
@@ -273,8 +288,10 @@ export function buildAIAnalysisPromptStorageSnapshot(params: {
   const { period, prompt, payload, modelCandidates } = params;
 
   return {
-    version: 1,
+    version: 2,
     mode: 'text-only-summary',
+    prompt_template_version: AI_ANALYSIS_PROMPT_TEMPLATE_VERSION,
+    payload_fingerprint: buildAIAnalysisDatasetFingerprint(payload),
     period,
     prompt_character_count: prompt.length,
     model_candidates: modelCandidates,

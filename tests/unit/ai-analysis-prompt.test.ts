@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { buildAISkuAnalysisGroups } from '@/lib/utils/ai-sku-analysis';
 import {
+  AI_ANALYSIS_PROMPT_TEMPLATE_VERSION,
+  buildAIAnalysisDatasetFingerprint,
   buildAIAnalysisPromptPayload,
   buildAIAnalysisPromptStorageSnapshot,
   buildAIAnalysisResponseSnapshot,
@@ -120,6 +122,8 @@ describe('buildAIAnalysisPromptPayload', () => {
     });
 
     expect(snapshot.prompt_character_count).toBe(prompt.length);
+    expect(snapshot.prompt_template_version).toBe(AI_ANALYSIS_PROMPT_TEMPLATE_VERSION);
+    expect(snapshot.payload_fingerprint).toBe(buildAIAnalysisDatasetFingerprint(payload));
     expect(snapshot.sku_group_overview[0]).toMatchObject({
       sku_group: '22X105',
       variant_count: 1,
@@ -128,6 +132,35 @@ describe('buildAIAnalysisPromptPayload', () => {
       return_reason_note_sample_count: 1,
     });
     expect(JSON.stringify(snapshot)).not.toContain('too large');
+  });
+
+  it('builds a stable payload fingerprint for unchanged monthly summaries', () => {
+    const payload = buildAIAnalysisPromptPayload({
+      period: '2026-03',
+      returns: [
+        {
+          channel_source: 'official',
+          reason_category: 'quality',
+          reason_detail: 'focus issue',
+          refund_type: 'refund',
+          return_items: [{ reason: 'damaged', resolution_type: 'full' }],
+        },
+      ],
+      shopeeReturns: [],
+      pickupRecords: [],
+      skuGroups: buildAISkuAnalysisGroups([
+        {
+          productName: 'Lens A',
+          sku: 'APL-22X105-A',
+          quantity: 1,
+          reasonTexts: ['focus issue'],
+        },
+      ]),
+    });
+
+    expect(buildAIAnalysisDatasetFingerprint(payload)).toBe(
+      buildAIAnalysisDatasetFingerprint(payload)
+    );
   });
 
   it('stores response diagnostics with model and usage metadata', () => {

@@ -11,6 +11,7 @@ import {
   normalizeAISkuAnalysisOutput,
 } from '@/lib/utils/ai-sku-analysis';
 import {
+  buildAIAnalysisDatasetFingerprint,
   buildAIAnalysisPromptPayload,
   buildAIAnalysisPromptStorageSnapshot,
   buildAIAnalysisResponseSnapshot,
@@ -224,6 +225,82 @@ function normalizeSkuAnalysis(
   candidates: AISkuAnalysisGroupInput[]
 ) {
   return normalizeAISkuAnalysisOutput(rawValue, candidates);
+}
+
+function parseStoredJsonObject(rawValue: unknown): Record<string, unknown> | null {
+  if (!rawValue) {
+    return null;
+  }
+
+  if (typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+    return rawValue as Record<string, unknown>;
+  }
+
+  if (typeof rawValue !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function extractPromptFingerprint(rawPrompt: unknown): string | null {
+  const snapshot = parseStoredJsonObject(rawPrompt);
+  const fingerprint = snapshot?.payload_fingerprint;
+  return typeof fingerprint === 'string' && fingerprint.trim() ? fingerprint : null;
+}
+
+function buildStoredReportResponse(
+  report: Record<string, unknown>,
+  candidates: AISkuAnalysisGroupInput[]
+) {
+  const normalizedStats = normalizeLegacyReportStatistics(report);
+  const promptSnapshot = parseStoredJsonObject(report.raw_prompt);
+  const responseSnapshot = parseStoredJsonObject(report.raw_response);
+  const datasetCounts = parseStoredJsonObject(promptSnapshot?.dataset_counts);
+
+  return {
+    id: typeof report.id === 'string' ? report.id : undefined,
+    period:
+      typeof report.report_period === 'string' && report.report_period
+        ? report.report_period
+        : '',
+    summary:
+      (report.trend_analysis as { summary?: string } | null)?.summary
+      || '',
+    painPoints: Array.isArray(report.pain_points) ? report.pain_points : [],
+    recommendations: Array.isArray(report.recommendations) ? report.recommendations : [],
+    skuAnalysis: normalizeAISkuAnalysisOutput(
+      normalizeSkuAnalysis(report.sku_analysis, candidates)
+    ),
+    channelAnalysis: Array.isArray(report.channel_analysis) ? report.channel_analysis : [],
+    statistics: {
+      totalReturns: toNumberOrNull(normalizedStats.total_returns) ?? 0,
+      totalRefundAmount: toNumberOrNull(normalizedStats.total_refund_amount) ?? 0,
+      storeCreditRate: toNumberOrNull(normalizedStats.store_credit_rate) ?? 0,
+      returnRequestsCount: toNumberOrNull(datasetCounts?.official_returns) ?? 0,
+      shopeeReturnsCount: toNumberOrNull(datasetCounts?.shopee_returns) ?? 0,
+      pickupRecordsCount: toNumberOrNull(datasetCounts?.pickup_records) ?? 0,
+    },
+    diagnostics: {
+      model:
+        typeof responseSnapshot?.model === 'string' ? responseSnapshot.model : null,
+      promptCharacterCount:
+        toNumberOrNull(promptSnapshot?.prompt_character_count) ?? null,
+      usageMetadata:
+        responseSnapshot?.usage_metadata && typeof responseSnapshot.usage_metadata === 'object'
+          ? (responseSnapshot.usage_metadata as Record<string, unknown>)
+          : null,
+    },
+  };
 }
 
 function extractFirstJsonObject(text: string): string {
@@ -517,6 +594,7 @@ export async function POST(request: NextRequest) {
       pickupRecords,
       skuGroups: skuGroupAnalysisData,
     });
+    const payloadFingerprint = buildAIAnalysisDatasetFingerprint(promptPayload);
     const prompt = buildTextOnlyAIAnalysisPrompt(promptPayload);
 
     // Call Gemini API using direct REST API (more reliable)
@@ -526,6 +604,31 @@ export async function POST(request: NextRequest) {
       payload: promptPayload,
       modelCandidates: GEMINI_TEXT_MODELS,
     });
+
+    const { data: existingReport, error: existingReportError } = await untypedSupabase
+      .from('ai_analysis_reports')
+      .select('*')
+      .eq('report_period', period)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as {
+        data: Record<string, unknown> | null;
+        error: Error | null;
+      };
+
+    if (existingReportError) {
+      console.warn('Existing AI report query error:', existingReportError.message);
+    }
+
+    if (existingReport && extractPromptFingerprint(existingReport.raw_prompt) === payloadFingerprint) {
+      return NextResponse.json({
+        success: true,
+        saved: true,
+        reused: true,
+        message: '資料未變動，已使用最新分析報告',
+        data: buildStoredReportResponse(existingReport, skuGroupAnalysisData),
+      });
+    }
 
     const aiResult = await callGeminiAPI(prompt, geminiApiKey);
     let aiResponse = aiResult.text;
