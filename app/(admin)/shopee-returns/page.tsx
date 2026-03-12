@@ -85,6 +85,7 @@ import {
 const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
   { value: 'yellow', label: '檢驗中', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
   { value: 'red', label: '爭議中', color: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 'purple', label: '安排收件', color: 'bg-purple-100 text-purple-800 border-purple-300' },
 ];
 
 type ImportColumnKey = keyof ShopeeReturnInput | 'returnRefundStatus' | 'returnRefundScheme';
@@ -1080,6 +1081,10 @@ export default function ShopeeReturnsPage() {
                     <Circle className="w-3 h-3 mr-2 fill-red-400 text-red-400" />
                     爭議中
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleColorTag('purple')} className="text-xs">
+                    <Circle className="w-3 h-3 mr-2 fill-purple-400 text-purple-400" />
+                    安排收件
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => handleColorTag(null)} className="text-xs text-muted-foreground">
                     <X className="w-3 h-3 mr-2" />
@@ -1165,6 +1170,7 @@ export default function ShopeeReturnsPage() {
                       className={
                         record.color_tag === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-400' :
                         record.color_tag === 'red' ? 'bg-red-50 border-l-4 border-l-red-400' :
+                        record.color_tag === 'purple' ? 'bg-purple-50 border-l-4 border-l-purple-300' :
                         record.is_processed ? 'bg-green-50' :
                         record.is_inbound ? 'bg-blue-50/50' : ''
                       }

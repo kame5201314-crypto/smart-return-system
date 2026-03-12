@@ -396,6 +396,11 @@ export default function ShopeeReturnDetailPage() {
                   {record.color_tag === 'red' && (
                     <Badge className="bg-red-100 text-red-800 border border-red-300">顏色標籤: 紅</Badge>
                   )}
+                  {record.color_tag === 'purple' && (
+                    <Badge className="bg-purple-100 text-purple-800 border border-purple-300">
+                      {'\u986f\u8272\u6a19\u8a18: \u5b89\u6392\u6536\u4ef6'}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   掃描時間：{formatDateTime(record.scanned_at)} ｜ 入庫時間：{formatDateTime(record.inbound_at || null)} ｜ 已處理時間：{formatDateTime(record.processed_at)}

@@ -32,13 +32,13 @@ export interface ShopeeReturn {
   processed_at: string | null;
   note: string | null;
   platform: 'shopee' | 'mall' | null;
-  color_tag: 'yellow' | 'red' | null;
+  color_tag: 'yellow' | 'red' | 'purple' | null;
   imported_at: string;
   created_at: string;
   updated_at: string;
 }
 
-export type ColorTag = 'yellow' | 'red' | null;
+export type ColorTag = 'yellow' | 'red' | 'purple' | null;
 
 export interface ShopeeReturnInput {
   orderNumber: string;

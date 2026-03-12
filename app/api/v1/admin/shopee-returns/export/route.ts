@@ -26,7 +26,7 @@ interface ShopeeReturnExportData {
   is_processed: boolean;
   is_printed: boolean;
   platform: 'shopee' | 'mall' | null;
-  color_tag: 'yellow' | 'red' | null;
+  color_tag: 'yellow' | 'red' | 'purple' | null;
   note: string | null;
   imported_at: string;
   created_at: string;
