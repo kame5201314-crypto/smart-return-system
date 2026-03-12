@@ -341,6 +341,10 @@ const GEMINI_TEXT_MODELS = [
   'models/gemini-2.0-flash',
   'models/gemini-flash-latest',
 ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
+const GEMINI_MAX_OUTPUT_TOKENS = (() => {
+  const rawValue = Number.parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '1200', 10);
+  return Number.isFinite(rawValue) && rawValue > 0 ? rawValue : 1200;
+})();
 
 interface GeminiTextResponse {
   text: string;
@@ -372,7 +376,7 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<GeminiText
           ],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 1800,
+            maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
             responseMimeType: 'application/json',
           },
         }),
