@@ -6,8 +6,8 @@ describe('extractTextScanCandidates', () => {
   it('extracts pickup code from OCR text block', () => {
     const rawText = `
       P02972589847
-      ����
-      ����H �i�T
+      sample
+      mixed OCR text
     `;
 
     expect(extractTextScanCandidates(rawText)).toContain('P02972589847');
