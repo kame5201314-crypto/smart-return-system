@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   Loader2,
   Package,
+  Truck,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -167,6 +168,7 @@ export default function ShopeeReturnsPage() {
   const [inboundFilter, setInboundFilter] = useState<'all' | 'inbound' | 'not_inbound'>('all');
   const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
   const [platformFilter, setPlatformFilter] = useState<'all' | 'shopee' | 'mall'>('all');
+  const [shippingMethodFilter, setShippingMethodFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
@@ -246,6 +248,12 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => r.platform === 'mall');
     }
 
+    if (shippingMethodFilter !== 'all') {
+      filtered = filtered.filter(
+        (r) => (r.shipping_method || AUTO_PICKUP_SHIPPING_METHOD) === shippingMethodFilter
+      );
+    }
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -283,7 +291,17 @@ export default function ShopeeReturnsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilteredReturns(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [returns, searchQuery, statusFilter, inboundFilter, printFilter, platformFilter, sortField, sortDirection]);
+  }, [
+    returns,
+    searchQuery,
+    statusFilter,
+    inboundFilter,
+    printFilter,
+    platformFilter,
+    shippingMethodFilter,
+    sortField,
+    sortDirection,
+  ]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredReturns.length / ITEMS_PER_PAGE);
@@ -853,6 +871,13 @@ export default function ShopeeReturnsPage() {
   const notScannedCount = returns.filter((r) => !r.is_scanned).length;
   const inboundCount = returns.filter((r) => !!r.is_inbound).length;
   const notInboundCount = returns.filter((r) => !r.is_inbound).length;
+  const shippingMethodOptions = Array.from(
+    new Set(
+      returns
+        .map((r) => (r.shipping_method || AUTO_PICKUP_SHIPPING_METHOD).trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -1044,6 +1069,21 @@ export default function ShopeeReturnsPage() {
                   <SelectItem value="all">全部</SelectItem>
                   <SelectItem value="shopee">蝦皮</SelectItem>
                   <SelectItem value="mall">商城</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={shippingMethodFilter} onValueChange={setShippingMethodFilter}>
+                <SelectTrigger className="w-[140px] h-7 text-xs">
+                  <Truck className="w-3 h-3 mr-1" />
+                  <SelectValue placeholder={'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{'\u5168\u90e8\u904b\u9001\u65b9\u5f0f'}</SelectItem>
+                  {shippingMethodOptions.map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {method}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
