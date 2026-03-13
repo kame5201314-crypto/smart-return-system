@@ -21,6 +21,7 @@ import {
   scanShopeeReturn,
   type ScanStatus,
 } from '@/lib/actions/shopee-returns.actions';
+import { extractTextScanCandidates } from '@/lib/utils/text-scan-candidates';
 
 const SCANNER_ELEMENT_ID = 'shopee-return-scanner';
 
@@ -34,6 +35,12 @@ type Html5QrcodeScanner = {
   stop: () => Promise<unknown>;
   clear: () => Promise<void>;
 };
+
+interface OcrWorker {
+  recognize: (image: File) => Promise<{ data: { text: string } }>;
+  terminate: () => Promise<unknown>;
+  setParameters: (params: Record<string, string>) => Promise<unknown>;
+}
 
 interface ScanHistoryItem {
   id: string;
@@ -71,6 +78,8 @@ function getPlatformLabel(platform: 'shopee' | 'mall' | null): string {
 
 export default function ShopeeReturnScanPage() {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const ocrFileInputRef = useRef<HTMLInputElement | null>(null);
+  const ocrWorkerRef = useRef<Promise<OcrWorker> | null>(null);
   const autoStartRef = useRef(false);
   const processingRef = useRef(false);
   const dedupeRef = useRef<{ code: string; timestamp: number }>({
@@ -82,6 +91,10 @@ export default function ShopeeReturnScanPage() {
   const [isActive, setIsActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [manualCode, setManualCode] = useState('');
+  const [ocrProcessing, setOcrProcessing] = useState(false);
+  const [ocrCandidates, setOcrCandidates] = useState<string[]>([]);
+  const [ocrSourceName, setOcrSourceName] = useState('');
+  const [ocrRawText, setOcrRawText] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [latestScan, setLatestScan] = useState<ScanHistoryItem | null>(null);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
@@ -179,6 +192,68 @@ export default function ShopeeReturnScanPage() {
     setIsProcessing(false);
   }, [loadDashboard]);
 
+  const getOcrWorker = useCallback(async () => {
+    if (!ocrWorkerRef.current) {
+      ocrWorkerRef.current = (async () => {
+        const { createWorker, PSM } = await import('tesseract.js');
+        const worker = await createWorker('eng');
+        const ocrWorker = worker as unknown as OcrWorker;
+        await ocrWorker.setParameters({
+          tessedit_pageseg_mode: String(PSM.SPARSE_TEXT),
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
+          preserve_interword_spaces: '0',
+        });
+        return ocrWorker;
+      })();
+    }
+
+    return ocrWorkerRef.current;
+  }, []);
+
+  const applyOcrCandidate = useCallback(async (candidate: string) => {
+    setManualCode(candidate);
+    await handleCode(candidate);
+  }, [handleCode]);
+
+  const handleOcrImage = useCallback(async (file: File) => {
+    setOcrProcessing(true);
+    setOcrCandidates([]);
+    setOcrSourceName(file.name);
+    setOcrRawText('');
+
+    try {
+      const worker = await getOcrWorker();
+      const result = await worker.recognize(file);
+      const rawText = result.data.text || '';
+      const candidates = extractTextScanCandidates(rawText);
+
+      setOcrRawText(rawText.trim());
+
+      if (candidates.length === 0) {
+        toast.error('未辨識到可比對的編號，請拍近一點或改用手動輸入。');
+        return;
+      }
+
+      setOcrCandidates(candidates);
+      setManualCode(candidates[0]);
+
+      if (candidates.length === 1) {
+        toast.success(`已辨識編號：${candidates[0]}`);
+        await handleCode(candidates[0]);
+      } else {
+        toast.info(`找到 ${candidates.length} 組可能編號，已帶入第一組。`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OCR failed';
+      toast.error(`數字辨識失敗：${message}`);
+    } finally {
+      setOcrProcessing(false);
+      if (ocrFileInputRef.current) {
+        ocrFileInputRef.current.value = '';
+      }
+    }
+  }, [getOcrWorker, handleCode]);
+
   const stopScanner = useCallback(async () => {
     if (!scannerRef.current) {
       setIsActive(false);
@@ -244,7 +319,7 @@ export default function ShopeeReturnScanPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setCameraError(message);
-      toast.error('相機啟動失敗，請確認瀏覽器相機權限');
+      toast.error('相機啟動失敗，請檢查權限或改用手動輸入。');
     } finally {
       setIsStarting(false);
     }
@@ -253,7 +328,7 @@ export default function ShopeeReturnScanPage() {
   const submitManualCode = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!manualCode.trim()) {
-      toast.error('請輸入條碼內容');
+      toast.error('請先輸入條碼內容');
       return;
     }
 
@@ -274,6 +349,7 @@ export default function ShopeeReturnScanPage() {
   useEffect(() => {
     return () => {
       void stopScanner();
+      void ocrWorkerRef.current?.then((worker) => worker.terminate()).catch(() => undefined);
     };
   }, [stopScanner]);
 
@@ -313,7 +389,6 @@ export default function ShopeeReturnScanPage() {
                 開始掃描
               </Button>
             )}
-
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -402,6 +477,81 @@ export default function ShopeeReturnScanPage() {
               送出比對
             </Button>
           </form>
+
+          <div className="mt-4 border-t pt-4 space-y-3">
+            <div className="space-y-1">
+              <Label>拍照辨識數字</Label>
+              <p className="text-xs text-muted-foreground">
+                可辨識標籤上的取件碼、寄件編號或單號，例如 P02972589847。
+              </p>
+            </div>
+
+            <input
+              ref={ocrFileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  void handleOcrImage(file);
+                }
+              }}
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => ocrFileInputRef.current?.click()}
+              disabled={ocrProcessing || isProcessing}
+            >
+              {ocrProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  辨識中...
+                </>
+              ) : (
+                <>
+                  <Camera className="w-4 h-4 mr-1" />
+                  上傳圖片辨識數字
+                </>
+              )}
+            </Button>
+
+            {ocrSourceName && (
+              <div className="text-xs text-muted-foreground">
+                最新圖片：{ocrSourceName}
+              </div>
+            )}
+
+            {ocrCandidates.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">辨識到的可能編號</div>
+                <div className="flex flex-wrap gap-2">
+                  {ocrCandidates.map((candidate) => (
+                    <Button
+                      key={candidate}
+                      type="button"
+                      size="sm"
+                      variant={manualCode === candidate ? 'default' : 'outline'}
+                      className="font-mono"
+                      onClick={() => void applyOcrCandidate(candidate)}
+                      disabled={ocrProcessing || isProcessing}
+                    >
+                      {candidate}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {ocrRawText && ocrCandidates.length === 0 && (
+              <div className="rounded-md border p-2 text-xs text-muted-foreground whitespace-pre-wrap">
+                {ocrRawText}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
