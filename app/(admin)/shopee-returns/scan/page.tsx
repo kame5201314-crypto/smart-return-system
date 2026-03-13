@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   Camera,
-  AlertTriangle,
   Keyboard,
   Loader2,
   ScanLine,
@@ -21,7 +20,6 @@ import {
   getShopeeScanDashboard,
   scanShopeeReturn,
   type ScanStatus,
-  type ShopeeScanDashboardData,
 } from '@/lib/actions/shopee-returns.actions';
 
 const SCANNER_ELEMENT_ID = 'shopee-return-scanner';
@@ -71,16 +69,6 @@ function getPlatformLabel(platform: 'shopee' | 'mall' | null): string {
   return platform === 'mall' ? '商城' : '蝦皮';
 }
 
-const EMPTY_KPI: ShopeeScanDashboardData['kpi'] = {
-  todayTotalScans: 0,
-  todayMatchedScans: 0,
-  todayUnmatchedScans: 0,
-  todayDuplicateScans: 0,
-  unmatchedRate: 0,
-  duplicateRate: 0,
-  scannedCompletionRate: 0,
-};
-
 export default function ShopeeReturnScanPage() {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const autoStartRef = useRef(false);
@@ -97,8 +85,6 @@ export default function ShopeeReturnScanPage() {
   const [cameraError, setCameraError] = useState('');
   const [latestScan, setLatestScan] = useState<ScanHistoryItem | null>(null);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
-  const [kpi, setKpi] = useState<ShopeeScanDashboardData['kpi']>(EMPTY_KPI);
-  const [unmatchedOpenCount, setUnmatchedOpenCount] = useState(0);
 
   const loadDashboard = useCallback(async () => {
     const result = await getShopeeScanDashboard(30);
@@ -125,8 +111,6 @@ export default function ShopeeReturnScanPage() {
 
     setHistory(mapped);
     setLatestScan(mapped[0] || null);
-    setKpi(result.data.kpi);
-    setUnmatchedOpenCount(result.data.unmatchedOpenCount);
   }, []);
 
   const handleCode = useCallback(async (rawCode: string) => {
@@ -346,44 +330,6 @@ export default function ShopeeReturnScanPage() {
               相機錯誤：{cameraError}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
-            掃描 KPI
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-            <div className="rounded-md border p-2">
-              <div className="text-xs text-muted-foreground">今日掃描量</div>
-              <div className="text-lg font-semibold">{kpi.todayTotalScans}</div>
-            </div>
-            <div className="rounded-md border p-2">
-              <div className="text-xs text-muted-foreground">未匹配率</div>
-              <div className="text-lg font-semibold">{kpi.unmatchedRate.toFixed(1)}%</div>
-            </div>
-            <div className="rounded-md border p-2">
-              <div className="text-xs text-muted-foreground">重掃率</div>
-              <div className="text-lg font-semibold">{kpi.duplicateRate.toFixed(1)}%</div>
-            </div>
-            <div className="rounded-md border p-2">
-              <div className="text-xs text-muted-foreground">掃描完成率</div>
-              <div className="text-lg font-semibold">{kpi.scannedCompletionRate.toFixed(1)}%</div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between rounded-md border p-2">
-            <div>
-              <div className="text-xs text-muted-foreground">未匹配待處理</div>
-              <div className="text-base font-semibold">{unmatchedOpenCount} 筆</div>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/shopee-returns/scan/unmatched">前往清單</Link>
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
