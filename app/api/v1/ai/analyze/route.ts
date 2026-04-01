@@ -17,6 +17,10 @@ import {
   buildAIAnalysisResponseSnapshot,
   buildTextOnlyAIAnalysisPrompt,
 } from '@/lib/utils/ai-analysis-prompt';
+import {
+  buildAIJsonRepairPrompt,
+  parseAIAnalysisResponseText,
+} from '@/lib/utils/ai-analysis-response';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -303,38 +307,6 @@ function buildStoredReportResponse(
   };
 }
 
-function extractFirstJsonObject(text: string): string {
-  const cleaned = text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-
-  // Try direct parse first.
-  try {
-    JSON.parse(cleaned);
-    return cleaned;
-  } catch {
-    // continue
-  }
-
-  // Fallback: extract first balanced JSON object.
-  const start = cleaned.indexOf('{');
-  if (start === -1) {
-    throw new Error('No JSON object found in AI response');
-  }
-
-  let depth = 0;
-  for (let i = start; i < cleaned.length; i += 1) {
-    const char = cleaned[i];
-    if (char === '{') depth += 1;
-    if (char === '}') depth -= 1;
-    if (depth === 0) {
-      const candidate = cleaned.slice(start, i + 1);
-      JSON.parse(candidate);
-      return candidate;
-    }
-  }
-
-  throw new Error('Incomplete JSON object in AI response');
-}
-
 const GEMINI_TEXT_MODELS = [
   process.env.GEMINI_TEXT_MODEL?.replace(/\\n/g, '').trim(),
   'models/gemini-2.0-flash-lite',
@@ -352,15 +324,33 @@ interface GeminiTextResponse {
   usageMetadata: Record<string, unknown> | null;
 }
 
+interface AIAnalysisResponsePayload {
+  summary: string;
+  pain_points: unknown[];
+  recommendations: unknown[];
+  sku_analysis: unknown[];
+  channel_analysis: unknown[];
+}
+
 // Direct REST API call for Gemini
-async function callGeminiAPI(prompt: string, apiKey: string): Promise<GeminiTextResponse> {
+async function callGeminiAPI(
+  prompt: string,
+  apiKey: string,
+  options?: {
+    temperature?: number;
+    maxOutputTokens?: number;
+    responseMimeType?: string;
+    modelCandidates?: string[];
+  }
+): Promise<GeminiTextResponse> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
 
   let lastError = 'Unknown Gemini API error';
+  const modelCandidates = options?.modelCandidates || GEMINI_TEXT_MODELS;
 
-  for (const modelToUse of GEMINI_TEXT_MODELS) {
+  for (const modelToUse of modelCandidates) {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`,
       {
@@ -375,9 +365,9 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<GeminiText
             },
           ],
           generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-            responseMimeType: 'application/json',
+            temperature: options?.temperature ?? 0.2,
+            maxOutputTokens: options?.maxOutputTokens ?? GEMINI_MAX_OUTPUT_TOKENS,
+            ...(options?.responseMimeType ? { responseMimeType: options.responseMimeType } : {}),
           },
         }),
       }
@@ -404,6 +394,18 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<GeminiText
   }
 
   throw new Error(lastError);
+}
+
+async function repairAIResponseJson(
+  rawResponse: string,
+  apiKey: string
+): Promise<GeminiTextResponse> {
+  return callGeminiAPI(buildAIJsonRepairPrompt(rawResponse), apiKey, {
+    temperature: 0,
+    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    responseMimeType: 'application/json',
+    modelCandidates: GEMINI_TEXT_MODELS,
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -634,7 +636,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const aiResult = await callGeminiAPI(prompt, geminiApiKey);
+    let aiResult = await callGeminiAPI(prompt, geminiApiKey, {
+      responseMimeType: 'application/json',
+    });
     let aiResponse = aiResult.text;
 
     if (!aiResponse) {
@@ -645,17 +649,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse AI response
-    let analysisResult;
+    let analysisResult: AIAnalysisResponsePayload;
     try {
-      const jsonText = extractFirstJsonObject(aiResponse);
-      analysisResult = JSON.parse(jsonText);
-      aiResponse = jsonText;
-    } catch {
-      console.error('Failed to parse AI response:', aiResponse);
-      return NextResponse.json(
-        { success: false, error: 'Failed to parse AI response' },
-        { status: 500 }
-      );
+      analysisResult = parseAIAnalysisResponseText(aiResponse) as unknown as AIAnalysisResponsePayload;
+    } catch (parseError) {
+      console.warn('Primary AI response parse failed, attempting JSON repair:', parseError);
+
+      try {
+        const repairedResult = await repairAIResponseJson(aiResponse, geminiApiKey);
+        aiResult = {
+          text: repairedResult.text,
+          model: `${aiResult.model} -> ${repairedResult.model}`,
+          usageMetadata: {
+            primary: aiResult.usageMetadata,
+            repair: repairedResult.usageMetadata,
+          },
+        };
+        aiResponse = repairedResult.text;
+        analysisResult = parseAIAnalysisResponseText(aiResponse) as unknown as AIAnalysisResponsePayload;
+      } catch (repairError) {
+        console.error('Failed to parse AI response after repair:', {
+          initialResponse: aiResponse,
+          parseError,
+          repairError,
+        });
+        return NextResponse.json(
+          { success: false, error: 'Failed to parse AI response' },
+          { status: 500 }
+        );
+      }
     }
 
     analysisResult = {
