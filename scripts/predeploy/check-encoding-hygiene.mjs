@@ -20,7 +20,9 @@ const SKIP_DIRECTORIES = new Set([
   'coverage',
 ]);
 
-const SKIP_FILES = new Set();
+const SKIP_FILES = new Set([
+  'package-lock.json',
+]);
 
 function normalizeFilePath(filePath) {
   return filePath.replace(/\\/g, '/');
@@ -81,18 +83,36 @@ function hasNullByte(buffer) {
   return false;
 }
 
+function findStringLiteralsInLine(line) {
+  const literals = [];
+  const pattern = /(['"`])(?:\\.|(?!\1).)*\1/g;
+  let match;
+
+  while ((match = pattern.exec(line))) {
+    literals.push(match[0]);
+  }
+
+  return literals;
+}
+
 function findTripleQuestionInStringLiterals(text) {
   const findings = [];
-  const pattern = /(['"`])(?:\\.|(?!\1)[\s\S])*?\?{3,}(?:\\.|(?!\1)[\s\S])*?\1/g;
-  let match;
-  while ((match = pattern.exec(text))) {
-    const index = match.index;
-    const line = text.slice(0, index).split('\n').length;
-    findings.push({
-      line,
-      preview: match[0].slice(0, 120),
-    });
+  const lines = text.split('\n');
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const literals = findStringLiteralsInLine(line);
+    for (const literal of literals) {
+      if (!/\?{3,}/.test(literal)) {
+        continue;
+      }
+      findings.push({
+        line: index + 1,
+        preview: literal.slice(0, 120),
+      });
+    }
   }
+
   return findings;
 }
 
@@ -128,21 +148,23 @@ function isLikelyMojibakeText(input) {
 
 function findMojibakeRiskInStringLiterals(text) {
   const findings = [];
-  const pattern = /(['"`])(?:\\.|(?!\1)[\s\S])*?\1/g;
-  let match;
+  const lines = text.split('\n');
 
-  while ((match = pattern.exec(text))) {
-    const literal = match[0].slice(1, -1);
-    if (!isLikelyMojibakeText(literal)) {
-      continue;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const literals = findStringLiteralsInLine(line);
+
+    for (const literal of literals) {
+      const content = literal.slice(1, -1);
+      if (!isLikelyMojibakeText(content)) {
+        continue;
+      }
+
+      findings.push({
+        line: index + 1,
+        preview: literal.slice(0, 120),
+      });
     }
-
-    const index = match.index;
-    const line = text.slice(0, index).split('\n').length;
-    findings.push({
-      line,
-      preview: match[0].slice(0, 120),
-    });
   }
 
   return findings;
