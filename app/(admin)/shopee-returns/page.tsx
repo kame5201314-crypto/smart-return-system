@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
@@ -81,26 +81,30 @@ import {
   type ShopeeReturnInput,
   type ColorTag,
 } from '@/lib/actions/shopee-returns.actions';
+import {
+  buildShopeeReturnGroups,
+  type ShopeeReturnGroup,
+} from '@/lib/utils/shopee-return-grouping';
 
-// 顏色標籤選項
+// Color tag options
 const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
-  { value: 'yellow', label: '檢驗中', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 'red', label: '爭議中', color: 'bg-red-100 text-red-800 border-red-300' },
-  { value: 'purple', label: '安排收件', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+  { value: 'yellow', label: '\u6aa2\u9a57\u4e2d', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  { value: 'red', label: '\u722d\u8b70\u4e2d', color: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 'purple', label: '\u5b89\u6392\u6536\u4ef6', color: 'bg-purple-100 text-purple-800 border-purple-300' },
 ];
 
 type ImportColumnKey = keyof ShopeeReturnInput | 'returnRefundStatus' | 'returnRefundScheme';
 
 const EXCLUDED_RETURN_REFUND_STATUSES = new Set([
-  '\u7533\u8acb\u5df2\u53d6\u6d88', // 申請已取消
-  '\u722d\u8b70\u5df2\u64a4\u56de', // 爭議已撤回
+  '\u7533\u8acb\u5df2\u53d6\u6d88', // cancelled request
+  '\u722d\u8b70\u5df2\u64a4\u56de', // withdrawn dispute
 ]);
 
 const EXCLUDED_RETURN_REFUND_SCHEMES = new Set([
-  '\u50c5\u9000\u6b3e', // 僅退款
+  '\u50c5\u9000\u6b3e', // refund only
 ]);
 
-const AUTO_PICKUP_SHIPPING_METHOD = '\u5b89\u6392\u6536\u4ef6'; // 安排收件
+const AUTO_PICKUP_SHIPPING_METHOD = '\u5b89\u6392\u6536\u4ef6'; // auto pickup
 
 function normalizeImportRuleValue(value: string): string {
   return value.replace(/\s+/g, '');
@@ -108,45 +112,45 @@ function normalizeImportRuleValue(value: string): string {
 
 // Column mappings for Shopee export file
 const COLUMN_MAPPINGS: Record<string, ImportColumnKey> = {
-  '訂單編號': 'orderNumber',
-  '訂單號碼': 'orderNumber',
-  '訂單成立日期': 'orderDate',
-  '訂單成立時間': 'orderDate',
-  '訂單完成時間': 'orderDate',
-  '商品總價': 'totalPrice',
-  '商品合計': 'totalPrice',
-  '買家總支付金額': 'totalPrice',
-  '商品名稱': 'productName',
-  '產品名稱': 'productName',
-  '商品選項名稱': 'optionName',
-  '規格名稱': 'optionName',
-  '商品規格名稱': 'optionName',
-  '商品活動價格': 'activityPrice',
-  '活動價格': 'activityPrice',
-  '商品原價': 'activityPrice',
-  '商品選項貨號': 'optionSku',
-  '商品選項資號': 'optionSku',
-  '主商品資號': 'optionSku',
-  '賣家SKU': 'optionSku',
-  '商品選項貨號(賣家SKU)': 'optionSku',
+  '\u8a02\u55ae\u7de8\u865f': 'orderNumber',
+  '\u8766\u76ae\u8a02\u55ae\u7de8\u865f': 'orderNumber',
+  '\u8a02\u55ae\u865f\u78bc': 'orderNumber',
+  '\u8a02\u55ae\u65e5\u671f': 'orderDate',
+  '\u8a02\u55ae\u5efa\u7acb\u65e5\u671f': 'orderDate',
+  '\u8a02\u55ae\u6210\u7acb\u65e5\u671f': 'orderDate',
+  '\u5546\u54c1\u539f\u50f9': 'totalPrice',
+  '\u5546\u54c1\u7e3d\u50f9': 'totalPrice',
+  '\u8cb7\u5bb6\u539f\u59cb\u8a02\u55ae\u91d1\u984d': 'totalPrice',
+  '\u5546\u54c1\u540d\u7a31': 'productName',
+  '\u8ce3\u5834\u5546\u54c1\u540d\u7a31': 'productName',
+  '\u5546\u54c1\u898f\u683c': 'optionName',
+  '\u5546\u54c1\u898f\u683c\u540d\u7a31': 'optionName',
+  '\u5546\u54c1\u9078\u9805\u540d\u7a31': 'optionName',
+  '\u5546\u54c1\u6d3b\u52d5\u50f9\u683c': 'activityPrice',
+  '\u6d3b\u52d5\u50f9\u683c': 'activityPrice',
+  '\u6298\u6263\u5f8c\u91d1\u984d': 'activityPrice',
+  '\u5546\u54c1\u9078\u9805\u8ca8\u865f': 'optionSku',
+  '\u5546\u54c1\u9078\u9805\u8cc7\u865f': 'optionSku',
+  '\u5546\u54c1\u8ca8\u865f': 'optionSku',
+  '\u8ce3\u5bb6SKU': 'optionSku',
+  '\u5546\u54c1\u8ca8\u865f(\u8ce3\u5bb6SKU)': 'optionSku',
   'SKU': 'optionSku',
-  '貨號': 'optionSku',
-  '退貨數量': 'returnQuantity',
-  '數量': 'returnQuantity',
-  '退款數量': 'returnQuantity',
-  '寄件編號': 'trackingNumber',
-  '運單編號': 'trackingNumber',
-  '物流單號': 'trackingNumber',
-  '追蹤編號': 'trackingNumber',
-  '包裹查詢號碼': 'trackingNumber',
-  '退貨寄件編號': 'trackingNumber',
-  // New fields
-  '爭議申請期限': 'disputeDeadline',
-  '買家退款金額': 'refundAmount',
-  '退貨原因': 'returnReason',
-  '買家退貨備註': 'buyerNote',
-  '買家備註': 'buyerNote',
-  '退貨運送方式': 'shippingMethod',
+  '\u8ca8\u865f': 'optionSku',
+  '\u9000\u8ca8\u6578\u91cf': 'returnQuantity',
+  '\u6578\u91cf': 'returnQuantity',
+  '\u5546\u54c1\u6578\u91cf': 'returnQuantity',
+  '\u7269\u6d41\u55ae\u865f': 'trackingNumber',
+  '\u904b\u55ae\u7de8\u865f': 'trackingNumber',
+  '\u5305\u88f9\u67e5\u8a62\u865f\u78bc': 'trackingNumber',
+  '\u5bc4\u4ef6\u7de8\u865f': 'trackingNumber',
+  '\u9006\u7269\u6d41\u55ae\u865f': 'trackingNumber',
+  '\u9000\u8ca8\u5bc4\u4ef6\u7de8\u865f': 'trackingNumber',
+  '\u722d\u8b70\u7533\u8acb\u671f\u9650': 'disputeDeadline',
+  '\u8cb7\u5bb6\u9000\u6b3e\u91d1\u984d': 'refundAmount',
+  '\u9000\u8ca8\u539f\u56e0': 'returnReason',
+  '\u8cb7\u5bb6\u9000\u8ca8\u539f\u56e0\u8aaa\u660e': 'buyerNote',
+  '\u8cb7\u5bb6\u5099\u8a3b': 'buyerNote',
+  '\u9000\u8ca8\u904b\u9001\u65b9\u5f0f': 'shippingMethod',
   '\u9000\u8ca8 / \u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
   '\u9000\u8ca8/\u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
   '\u9000\u8ca8\u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
@@ -303,12 +307,24 @@ export default function ShopeeReturnsPage() {
     sortDirection,
   ]);
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredReturns.length / ITEMS_PER_PAGE);
-  const paginatedReturns = filteredReturns.slice(
+  const groupedReturns = useMemo(() => buildShopeeReturnGroups(returns), [returns]);
+  const groupedFilteredReturns = useMemo(
+    () => buildShopeeReturnGroups(filteredReturns),
+    [filteredReturns]
+  );
+
+  // Calculate pagination by grouped order rows
+  const totalPages = Math.ceil(groupedFilteredReturns.length / ITEMS_PER_PAGE);
+  const paginatedGroups = groupedFilteredReturns.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+  const paginatedGroupItemIds = paginatedGroups.flatMap((group) => group.itemIds);
+  const isAllPaginatedSelected =
+    paginatedGroupItemIds.length > 0 && paginatedGroupItemIds.every((id) => selectedIds.has(id));
+  const selectedGroupCount = groupedFilteredReturns.filter((group) =>
+    group.itemIds.every((id) => selectedIds.has(id))
+  ).length;
 
   // Handle column sort
   function handleSort(field: SortField) {
@@ -353,18 +369,18 @@ export default function ShopeeReturnsPage() {
     const fileName = file.name.toLowerCase();
     if (platform === 'shopee') {
       if (!fileName.includes('蝦皮') && !fileName.includes('shopee')) {
-        toast.error('蝦皮匯入只能匯入檔名包含「蝦皮」的檔案');
+        toast.error('請匯入蝦皮退貨檔，檔名需包含「蝦皮」或 shopee');
         e.target.value = '';
         return;
       }
       if (fileName.includes('商城') || fileName.includes('mall')) {
-        toast.error('此檔案應使用「商城匯入」功能');
+        toast.error('這份檔案看起來是商城資料，請改用「商城匯入」');
         e.target.value = '';
         return;
       }
     } else if (platform === 'mall') {
       if (!fileName.includes('商城') && !fileName.includes('mall')) {
-        toast.error('商城匯入只能匯入檔名包含「商城」的檔案');
+        toast.error('請匯入商城退貨檔，檔名需包含「商城」或 mall');
         e.target.value = '';
         return;
       }
@@ -380,7 +396,7 @@ export default function ShopeeReturnsPage() {
 
       const worksheet = workbook.worksheets[0];
       if (!worksheet || worksheet.rowCount < 2) {
-        toast.error('Excel 檔案沒有資料');
+        toast.error('Excel 內容格式不正確');
         setIsImporting(false);
         return;
       }
@@ -412,7 +428,7 @@ export default function ShopeeReturnsPage() {
       if (columnIndices.orderNumber === undefined) {
         const orderColIndex = headers.findIndex((h) => {
           const str = h?.toString() || '';
-          return str.includes('編號') || str.includes('訂單');
+          return str.includes('訂單') || str.includes('編號');
         });
         if (orderColIndex >= 0) {
           columnIndices.orderNumber = orderColIndex;
@@ -505,28 +521,28 @@ export default function ShopeeReturnsPage() {
         if (result.success && result.data) {
           const { imported, duplicates } = result.data;
           if (imported > 0) {
-            const skippedInfo = skippedByBusinessRules > 0 ? `，排除 ${skippedByBusinessRules} 筆（取消/撤回/僅退款）` : '';
-            const autoPickupInfo = autoPickupCount > 0 ? `，${autoPickupCount} 筆空白運送方式已改為「${AUTO_PICKUP_SHIPPING_METHOD}」` : '';
-            toast.success(`成功匯入 ${imported} 筆${platformLabel}資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複` : ''}${skippedInfo}${autoPickupInfo}`);
+            const skippedInfo = skippedByBusinessRules > 0 ? `，略過 ${skippedByBusinessRules} 筆不符合規則資料` : '';
+            const autoPickupInfo = autoPickupCount > 0 ? `，其中 ${autoPickupCount} 筆已自動補為「${AUTO_PICKUP_SHIPPING_METHOD}」` : '';
+            toast.success(`成功匯入 ${imported} 筆${platformLabel}退貨資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複資料` : ''}${skippedInfo}${autoPickupInfo}`);
             loadReturns();
           } else if (duplicates > 0) {
-            toast.info(`所有 ${duplicates} 筆資料都是重複的`);
+            toast.info(`共有 ${duplicates} 筆資料因重複而未匯入`);
           } else if (skippedByBusinessRules > 0) {
-            toast.info(`沒有可匯入資料：已排除 ${skippedByBusinessRules} 筆（取消/撤回/僅退款）`);
+            toast.info(`本次資料全部被略過，共 ${skippedByBusinessRules} 筆不符合規則`);
           }
         } else {
           toast.error(result.error || '匯入失敗');
         }
       } else {
-        toast.error(`無法解析資料，找到的欄位：${foundHeaders.slice(0, 5).join(', ')}${foundHeaders.length > 5 ? '...' : ''}`);
+        toast.error(`找不到可匯入的欄位，已辨識欄位：${foundHeaders.slice(0, 5).join(', ')}${foundHeaders.length > 5 ? '...' : ''}`);
       }
     } catch (error) {
       console.error('Import error:', error);
       const errorMsg = error instanceof Error ? error.message : '';
       if (errorMsg.includes('password') || errorMsg.includes('encrypt')) {
-        toast.error('檔案有密碼保護，請先解除密碼後再匯入');
+        toast.error('Excel 檔案似乎有保護或加密，請先解除後再匯入');
       } else {
-        toast.error('匯入失敗，請確認檔案格式');
+        toast.error('匯入失敗，請檢查 Excel 內容後再試一次');
       }
     }
 
@@ -536,115 +552,123 @@ export default function ShopeeReturnsPage() {
     if (mallFileRef.current) mallFileRef.current.value = '';
   }
 
-  async function toggleProcessed(id: string) {
-    const record = returns.find((r) => r.id === id);
-    if (!record) return;
+  async function updateGroupRows(
+    ids: string[],
+    updates: Parameters<typeof updateShopeeReturnStatus>[1]
+  ) {
+    const results = await Promise.all(ids.map((id) => updateShopeeReturnStatus(id, updates)));
+    const failed = results.find((result) => !result.success);
+    if (failed) {
+      toast.error(failed.error || '\u66f4\u65b0\u5931\u6557');
+      return false;
+    }
 
-    const result = await updateShopeeReturnStatus(id, { is_processed: !record.is_processed });
+    setReturns((prev) =>
+      prev.map((record) => (ids.includes(record.id) ? { ...record, ...updates } : record))
+    );
+    return true;
+  }
+
+  async function toggleProcessed(group: ShopeeReturnGroup) {
+    const nextProcessed = !group.isProcessed;
+    const result = await batchUpdateShopeeReturns(group.itemIds, { is_processed: nextProcessed });
     if (result.success) {
       setReturns((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, is_processed: !r.is_processed } : r
+        prev.map((record) =>
+          group.itemIds.includes(record.id) ? { ...record, is_processed: nextProcessed } : record
         )
       );
     } else {
-      toast.error(result.error || '更新失敗');
+      toast.error(result.error || '\u66f4\u65b0\u5931\u6557');
     }
   }
 
-  async function togglePrinted(id: string) {
-    const record = returns.find((r) => r.id === id);
-    if (!record) return;
-
-    const result = await updateShopeeReturnStatus(id, { is_printed: !record.is_printed });
+  async function togglePrinted(group: ShopeeReturnGroup) {
+    const nextPrinted = !group.isPrinted;
+    const result = await batchUpdateShopeeReturns(group.itemIds, { is_printed: nextPrinted });
     if (result.success) {
       setReturns((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, is_printed: !r.is_printed } : r
+        prev.map((record) =>
+          group.itemIds.includes(record.id) ? { ...record, is_printed: nextPrinted } : record
         )
       );
     } else {
-      toast.error(result.error || '更新失敗');
+      toast.error(result.error || '\u66f4\u65b0\u5931\u6557');
     }
   }
 
-  async function toggleInbound(id: string) {
-    const record = returns.find((r) => r.id === id);
-    if (!record) return;
-    const nextInbound = !record.is_inbound;
+  async function toggleInbound(group: ShopeeReturnGroup) {
+    const nextInbound = !group.isInbound;
     const now = new Date().toISOString();
-
-    const result = await updateShopeeReturnStatus(id, { is_inbound: nextInbound, inbound_at: nextInbound ? now : null });
-    if (result.success) {
-      setReturns((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, is_inbound: nextInbound, inbound_at: nextInbound ? now : null } : r
-        )
-      );
-    } else {
-      toast.error(result.error || '更新失敗');
-    }
+    await updateGroupRows(group.itemIds, {
+      is_inbound: nextInbound,
+      inbound_at: nextInbound ? now : null,
+    });
   }
 
-  const clearLocalNote = useCallback((id: string) => {
+  async function updateProcessedDate(group: ShopeeReturnGroup, processedAt: string | null) {
+    await updateGroupRows(group.itemIds, { processed_at: processedAt });
+  }
+
+  const clearLocalNote = useCallback((groupKey: string) => {
     setLocalNotes((prev) => {
-      if (prev[id] === undefined) return prev;
+      if (prev[groupKey] === undefined) return prev;
       const newNotes = { ...prev };
-      delete newNotes[id];
+      delete newNotes[groupKey];
       return newNotes;
     });
   }, []);
 
   const syncNote = useCallback(async (
-    id: string,
+    group: ShopeeReturnGroup,
     note: string,
     options?: { clearLocalOnSuccess?: boolean }
   ) => {
-    const result = await updateShopeeReturnStatus(id, { note });
-    if (result.success) {
+    const results = await Promise.all(
+      group.itemIds.map((id) => updateShopeeReturnStatus(id, { note }))
+    );
+    const failed = results.find((result) => !result.success);
+    if (!failed) {
       setReturns((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, note } : r
+        prev.map((record) =>
+          group.itemIds.includes(record.id) ? { ...record, note } : record
         )
       );
       if (options?.clearLocalOnSuccess) {
-        clearLocalNote(id);
+        clearLocalNote(group.groupKey);
       }
     } else {
-      toast.error(result.error || '備註更新失敗');
+      toast.error(failed.error || '\u5099\u8a3b\u66f4\u65b0\u5931\u6557');
     }
   }, [clearLocalNote]);
 
-  // Debounced note update to avoid excessive API calls
-  const debouncedUpdateNote = useCallback((id: string, note: string) => {
-    setLocalNotes((prev) => ({ ...prev, [id]: note }));
+  const debouncedUpdateNote = useCallback((groupKey: string, note: string) => {
+    setLocalNotes((prev) => ({ ...prev, [groupKey]: note }));
 
-    if (noteTimersRef.current[id]) {
-      clearTimeout(noteTimersRef.current[id]);
+    if (noteTimersRef.current[groupKey]) {
+      clearTimeout(noteTimersRef.current[groupKey]);
     }
 
-    noteTimersRef.current[id] = setTimeout(() => {
-      delete noteTimersRef.current[id];
-      void syncNote(id, note);
+    noteTimersRef.current[groupKey] = setTimeout(() => {
+      delete noteTimersRef.current[groupKey];
     }, 500);
-  }, [syncNote]);
+  }, []);
 
-  const flushNoteUpdate = useCallback((id: string, note: string) => {
-    if (noteTimersRef.current[id]) {
-      clearTimeout(noteTimersRef.current[id]);
-      delete noteTimersRef.current[id];
+  const flushNoteUpdate = useCallback((group: ShopeeReturnGroup, note: string) => {
+    if (noteTimersRef.current[group.groupKey]) {
+      clearTimeout(noteTimersRef.current[group.groupKey]);
+      delete noteTimersRef.current[group.groupKey];
     }
-    const currentNote = returns.find((r) => r.id === id)?.note || '';
+    const currentNote = group.note;
     if (note === currentNote) {
-      clearLocalNote(id);
+      clearLocalNote(group.groupKey);
       return;
     }
-    void syncNote(id, note, { clearLocalOnSuccess: true });
-  }, [clearLocalNote, returns, syncNote]);
+    void syncNote(group, note, { clearLocalOnSuccess: true });
+  }, [clearLocalNote, syncNote]);
 
-  // Get note value (prefer local state for responsiveness)
-  const getNoteValue = useCallback((record: ShopeeReturn) => {
-    return localNotes[record.id] !== undefined ? localNotes[record.id] : (record.note || '');
+  const getNoteValue = useCallback((group: ShopeeReturnGroup) => {
+    return localNotes[group.groupKey] !== undefined ? localNotes[group.groupKey] : group.note;
   }, [localNotes]);
 
   useEffect(() => {
@@ -655,19 +679,22 @@ export default function ShopeeReturnsPage() {
   }, []);
 
   function toggleSelectAll() {
-    if (selectedIds.size === paginatedReturns.length) {
-      setSelectedIds(new Set());
+    const newSelected = new Set(selectedIds);
+    if (isAllPaginatedSelected) {
+      paginatedGroupItemIds.forEach((id) => newSelected.delete(id));
     } else {
-      setSelectedIds(new Set(paginatedReturns.map((r) => r.id)));
+      paginatedGroupItemIds.forEach((id) => newSelected.add(id));
     }
+    setSelectedIds(newSelected);
   }
 
-  function toggleSelect(id: string) {
+  function toggleSelect(group: ShopeeReturnGroup) {
     const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
+    const isSelected = group.itemIds.every((id) => newSelected.has(id));
+    if (isSelected) {
+      group.itemIds.forEach((id) => newSelected.delete(id));
     } else {
-      newSelected.add(id);
+      group.itemIds.forEach((id) => newSelected.add(id));
     }
     setSelectedIds(newSelected);
   }
@@ -682,9 +709,9 @@ export default function ShopeeReturnsPage() {
         )
       );
       setSelectedIds(new Set());
-      toast.success(`已將 ${ids.length} 筆標記為${processed ? '已處理' : '未處理'}`);
+      toast.success(`已更新 ${ids.length} 筆商品為${processed ? '已處理' : '未處理'}`);
     } else {
-      toast.error(result.error || '更新失敗');
+      toast.error(result.error || '更新處理狀態失敗');
     }
   }
 
@@ -698,21 +725,21 @@ export default function ShopeeReturnsPage() {
         )
       );
       setSelectedIds(new Set());
-      toast.success(`已將 ${ids.length} 筆標記為${printed ? '已列印' : '未列印'}`);
+      toast.success(`已更新 ${ids.length} 筆商品為${printed ? '已列印' : '未列印'}`);
     } else {
-      toast.error(result.error || '更新失敗');
+      toast.error(result.error || '更新列印狀態失敗');
     }
   }
 
   async function handleDeleteSelected() {
-    if (!confirm(`確定要刪除選取的 ${selectedIds.size} 筆資料嗎？`)) return;
+    if (!confirm(`確定要刪除這 ${selectedIds.size} 筆商品資料嗎？`)) return;
 
     const ids = Array.from(selectedIds);
     const result = await deleteShopeeReturns(ids);
     if (result.success) {
       setReturns((prev) => prev.filter((r) => !selectedIds.has(r.id)));
       setSelectedIds(new Set());
-      toast.success('已刪除選取的資料');
+      toast.success('已刪除選取資料');
     } else {
       toast.error(result.error || '刪除失敗');
     }
@@ -726,9 +753,9 @@ export default function ShopeeReturnsPage() {
         prev.map((r) => (selectedIds.has(r.id) ? { ...r, color_tag: colorTag } : r))
       );
       setSelectedIds(new Set());
-      toast.success(colorTag ? `已標記為${COLOR_TAG_OPTIONS.find(o => o.value === colorTag)?.label}` : '已取消顏色標記');
+      toast.success(colorTag ? `已套用顏色標記：${COLOR_TAG_OPTIONS.find((o) => o.value === colorTag)?.label}` : '已清除顏色標記');
     } else {
-      toast.error(result.error || '標記失敗');
+      toast.error(result.error || '顏色標記更新失敗');
     }
   }
 
@@ -787,19 +814,19 @@ export default function ShopeeReturnsPage() {
     const printData = selectedReturns.length > 0 ? selectedReturns : filteredReturns.filter((r) => !r.is_processed);
 
     if (printData.length === 0) {
-      toast.error('沒有可列印的資料');
+      toast.error('\u6c92\u6709\u53ef\u5217\u5370\u7684\u8cc7\u6599');
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('無法開啟列印視窗，請允許彈出視窗');
+      toast.error('\u7121\u6cd5\u958b\u555f\u5217\u5370\u8996\u7a97\uff0c\u8acb\u78ba\u8a8d\u700f\u89bd\u5668\u5141\u8a31\u5f48\u51fa\u8996\u7a97');
       return;
     }
 
     const labels = printData.map((r) => {
       // Determine shipping display: directly use shipping_method field value
-      const shippingDisplay = r.shipping_method || '蝦皮';
+      const shippingDisplay = r.shipping_method || AUTO_PICKUP_SHIPPING_METHOD;
 
       return {
         orderNumber: r.order_number,
@@ -814,7 +841,7 @@ export default function ShopeeReturnsPage() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>退貨標籤 - ${format(new Date(), 'yyyy/MM/dd')}</title>
+        <title>\u8766\u76ae\u9000\u8ca8\u6a19\u7c64 - ${format(new Date(), 'yyyy/MM/dd')}</title>
         <style>
           @page { size: A4; margin: 5mm; }
           * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -840,7 +867,7 @@ export default function ShopeeReturnsPage() {
                 <div class="order-number">${label.orderNumber}</div>
                 <div class="tracking-number">${label.trackingNumber}</div>
               </div>
-              <div class="label-cell platform">${label.platform === 'mall' ? '商城' : '蝦皮'}</div>
+              <div class=\"label-cell platform\">${label.platform === 'mall' ? '\u5546\u57ce' : '\u8766\u76ae'}</div>
               <div class="label-cell date">${label.date}</div>
               <div class="label-cell shipping">${label.shippingDisplay}</div>
             </div>
@@ -865,12 +892,12 @@ export default function ShopeeReturnsPage() {
     }
   }
 
-  const unprocessedCount = returns.filter((r) => !r.is_processed).length;
-  const processedCount = returns.filter((r) => r.is_processed).length;
-  const scannedCount = returns.filter((r) => r.is_scanned).length;
-  const notScannedCount = returns.filter((r) => !r.is_scanned).length;
-  const inboundCount = returns.filter((r) => !!r.is_inbound).length;
-  const notInboundCount = returns.filter((r) => !r.is_inbound).length;
+  const unprocessedCount = groupedReturns.filter((group) => !group.isProcessed).length;
+  const processedCount = groupedReturns.filter((group) => group.isProcessed).length;
+  const scannedCount = groupedReturns.filter((group) => group.isScanned).length;
+  const notScannedCount = groupedReturns.filter((group) => !group.isScanned).length;
+  const inboundCount = groupedReturns.filter((group) => group.isInbound).length;
+  const notInboundCount = groupedReturns.filter((group) => !group.isInbound).length;
   const shippingMethodOptions = Array.from(
     new Set(
       returns
@@ -886,12 +913,11 @@ export default function ShopeeReturnsPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
             <ShoppingBag className="w-6 h-6 md:w-7 md:h-7" />
-            蝦皮退貨
+            {'\u8766\u76ae\u9000\u8ca8'}
           </h1>
-          <p className="text-sm text-muted-foreground">匯入蝦皮退貨訂單並管理處理</p>
+          <p className="text-sm text-muted-foreground">{'\u532f\u5165\u8766\u76ae\u9000\u8ca8\u8a02\u55ae\u4e26\u7ba1\u7406\u9000\u8ca8\u8655\u7406'}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* Hidden file inputs */}
           <input
             ref={shopeeFileRef}
             type="file"
@@ -906,7 +932,6 @@ export default function ShopeeReturnsPage() {
             onChange={(e) => handleFileUpload(e, 'mall')}
             className="hidden"
           />
-          {/* Shopee Import Button */}
           <Button
             variant="outline"
             size="sm"
@@ -919,9 +944,8 @@ export default function ShopeeReturnsPage() {
             ) : (
               <Upload className="w-4 h-4 mr-1" />
             )}
-            蝦皮匯入
+            {'\u8766\u76ae\u532f\u5165'}
           </Button>
-          {/* Mall Import Button */}
           <Button
             variant="outline"
             size="sm"
@@ -934,7 +958,7 @@ export default function ShopeeReturnsPage() {
             ) : (
               <Upload className="w-4 h-4 mr-1" />
             )}
-            商城匯入
+            {'\u5546\u57ce\u532f\u5165'}
           </Button>
           <Button
             variant="outline"
@@ -943,7 +967,7 @@ export default function ShopeeReturnsPage() {
             className="border-green-300 text-green-600 hover:bg-green-50"
           >
             <Plus className="w-4 h-4 mr-1" />
-            手動新增
+            {'\u624b\u52d5\u65b0\u589e'}
           </Button>
           <Button
             asChild
@@ -953,7 +977,7 @@ export default function ShopeeReturnsPage() {
           >
             <Link href="/shopee-returns/scan">
               <ScanLine className="w-4 h-4 mr-1" />
-              掃描工具
+              {'\u6383\u63cf\u5de5\u5177'}
             </Link>
           </Button>
           <Button
@@ -964,12 +988,12 @@ export default function ShopeeReturnsPage() {
           >
             <a href="/api/v1/admin/shopee-returns/export" target="_blank" rel="noreferrer">
               <Download className="w-4 h-4 mr-1" />
-              匯出
+              {'\u532f\u51fa'}
             </a>
           </Button>
           <Button size="sm" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-1" />
-            列印
+            {'\u5217\u5370'}
           </Button>
         </div>
       </div>
@@ -978,97 +1002,91 @@ export default function ShopeeReturnsPage() {
       <Card>
         <CardContent className="p-3 md:p-4">
           <div className="flex flex-col gap-3">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="搜尋訂單編號、寄件編號、商品名稱、貨號..."
+                placeholder={'\u641c\u5c0b\u8a02\u55ae\u7de8\u865f\u3001\u5bc4\u4ef6\u7de8\u865f\u3001\u5546\u54c1\u540d\u7a31\u3001\u8ca8\u865f...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
               />
             </div>
 
-            {/* Stats & Filters Row */}
             <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm">
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">總計:</span>
-                <Badge variant="secondary" className="text-xs">{returns.length}</Badge>
+                <span className="text-muted-foreground">{'\u7e3d\u8a08:'}</span>
+                <Badge variant="secondary" className="text-xs">{groupedReturns.length}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">未處理:</span>
+                <span className="text-muted-foreground">{'\u672a\u8655\u7406:'}</span>
                 <Badge className="bg-yellow-100 text-yellow-800 text-xs">{unprocessedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">已處理:</span>
+                <span className="text-muted-foreground">{'\u5df2\u8655\u7406:'}</span>
                 <Badge className="bg-green-100 text-green-800 text-xs">{processedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">已掃描:</span>
+                <span className="text-muted-foreground">{'\u5df2\u6383\u63cf:'}</span>
                 <Badge className="bg-blue-100 text-blue-800 text-xs">{scannedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">未掃描:</span>
+                <span className="text-muted-foreground">{'\u672a\u6383\u63cf:'}</span>
                 <Badge variant="outline" className="text-xs">{notScannedCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">已入庫:</span>
+                <span className="text-muted-foreground">{'\u5df2\u5165\u5eab:'}</span>
                 <Badge className="bg-cyan-100 text-cyan-800 text-xs">{inboundCount}</Badge>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">未入庫:</span>
+                <span className="text-muted-foreground">{'\u672a\u5165\u5eab:'}</span>
                 <Badge variant="outline" className="text-xs">{notInboundCount}</Badge>
               </div>
 
-              {/* Status Filter - moved here */}
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
                 <SelectTrigger className="w-[100px] h-7 text-xs">
                   <Filter className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="unprocessed">未處理</SelectItem>
-                  <SelectItem value="processed">已處理</SelectItem>
+                  <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
+                  <SelectItem value="unprocessed">{'\u672a\u8655\u7406'}</SelectItem>
+                  <SelectItem value="processed">{'\u5df2\u8655\u7406'}</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Stock Filter */}
               <Select value={inboundFilter} onValueChange={(v) => setInboundFilter(v as typeof inboundFilter)}>
                 <SelectTrigger className="w-[100px] h-7 text-xs">
                   <Package className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="inbound">已入庫</SelectItem>
-                  <SelectItem value="not_inbound">未入庫</SelectItem>
+                  <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
+                  <SelectItem value="inbound">{'\u5df2\u5165\u5eab'}</SelectItem>
+                  <SelectItem value="not_inbound">{'\u672a\u5165\u5eab'}</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Print Filter */}
               <Select value={printFilter} onValueChange={(v) => setPrintFilter(v as typeof printFilter)}>
                 <SelectTrigger className="w-[100px] h-7 text-xs">
                   <Printer className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="printed">已列印</SelectItem>
-                  <SelectItem value="not_printed">未列印</SelectItem>
+                  <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
+                  <SelectItem value="printed">{'\u5df2\u5217\u5370'}</SelectItem>
+                  <SelectItem value="not_printed">{'\u672a\u5217\u5370'}</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Platform Filter */}
               <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as typeof platformFilter)}>
                 <SelectTrigger className="w-[100px] h-7 text-xs">
                   <Store className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="shopee">蝦皮</SelectItem>
-                  <SelectItem value="mall">商城</SelectItem>
+                  <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
+                  <SelectItem value="shopee">{'\u8766\u76ae'}</SelectItem>
+                  <SelectItem value="mall">{'\u5546\u57ce'}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1087,53 +1105,54 @@ export default function ShopeeReturnsPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Bulk Actions */}
-          {selectedIds.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t">
-              <span className="text-xs text-muted-foreground">已選 {selectedIds.size} 筆：</span>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markSelectedAsProcessed(true)}>
-                <Check className="w-3 h-3 mr-1" />
-                已處理
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markSelectedAsProcessed(false)}>
-                <X className="w-3 h-3 mr-1" />
-                未處理
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={handleDeleteSelected}>
-                <Trash2 className="w-3 h-3 mr-1" />
-                刪除
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="h-7 text-xs">
-                    <Palette className="w-3 h-3 mr-1" />
-                    顏色標記
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleColorTag('yellow')} className="text-xs">
-                    <Circle className="w-3 h-3 mr-2 fill-yellow-400 text-yellow-400" />
-                    檢驗中
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleColorTag('red')} className="text-xs">
-                    <Circle className="w-3 h-3 mr-2 fill-red-400 text-red-400" />
-                    爭議中
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleColorTag('purple')} className="text-xs">
-                    <Circle className="w-3 h-3 mr-2 fill-purple-400 text-purple-400" />
-                    安排收件
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleColorTag(null)} className="text-xs text-muted-foreground">
-                    <X className="w-3 h-3 mr-2" />
-                    取消標記
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t">
+                <span className="text-xs text-muted-foreground">
+                  {`\u5df2\u9078 ${selectedGroupCount} \u55ae / ${selectedIds.size} \u7b46\u5546\u54c1`}
+                </span>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markSelectedAsProcessed(true)}>
+                  <Check className="w-3 h-3 mr-1" />
+                  {'\u5df2\u8655\u7406'}
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markSelectedAsProcessed(false)}>
+                  <X className="w-3 h-3 mr-1" />
+                  {'\u672a\u8655\u7406'}
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={handleDeleteSelected}>
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  {'\u522a\u9664'}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-7 text-xs">
+                      <Palette className="w-3 h-3 mr-1" />
+                      {'\u984f\u8272\u6a19\u8a18'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleColorTag('yellow')} className="text-xs">
+                      <Circle className="w-3 h-3 mr-2 fill-yellow-400 text-yellow-400" />
+                      {'\u6aa2\u9a57\u4e2d'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleColorTag('red')} className="text-xs">
+                      <Circle className="w-3 h-3 mr-2 fill-red-400 text-red-400" />
+                      {'\u722d\u8b70\u4e2d'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleColorTag('purple')} className="text-xs">
+                      <Circle className="w-3 h-3 mr-2 fill-purple-400 text-purple-400" />
+                      {'\u5b89\u6392\u6536\u4ef6'}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleColorTag(null)} className="text-xs text-muted-foreground">
+                      <X className="w-3 h-3 mr-2" />
+                      {'\u53d6\u6d88\u6a19\u8a18'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -1142,7 +1161,7 @@ export default function ShopeeReturnsPage() {
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-base flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5" />
-            退貨訂單列表
+            {'\u9000\u8ca8\u8a02\u55ae\u5217\u8868'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -1150,16 +1169,16 @@ export default function ShopeeReturnsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredReturns.length === 0 ? (
+          ) : groupedFilteredReturns.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground px-4">
               {returns.length === 0 ? (
                 <div>
                   <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>尚無資料</p>
-                  <p className="text-sm mt-2">點擊「匯入」上傳蝦皮退貨訂單</p>
+                  <p>{'\u5c1a\u7121\u9000\u8ca8\u8cc7\u6599'}</p>
+                  <p className="text-sm mt-2">{'\u4f60\u53ef\u4ee5\u5148\u4f7f\u7528\u4e0a\u65b9\u532f\u5165\u529f\u80fd\uff0c\u6216\u624b\u52d5\u65b0\u589e\u4e00\u7b46\u9000\u8ca8\u8a02\u55ae\u3002'}</p>
                 </div>
               ) : (
-                '找不到符合條件的資料'
+                '\u76ee\u524d\u7be9\u9078\u689d\u4ef6\u4e0b\u6c92\u6709\u7b26\u5408\u7684\u8cc7\u6599'
               )}
             </div>
           ) : (
@@ -1168,164 +1187,120 @@ export default function ShopeeReturnsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px] sticky left-0 bg-background">
-                      <Checkbox
-                        checked={selectedIds.size === paginatedReturns.length && paginatedReturns.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                      />
+                      <Checkbox checked={isAllPaginatedSelected} onCheckedChange={toggleSelectAll} />
                     </TableHead>
                     <TableHead className="w-[110px]">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        處理日期
+                        {'\u8655\u7406\u65e5\u671f'}
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="w-[70px] cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort('is_scanned')}
-                    >
+                    <TableHead className="w-[70px] cursor-pointer hover:bg-muted/50 select-none" onClick={() => handleSort('is_scanned')}>
                       <div className="flex items-center">
-                        掃描
+                        {'\u6383\u63cf'}
                         {getSortIcon('is_scanned')}
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="w-[60px]"
-                    >
-                      入庫
-                    </TableHead>
-                    <TableHead className="w-[60px]">狀態</TableHead>
-                    <TableHead className="w-[60px]">列印</TableHead>
-                    <TableHead className="w-[50px]">平台</TableHead>
-                    <TableHead className="min-w-[120px]">訂單編號</TableHead>
-                    <TableHead className="min-w-[120px]">退貨運送方式</TableHead>
-                    <TableHead className="min-w-[100px]">退貨寄件編號</TableHead>
-                    <TableHead className="w-[100px] hidden md:table-cell">爭議申請期限</TableHead>
-                    <TableHead className="min-w-[150px]">備註</TableHead>
+                    <TableHead className="w-[60px]">{'\u5165\u5eab'}</TableHead>
+                    <TableHead className="w-[60px]">{'\u72c0\u614b'}</TableHead>
+                    <TableHead className="w-[60px]">{'\u5217\u5370'}</TableHead>
+                    <TableHead className="w-[50px]">{'\u5e73\u53f0'}</TableHead>
+                    <TableHead className="min-w-[120px]">{'\u8a02\u55ae\u7de8\u865f'}</TableHead>
+                    <TableHead className="min-w-[120px]">{'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'}</TableHead>
+                    <TableHead className="min-w-[100px]">{'\u9000\u8ca8\u5bc4\u4ef6\u7de8\u865f'}</TableHead>
+                    <TableHead className="w-[100px] hidden md:table-cell">{'\u722d\u8b70\u7533\u8acb\u671f\u9650'}</TableHead>
+                    <TableHead className="min-w-[150px]">{'\u5099\u8a3b'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedReturns.map((record) => (
+                  {paginatedGroups.map((group) => (
                     <TableRow
-                      key={record.id}
+                      key={group.primaryId}
                       className={
-                        record.color_tag === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-400' :
-                        record.color_tag === 'red' ? 'bg-red-50 border-l-4 border-l-red-400' :
-                        record.color_tag === 'purple' ? 'bg-purple-50 border-l-4 border-l-purple-300' :
-                        record.is_processed ? 'bg-green-50' :
-                        record.is_inbound ? 'bg-blue-50/50' : ''
+                        group.colorTag === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-400' :
+                        group.colorTag === 'red' ? 'bg-red-50 border-l-4 border-l-red-400' :
+                        group.colorTag === 'purple' ? 'bg-purple-50 border-l-4 border-l-purple-300' :
+                        group.isProcessed ? 'bg-green-50' :
+                        group.isInbound ? 'bg-blue-50/50' : ''
                       }
                     >
                       <TableCell className="sticky left-0 bg-inherit">
                         <Checkbox
-                          checked={selectedIds.has(record.id)}
-                          onCheckedChange={() => toggleSelect(record.id)}
+                          checked={group.itemIds.every((id) => selectedIds.has(id))}
+                          onCheckedChange={() => toggleSelect(group)}
                         />
                       </TableCell>
                       <TableCell>
                         <input
                           type="date"
                           className="text-xs border rounded px-1 py-1 w-full max-w-[110px] cursor-pointer"
-                          defaultValue={record.processed_at ? record.processed_at.slice(0, 10) : ''}
+                          defaultValue={group.processedAt ? group.processedAt.slice(0, 10) : ''}
                           onChange={async (e) => {
                             const newDate = e.target.value || null;
-                            const result = await updateShopeeReturnStatus(record.id, { processed_at: newDate });
-                            if (result.success) {
-                              setReturns((prev) =>
-                                prev.map((r) =>
-                                  r.id === record.id ? { ...r, processed_at: newDate } : r
-                                )
-                              );
-                            } else {
-                              toast.error('更新處理日期失敗');
-                            }
+                            await updateProcessedDate(group, newDate);
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        {record.is_scanned ? (
-                          <Badge className="bg-indigo-100 text-indigo-800 text-[10px] px-1">
-                            已掃描
-                          </Badge>
+                        {group.isScanned ? (
+                          <Badge className="bg-indigo-100 text-indigo-800 text-[10px] px-1">{'\u5df2\u6383\u63cf'}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">
-                            未掃描
-                          </Badge>
+                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">{'\u672a\u6383\u63cf'}</Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => toggleInbound(record.id)} className="flex items-center">
-                          {record.is_inbound ? (
-                            <Badge className="bg-blue-100 text-blue-800 cursor-pointer text-[10px] px-1">
-                              已入庫
-                            </Badge>
+                        <button onClick={() => toggleInbound(group)} className="flex items-center">
+                          {group.isInbound ? (
+                            <Badge className="bg-blue-100 text-blue-800 cursor-pointer text-[10px] px-1">{'\u5df2\u5165\u5eab'}</Badge>
                           ) : (
-                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">
-                              未入庫
-                            </Badge>
+                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">{'\u672a\u5165\u5eab'}</Badge>
                           )}
                         </button>
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => toggleProcessed(record.id)} className="flex items-center">
-                          {record.is_processed ? (
-                            <Badge className="bg-green-100 text-green-800 cursor-pointer text-[10px] px-1">
-                              已處理
-                            </Badge>
+                        <button onClick={() => toggleProcessed(group)} className="flex items-center">
+                          {group.isProcessed ? (
+                            <Badge className="bg-green-100 text-green-800 cursor-pointer text-[10px] px-1">{'\u5df2\u8655\u7406'}</Badge>
                           ) : (
-                            <Badge variant="outline" className="cursor-pointer text-yellow-700 border-yellow-300 text-[10px] px-1">
-                              未處理
-                            </Badge>
+                            <Badge variant="outline" className="cursor-pointer text-yellow-700 border-yellow-300 text-[10px] px-1">{'\u672a\u8655\u7406'}</Badge>
                           )}
                         </button>
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => togglePrinted(record.id)} className="flex items-center">
-                          {record.is_printed ? (
-                            <Badge className="bg-purple-100 text-purple-800 cursor-pointer text-[10px] px-1">
-                              已列印
-                            </Badge>
+                        <button onClick={() => togglePrinted(group)} className="flex items-center">
+                          {group.isPrinted ? (
+                            <Badge className="bg-purple-100 text-purple-800 cursor-pointer text-[10px] px-1">{'\u5df2\u5217\u5370'}</Badge>
                           ) : (
-                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">
-                              未列印
-                            </Badge>
+                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">{'\u672a\u5217\u5370'}</Badge>
                           )}
                         </button>
                       </TableCell>
-                      <TableCell className="text-xs text-center">
-                        {record.platform === 'mall' ? '商城' : '蝦皮'}
-                      </TableCell>
+                      <TableCell className="text-xs text-center">{group.platform === 'mall' ? '\u5546\u57ce' : '\u8766\u76ae'}</TableCell>
                       <TableCell className="font-mono text-xs">
-                        <Link
-                          href={`/shopee-returns/${record.id}`}
-                          className="underline underline-offset-2 hover:text-primary"
-                        >
-                          {record.order_number}
+                        <Link href={`/shopee-returns/${group.primaryId}`} className="underline underline-offset-2 hover:text-primary">
+                          {group.orderNumber}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {record.shipping_method || AUTO_PICKUP_SHIPPING_METHOD}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {record.tracking_number || '-'}
-                      </TableCell>
-                      <TableCell className="text-xs hidden md:table-cell">{record.dispute_deadline || '-'}</TableCell>
+                      <TableCell className="text-xs">{group.shippingMethod || AUTO_PICKUP_SHIPPING_METHOD}</TableCell>
+                      <TableCell className="font-mono text-xs">{group.trackingNumber || '-'}</TableCell>
+                      <TableCell className="text-xs hidden md:table-cell">{group.disputeDeadline || '-'}</TableCell>
                       <TableCell>
                         <div className="relative group/note">
                           <Input
-                            placeholder="輸入備註..."
-                            value={getNoteValue(record)}
+                            placeholder={'\u8f38\u5165\u5099\u8a3b...'}
+                            value={getNoteValue(group)}
                             className="text-xs h-8 min-w-[120px]"
-                            onChange={(e) => debouncedUpdateNote(record.id, e.target.value)}
-                            onBlur={(e) => flushNoteUpdate(record.id, e.target.value)}
+                            onChange={(e) => debouncedUpdateNote(group.groupKey, e.target.value)}
+                            onBlur={(e) => flushNoteUpdate(group, e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.currentTarget.blur();
                               }
                             }}
                           />
-                          {getNoteValue(record) && getNoteValue(record).length > 10 && (
+                          {getNoteValue(group) && getNoteValue(group).length > 10 && (
                             <div className="invisible group-hover/note:visible absolute z-50 bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-[300px] whitespace-pre-wrap break-words pointer-events-none">
-                              {getNoteValue(record)}
+                              {getNoteValue(group)}
                               <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
                             </div>
                           )}
@@ -1336,19 +1311,13 @@ export default function ShopeeReturnsPage() {
                 </TableBody>
               </Table>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t">
                   <div className="text-sm text-muted-foreground">
-                    顯示 {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredReturns.length)} 筆，共 {filteredReturns.length} 筆
+                    {`\u986f\u793a\u7b2c ${(currentPage - 1) * ITEMS_PER_PAGE + 1} - ${Math.min(currentPage * ITEMS_PER_PAGE, groupedFilteredReturns.length)} \u55ae\uff0c\u5171 ${groupedFilteredReturns.length} \u55ae`}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
                     <div className="flex items-center gap-1">
@@ -1366,7 +1335,7 @@ export default function ShopeeReturnsPage() {
                         return (
                           <Button
                             key={pageNum}
-                            variant={currentPage === pageNum ? "default" : "outline"}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
                             size="sm"
                             className="w-8 h-8 p-0"
                             onClick={() => setCurrentPage(pageNum)}
@@ -1376,12 +1345,7 @@ export default function ShopeeReturnsPage() {
                         );
                       })}
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
@@ -1480,3 +1444,4 @@ export default function ShopeeReturnsPage() {
     </div>
   );
 }
+

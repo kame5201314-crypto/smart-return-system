@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,9 +26,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-
 import {
-  getShopeeReturnById,
+  getShopeeReturnGroupById,
   updateShopeeReturn,
   updateShopeeReturnStatus,
   type ShopeeReturn,
@@ -58,7 +57,7 @@ function getPlatformLabel(platform: ShopeeReturn['platform']): string {
   return '-';
 }
 
-function formatDateTime(dateString: string | null): string {
+function formatDateTime(dateString: string | null | undefined): string {
   if (!dateString) return '-';
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return '-';
@@ -97,112 +96,167 @@ function buildEditForm(record: ShopeeReturn): EditFormState {
   };
 }
 
+function buildDraftMap(items: ShopeeReturn[], key: 'note' | 'return_reason_note'): Record<string, string> {
+  return Object.fromEntries(items.map((item) => [item.id, item[key] || '']));
+}
+
+function pickSharedDateValue(items: ShopeeReturn[], key: 'scanned_at' | 'inbound_at' | 'processed_at'): string | null {
+  if (items.length === 0) return null;
+  const firstValue = items[0][key] || null;
+  const allSame = items.every((item) => (item[key] || null) === firstValue);
+  if (allSame) {
+    return firstValue;
+  }
+
+  const sorted = items
+    .map((item) => item[key])
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+  return sorted[0] || null;
+}
+
 export default function ShopeeReturnDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string | undefined;
 
   const [record, setRecord] = useState<ShopeeReturn | null>(null);
+  const [groupItems, setGroupItems] = useState<ShopeeReturn[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'inbound' | 'processed' | 'printed' | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
-  const [returnReasonNoteDraft, setReturnReasonNoteDraft] = useState('');
-  const [updatingNote, setUpdatingNote] = useState(false);
-  const [updatingReturnReasonNote, setUpdatingReturnReasonNote] = useState(false);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [returnReasonNoteDrafts, setReturnReasonNoteDrafts] = useState<Record<string, string>>({});
+  const [updatingNoteId, setUpdatingNoteId] = useState<string | null>(null);
+  const [updatingReturnReasonNoteId, setUpdatingReturnReasonNoteId] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
 
+  const loadOrderGroup = useCallback(async (recordId: string) => {
+    setLoading(true);
+    const result = await getShopeeReturnGroupById(recordId);
+
+    if (result.success && result.data) {
+      setRecord(result.data.primary);
+      setGroupItems(result.data.items);
+      setNoteDrafts(buildDraftMap(result.data.items, 'note'));
+      setReturnReasonNoteDrafts(buildDraftMap(result.data.items, 'return_reason_note'));
+    } else {
+      toast.error(result.error || '找不到退貨資料');
+      setRecord(null);
+      setGroupItems([]);
+    }
+
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     if (!id) return;
     const recordId = id;
-
     let cancelled = false;
-    async function load() {
-      setLoading(true);
-      const result = await getShopeeReturnById(recordId);
-      if (cancelled) return;
 
-      if (result.success && result.data) {
-        setRecord(result.data);
-        setNoteDraft(result.data.note || '');
-        setReturnReasonNoteDraft(result.data.return_reason_note || '');
-      } else {
-        toast.error(result.error || '載入失敗');
-      }
-      setLoading(false);
+    async function load() {
+      if (cancelled) return;
+      await loadOrderGroup(recordId);
     }
 
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, loadOrderGroup]);
 
-  async function toggleStatus(type: 'scanned' | 'inbound' | 'processed' | 'printed') {
-    if (!record || updatingStatus) return;
+  const orderItems = useMemo(() => {
+    if (groupItems.length > 0) return groupItems;
+    return record ? [record] : [];
+  }, [groupItems, record]);
+
+  const orderIsScanned = orderItems.length > 0 && orderItems.every((item) => item.is_scanned);
+  const orderIsInbound = orderItems.length > 0 && orderItems.every((item) => !!item.is_inbound);
+  const orderIsProcessed = orderItems.length > 0 && orderItems.every((item) => item.is_processed);
+  const orderIsPrinted = orderItems.length > 0 && orderItems.every((item) => item.is_printed);
+  const orderScannedAt = pickSharedDateValue(orderItems, 'scanned_at');
+  const orderInboundAt = pickSharedDateValue(orderItems, 'inbound_at');
+  const orderProcessedAt = pickSharedDateValue(orderItems, 'processed_at');
+  const totalRefundAmount = orderItems.reduce((sum, item) => sum + (item.refund_amount || 0), 0);
+  const totalReturnQuantity = orderItems.reduce((sum, item) => sum + (item.return_quantity || 0), 0);
+
+  async function updateOrderStatus(type: 'scanned' | 'inbound' | 'processed' | 'printed') {
+    if (orderItems.length === 0 || updatingStatus) return;
 
     setUpdatingStatus(type);
-
     const now = new Date().toISOString();
     const updates =
       type === 'scanned'
-        ? { is_scanned: !record.is_scanned, scanned_at: !record.is_scanned ? now : null }
+        ? { is_scanned: !orderIsScanned, scanned_at: !orderIsScanned ? now : null }
         : type === 'inbound'
-          ? { is_inbound: !record.is_inbound, inbound_at: !record.is_inbound ? now : null }
-        : type === 'processed'
-          ? { is_processed: !record.is_processed, processed_at: !record.is_processed ? now : null }
-          : { is_printed: !record.is_printed };
+          ? { is_inbound: !orderIsInbound, inbound_at: !orderIsInbound ? now : null }
+          : type === 'processed'
+            ? { is_processed: !orderIsProcessed, processed_at: !orderIsProcessed ? now : null }
+            : { is_printed: !orderIsPrinted };
 
-    const result = await updateShopeeReturnStatus(record.id, updates);
+    const ids = orderItems.map((item) => item.id);
+    const results = await Promise.all(ids.map((itemId) => updateShopeeReturnStatus(itemId, updates)));
+    const failed = results.find((result) => !result.success);
 
-    if (result.success) {
-      setRecord((prev) => (prev ? { ...prev, ...updates } : prev));
-      toast.success('狀態已更新');
-    } else {
-      toast.error(result.error || '狀態更新失敗');
+    if (failed) {
+      toast.error(failed.error || '更新狀態失敗');
+      setUpdatingStatus(null);
+      return;
     }
 
+    setRecord((prev) => (prev ? { ...prev, ...updates } : prev));
+    setGroupItems((prev) => prev.map((item) => (ids.includes(item.id) ? { ...item, ...updates } : item)));
+    toast.success('訂單狀態已更新');
     setUpdatingStatus(null);
   }
 
-  async function saveNote() {
-    if (!record || updatingNote) return;
-    const currentNote = record.note || '';
-    if (noteDraft === currentNote) return;
+  async function saveItemNote(item: ShopeeReturn) {
+    if (updatingNoteId) return;
 
-    setUpdatingNote(true);
-    const result = await updateShopeeReturnStatus(record.id, { note: noteDraft });
+    const nextNote = noteDrafts[item.id] ?? '';
+    const currentNote = item.note || '';
+    if (nextNote === currentNote) return;
+
+    setUpdatingNoteId(item.id);
+    const result = await updateShopeeReturnStatus(item.id, { note: nextNote });
 
     if (result.success) {
-      setRecord((prev) => (prev ? { ...prev, note: noteDraft } : prev));
-      toast.success('備註已更新');
+      setGroupItems((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, note: nextNote } : entry)));
+      setRecord((prev) => (prev && prev.id === item.id ? { ...prev, note: nextNote } : prev));
+      toast.success('管理備註已儲存');
     } else {
-      setNoteDraft(currentNote);
-      toast.error(result.error || '備註更新失敗');
+      setNoteDrafts((prev) => ({ ...prev, [item.id]: currentNote }));
+      toast.error(result.error || '管理備註儲存失敗');
     }
 
-    setUpdatingNote(false);
+    setUpdatingNoteId(null);
   }
 
-  async function saveReturnReasonNote() {
-    if (!record || updatingReturnReasonNote) return;
-    const currentReasonNote = record.return_reason_note || '';
-    if (returnReasonNoteDraft === currentReasonNote) return;
+  async function saveItemReturnReasonNote(item: ShopeeReturn) {
+    if (updatingReturnReasonNoteId) return;
 
-    setUpdatingReturnReasonNote(true);
-    const result = await updateShopeeReturnStatus(record.id, { return_reason_note: returnReasonNoteDraft });
+    const nextValue = returnReasonNoteDrafts[item.id] ?? '';
+    const currentValue = item.return_reason_note || '';
+    if (nextValue === currentValue) return;
+
+    setUpdatingReturnReasonNoteId(item.id);
+    const result = await updateShopeeReturnStatus(item.id, { return_reason_note: nextValue });
 
     if (result.success) {
-      setRecord((prev) => (prev ? { ...prev, return_reason_note: returnReasonNoteDraft } : prev));
+      setGroupItems((prev) =>
+        prev.map((entry) => (entry.id === item.id ? { ...entry, return_reason_note: nextValue } : entry))
+      );
+      setRecord((prev) => (prev && prev.id === item.id ? { ...prev, return_reason_note: nextValue } : prev));
       toast.success('退貨原因備註已儲存');
     } else {
-      setReturnReasonNoteDraft(currentReasonNote);
+      setReturnReasonNoteDrafts((prev) => ({ ...prev, [item.id]: currentValue }));
       toast.error(result.error || '退貨原因備註儲存失敗');
     }
 
-    setUpdatingReturnReasonNote(false);
+    setUpdatingReturnReasonNoteId(null);
   }
 
   function updateEditField<K extends keyof EditFormState>(key: K, value: EditFormState[K]) {
@@ -226,7 +280,7 @@ export default function ShopeeReturnDetailPage() {
 
     const quantity = Number(editForm.returnQuantity);
     if (!Number.isInteger(quantity) || quantity < 1) {
-      toast.error('數量必須為正整數');
+      toast.error('退貨數量必須是大於 0 的整數');
       return;
     }
 
@@ -241,7 +295,6 @@ export default function ShopeeReturnDetailPage() {
     }
 
     setSavingEdit(true);
-
     const result = await updateShopeeReturn(record.id, {
       platform: editForm.platform,
       orderNumber,
@@ -261,13 +314,11 @@ export default function ShopeeReturnDetailPage() {
     });
 
     if (result.success && result.data) {
-      setRecord(result.data);
-      setNoteDraft(result.data.note || '');
-      setReturnReasonNoteDraft(result.data.return_reason_note || '');
+      await loadOrderGroup(result.data.id);
       setEditOpen(false);
-      toast.success('內容已更新');
+      toast.success('退貨資料已更新');
     } else {
-      toast.error(result.error || '更新失敗');
+      toast.error(result.error || '更新退貨資料失敗');
     }
 
     setSavingEdit(false);
@@ -277,18 +328,13 @@ export default function ShopeeReturnDetailPage() {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="px-0"
-          >
+          <Button variant="ghost" size="sm" onClick={() => router.back()} className="px-0">
             <ArrowLeft className="w-4 h-4 mr-1" />
             返回
           </Button>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">退貨訂單明細</h1>
-            <p className="text-sm text-muted-foreground">查看與編輯退貨金額、規格、貨號等資訊</p>
+            <h1 className="text-xl md:text-2xl font-bold">蝦皮退貨訂單明細</h1>
+            <p className="text-sm text-muted-foreground">同訂單的退貨商品會在同一頁顯示，方便一起檢視與處理。</p>
           </div>
         </div>
       </div>
@@ -299,7 +345,7 @@ export default function ShopeeReturnDetailPage() {
           {!loading && record && (
             <Button variant="outline" size="sm" onClick={openEditDialog}>
               <Pencil className="w-4 h-4 mr-1" />
-              編輯內容
+              編輯主項資料
             </Button>
           )}
         </CardHeader>
@@ -309,18 +355,18 @@ export default function ShopeeReturnDetailPage() {
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
           ) : !record ? (
-            <div className="py-12 text-center text-muted-foreground">找不到資料</div>
+            <div className="py-12 text-center text-muted-foreground">找不到退貨資料</div>
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => toggleStatus('scanned')}
+                    onClick={() => void updateOrderStatus('scanned')}
                     disabled={!!updatingStatus}
                     className="disabled:opacity-60"
                   >
-                    {record.is_scanned ? (
+                    {orderIsScanned ? (
                       <Badge className="bg-indigo-100 text-indigo-800 cursor-pointer">
                         {updatingStatus === 'scanned' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
                         已掃描
@@ -335,11 +381,11 @@ export default function ShopeeReturnDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => toggleStatus('inbound')}
+                    onClick={() => void updateOrderStatus('inbound')}
                     disabled={!!updatingStatus}
                     className="disabled:opacity-60"
                   >
-                    {record.is_inbound ? (
+                    {orderIsInbound ? (
                       <Badge className="bg-blue-100 text-blue-800 cursor-pointer">
                         {updatingStatus === 'inbound' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
                         已入庫
@@ -354,11 +400,11 @@ export default function ShopeeReturnDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => toggleStatus('processed')}
+                    onClick={() => void updateOrderStatus('processed')}
                     disabled={!!updatingStatus}
                     className="disabled:opacity-60"
                   >
-                    {record.is_processed ? (
+                    {orderIsProcessed ? (
                       <Badge className="bg-green-100 text-green-800 cursor-pointer">
                         {updatingStatus === 'processed' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
                         已處理
@@ -373,11 +419,11 @@ export default function ShopeeReturnDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => toggleStatus('printed')}
+                    onClick={() => void updateOrderStatus('printed')}
                     disabled={!!updatingStatus}
                     className="disabled:opacity-60"
                   >
-                    {record.is_printed ? (
+                    {orderIsPrinted ? (
                       <Badge className="bg-purple-100 text-purple-800 cursor-pointer">
                         {updatingStatus === 'printed' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
                         已列印
@@ -391,21 +437,19 @@ export default function ShopeeReturnDetailPage() {
                   </button>
 
                   {record.color_tag === 'yellow' && (
-                    <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300">顏色標籤: 黃</Badge>
+                    <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300">顏色標記：檢驗中</Badge>
                   )}
                   {record.color_tag === 'red' && (
-                    <Badge className="bg-red-100 text-red-800 border border-red-300">顏色標籤: 紅</Badge>
+                    <Badge className="bg-red-100 text-red-800 border border-red-300">顏色標記：爭議中</Badge>
                   )}
                   {record.color_tag === 'purple' && (
-                    <Badge className="bg-purple-100 text-purple-800 border border-purple-300">
-                      {'\u986f\u8272\u6a19\u8a18: \u5b89\u6392\u6536\u4ef6'}
-                    </Badge>
+                    <Badge className="bg-purple-100 text-purple-800 border border-purple-300">顏色標記：安排收件</Badge>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  掃描時間：{formatDateTime(record.scanned_at)} ｜ 入庫時間：{formatDateTime(record.inbound_at || null)} ｜ 已處理時間：{formatDateTime(record.processed_at)}
+                  掃描時間：{formatDateTime(orderScannedAt)} ｜ 入庫時間：{formatDateTime(orderInboundAt)} ｜ 已處理時間：{formatDateTime(orderProcessedAt)}
                 </div>
-                <div className="text-xs text-muted-foreground">點選上方狀態可切換。</div>
+                <div className="text-xs text-muted-foreground">同一訂單共 {orderItems.length} 項退貨商品，點選上方狀態會一起切換。</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -433,6 +477,14 @@ export default function ShopeeReturnDetailPage() {
                   <div className="text-xs text-muted-foreground">爭議申請期限</div>
                   <div className="text-sm">{record.dispute_deadline || '-'}</div>
                 </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">總退款金額</div>
+                  <div className="text-sm font-medium">{totalRefundAmount > 0 ? `$${totalRefundAmount.toLocaleString()}` : '-'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">總退貨數量</div>
+                  <div className="text-sm font-medium">{totalReturnQuantity}</div>
+                </div>
               </div>
             </div>
           )}
@@ -449,63 +501,79 @@ export default function ShopeeReturnDetailPage() {
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
           ) : !record ? (
-            <div className="py-12 text-center text-muted-foreground">找不到資料</div>
+            <div className="py-12 text-center text-muted-foreground">找不到退貨資料</div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <div className="text-xs text-muted-foreground">買家退款金額</div>
-                <div className="text-sm font-medium">
-                  {record.refund_amount != null ? `$${record.refund_amount.toLocaleString()}` : '-'}
+            <div className="space-y-6">
+              {orderItems.map((item, index) => (
+                <div key={item.id} className="rounded-xl border p-4 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-semibold">第 {index + 1} 項商品</div>
+                      <div className="text-xs text-muted-foreground font-mono">{item.id}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.option_sku || item.option_name || item.product_name || '-'}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <div className="text-xs text-muted-foreground">買家退款金額</div>
+                      <div className="text-sm font-medium">
+                        {item.refund_amount != null ? `$${item.refund_amount.toLocaleString()}` : '-'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">數量</div>
+                      <div className="text-sm font-medium">{item.return_quantity}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">商品名稱</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{item.product_name || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">商品規格名稱</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{item.option_name || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">貨號</div>
+                      <div className="text-sm font-mono">{item.option_sku || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">退貨原因</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{item.return_reason || '-'}</div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <div className="text-xs text-muted-foreground">買家備註</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{item.buyer_note || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
+                      <Textarea
+                        value={noteDrafts[item.id] ?? ''}
+                        placeholder="輸入備註..."
+                        className="mt-1 min-h-[84px] text-sm"
+                        disabled={updatingNoteId === item.id}
+                        onChange={(event) => setNoteDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                        onBlur={() => void saveItemNote(item)}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">退貨原因備註（離開欄位後自動儲存）</div>
+                      <Textarea
+                        value={returnReasonNoteDrafts[item.id] ?? ''}
+                        placeholder="輸入退貨原因備註..."
+                        className="mt-1 min-h-[84px] text-sm"
+                        disabled={updatingReturnReasonNoteId === item.id}
+                        onChange={(event) =>
+                          setReturnReasonNoteDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
+                        }
+                        onBlur={() => void saveItemReturnReasonNote(item)}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">數量</div>
-                <div className="text-sm font-medium">{record.return_quantity}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">商品名稱</div>
-                <div className="text-sm">{record.product_name || '-'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">商品規格名稱</div>
-                <div className="text-sm">{record.option_name || '-'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">貨號</div>
-                <div className="text-sm font-mono">{record.option_sku || '-'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">退貨原因</div>
-                <div className="text-sm">{record.return_reason || '-'}</div>
-              </div>
-              <div className="md:col-span-2">
-                <div className="text-xs text-muted-foreground">買家備註</div>
-                <div className="text-sm whitespace-pre-wrap break-words">{record.buyer_note || '-'}</div>
-              </div>
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
-                  <Textarea
-                    value={noteDraft}
-                    placeholder="輸入備註..."
-                    className="mt-1 min-h-[84px] text-sm"
-                    disabled={updatingNote}
-                    onChange={(event) => setNoteDraft(event.target.value)}
-                    onBlur={saveNote}
-                  />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">退貨原因備註（離開欄位後自動儲存）</div>
-                  <Textarea
-                    value={returnReasonNoteDraft}
-                    placeholder="輸入退貨原因備註..."
-                    className="mt-1 min-h-[84px] text-sm"
-                    disabled={updatingReturnReasonNote}
-                    onChange={(event) => setReturnReasonNoteDraft(event.target.value)}
-                    onBlur={saveReturnReasonNote}
-                  />
-                </div>
-              </div>
+              ))}
             </div>
           )}
         </CardContent>
@@ -514,8 +582,8 @@ export default function ShopeeReturnDetailPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle>編輯退貨內容</DialogTitle>
-            <DialogDescription>可修改平台、訂單資訊、商品與備註內容。</DialogDescription>
+            <DialogTitle>編輯主項退貨資料</DialogTitle>
+            <DialogDescription>此視窗編輯目前開啟的主要品項資料；同訂單其他商品仍可在下方明細區個別備註。</DialogDescription>
           </DialogHeader>
 
           {!editForm ? null : (
@@ -637,29 +705,17 @@ export default function ShopeeReturnDetailPage() {
 
               <div className="space-y-1">
                 <Label>買家備註</Label>
-                <Textarea
-                  rows={2}
-                  value={editForm.buyerNote}
-                  onChange={(event) => updateEditField('buyerNote', event.target.value)}
-                />
+                <Textarea rows={2} value={editForm.buyerNote} onChange={(event) => updateEditField('buyerNote', event.target.value)} />
               </div>
 
               <div className="space-y-1">
                 <Label>管理備註</Label>
-                <Textarea
-                  rows={2}
-                  value={editForm.note}
-                  onChange={(event) => updateEditField('note', event.target.value)}
-                />
+                <Textarea rows={2} value={editForm.note} onChange={(event) => updateEditField('note', event.target.value)} />
               </div>
 
               <div className="space-y-1">
                 <Label>退貨原因備註</Label>
-                <Textarea
-                  rows={2}
-                  value={editForm.returnReasonNote}
-                  onChange={(event) => updateEditField('returnReasonNote', event.target.value)}
-                />
+                <Textarea rows={2} value={editForm.returnReasonNote} onChange={(event) => updateEditField('returnReasonNote', event.target.value)} />
               </div>
             </div>
           )}
@@ -668,8 +724,15 @@ export default function ShopeeReturnDetailPage() {
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
               取消
             </Button>
-            <Button onClick={saveEdit} disabled={savingEdit || !editForm}>
-              {savingEdit ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />儲存中...</> : '儲存'}
+            <Button onClick={() => void saveEdit()} disabled={savingEdit || !editForm}>
+              {savingEdit ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  儲存中...
+                </>
+              ) : (
+                '儲存'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

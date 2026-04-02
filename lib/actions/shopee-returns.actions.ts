@@ -38,6 +38,11 @@ export interface ShopeeReturn {
   updated_at: string;
 }
 
+export interface ShopeeReturnOrderGroup {
+  primary: ShopeeReturn;
+  items: ShopeeReturn[];
+}
+
 export type ColorTag = 'yellow' | 'red' | 'purple' | null;
 
 export interface ShopeeReturnInput {
@@ -337,6 +342,59 @@ export async function getShopeeReturnById(id: string): Promise<ApiResponse<Shope
     console.error('Get shopee return by id error:', error);
     const msg = error instanceof Error ? error.message : '未知錯誤';
     return { success: false, error: `載入失敗: ${msg}` };
+  }
+}
+
+/**
+ * Get all shopee return rows for the same order as the target row
+ */
+export async function getShopeeReturnGroupById(id: string): Promise<ApiResponse<ShopeeReturnOrderGroup>> {
+  try {
+    const supabase = createUntypedAdminClient();
+
+    const { data: primaryRow, error: primaryError } = await supabase
+      .from('shopee_returns')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (primaryError || !primaryRow) {
+      return { success: false, error: `\u8b80\u53d6\u8766\u76ae\u9000\u8ca8\u8cc7\u6599\u5931\u6557: ${primaryError?.message || 'Not found'}` };
+    }
+
+    let itemsQuery = supabase
+      .from('shopee_returns')
+      .select('*')
+      .eq('order_number', (primaryRow as ShopeeReturn).order_number)
+      .order('imported_at', { ascending: false });
+
+    if ((primaryRow as ShopeeReturn).platform) {
+      itemsQuery = itemsQuery.eq('platform', (primaryRow as ShopeeReturn).platform);
+    }
+
+    const { data: items, error: itemsError } = await itemsQuery;
+
+    if (itemsError) {
+      return { success: false, error: `\u8b80\u53d6\u8766\u76ae\u9000\u8ca8\u8cc7\u6599\u5931\u6557: ${itemsError.message}` };
+    }
+
+    const groupItems = ((items as ShopeeReturn[]) || []).sort((a, b) => {
+      if (a.id === id) return -1;
+      if (b.id === id) return 1;
+      return (a.imported_at || '').localeCompare(b.imported_at || '');
+    });
+
+    return {
+      success: true,
+      data: {
+        primary: primaryRow as ShopeeReturn,
+        items: groupItems,
+      },
+    };
+  } catch (error) {
+    console.error('Get shopee return group by id error:', error);
+    const msg = error instanceof Error ? error.message : '\u672a\u77e5\u932f\u8aa4';
+    return { success: false, error: `\u8b80\u53d6\u8766\u76ae\u9000\u8ca8\u8cc7\u6599\u5931\u6557: ${msg}` };
   }
 }
 
