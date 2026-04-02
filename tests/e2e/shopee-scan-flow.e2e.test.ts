@@ -53,6 +53,7 @@ function buildShopeeRow(partial: Partial<ShopeeReturn>): ShopeeReturn {
     refund_amount: partial.refund_amount ?? 900,
     return_reason: partial.return_reason ?? null,
     buyer_note: partial.buyer_note ?? null,
+    return_reason_note: partial.return_reason_note ?? null,
     shipping_method: partial.shipping_method ?? null,
     is_processed: partial.is_processed ?? false,
     is_printed: partial.is_printed ?? false,
