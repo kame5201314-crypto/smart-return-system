@@ -1054,11 +1054,11 @@ export default function ShopeeReturnsPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-                <SelectTrigger className="h-7 w-[100px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
                   <Filter className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[118px]">
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="unprocessed">{'\u672a\u8655\u7406'}</SelectItem>
                   <SelectItem value="processed">{'\u5df2\u8655\u7406'}</SelectItem>
@@ -1066,11 +1066,11 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={scannedFilter} onValueChange={(v) => setScannedFilter(v as typeof scannedFilter)}>
-                <SelectTrigger className="h-7 w-[100px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
                   <ScanLine className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[118px]">
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="scanned">{'\u5df2\u6383\u63cf'}</SelectItem>
                   <SelectItem value="not_scanned">{'\u672a\u6383\u63cf'}</SelectItem>
@@ -1078,11 +1078,11 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={inboundFilter} onValueChange={(v) => setInboundFilter(v as typeof inboundFilter)}>
-                <SelectTrigger className="h-7 w-[100px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
                   <Package className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[118px]">
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="inbound">{'\u5df2\u5165\u5eab'}</SelectItem>
                   <SelectItem value="not_inbound">{'\u672a\u5165\u5eab'}</SelectItem>
@@ -1090,11 +1090,11 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={printFilter} onValueChange={(v) => setPrintFilter(v as typeof printFilter)}>
-                <SelectTrigger className="h-7 w-[100px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
                   <Printer className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[118px]">
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="printed">{'\u5df2\u5217\u5370'}</SelectItem>
                   <SelectItem value="not_printed">{'\u672a\u5217\u5370'}</SelectItem>
@@ -1102,11 +1102,11 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as typeof platformFilter)}>
-                <SelectTrigger className="h-7 w-[100px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[132px] shrink-0 text-xs">
                   <Store className="w-3 h-3 mr-1" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[132px]">
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="shopee">{'\u8766\u76ae'}</SelectItem>
                   <SelectItem value="mall">{'\u5546\u57ce'}</SelectItem>
@@ -1114,11 +1114,11 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={shippingMethodFilter} onValueChange={setShippingMethodFilter}>
-                <SelectTrigger className="h-7 w-[220px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[260px] shrink-0 text-xs">
                   <Truck className="w-3 h-3 mr-1" />
                   <SelectValue placeholder={'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'} />
                 </SelectTrigger>
-                <SelectContent className="min-w-[220px]">
+                <SelectContent className="min-w-[260px]">
                   <SelectItem value="all">{'\u5168\u90e8\u904b\u9001\u65b9\u5f0f'}</SelectItem>
                   {shippingMethodOptions.map((method) => (
                     <SelectItem key={method} value={method}>
