@@ -40,17 +40,35 @@ function getErrorMessage(error: unknown): string {
   return '';
 }
 
-function isMissingColumnError(error: unknown, table: string, column: string): boolean {
-  const message = getErrorMessage(error).toLowerCase();
-  if (!message) return false;
+function getMissingColumnName(error: unknown, table: string): string | null {
+  const rawMessage = getErrorMessage(error);
+  const message = rawMessage.toLowerCase();
+  if (!message) return null;
 
-  const targetPatterns = [
-    `column ${table}.${column} does not exist`,
-    `column ${table}_1.${column} does not exist`,
-    `column ${table}_2.${column} does not exist`,
+  const schemaCachePattern = new RegExp(`could not find the ['"]([^'"]+)['"] column of ['"]${table}['"] in the schema cache`);
+  const schemaCacheMatch = message.match(schemaCachePattern);
+  if (schemaCacheMatch?.[1]) {
+    return schemaCacheMatch[1];
+  }
+
+  const columnPatterns = [
+    new RegExp(`column ${table}\\.([a-z0-9_]+) does not exist`),
+    new RegExp(`column ${table}_[0-9]+\\.([a-z0-9_]+) does not exist`),
+    new RegExp(`column ['"]?([a-z0-9_]+)['"]? does not exist`),
   ];
 
-  return targetPatterns.some((pattern) => message.includes(pattern));
+  for (const pattern of columnPatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+function isMissingColumnError(error: unknown, table: string, column: string): boolean {
+  return getMissingColumnName(error, table) === column;
 }
 
 async function insertReturnItemsWithResolutionFallback(
@@ -715,6 +733,14 @@ export async function submitInspection(
         inspected_at: new Date().toISOString(),
       };
 
+      if (validated.notes) {
+        baseInspectionData.notes = validated.notes;
+      }
+
+      if (validated.checklist) {
+        baseInspectionData.checklist = validated.checklist;
+      }
+
       for (const inspectorColumn of ['inspected_by', 'inspector_id']) {
         const payloadWithInspector = {
           ...baseInspectionData,
@@ -736,8 +762,17 @@ export async function submitInspection(
     } | null = null;
     let inserted = false;
     let inspectionRecordId: string | null = null;
+    const pendingPayloads = [...uniquePayloads];
+    const attemptedPayloads = new Set<string>();
 
-    for (const payload of uniquePayloads) {
+    while (pendingPayloads.length > 0) {
+      const payload = pendingPayloads.shift()!;
+      const payloadKey = JSON.stringify(payload);
+      if (attemptedPayloads.has(payloadKey)) {
+        continue;
+      }
+      attemptedPayloads.add(payloadKey);
+
       const { data, error } = (await adminClient
         .from('inspection_records')
         .insert(payload as never)
@@ -757,6 +792,7 @@ export async function submitInspection(
       }
 
       inspectError = error;
+      const missingColumn = getMissingColumnName(error, 'inspection_records');
       const lowerMessage = (error.message || '').toLowerCase();
       const isSchemaMismatch =
         lowerMessage.includes('column') ||
@@ -765,6 +801,28 @@ export async function submitInspection(
       const isInspectorForeignKeyError =
         lowerMessage.includes('foreign key') &&
         (lowerMessage.includes('inspected_by') || lowerMessage.includes('inspector_id'));
+
+      if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+        await emitSchemaDriftAlert({
+          source: 'return.actions.submitInspection',
+          table: 'inspection_records',
+          column: missingColumn,
+          errorMessage: error.message,
+          context: {
+            returnRequestId: validated.returnRequestId,
+            result: validated.result,
+          },
+        });
+
+        const payloadWithoutMissingColumn = { ...payload };
+        delete payloadWithoutMissingColumn[missingColumn];
+
+        const fallbackPayloadKey = JSON.stringify(payloadWithoutMissingColumn);
+        if (fallbackPayloadKey !== payloadKey && !attemptedPayloads.has(fallbackPayloadKey)) {
+          pendingPayloads.unshift(payloadWithoutMissingColumn);
+          continue;
+        }
+      }
 
       // Some environments may not have the admin UUID in users table yet.
       if (isInspectorForeignKeyError) {

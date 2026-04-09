@@ -158,6 +158,14 @@ CREATE TABLE IF NOT EXISTS public.inspection_records (
     return_request_id UUID NOT NULL REFERENCES public.return_requests(id) ON DELETE CASCADE,
     result VARCHAR(30),
     condition_grade VARCHAR(10),
+    checklist JSONB DEFAULT '{
+        "packaging_intact": null,
+        "product_intact": null,
+        "accessories_complete": null,
+        "matches_photos": null,
+        "resellable": null
+    }'::jsonb,
+    notes TEXT,
     inspector_comment TEXT,
     inspected_by UUID,
     inspected_at TIMESTAMPTZ DEFAULT NOW(),
