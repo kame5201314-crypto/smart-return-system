@@ -1114,11 +1114,11 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={shippingMethodFilter} onValueChange={setShippingMethodFilter}>
-                <SelectTrigger className="h-7 w-[140px] shrink-0 text-xs">
+                <SelectTrigger className="h-7 w-[220px] shrink-0 text-xs">
                   <Truck className="w-3 h-3 mr-1" />
                   <SelectValue placeholder={'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[220px]">
                   <SelectItem value="all">{'\u5168\u90e8\u904b\u9001\u65b9\u5f0f'}</SelectItem>
                   {shippingMethodOptions.map((method) => (
                     <SelectItem key={method} value={method}>
