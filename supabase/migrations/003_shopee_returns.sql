@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS shopee_returns (
   is_printed BOOLEAN DEFAULT FALSE,
   is_scanned BOOLEAN DEFAULT FALSE,
   scanned_at TIMESTAMPTZ,
+  color_tag VARCHAR(20) CHECK (color_tag IN ('yellow', 'red', 'purple')),
   note TEXT,
   imported_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),

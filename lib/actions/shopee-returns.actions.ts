@@ -719,6 +719,16 @@ export async function batchUpdateShopeeReturns(
 
     if (error) {
       console.error('Batch update shopee returns error:', error);
+      if (
+        updates.color_tag === 'purple' &&
+        typeof error.message === 'string' &&
+        error.message.includes('shopee_returns_color_tag_check')
+      ) {
+        return {
+          success: false,
+          error: '批次更新失敗：資料庫尚未套用紫色安排收件標記，請先執行 color_tag migration。',
+        };
+      }
       return { success: false, error: `批次更新失敗: ${error.message}` };
     }
 
