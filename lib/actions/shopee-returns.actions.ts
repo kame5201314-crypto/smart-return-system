@@ -41,6 +41,7 @@ export interface ShopeeReturn {
 export interface ShopeeReturnOrderGroup {
   primary: ShopeeReturn;
   items: ShopeeReturn[];
+  portal_reason_detail?: string | null;
 }
 
 export type ColorTag = 'yellow' | 'red' | 'purple' | null;
@@ -384,11 +385,34 @@ export async function getShopeeReturnGroupById(id: string): Promise<ApiResponse<
       return (a.imported_at || '').localeCompare(b.imported_at || '');
     });
 
+    let portalReasonDetail: string | null = null;
+    const { data: relatedReturns, error: relatedReturnsError } = await supabase
+      .from('return_requests')
+      .select(`
+        reason_detail,
+        created_at,
+        order:orders!inner(order_number)
+      `)
+      .eq('order.order_number', (primaryRow as ShopeeReturn).order_number)
+      .not('reason_detail', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (relatedReturnsError) {
+      console.error('Get related return request reason_detail error:', relatedReturnsError);
+    } else {
+      const related = ((relatedReturns as Array<{ reason_detail: string | null }>) || []).find(
+        (row) => Boolean(row.reason_detail && row.reason_detail.trim())
+      );
+      portalReasonDetail = related?.reason_detail?.trim() || null;
+    }
+
     return {
       success: true,
       data: {
         primary: primaryRow as ShopeeReturn,
         items: groupItems,
+        portal_reason_detail: portalReasonDetail,
       },
     };
   } catch (error) {

@@ -123,6 +123,7 @@ export default function ShopeeReturnDetailPage() {
 
   const [record, setRecord] = useState<ShopeeReturn | null>(null);
   const [groupItems, setGroupItems] = useState<ShopeeReturn[]>([]);
+  const [portalReasonDetail, setPortalReasonDetail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'inbound' | 'processed' | 'printed' | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -545,7 +546,7 @@ export default function ShopeeReturnDetailPage() {
                     </div>
                     <div className="md:col-span-2">
                       <div className="text-xs text-muted-foreground">買家備註</div>
-                      <div className="text-sm whitespace-pre-wrap break-words">{item.buyer_note || '-'}</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{item.buyer_note?.trim() || portalReasonDetail || '-'}</div>
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
