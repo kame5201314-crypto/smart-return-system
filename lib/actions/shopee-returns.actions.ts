@@ -386,25 +386,33 @@ export async function getShopeeReturnGroupById(id: string): Promise<ApiResponse<
     });
 
     let portalReasonDetail: string | null = null;
-    const { data: relatedReturns, error: relatedReturnsError } = await supabase
-      .from('return_requests')
-      .select(`
-        reason_detail,
-        created_at,
-        order:orders!inner(order_number)
-      `)
-      .eq('order.order_number', (primaryRow as ShopeeReturn).order_number)
-      .not('reason_detail', 'is', null)
+    const { data: relatedOrder, error: relatedOrderError } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('order_number', (primaryRow as ShopeeReturn).order_number)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
-    if (relatedReturnsError) {
-      console.error('Get related return request reason_detail error:', relatedReturnsError);
-    } else {
-      const related = ((relatedReturns as Array<{ reason_detail: string | null }>) || []).find(
-        (row) => Boolean(row.reason_detail && row.reason_detail.trim())
-      );
-      portalReasonDetail = related?.reason_detail?.trim() || null;
+    if (relatedOrderError) {
+      console.error('Get related order for shopee return reason_detail error:', relatedOrderError);
+    } else if (relatedOrder?.id) {
+      const { data: relatedReturns, error: relatedReturnsError } = await supabase
+        .from('return_requests')
+        .select('reason_detail, created_at')
+        .eq('order_id', relatedOrder.id)
+        .not('reason_detail', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (relatedReturnsError) {
+        console.error('Get related return request reason_detail error:', relatedReturnsError);
+      } else {
+        const related = ((relatedReturns as Array<{ reason_detail: string | null }>) || []).find(
+          (row) => Boolean(row.reason_detail && row.reason_detail.trim())
+        );
+        portalReasonDetail = related?.reason_detail?.trim() || null;
+      }
     }
 
     return {
@@ -428,7 +436,7 @@ export async function getShopeeReturnGroupById(id: string): Promise<ApiResponse<
 export async function importShopeeReturns(
   items: ShopeeReturnInput[],
   platform: 'shopee' | 'mall' = 'shopee'
-): Promise<ApiResponse<{ imported: number; duplicates: number }>> {
+): Promise<ApiResponse<{ imported: number; duplicates: number; updated: number }>> {
   try {
     const supabase = createUntypedAdminClient();
 
@@ -451,30 +459,54 @@ export async function importShopeeReturns(
     // Get existing order_number + option_sku combos to check for duplicates in database
     const { data: existing, error: fetchError } = await supabase
       .from('shopee_returns')
-      .select('order_number, option_sku');
+      .select('id, order_number, option_sku, buyer_note');
 
     if (fetchError) {
       console.error('Failed to fetch existing records:', fetchError);
       // Continue anyway, duplicates will be handled by the fallback
     }
 
-    const existingKeys = new Set(
-      (existing as { order_number: string; option_sku: string | null }[] | null)?.map(
-        (r) => `${r.order_number}__${r.option_sku || ''}`
-      ) || []
-    );
+    const existingRows = (existing as { id: string; order_number: string; option_sku: string | null; buyer_note: string | null }[] | null) || [];
+    const existingByKey = new Map(existingRows.map((row) => [`${row.order_number}__${row.option_sku || ''}`, row]));
 
     // Filter out items that already exist in database (same order_number + option_sku)
     const newItems = deduplicatedItems.filter(
-      (item) => !existingKeys.has(`${item.orderNumber}__${item.optionSku || ''}`)
+      (item) => !existingByKey.has(`${item.orderNumber}__${item.optionSku || ''}`)
     );
-    const dbDuplicates = deduplicatedItems.length - newItems.length;
+    const duplicateItems = deduplicatedItems.filter(
+      (item) => existingByKey.has(`${item.orderNumber}__${item.optionSku || ''}`)
+    );
+    const dbDuplicates = duplicateItems.length;
     const totalDuplicates = fileDuplicates + dbDuplicates;
+
+    let updated = 0;
+    for (const item of duplicateItems) {
+      const key = `${item.orderNumber}__${item.optionSku || ''}`;
+      const existingRow = existingByKey.get(key);
+      if (!existingRow) continue;
+
+      const nextBuyerNote = item.buyerNote?.trim() || '';
+      const currentBuyerNote = existingRow.buyer_note?.trim() || '';
+      if (!nextBuyerNote || currentBuyerNote) continue;
+
+      const { error: updateExistingError } = await supabase
+        .from('shopee_returns')
+        .update({ buyer_note: nextBuyerNote } as never)
+        .eq('id', existingRow.id);
+
+      if (updateExistingError) {
+        console.error('Failed to backfill buyer_note for duplicate shopee return:', updateExistingError);
+        continue;
+      }
+
+      updated++;
+      existingRow.buyer_note = nextBuyerNote;
+    }
 
     if (newItems.length === 0) {
       return {
         success: true,
-        data: { imported: 0, duplicates: totalDuplicates },
+        data: { imported: 0, duplicates: totalDuplicates, updated },
       };
     }
 
@@ -530,14 +562,14 @@ export async function importShopeeReturns(
         console.error('Failed to import orders:', failedItems);
         return {
           success: true,
-          data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount - failedItems.length) },
+          data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount - failedItems.length), updated },
           message: `部分訂單匯入失敗: ${failedItems.slice(0, 3).join(', ')}${failedItems.length > 3 ? ` 等 ${failedItems.length} 筆` : ''}`,
         };
       }
 
       return {
         success: true,
-        data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount) },
+        data: { imported: insertedCount, duplicates: totalDuplicates + (newItems.length - insertedCount), updated },
       };
     }
 
@@ -548,7 +580,7 @@ export async function importShopeeReturns(
 
     return {
       success: true,
-      data: { imported: newItems.length, duplicates: totalDuplicates },
+      data: { imported: newItems.length, duplicates: totalDuplicates, updated },
     };
   } catch (error) {
     console.error('Import shopee returns error:', error);
@@ -1508,3 +1540,4 @@ export async function bindShopeeUnmatchedScan(input: {
     return { success: false, error: '綁定失敗' };
   }
 }
+

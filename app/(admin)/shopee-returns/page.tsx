@@ -149,6 +149,7 @@ const COLUMN_MAPPINGS: Record<string, ImportColumnKey> = {
   '\u8cb7\u5bb6\u9000\u6b3e\u91d1\u984d': 'refundAmount',
   '\u9000\u8ca8\u539f\u56e0': 'returnReason',
   '\u8cb7\u5bb6\u9000\u8ca8\u539f\u56e0\u8aaa\u660e': 'buyerNote',
+  '\u8cb7\u5bb6\u9000\u8ca8\u5099\u8a3b': 'buyerNote',
   '\u8cb7\u5bb6\u5099\u8a3b': 'buyerNote',
   '\u9000\u8ca8\u904b\u9001\u65b9\u5f0f': 'shippingMethod',
   '\u9000\u8ca8 / \u9000\u6b3e\u72c0\u614b': 'returnRefundStatus',
@@ -528,30 +529,38 @@ export default function ShopeeReturnsPage() {
         const platformLabel = platform === 'shopee' ? '蝦皮' : '商城';
         const result = await importShopeeReturns(newItems, platform);
         if (result.success && result.data) {
-          const { imported, duplicates } = result.data;
+          const { imported, duplicates, updated } = result.data;
           if (imported > 0) {
+            const duplicateInfo = duplicates > 0 ? `，略過 ${duplicates} 筆重複資料` : '';
+            const updatedInfo = updated > 0 ? `，補回 ${updated} 筆既有訂單的買家退貨備註` : '';
             const skippedInfo = skippedByBusinessRules > 0 ? `，略過 ${skippedByBusinessRules} 筆不符合規則資料` : '';
-            const autoPickupInfo = autoPickupCount > 0 ? `，其中 ${autoPickupCount} 筆已自動補為「${AUTO_PICKUP_SHIPPING_METHOD}」` : '';
-            toast.success(`成功匯入 ${imported} 筆${platformLabel}退貨資料${duplicates > 0 ? `，略過 ${duplicates} 筆重複資料` : ''}${skippedInfo}${autoPickupInfo}`);
+            const autoPickupInfo =
+              autoPickupCount > 0
+                ? `，其中 ${autoPickupCount} 筆已自動補為「${AUTO_PICKUP_SHIPPING_METHOD}」`
+                : '';
+            toast.success(`成功匯入 ${imported} 筆${platformLabel}退貨資料${duplicateInfo}${updatedInfo}${skippedInfo}${autoPickupInfo}`);
             loadReturns();
-          } else if (duplicates > 0) {
-            toast.info(`共有 ${duplicates} 筆資料因重複而未匯入`);
+          } else if (duplicates > 0 || updated > 0) {
+            const duplicateMessage = duplicates > 0 ? `共有 ${duplicates} 筆資料因重複而未匯入` : '';
+            const updatedMessage = updated > 0 ? `${duplicateMessage ? '，' : ''}補回 ${updated} 筆既有訂單的買家退貨備註` : '';
+            toast.info(`${duplicateMessage}${updatedMessage}`);
+            loadReturns();
           } else if (skippedByBusinessRules > 0) {
-            toast.info(`本次資料全部被略過，共 ${skippedByBusinessRules} 筆不符合規則`);
+            toast.info(`所有可匯入資料都被規則略過，共 ${skippedByBusinessRules} 筆`);
           }
         } else {
           toast.error(result.error || '匯入失敗');
         }
       } else {
-        toast.error(`找不到可匯入的欄位，已辨識欄位：${foundHeaders.slice(0, 5).join(', ')}${foundHeaders.length > 5 ? '...' : ''}`);
+        toast.error(`沒有找到可匯入資料。已辨識欄位：${foundHeaders.slice(0, 5).join(', ')}${foundHeaders.length > 5 ? '...' : ''}`);
       }
     } catch (error) {
       console.error('Import error:', error);
       const errorMsg = error instanceof Error ? error.message : '';
       if (errorMsg.includes('password') || errorMsg.includes('encrypt')) {
-        toast.error('Excel 檔案似乎有保護或加密，請先解除後再匯入');
+        toast.error('Excel 檔案可能有密碼保護或加密，請先另存新檔後再匯入。');
       } else {
-        toast.error('匯入失敗，請檢查 Excel 內容後再試一次');
+        toast.error('匯入失敗，請確認 Excel 格式與欄位內容。');
       }
     }
 
