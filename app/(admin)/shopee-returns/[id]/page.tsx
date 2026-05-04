@@ -505,7 +505,17 @@ export default function ShopeeReturnDetailPage() {
             <div className="py-12 text-center text-muted-foreground">找不到退貨資料</div>
           ) : (
             <div className="space-y-6">
-              {orderItems.map((item, index) => (
+              {orderItems.map((item, index) => {
+                const directBuyerNote = item.buyer_note?.trim() || '';
+                const fallbackBuyerNote = portalReasonDetail?.trim() || '';
+                const buyerNoteValue = directBuyerNote || fallbackBuyerNote || '-';
+                const buyerNoteSource = directBuyerNote
+                  ? '買家退貨備註'
+                  : fallbackBuyerNote
+                    ? '客戶退貨說明（fallback）'
+                    : null;
+
+                return (
                 <div key={item.id} className="rounded-xl border p-4 space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -545,8 +555,10 @@ export default function ShopeeReturnDetailPage() {
                       <div className="text-sm whitespace-pre-wrap break-words">{item.return_reason || '-'}</div>
                     </div>
                     <div className="md:col-span-2">
-                      <div className="text-xs text-muted-foreground">買家備註</div>
-                      <div className="text-sm whitespace-pre-wrap break-words">{item.buyer_note?.trim() || portalReasonDetail || '-'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        買家備註{buyerNoteSource ? `（來源：${buyerNoteSource}）` : ''}
+                      </div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{buyerNoteValue}</div>
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">管理備註（離開欄位後自動儲存）</div>
@@ -574,7 +586,8 @@ export default function ShopeeReturnDetailPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
