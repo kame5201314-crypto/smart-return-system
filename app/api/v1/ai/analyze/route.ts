@@ -22,6 +22,7 @@ import {
   buildAIJsonRepairPrompt,
   parseAIAnalysisResponseText,
 } from '@/lib/utils/ai-analysis-response';
+import { buildLocalAIAnalysisFallback } from '@/lib/utils/ai-analysis-fallback';
 import { isShopeeReturnInReportPeriod } from '@/lib/utils/return-period';
 
 interface ReturnAnalysisData {
@@ -567,26 +568,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    let aiResult = await callGeminiAPI(prompt, geminiApiKey, {
-      responseMimeType: 'application/json',
-    });
-    let aiResponse = aiResult.text;
-
-    if (!aiResponse) {
-      return NextResponse.json(
-        { success: false, error: 'AI analysis failed' },
-        { status: 500 }
-      );
-    }
-
-    // Parse AI response
+    let aiResult: GeminiTextResponse;
+    let aiResponse: string;
     let analysisResult: AIAnalysisResponsePayload;
     try {
-      analysisResult = parseAIAnalysisResponseText(aiResponse) as unknown as AIAnalysisResponsePayload;
-    } catch (parseError) {
-      console.warn('Primary AI response parse failed, attempting JSON repair:', parseError);
+      aiResult = await callGeminiAPI(prompt, geminiApiKey, {
+        responseMimeType: 'application/json',
+      });
+      aiResponse = aiResult.text;
+
+      if (!aiResponse) {
+        throw new Error('Gemini returned an empty response');
+      }
 
       try {
+        analysisResult = parseAIAnalysisResponseText(aiResponse) as unknown as AIAnalysisResponsePayload;
+      } catch (parseError) {
+        console.warn('Primary AI response parse failed, attempting JSON repair:', parseError);
+
         const repairedResult = await repairAIResponseJson(aiResponse, geminiApiKey);
         aiResult = {
           text: repairedResult.text,
@@ -598,17 +597,21 @@ export async function POST(request: NextRequest) {
         };
         aiResponse = repairedResult.text;
         analysisResult = parseAIAnalysisResponseText(aiResponse) as unknown as AIAnalysisResponsePayload;
-      } catch (repairError) {
-        console.error('Failed to parse AI response after repair:', {
-          initialResponse: aiResponse,
-          parseError,
-          repairError,
-        });
-        return NextResponse.json(
-          { success: false, error: 'Failed to parse AI response' },
-          { status: 500 }
-        );
       }
+    } catch (aiError) {
+      const fallbackReason = getErrorMessage(aiError) || 'Unknown AI provider failure';
+      console.warn('AI provider unavailable, using local text-only fallback:', fallbackReason);
+
+      analysisResult = buildLocalAIAnalysisFallback(promptPayload);
+      aiResponse = JSON.stringify(analysisResult);
+      aiResult = {
+        text: aiResponse,
+        model: 'local-text-fallback',
+        usageMetadata: {
+          fallback: true,
+          reason: fallbackReason.slice(0, 500),
+        },
+      };
     }
 
     analysisResult = {
