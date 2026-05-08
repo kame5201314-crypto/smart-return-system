@@ -72,6 +72,9 @@ interface AIAnalysisResult {
     totalRefundAmount: number;
     storeCreditRate: number;
   };
+  diagnostics?: {
+    model?: string | null;
+  };
 }
 
 function getSkuGroupLabel(item: AIAnalysisResult['skuAnalysis'][number]): string {
@@ -111,7 +114,9 @@ export default function AIReportPage() {
   const loadExistingReport = useCallback(async (period: string) => {
     try {
       setLoadingExisting(true);
-      const response = await fetch(`/api/v1/ai/analyze?period=${period}`);
+      const response = await fetch(`/api/v1/ai/analyze?period=${period}`, {
+        cache: 'no-store',
+      });
       const data = await response.json();
 
       if (data.success && data.data && data.data.length > 0) {
@@ -168,27 +173,43 @@ export default function AIReportPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ period: selectedPeriod }),
+        cache: 'no-store',
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
-      if (data.success) {
-        setResult({
-          ...data.data,
-          skuAnalysis: normalizeAISkuAnalysisOutput(data.data?.skuAnalysis || []),
-        });
-        if (data.saved !== false) {
-          setHasExistingReport(true);
-          toast.success('分析完成，報告已儲存');
+      if (!response.ok || !data?.success) {
+        toast.error(data?.error || 'AI \u5206\u6790\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u3002');
+        return;
+      }
+
+      if (!data.data) {
+        toast.error('AI \u5206\u6790\u5B8C\u6210\u4F46\u56DE\u50B3\u5167\u5BB9\u70BA\u7A7A\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u5F8C\u518D\u8A66\u3002');
+        return;
+      }
+
+      const nextResult = {
+        ...data.data,
+        skuAnalysis: normalizeAISkuAnalysisOutput(data.data?.skuAnalysis || []),
+      };
+
+      setResult(nextResult);
+
+      const usedLocalFallback = data.data?.diagnostics?.model === 'local-text-fallback';
+      if (data.saved !== false) {
+        setHasExistingReport(true);
+        if (usedLocalFallback) {
+          toast.warning('AI \u670D\u52D9\u66AB\u6642\u7121\u6CD5\u4F7F\u7528\uFF0C\u5DF2\u5148\u7522\u751F\u672C\u5730\u6587\u5B57\u7D71\u8A08\u5831\u544A\u3002');
         } else {
-          toast.warning(data.warning || '分析完成，但報告儲存失敗');
+          toast.success('AI \u5206\u6790\u5B8C\u6210\uFF0C\u5DF2\u5132\u5B58\u5831\u544A\u3002');
         }
+        void loadExistingReport(selectedPeriod);
       } else {
-        toast.error(data.error || '分析失敗');
+        toast.warning(data.warning || 'AI \u5206\u6790\u5B8C\u6210\uFF0C\u4F46\u5831\u544A\u672A\u80FD\u5132\u5B58\u3002');
       }
     } catch (error) {
       console.error('Analysis error:', error);
-      toast.error('分析請求失敗');
+      toast.error('AI \u5206\u6790\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u3002');
     } finally {
       setLoading(false);
     }
