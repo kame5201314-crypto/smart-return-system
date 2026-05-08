@@ -465,8 +465,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ============ 2. Fetch shopee_returns ============
-    // Use return workflow date for analytics. `order_date` is the original purchase date
-    // and can be months before the actual return, so it is only a final fallback.
+    // Shopee analytics use the customer order date first so Data Center and AI reports
+    // count the same month as the order list.
     let shopeeReturns: ShopeeReturnData[] = [];
     const shopeeQuery = await untypedSupabase
       .from('shopee_returns')

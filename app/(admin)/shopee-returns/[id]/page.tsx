@@ -51,6 +51,8 @@ interface EditFormState {
   note: string;
 }
 
+const LIST_STATE_RETURN_PATH = '/shopee-returns';
+
 function getPlatformLabel(platform: ShopeeReturn['platform']): string {
   if (platform === 'mall') return '商城';
   if (platform === 'shopee') return '蝦皮';
@@ -134,6 +136,10 @@ export default function ShopeeReturnDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
+
+  const backToList = useCallback(() => {
+    router.push(LIST_STATE_RETURN_PATH);
+  }, [router]);
 
   const loadOrderGroup = useCallback(async (recordId: string) => {
     setLoading(true);
@@ -329,7 +335,7 @@ export default function ShopeeReturnDetailPage() {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <Button variant="ghost" size="sm" onClick={() => router.back()} className="px-0">
+          <Button variant="ghost" size="sm" onClick={backToList} className="px-0">
             <ArrowLeft className="w-4 h-4 mr-1" />
             返回
           </Button>

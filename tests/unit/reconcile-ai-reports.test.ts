@@ -28,16 +28,16 @@ describe('buildReconcileMismatches', () => {
     expect(summary.mismatches).toHaveLength(1);
     expect(summary.mismatches[0]).toMatchObject({
       period: '2026-01',
-      expectedReturns: 3,
+      expectedReturns: 2,
       actualReturns: 1,
-      expectedRefundAmount: 3500,
+      expectedRefundAmount: 3000,
       actualRefundAmount: 0,
       returnsMismatch: true,
       amountMismatch: true,
     });
   });
 
-  it('counts Shopee returns by return workflow period instead of purchase order period', () => {
+  it('counts Shopee returns by customer order period instead of dispute deadline period', () => {
     const summary = buildReconcileMismatches({
       returnRequests: [],
       shopeeReturns: [
@@ -50,15 +50,15 @@ describe('buildReconcileMismatches', () => {
       ],
       reports: [
         {
-          id: 'apr-report',
-          report_period: '2026-04',
+          id: 'jan-report',
+          report_period: '2026-01',
           total_returns: 1,
           total_refund_amount: 100,
-          created_at: '2026-04-30T00:00:00.000Z',
+          created_at: '2026-01-31T00:00:00.000Z',
         },
       ],
       compareAmount: true,
-      periodFilter: new Set(['2026-04']),
+      periodFilter: new Set(['2026-01']),
     });
 
     expect(summary.mismatches).toHaveLength(0);

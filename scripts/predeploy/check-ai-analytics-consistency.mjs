@@ -54,10 +54,10 @@ function toYearMonth(value) {
 
 function getShopeeReturnReportPeriod(row) {
   return (
-    toYearMonth(row.dispute_deadline)
+    toYearMonth(row.order_date)
+    || toYearMonth(row.dispute_deadline)
     || toYearMonth(row.created_at)
     || toYearMonth(row.processed_at)
-    || toYearMonth(row.order_date)
   );
 }
 

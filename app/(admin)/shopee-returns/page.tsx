@@ -93,6 +93,8 @@ const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
   { value: 'purple', label: '\u5b89\u6392\u6536\u4ef6', color: 'bg-purple-100 text-purple-800 border-purple-300' },
 ];
 
+const LIST_STATE_STORAGE_KEY = 'shopeeReturns:listState:v1';
+
 type ImportColumnKey = keyof ShopeeReturnInput | 'returnRefundStatus' | 'returnRefundScheme';
 
 const EXCLUDED_RETURN_REFUND_STATUSES = new Set([
@@ -162,6 +164,7 @@ const COLUMN_MAPPINGS: Record<string, ImportColumnKey> = {
 
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
 type SortDirection = 'asc' | 'desc';
+type ColorTagFilter = 'all' | 'untagged' | Exclude<ColorTag, null>;
 
 const ITEMS_PER_PAGE = 50;
 
@@ -174,9 +177,11 @@ export default function ShopeeReturnsPage() {
   const [inboundFilter, setInboundFilter] = useState<'all' | 'inbound' | 'not_inbound'>('all');
   const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
   const [platformFilter, setPlatformFilter] = useState<'all' | 'shopee' | 'mall'>('all');
+  const [colorTagFilter, setColorTagFilter] = useState<ColorTagFilter>('all');
   const [shippingMethodFilter, setShippingMethodFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [listStateReady, setListStateReady] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importPlatform, setImportPlatform] = useState<'shopee' | 'mall'>('shopee');
   const [sortField, setSortField] = useState<SortField>('order_date');
@@ -215,12 +220,109 @@ export default function ShopeeReturnsPage() {
     setIsLoading(false);
   }
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setListStateReady(true);
+      return;
+    }
+
+    try {
+      const rawState = window.sessionStorage.getItem(LIST_STATE_STORAGE_KEY);
+      if (!rawState) {
+        setListStateReady(true);
+        return;
+      }
+
+      const saved = JSON.parse(rawState) as Partial<{
+        searchQuery: string;
+        statusFilter: typeof statusFilter;
+        scannedFilter: typeof scannedFilter;
+        inboundFilter: typeof inboundFilter;
+        printFilter: typeof printFilter;
+        platformFilter: typeof platformFilter;
+        colorTagFilter: ColorTagFilter;
+        shippingMethodFilter: string;
+        sortField: SortField;
+        sortDirection: SortDirection;
+      }>;
+
+      if (typeof saved.searchQuery === 'string') setSearchQuery(saved.searchQuery);
+      if (saved.statusFilter === 'all' || saved.statusFilter === 'processed' || saved.statusFilter === 'unprocessed') {
+        setStatusFilter(saved.statusFilter);
+      }
+      if (saved.scannedFilter === 'all' || saved.scannedFilter === 'scanned' || saved.scannedFilter === 'not_scanned') {
+        setScannedFilter(saved.scannedFilter);
+      }
+      if (saved.inboundFilter === 'all' || saved.inboundFilter === 'inbound' || saved.inboundFilter === 'not_inbound') {
+        setInboundFilter(saved.inboundFilter);
+      }
+      if (saved.printFilter === 'all' || saved.printFilter === 'printed' || saved.printFilter === 'not_printed') {
+        setPrintFilter(saved.printFilter);
+      }
+      if (saved.platformFilter === 'all' || saved.platformFilter === 'shopee' || saved.platformFilter === 'mall') {
+        setPlatformFilter(saved.platformFilter);
+      }
+      if (
+        saved.colorTagFilter === 'all' ||
+        saved.colorTagFilter === 'untagged' ||
+        saved.colorTagFilter === 'yellow' ||
+        saved.colorTagFilter === 'red' ||
+        saved.colorTagFilter === 'purple'
+      ) {
+        setColorTagFilter(saved.colorTagFilter);
+      }
+      if (typeof saved.shippingMethodFilter === 'string' && saved.shippingMethodFilter) {
+        setShippingMethodFilter(saved.shippingMethodFilter);
+      }
+      if (saved.sortField === null || saved.sortField === 'order_date' || saved.sortField === 'is_processed' || saved.sortField === 'is_scanned') {
+        setSortField(saved.sortField);
+      }
+      if (saved.sortDirection === 'asc' || saved.sortDirection === 'desc') {
+        setSortDirection(saved.sortDirection);
+      }
+    } catch (error) {
+      console.warn('Failed to restore Shopee returns list state:', error);
+    } finally {
+      setListStateReady(true);
+    }
+  }, []);
+
   // Load from database
   useEffect(() => {
-    // Data fetch on mount is a valid useEffect use-case; this rule is too strict here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReturns();
   }, []);
+
+  useEffect(() => {
+    if (!listStateReady || typeof window === 'undefined') return;
+
+    window.sessionStorage.setItem(
+      LIST_STATE_STORAGE_KEY,
+      JSON.stringify({
+        searchQuery,
+        statusFilter,
+        scannedFilter,
+        inboundFilter,
+        printFilter,
+        platformFilter,
+        colorTagFilter,
+        shippingMethodFilter,
+        sortField,
+        sortDirection,
+      })
+    );
+  }, [
+    listStateReady,
+    searchQuery,
+    statusFilter,
+    scannedFilter,
+    inboundFilter,
+    printFilter,
+    platformFilter,
+    colorTagFilter,
+    shippingMethodFilter,
+    sortField,
+    sortDirection,
+  ]);
 
   // Filter and sort returns
   useEffect(() => {
@@ -259,6 +361,13 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => r.platform === 'shopee' || !r.platform);
     } else if (platformFilter === 'mall') {
       filtered = filtered.filter((r) => r.platform === 'mall');
+    }
+
+    // Color tag filter
+    if (colorTagFilter === 'untagged') {
+      filtered = filtered.filter((r) => !r.color_tag);
+    } else if (colorTagFilter !== 'all') {
+      filtered = filtered.filter((r) => r.color_tag === colorTagFilter);
     }
 
     if (shippingMethodFilter !== 'all') {
@@ -300,8 +409,6 @@ export default function ShopeeReturnsPage() {
       });
     }
 
-    // Derived state; keep behavior but silence overly-strict lint rule for this effect.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilteredReturns(filtered);
     setCurrentPage(1); // Reset to first page when filters change
   }, [
@@ -312,6 +419,7 @@ export default function ShopeeReturnsPage() {
     inboundFilter,
     printFilter,
     platformFilter,
+    colorTagFilter,
     shippingMethodFilter,
     sortField,
     sortDirection,
@@ -1107,6 +1215,20 @@ export default function ShopeeReturnsPage() {
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="printed">{'\u5df2\u5217\u5370'}</SelectItem>
                   <SelectItem value="not_printed">{'\u672a\u5217\u5370'}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={colorTagFilter} onValueChange={(v) => setColorTagFilter(v as ColorTagFilter)}>
+                <SelectTrigger className="h-7 w-[132px] shrink-0 text-xs">
+                  <Palette className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="min-w-[132px]">
+                  <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
+                  <SelectItem value="yellow">{'\u6aa2\u9a57\u4e2d'}</SelectItem>
+                  <SelectItem value="red">{'\u722d\u8b70\u4e2d'}</SelectItem>
+                  <SelectItem value="purple">{'\u5b89\u6392\u6536\u4ef6'}</SelectItem>
+                  <SelectItem value="untagged">{'\u672a\u6a19\u8a18'}</SelectItem>
                 </SelectContent>
               </Select>
 

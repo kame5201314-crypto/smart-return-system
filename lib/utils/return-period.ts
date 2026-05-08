@@ -54,13 +54,12 @@ export interface ShopeeReturnPeriodSource {
 }
 
 export function getShopeeReturnReportPeriod(row: ShopeeReturnPeriodSource): string | null {
-  // `order_date` is the original purchase date and can be months before the return.
-  // For return analytics, use the return workflow date first, then safe fallbacks.
+  // Shopee/月報統計以客人訂單日期為主，避免爭議期限落到下個月造成數量對不上。
   return (
-    toYearMonth(row.dispute_deadline)
+    toYearMonth(row.order_date)
+    ?? toYearMonth(row.dispute_deadline)
     ?? toYearMonth(row.created_at)
     ?? toYearMonth(row.processed_at)
-    ?? toYearMonth(row.order_date)
   );
 }
 

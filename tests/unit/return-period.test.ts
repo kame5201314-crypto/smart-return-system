@@ -13,22 +13,21 @@ describe('return-period utilities', () => {
     expect(toYearMonth(46132)).toBe('2026-04');
   });
 
-  it('uses Shopee return workflow date before original order date', () => {
+  it('uses Shopee customer order date before return workflow fallback dates', () => {
     const row = {
       order_date: '2026-01-15',
       dispute_deadline: '2026-04-18',
       created_at: '2026-04-12T00:00:00.000Z',
     };
 
-    expect(getShopeeReturnReportPeriod(row)).toBe('2026-04');
-    expect(isShopeeReturnInReportPeriod(row, '2026-04')).toBe(true);
-    expect(isShopeeReturnInReportPeriod(row, '2026-01')).toBe(false);
+    expect(getShopeeReturnReportPeriod(row)).toBe('2026-01');
+    expect(isShopeeReturnInReportPeriod(row, '2026-01')).toBe(true);
+    expect(isShopeeReturnInReportPeriod(row, '2026-04')).toBe(false);
   });
 
-  it('falls back to created_at when return workflow date is missing', () => {
+  it('falls back to created_at when order date and return workflow date are missing', () => {
     expect(
       getShopeeReturnReportPeriod({
-        order_date: '2026-01-15',
         created_at: '2026-04-12T00:00:00.000Z',
       })
     ).toBe('2026-04');
