@@ -47,6 +47,7 @@ import {
   RETURN_ITEM_RESOLUTION_TYPES,
 } from '@/config/constants';
 import { aggregateReturnRanking } from '@/lib/utils/return-ranking';
+import { getShopeeReturnReportPeriod } from '@/lib/utils/return-period';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 const PRODUCT_RANKING_COMPACT_LIMIT = 10;
@@ -162,10 +163,9 @@ export default function AnalyticsPage() {
         if (selectedChannel !== 'shopee' && selectedChannel !== 'shopee_mall') return false;
       }
 
-      if (!r.order_date) return selectedYear === 'all' && selectedMonth === 'all';
-      const date = new Date(r.order_date);
-      const year = date.getFullYear().toString();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const reportPeriod = getShopeeReturnReportPeriod(r);
+      if (!reportPeriod) return selectedYear === 'all' && selectedMonth === 'all';
+      const [year, month] = reportPeriod.split('-');
 
       if (selectedYear !== 'all' && year !== selectedYear) return false;
       if (selectedMonth !== 'all' && month !== selectedMonth) return false;
@@ -243,9 +243,8 @@ export default function AnalyticsPage() {
     });
     // Add shopee returns to monthly trend
     filteredShopeeReturns.forEach(r => {
-      if (!r.order_date) return;
-      const date = new Date(r.order_date);
-      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const month = getShopeeReturnReportPeriod(r);
+      if (!month) return;
       monthlyData[month] = (monthlyData[month] || 0) + 1;
     });
     const monthlyTrend = Object.entries(monthlyData)

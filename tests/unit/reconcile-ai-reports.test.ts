@@ -9,7 +9,7 @@ describe('buildReconcileMismatches', () => {
         { created_at: '2026-01-05', refund_amount: 2000 },
       ],
       shopeeReturns: [
-        { order_date: '2026-01-08', refund_amount: 500, total_price: 0 },
+        { order_date: '2025-12-08', dispute_deadline: '2026-01-08', refund_amount: 500, total_price: 0 },
       ],
       reports: [
         {
@@ -35,6 +35,33 @@ describe('buildReconcileMismatches', () => {
       returnsMismatch: true,
       amountMismatch: true,
     });
+  });
+
+  it('counts Shopee returns by return workflow period instead of purchase order period', () => {
+    const summary = buildReconcileMismatches({
+      returnRequests: [],
+      shopeeReturns: [
+        {
+          order_date: '2026-01-10',
+          dispute_deadline: '2026-04-18',
+          refund_amount: 100,
+          total_price: 0,
+        },
+      ],
+      reports: [
+        {
+          id: 'apr-report',
+          report_period: '2026-04',
+          total_returns: 1,
+          total_refund_amount: 100,
+          created_at: '2026-04-30T00:00:00.000Z',
+        },
+      ],
+      compareAmount: true,
+      periodFilter: new Set(['2026-04']),
+    });
+
+    expect(summary.mismatches).toHaveLength(0);
   });
 
   it('uses latest report for each period and ignores old duplicates', () => {
@@ -64,4 +91,3 @@ describe('buildReconcileMismatches', () => {
     expect(summary.mismatches).toHaveLength(0);
   });
 });
-

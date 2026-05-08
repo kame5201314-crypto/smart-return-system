@@ -72,6 +72,15 @@ function toYearMonth(value) {
   return null;
 }
 
+function getShopeeReturnReportPeriod(row) {
+  return (
+    toYearMonth(row.dispute_deadline)
+    || toYearMonth(row.created_at)
+    || toYearMonth(row.processed_at)
+    || toYearMonth(row.order_date)
+  );
+}
+
 function toFiniteNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
@@ -106,7 +115,9 @@ async function main() {
   const [{ data: returnRequests, error: rrError }, { data: shopeeReturns, error: srError }, { data: reports, error: reportsError }] =
     await Promise.all([
       supabase.from('return_requests').select('created_at, refund_amount'),
-      supabase.from('shopee_returns').select('order_date, refund_amount, total_price'),
+      supabase
+        .from('shopee_returns')
+        .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price'),
       supabase
         .from('ai_analysis_reports')
         .select('id, report_period, total_returns, total_refund_amount, created_at')
@@ -131,7 +142,7 @@ async function main() {
   }
 
   for (const row of shopeeReturns || []) {
-    const period = toYearMonth(row.order_date);
+    const period = getShopeeReturnReportPeriod(row);
     if (!period) continue;
     const current = totalsByPeriod.get(period) || { totalReturns: 0, totalRefundAmount: 0 };
     const refund =
@@ -234,4 +245,3 @@ main()
     console.error('[reconcile-ai-report-totals] Unexpected error:', error);
     process.exitCode = 1;
   });
-

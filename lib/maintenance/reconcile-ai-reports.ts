@@ -1,3 +1,7 @@
+import { getShopeeReturnReportPeriod, toYearMonth } from '@/lib/utils/return-period';
+
+export { toYearMonth };
+
 export interface ReturnRequestMetricRow {
   created_at: unknown;
   refund_amount?: unknown;
@@ -5,6 +9,9 @@ export interface ReturnRequestMetricRow {
 
 export interface ShopeeReturnMetricRow {
   order_date: unknown;
+  dispute_deadline?: unknown;
+  processed_at?: unknown;
+  created_at?: unknown;
   refund_amount?: unknown;
   total_price?: unknown;
 }
@@ -26,51 +33,6 @@ export interface ReconcileMismatch {
   actualRefundAmount: number;
   returnsMismatch: boolean;
   amountMismatch: boolean;
-}
-
-function parseExcelDate(serial: number): Date | null {
-  if (!Number.isFinite(serial)) return null;
-  if (serial < 1 || serial > 100000) return null;
-  const epoch = Date.UTC(1899, 11, 30);
-  return new Date(epoch + Math.floor(serial) * 24 * 60 * 60 * 1000);
-}
-
-function extractYearMonthFromRaw(raw: string): string | null {
-  const match = raw.match(/(\d{4})\D+(\d{1,2})/);
-  if (!match) return null;
-
-  const year = match[1];
-  const monthNum = Number(match[2]);
-  if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) return null;
-
-  return `${year}-${String(monthNum).padStart(2, '0')}`;
-}
-
-export function toYearMonth(value: unknown): string | null {
-  if (!value) return null;
-  const raw = String(value).trim();
-  if (!raw) return null;
-
-  if (/^\d+(\.\d+)?$/.test(raw)) {
-    const excelDate = parseExcelDate(Number(raw));
-    if (excelDate && !Number.isNaN(excelDate.getTime())) {
-      const year = excelDate.getUTCFullYear();
-      const month = String(excelDate.getUTCMonth() + 1).padStart(2, '0');
-      return `${year}-${month}`;
-    }
-  }
-
-  const rawYearMonth = extractYearMonthFromRaw(raw);
-  if (rawYearMonth) return rawYearMonth;
-
-  const parsedDate = new Date(raw);
-  if (!Number.isNaN(parsedDate.getTime())) {
-    const year = parsedDate.getUTCFullYear();
-    const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  }
-
-  return null;
 }
 
 export function toFiniteNumber(value: unknown): number | null {
@@ -114,7 +76,7 @@ export function buildReconcileMismatches(input: {
   }
 
   for (const row of input.shopeeReturns || []) {
-    const period = toYearMonth(row.order_date);
+    const period = getShopeeReturnReportPeriod(row);
     if (!period) continue;
     const current = totalsByPeriod.get(period) || { totalReturns: 0, totalRefundAmount: 0 };
     const refund = toFiniteNumber(row.refund_amount) ?? toFiniteNumber(row.total_price) ?? 0;
@@ -163,4 +125,3 @@ export function buildReconcileMismatches(input: {
     mismatches,
   };
 }
-

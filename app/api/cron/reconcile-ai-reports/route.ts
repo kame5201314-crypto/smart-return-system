@@ -55,7 +55,9 @@ async function reconcileReports(url: string): Promise<{
   const [{ data: returnRequests, error: rrError }, { data: shopeeReturns, error: srError }, { data: reports, error: reportsError }] =
     await Promise.all([
       supabase.from('return_requests').select('created_at, refund_amount'),
-      supabase.from('shopee_returns').select('order_date, refund_amount, total_price'),
+      supabase
+        .from('shopee_returns')
+        .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price'),
       supabase
         .from('ai_analysis_reports')
         .select('id, report_period, total_returns, total_refund_amount, created_at')
@@ -168,4 +170,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

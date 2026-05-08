@@ -117,6 +117,16 @@ export default function AIReportPage() {
       if (data.success && data.data && data.data.length > 0) {
         // Get the most recent report for this period
         const report = data.data[0];
+
+        if (report.is_stale) {
+          setResult(null);
+          setHasExistingReport(false);
+          toast.warning(
+            `${period} 既有 AI 報告與目前退貨資料不一致，請重新產生分析。`
+          );
+          return;
+        }
+
         setResult({
           id: report.id,
           period: report.report_period,

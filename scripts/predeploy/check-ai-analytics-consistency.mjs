@@ -52,6 +52,15 @@ function toYearMonth(value) {
   return null;
 }
 
+function getShopeeReturnReportPeriod(row) {
+  return (
+    toYearMonth(row.dispute_deadline)
+    || toYearMonth(row.created_at)
+    || toYearMonth(row.processed_at)
+    || toYearMonth(row.order_date)
+  );
+}
+
 function isStrictMode() {
   const explicit = normalizeEnvValue(process.env.CONSISTENCY_CHECK_STRICT);
   if (explicit === '1' || explicit.toLowerCase() === 'true') return true;
@@ -130,7 +139,7 @@ async function main() {
 
   const { data: shopeeReturns, error: shopeeError } = await supabase
     .from('shopee_returns')
-    .select('id, order_date');
+    .select('id, order_date, dispute_deadline, processed_at, created_at');
   if (shopeeError) {
     console.error(`[consistency-check] Failed to load shopee_returns: ${shopeeError.message}`);
     return 1;
@@ -145,7 +154,7 @@ async function main() {
   }
 
   for (const row of shopeeReturns || []) {
-    const period = toYearMonth(row.order_date);
+    const period = getShopeeReturnReportPeriod(row);
     if (!period) continue;
     totalsByPeriod.set(period, (totalsByPeriod.get(period) || 0) + 1);
   }

@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
 import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
+import { buildReconcileMismatches } from '@/lib/maintenance/reconcile-ai-reports';
 import {
   buildAISkuAnalysisGroups,
   type AISkuAnalysisGroupInput,
@@ -21,6 +22,7 @@ import {
   buildAIJsonRepairPrompt,
   parseAIAnalysisResponseText,
 } from '@/lib/utils/ai-analysis-response';
+import { isShopeeReturnInReportPeriod } from '@/lib/utils/return-period';
 
 interface ReturnAnalysisData {
   request_number: string;
@@ -48,6 +50,8 @@ interface ShopeeReturnData {
   id: string;
   order_number: string;
   order_date: string | null;
+  dispute_deadline: string | null;
+  processed_at: string | null;
   total_price: number;
   product_name: string | null;
   option_name: string | null;
@@ -122,79 +126,6 @@ function toNumberOrNull(value: unknown): number | null {
   }
 
   return null;
-}
-
-function parseExcelDate(serial: number): Date | null {
-  if (!Number.isFinite(serial)) {
-    return null;
-  }
-
-  // Excel serial date (Windows): days since 1899-12-30
-  if (serial < 1 || serial > 100000) {
-    return null;
-  }
-
-  const epoch = Date.UTC(1899, 11, 30);
-  const ms = epoch + Math.floor(serial) * 24 * 60 * 60 * 1000;
-  return new Date(ms);
-}
-
-function extractYearMonthFromRaw(raw: string): string | null {
-  // Covers formats like:
-  // 2026-02-05, 2026/2/5, 2026年2月5日, 2026-02-05T00:00:00+08:00
-  const match = raw.match(/(\d{4})\D+(\d{1,2})/);
-  if (!match) {
-    return null;
-  }
-
-  const year = match[1];
-  const monthNum = Number(match[2]);
-  if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) {
-    return null;
-  }
-
-  return `${year}-${String(monthNum).padStart(2, '0')}`;
-}
-
-function toYearMonth(dateValue: string | null | undefined): string | null {
-  if (!dateValue) {
-    return null;
-  }
-
-  const raw = String(dateValue).trim();
-  if (!raw) {
-    return null;
-  }
-
-  // Numeric text can be an Excel serial date.
-  if (/^\d+(\.\d+)?$/.test(raw)) {
-    const excelDate = parseExcelDate(Number(raw));
-    if (excelDate && !Number.isNaN(excelDate.getTime())) {
-      const year = excelDate.getUTCFullYear();
-      const month = String(excelDate.getUTCMonth() + 1).padStart(2, '0');
-      return `${year}-${month}`;
-    }
-  }
-
-  // Prefer raw text extraction first to avoid timezone shifting issues.
-  const rawYearMonth = extractYearMonthFromRaw(raw);
-  if (rawYearMonth) {
-    return rawYearMonth;
-  }
-
-  const parsedDate = new Date(raw);
-  if (!Number.isNaN(parsedDate.getTime())) {
-    // Use UTC to keep server timezone from changing month boundaries.
-    const year = parsedDate.getUTCFullYear();
-    const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  }
-
-  return null;
-}
-
-function isInPeriod(dateValue: string | null | undefined, period: string): boolean {
-  return toYearMonth(dateValue) === period;
 }
 
 function normalizeLegacyReportStatistics(report: Record<string, unknown>) {
@@ -533,8 +464,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ============ 2. Fetch shopee_returns ============
-    // Keep the same filtering behavior as Analytics page:
-    // filter by order_date using JS date parsing to avoid DB type/format mismatch.
+    // Use return workflow date for analytics. `order_date` is the original purchase date
+    // and can be months before the actual return, so it is only a final fallback.
     let shopeeReturns: ShopeeReturnData[] = [];
     const shopeeQuery = await untypedSupabase
       .from('shopee_returns')
@@ -542,7 +473,7 @@ export async function POST(request: NextRequest) {
 
     if (!shopeeQuery.error && shopeeQuery.data) {
       shopeeReturns = (shopeeQuery.data as ShopeeReturnData[]).filter((row) =>
-        isInPeriod(row.order_date, period)
+        isShopeeReturnInReportPeriod(row, period)
       );
     } else if (shopeeQuery.error) {
       console.warn('Shopee returns query error:', shopeeQuery.error.message);
@@ -566,7 +497,7 @@ export async function POST(request: NextRequest) {
     const totalDataCount = returns.length + shopeeReturns.length + pickupRecords.length;
     if (totalDataCount === 0) {
       return NextResponse.json(
-        { success: false, error: `${period} 月份沒有任何資料可分析` },
+        { success: false, error: `${period} 沒有可分析的退貨資料` },
         { status: 404 }
       );
     }
@@ -631,7 +562,7 @@ export async function POST(request: NextRequest) {
         success: true,
         saved: true,
         reused: true,
-        message: '資料未變動，已使用最新分析報告',
+        message: '已使用既有分析報告',
         data: buildStoredReportResponse(existingReport, skuGroupAnalysisData),
       });
     }
@@ -690,7 +621,7 @@ export async function POST(request: NextRequest) {
     if (containsLikelyMojibake(analysisResult)) {
       console.error('AI response appears to contain mojibake-like content:', aiResponse);
       return NextResponse.json(
-        { success: false, error: 'AI 回傳內容疑似亂碼，請重新分析一次' },
+        { success: false, error: 'AI 回應內容疑似亂碼，請重新分析' },
         { status: 502 }
       );
     }
@@ -821,7 +752,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedData = (data || []).map((report) => {
+    const normalizedData: Record<string, unknown>[] = (data || []).map((report) => {
       const rawReport = report as unknown as Record<string, unknown>;
       const normalizedStats = normalizeLegacyReportStatistics(rawReport);
 
@@ -831,6 +762,57 @@ export async function GET(request: NextRequest) {
         sku_analysis: normalizeAISkuAnalysisOutput(rawReport.sku_analysis),
       };
     });
+
+    if (period && normalizedData.length > 0) {
+      const untypedSupabase = createUntypedAdminClient();
+      const startDate = `${period}-01`;
+      const endDate = format(
+        new Date(new Date(startDate).setMonth(new Date(startDate).getMonth() + 1)),
+        'yyyy-MM-dd'
+      );
+
+      const [returnRequestResult, shopeeReturnResult] = await Promise.all([
+        untypedSupabase
+          .from('return_requests')
+          .select('created_at, refund_amount')
+          .gte('created_at', startDate)
+          .lt('created_at', endDate),
+        untypedSupabase
+          .from('shopee_returns')
+          .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price'),
+      ]);
+
+      if (!returnRequestResult.error && !shopeeReturnResult.error) {
+        const consistencySummary = buildReconcileMismatches({
+          returnRequests: returnRequestResult.data || [],
+          shopeeReturns: shopeeReturnResult.data || [],
+          reports: normalizedData.map((report) => ({
+            id: String(report.id || ''),
+            report_period: String(report.report_period || ''),
+            total_returns: Number(report.total_returns || 0),
+            total_refund_amount: Number(report.total_refund_amount || 0),
+            created_at: String(report.created_at || ''),
+          })),
+          compareAmount: false,
+          periodFilter: new Set([period]),
+        });
+
+        const mismatch = consistencySummary.mismatches.find((item) => item.period === period);
+        if (mismatch) {
+          normalizedData[0] = {
+            ...normalizedData[0],
+            is_stale: true,
+            expected_total_returns: mismatch.expectedReturns,
+            actual_total_returns: mismatch.actualReturns,
+          };
+        }
+      } else {
+        console.warn(
+          'AI report freshness check skipped:',
+          returnRequestResult.error?.message || shopeeReturnResult.error?.message
+        );
+      }
+    }
 
     return NextResponse.json({ success: true, data: normalizedData });
   } catch (error) {
