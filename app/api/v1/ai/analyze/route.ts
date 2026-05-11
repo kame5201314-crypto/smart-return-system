@@ -84,6 +84,12 @@ interface PickupRecordData {
   created_at: string;
 }
 
+function normalizeShopeePlatformForAnalysis(platform: string | null | undefined): string {
+  if (platform === 'mall') return 'mall';
+  if (platform === 'other') return 'other';
+  return 'shopee';
+}
+
 interface LegacyStatistics {
   totalReturns?: unknown;
   total_returns?: unknown;
@@ -518,7 +524,7 @@ export async function POST(request: NextRequest) {
         productName: r.product_name,
         sku: r.option_sku,
         quantity: r.return_quantity,
-        channel: r.platform === 'mall' ? 'mall' : 'shopee',
+        channel: normalizeShopeePlatformForAnalysis(r.platform),
         reasonTexts: [r.return_reason],
         buyerNoteTexts: [r.buyer_note],
         returnReasonNoteTexts: [r.return_reason_note],

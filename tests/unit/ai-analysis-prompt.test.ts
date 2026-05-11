@@ -83,6 +83,32 @@ describe('buildAIAnalysisPromptPayload', () => {
     ]);
   });
 
+  it('includes manually keyed other platform in platform counts', () => {
+    const payload = buildAIAnalysisPromptPayload({
+      period: '2026-04',
+      returns: [],
+      shopeeReturns: [
+        {
+          platform: 'other',
+          shipping_method: 'manual',
+          return_reason: 'wrong item',
+          buyer_note: 'buyer note',
+          return_reason_note: 'inspection note',
+          note: null,
+        },
+      ],
+      pickupRecords: [],
+      skuGroups: [],
+    });
+
+    expect(payload.dataset_counts.shopee_returns).toBe(1);
+    expect(payload.shopee_summary.platform_counts[0]).toEqual({
+      label: 'other',
+      count: 1,
+    });
+    expect(buildTextOnlyAIAnalysisPrompt(payload)).toContain('"pf":[["other",1]]');
+  });
+
   it('aggregates repeated sku group text into compact summaries', () => {
     const skuGroups = buildAISkuAnalysisGroups([
       {

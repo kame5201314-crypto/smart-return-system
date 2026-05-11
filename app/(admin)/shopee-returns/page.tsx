@@ -79,6 +79,7 @@ import {
   deleteShopeeReturns,
   type ShopeeReturn,
   type ShopeeReturnInput,
+  type ShopeeReturnPlatform,
   type ColorTag,
 } from '@/lib/actions/shopee-returns.actions';
 import {
@@ -165,8 +166,15 @@ const COLUMN_MAPPINGS: Record<string, ImportColumnKey> = {
 type SortField = 'order_date' | 'is_processed' | 'is_scanned' | null;
 type SortDirection = 'asc' | 'desc';
 type ColorTagFilter = 'all' | 'untagged' | Exclude<ColorTag, null>;
+type PlatformFilter = 'all' | ShopeeReturnPlatform;
 
 const ITEMS_PER_PAGE = 50;
+
+function formatShopeeReturnPlatform(platform: ShopeeReturn['platform']): string {
+  if (platform === 'mall') return '\u5546\u57ce';
+  if (platform === 'other') return '\u5176\u4ed6';
+  return '\u8766\u76ae';
+}
 
 export default function ShopeeReturnsPage() {
   const [returns, setReturns] = useState<ShopeeReturn[]>([]);
@@ -176,7 +184,7 @@ export default function ShopeeReturnsPage() {
   const [scannedFilter, setScannedFilter] = useState<'all' | 'scanned' | 'not_scanned'>('all');
   const [inboundFilter, setInboundFilter] = useState<'all' | 'inbound' | 'not_inbound'>('all');
   const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
-  const [platformFilter, setPlatformFilter] = useState<'all' | 'shopee' | 'mall'>('all');
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
   const [colorTagFilter, setColorTagFilter] = useState<ColorTagFilter>('all');
   const [shippingMethodFilter, setShippingMethodFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -195,7 +203,7 @@ export default function ShopeeReturnsPage() {
   const [isManualSubmitting, setIsManualSubmitting] = useState(false);
   const [manualForm, setManualForm] = useState({
     orderNumber: '',
-    platform: 'shopee' as 'shopee' | 'mall',
+    platform: 'shopee' as ShopeeReturnPlatform,
     trackingNumber: '',
     orderDate: '',
     disputeDeadline: '',
@@ -259,7 +267,12 @@ export default function ShopeeReturnsPage() {
       if (saved.printFilter === 'all' || saved.printFilter === 'printed' || saved.printFilter === 'not_printed') {
         setPrintFilter(saved.printFilter);
       }
-      if (saved.platformFilter === 'all' || saved.platformFilter === 'shopee' || saved.platformFilter === 'mall') {
+      if (
+        saved.platformFilter === 'all' ||
+        saved.platformFilter === 'shopee' ||
+        saved.platformFilter === 'mall' ||
+        saved.platformFilter === 'other'
+      ) {
         setPlatformFilter(saved.platformFilter);
       }
       if (
@@ -361,6 +374,8 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => r.platform === 'shopee' || !r.platform);
     } else if (platformFilter === 'mall') {
       filtered = filtered.filter((r) => r.platform === 'mall');
+    } else if (platformFilter === 'other') {
+      filtered = filtered.filter((r) => r.platform === 'other');
     }
 
     // Color tag filter
@@ -993,7 +1008,7 @@ export default function ShopeeReturnsPage() {
                 <div class="order-number">${label.orderNumber}</div>
                 <div class="tracking-number">${label.trackingNumber}</div>
               </div>
-              <div class=\"label-cell platform\">${label.platform === 'mall' ? '\u5546\u57ce' : '\u8766\u76ae'}</div>
+              <div class=\"label-cell platform\">${formatShopeeReturnPlatform(label.platform as ShopeeReturn['platform'])}</div>
               <div class="label-cell date">${label.date}</div>
               <div class="label-cell shipping">${label.shippingDisplay}</div>
             </div>
@@ -1232,7 +1247,7 @@ export default function ShopeeReturnsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as typeof platformFilter)}>
+              <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as PlatformFilter)}>
                 <SelectTrigger className="h-7 w-[132px] shrink-0 text-xs">
                   <Store className="w-3 h-3 mr-1" />
                   <SelectValue />
@@ -1241,6 +1256,7 @@ export default function ShopeeReturnsPage() {
                   <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
                   <SelectItem value="shopee">{'\u8766\u76ae'}</SelectItem>
                   <SelectItem value="mall">{'\u5546\u57ce'}</SelectItem>
+                  <SelectItem value="other">{'\u5176\u4ed6'}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1429,7 +1445,7 @@ export default function ShopeeReturnsPage() {
                           )}
                         </button>
                       </TableCell>
-                      <TableCell className="text-xs text-center">{group.platform === 'mall' ? '\u5546\u57ce' : '\u8766\u76ae'}</TableCell>
+                      <TableCell className="text-xs text-center">{formatShopeeReturnPlatform(group.platform)}</TableCell>
                       <TableCell className="font-mono text-xs">
                         <Link href={`/shopee-returns/${group.primaryId}`} className="underline underline-offset-2 hover:text-primary">
                           {group.orderNumber}
@@ -1521,11 +1537,12 @@ export default function ShopeeReturnsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>平台 *</Label>
-                <Select value={manualForm.platform} onValueChange={(v) => setManualForm((f) => ({ ...f, platform: v as 'shopee' | 'mall' }))}>
+                <Select value={manualForm.platform} onValueChange={(v) => setManualForm((f) => ({ ...f, platform: v as ShopeeReturnPlatform }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="shopee">蝦皮</SelectItem>
                     <SelectItem value="mall">商城</SelectItem>
+                    <SelectItem value="other">其他</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1598,4 +1615,3 @@ export default function ShopeeReturnsPage() {
     </div>
   );
 }
-

@@ -31,12 +31,14 @@ export interface ShopeeReturn {
   inbound_at?: string | null;
   processed_at: string | null;
   note: string | null;
-  platform: 'shopee' | 'mall' | null;
+  platform: ShopeeReturnPlatform | null;
   color_tag: 'yellow' | 'red' | 'purple' | null;
   imported_at: string;
   created_at: string;
   updated_at: string;
 }
+
+export type ShopeeReturnPlatform = 'shopee' | 'mall' | 'other';
 
 export interface ShopeeReturnOrderGroup {
   primary: ShopeeReturn;
@@ -73,7 +75,7 @@ export interface ShopeeScanEvent {
   matched_order_id: string | null;
   matched_order_number: string | null;
   matched_tracking_number: string | null;
-  platform: 'shopee' | 'mall' | null;
+  platform: ShopeeReturnPlatform | null;
   matched_count: number;
   updated_count: number;
   message: string | null;
@@ -1062,7 +1064,7 @@ export async function scanShopeeReturn(
  */
 export async function createShopeeReturn(input: {
   orderNumber: string;
-  platform: 'shopee' | 'mall';
+  platform: ShopeeReturnPlatform;
   trackingNumber?: string;
   orderDate?: string;
   disputeDeadline?: string;
@@ -1137,7 +1139,7 @@ export async function createShopeeReturn(input: {
 }
 
 export interface ShopeeReturnUpdateInput {
-  platform?: 'shopee' | 'mall';
+  platform?: ShopeeReturnPlatform;
   orderNumber?: string;
   trackingNumber?: string;
   shippingMethod?: string;
@@ -1266,7 +1268,7 @@ export interface ShopeeReturnScanCandidate {
   id: string;
   order_number: string;
   tracking_number: string | null;
-  platform: 'shopee' | 'mall' | null;
+  platform: ShopeeReturnPlatform | null;
   is_scanned: boolean;
 }
 
@@ -1540,4 +1542,3 @@ export async function bindShopeeUnmatchedScan(input: {
     return { success: false, error: '綁定失敗' };
   }
 }
-

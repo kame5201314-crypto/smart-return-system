@@ -29,6 +29,7 @@ import {
   bindShopeeUnmatchedScan,
   getShopeeUnmatchedScans,
   searchShopeeReturnScanCandidates,
+  type ShopeeReturnPlatform,
   type ShopeeReturnScanCandidate,
   type ShopeeUnmatchedScan,
 } from '@/lib/actions/shopee-returns.actions';
@@ -47,8 +48,10 @@ function formatDateTime(value: string): string {
   });
 }
 
-function getPlatformLabel(platform: 'shopee' | 'mall' | null): string {
-  return platform === 'mall' ? '商城' : '蝦皮';
+function getPlatformLabel(platform: ShopeeReturnPlatform | null): string {
+  if (platform === 'mall') return '商城';
+  if (platform === 'other') return '其他';
+  return '蝦皮';
 }
 
 export default function UnmatchedScanPage() {

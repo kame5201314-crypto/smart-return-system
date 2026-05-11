@@ -189,6 +189,7 @@ function normalizeChannelLabel(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (normalized === 'shopee') return '蝦皮';
   if (normalized === 'mall') return '商城';
+  if (normalized === 'other') return '其他';
   if (normalized === 'official') return '官網';
   return value.trim() || '未分類';
 }

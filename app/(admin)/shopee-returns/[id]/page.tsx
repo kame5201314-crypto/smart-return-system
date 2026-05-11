@@ -31,10 +31,11 @@ import {
   updateShopeeReturn,
   updateShopeeReturnStatus,
   type ShopeeReturn,
+  type ShopeeReturnPlatform,
 } from '@/lib/actions/shopee-returns.actions';
 
 interface EditFormState {
-  platform: 'shopee' | 'mall';
+  platform: ShopeeReturnPlatform;
   orderNumber: string;
   trackingNumber: string;
   shippingMethod: string;
@@ -55,6 +56,7 @@ const LIST_STATE_RETURN_PATH = '/shopee-returns';
 
 function getPlatformLabel(platform: ShopeeReturn['platform']): string {
   if (platform === 'mall') return '商城';
+  if (platform === 'other') return '其他';
   if (platform === 'shopee') return '蝦皮';
   return '-';
 }
@@ -80,7 +82,7 @@ function toDateInput(dateString: string | null): string {
 
 function buildEditForm(record: ShopeeReturn): EditFormState {
   return {
-    platform: record.platform === 'mall' ? 'mall' : 'shopee',
+    platform: record.platform || 'shopee',
     orderNumber: record.order_number || '',
     trackingNumber: record.tracking_number || '',
     shippingMethod: record.shipping_method || '',
@@ -613,12 +615,13 @@ export default function ShopeeReturnDetailPage() {
                   <Label>平台 *</Label>
                   <Select
                     value={editForm.platform}
-                    onValueChange={(value) => updateEditField('platform', value as 'shopee' | 'mall')}
+                    onValueChange={(value) => updateEditField('platform', value as ShopeeReturnPlatform)}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="shopee">蝦皮</SelectItem>
                       <SelectItem value="mall">商城</SelectItem>
+                      <SelectItem value="other">其他</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

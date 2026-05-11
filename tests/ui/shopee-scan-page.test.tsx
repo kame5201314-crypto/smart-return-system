@@ -126,7 +126,7 @@ describe('ShopeeReturnScanPage UI', () => {
     fireEvent.click(screen.getByRole('button', { name: '送出比對' }));
 
     await waitFor(() => {
-      expect(toastMock.error).toHaveBeenCalledWith('請輸入條碼內容');
+      expect(toastMock.error).toHaveBeenCalledWith('請先輸入條碼內容');
     });
     expect(scanShopeeReturnMock).not.toHaveBeenCalled();
   });

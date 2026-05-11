@@ -54,6 +54,23 @@ const PRODUCT_RANKING_COMPACT_LIMIT = 10;
 const PRODUCT_RANKING_PAGE_SIZE = 30;
 const PRODUCT_RANKING_MAX = 60;
 
+function getReturnChannelLabel(channelSource: string | null): string {
+  if (channelSource === 'other') return '其他';
+  return CHANNEL_LIST.find(c => c.key === channelSource)?.label || channelSource || '未知';
+}
+
+function getShopeePlatformChannelKey(platform: ShopeeReturn['platform']): string {
+  if (platform === 'mall') return 'shopee_mall';
+  if (platform === 'other') return 'other';
+  return 'shopee';
+}
+
+function getShopeePlatformLabel(platform: ShopeeReturn['platform']): string {
+  if (platform === 'mall') return '商城';
+  if (platform === 'other') return '其他';
+  return '蝦皮';
+}
+
 interface ReturnItem {
   id: string;
   product_name: string;
@@ -156,11 +173,9 @@ export default function AnalyticsPage() {
   // Filter shopee returns based on selections
   const filteredShopeeReturns = useMemo(() => {
     return shopeeReturns.filter(r => {
-      // Channel filter: shopee matches platform='shopee', shopee_mall matches platform='mall'
+      // Channel filter: shopee matches platform='shopee', shopee_mall matches platform='mall', other matches platform='other'
       if (selectedChannel !== 'all') {
-        if (selectedChannel === 'shopee' && r.platform !== 'shopee') return false;
-        if (selectedChannel === 'shopee_mall' && r.platform !== 'mall') return false;
-        if (selectedChannel !== 'shopee' && selectedChannel !== 'shopee_mall') return false;
+        if (getShopeePlatformChannelKey(r.platform) !== selectedChannel) return false;
       }
 
       const reportPeriod = getShopeeReturnReportPeriod(r);
@@ -187,16 +202,19 @@ export default function AnalyticsPage() {
     const mallFromReturns = filteredReturns.filter(r => r.channel_source === 'shopee_mall').length;
     const mallFromShopeeReturns = filteredShopeeReturns.filter(r => r.platform === 'mall').length;
     const shopeeMallCount = mallFromReturns + mallFromShopeeReturns;
+    const otherFromReturns = filteredReturns.filter(r => r.channel_source === 'other').length;
+    const otherFromShopeeReturns = filteredShopeeReturns.filter(r => r.platform === 'other').length;
+    const otherCount = otherFromReturns + otherFromShopeeReturns;
 
     // By channel - include shopee returns
     const channelCounts: Record<string, number> = {};
     filteredReturns.forEach(r => {
-      const channel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
+      const channel = getReturnChannelLabel(r.channel_source);
       channelCounts[channel] = (channelCounts[channel] || 0) + 1;
     });
     // Add shopee returns count by platform
     filteredShopeeReturns.forEach(r => {
-      const channelLabel = r.platform === 'mall' ? '商城' : '蝦皮';
+      const channelLabel = getShopeePlatformLabel(r.platform);
       channelCounts[channelLabel] = (channelCounts[channelLabel] || 0) + 1;
     });
     const byChannel = Object.entries(channelCounts)
@@ -258,7 +276,7 @@ export default function AnalyticsPage() {
       // Ranking only counts closed or abnormal cases
       if (r.status !== RETURN_STATUS.COMPLETED && r.status !== RETURN_STATUS.ABNORMAL_DISPUTED) return;
 
-      const channelLabel = CHANNEL_LIST.find(c => c.key === r.channel_source)?.label || r.channel_source || '未知';
+      const channelLabel = getReturnChannelLabel(r.channel_source);
       r.return_items?.forEach(item => {
         const sku = item.product_sku?.trim() || null;
         // No SKU => don't enter ranking (prevents "-" items from polluting the leaderboard)
@@ -279,7 +297,7 @@ export default function AnalyticsPage() {
       // No SKU => don't enter ranking
       if (!sku) return;
 
-      const channelLabel = r.platform === 'mall' ? '商城' : '蝦皮';
+      const channelLabel = getShopeePlatformLabel(r.platform);
       productRankingInputs.push({
         name: r.product_name,
         sku,
@@ -294,6 +312,7 @@ export default function AnalyticsPage() {
       officialCount,
       shopeeCount,
       shopeeMallCount,
+      otherCount,
       byChannel,
       byReason,
       byStatus,
@@ -437,6 +456,11 @@ export default function AnalyticsPage() {
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
                     <span className="text-muted-foreground">蝦皮商城</span>
                     <span className="font-medium">{stats.shopeeMallCount}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-slate-500"></div>
+                    <span className="text-muted-foreground">其他</span>
+                    <span className="font-medium">{stats.otherCount}</span>
                   </div>
                 </div>
               )}

@@ -25,7 +25,7 @@ interface ShopeeReturnExportData {
   inbound_at?: string | null;
   is_processed: boolean;
   is_printed: boolean;
-  platform: 'shopee' | 'mall' | null;
+  platform: 'shopee' | 'mall' | 'other' | null;
   color_tag: 'yellow' | 'red' | 'purple' | null;
   note: string | null;
   imported_at: string;
@@ -126,7 +126,7 @@ async function exportShopeeReturns() {
 
   (data as ShopeeReturnExportData[] | null)?.forEach((r) => {
     worksheet.addRow({
-      platform: r.platform === 'mall' ? '商城' : (r.platform === 'shopee' ? '蝦皮' : ''),
+      platform: r.platform === 'mall' ? '商城' : (r.platform === 'other' ? '其他' : (r.platform === 'shopee' ? '蝦皮' : '')),
       order_number: r.order_number,
       tracking_number: r.tracking_number || '',
       order_date: r.order_date || '',
@@ -164,4 +164,3 @@ async function exportShopeeReturns() {
     },
   });
 }
-

@@ -20,6 +20,7 @@ import {
   getShopeeScanDashboard,
   scanShopeeReturn,
   type ScanStatus,
+  type ShopeeReturnPlatform,
 } from '@/lib/actions/shopee-returns.actions';
 import { extractTextScanCandidates } from '@/lib/utils/text-scan-candidates';
 
@@ -46,7 +47,7 @@ interface ScanHistoryItem {
   id: string;
   eventId: string;
   orderNumber: string;
-  platform: 'shopee' | 'mall' | null;
+  platform: ShopeeReturnPlatform | null;
   trackingNumber: string | null;
   scannedAt: string | null;
   code: string;
@@ -72,8 +73,10 @@ function formatDateTime(value: string | null): string {
   });
 }
 
-function getPlatformLabel(platform: 'shopee' | 'mall' | null): string {
-  return platform === 'mall' ? '商城' : '蝦皮';
+function getPlatformLabel(platform: ShopeeReturnPlatform | null): string {
+  if (platform === 'mall') return '商城';
+  if (platform === 'other') return '其他';
+  return '蝦皮';
 }
 
 export default function ShopeeReturnScanPage() {
