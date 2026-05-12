@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { format } from 'date-fns';
 import {
   Upload,
   Download,
   Search,
-  Printer,
   Check,
   X,
   FileSpreadsheet,
@@ -183,7 +181,6 @@ export default function ShopeeReturnsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'processed' | 'unprocessed'>('all');
   const [scannedFilter, setScannedFilter] = useState<'all' | 'scanned' | 'not_scanned'>('all');
   const [inboundFilter, setInboundFilter] = useState<'all' | 'inbound' | 'not_inbound'>('all');
-  const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'not_printed'>('all');
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
   const [colorTagFilter, setColorTagFilter] = useState<ColorTagFilter>('all');
   const [shippingMethodFilter, setShippingMethodFilter] = useState<string>('all');
@@ -246,7 +243,6 @@ export default function ShopeeReturnsPage() {
         statusFilter: typeof statusFilter;
         scannedFilter: typeof scannedFilter;
         inboundFilter: typeof inboundFilter;
-        printFilter: typeof printFilter;
         platformFilter: typeof platformFilter;
         colorTagFilter: ColorTagFilter;
         shippingMethodFilter: string;
@@ -263,9 +259,6 @@ export default function ShopeeReturnsPage() {
       }
       if (saved.inboundFilter === 'all' || saved.inboundFilter === 'inbound' || saved.inboundFilter === 'not_inbound') {
         setInboundFilter(saved.inboundFilter);
-      }
-      if (saved.printFilter === 'all' || saved.printFilter === 'printed' || saved.printFilter === 'not_printed') {
-        setPrintFilter(saved.printFilter);
       }
       if (
         saved.platformFilter === 'all' ||
@@ -315,7 +308,6 @@ export default function ShopeeReturnsPage() {
         statusFilter,
         scannedFilter,
         inboundFilter,
-        printFilter,
         platformFilter,
         colorTagFilter,
         shippingMethodFilter,
@@ -329,7 +321,6 @@ export default function ShopeeReturnsPage() {
     statusFilter,
     scannedFilter,
     inboundFilter,
-    printFilter,
     platformFilter,
     colorTagFilter,
     shippingMethodFilter,
@@ -360,13 +351,6 @@ export default function ShopeeReturnsPage() {
       filtered = filtered.filter((r) => !!r.is_inbound);
     } else if (inboundFilter === 'not_inbound') {
       filtered = filtered.filter((r) => !r.is_inbound);
-    }
-
-    // Print filter
-    if (printFilter === 'printed') {
-      filtered = filtered.filter((r) => r.is_printed);
-    } else if (printFilter === 'not_printed') {
-      filtered = filtered.filter((r) => !r.is_printed);
     }
 
     // Platform filter
@@ -432,7 +416,6 @@ export default function ShopeeReturnsPage() {
     statusFilter,
     scannedFilter,
     inboundFilter,
-    printFilter,
     platformFilter,
     colorTagFilter,
     shippingMethodFilter,
@@ -482,16 +465,6 @@ export default function ShopeeReturnsPage() {
     return sortDirection === 'desc'
       ? <ArrowDown className="w-3 h-3 ml-1" />
       : <ArrowUp className="w-3 h-3 ml-1" />;
-  }
-
-  function formatOrderDate(dateStr: string | null): string {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      const match = dateStr.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})/);
-      return match ? match[1].replace(/\//g, '-') : dateStr.substring(0, 10);
-    }
-    return format(date, 'yyyy-MM-dd');
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, platform: 'shopee' | 'mall') {
@@ -724,20 +697,6 @@ export default function ShopeeReturnsPage() {
     }
   }
 
-  async function togglePrinted(group: ShopeeReturnGroup) {
-    const nextPrinted = !group.isPrinted;
-    const result = await batchUpdateShopeeReturns(group.itemIds, { is_printed: nextPrinted });
-    if (result.success) {
-      setReturns((prev) =>
-        prev.map((record) =>
-          group.itemIds.includes(record.id) ? { ...record, is_printed: nextPrinted } : record
-        )
-      );
-    } else {
-      toast.error(result.error || '\u66f4\u65b0\u5931\u6557');
-    }
-  }
-
   async function toggleInbound(group: ShopeeReturnGroup) {
     const nextInbound = !group.isInbound;
     const now = new Date().toISOString();
@@ -856,22 +815,6 @@ export default function ShopeeReturnsPage() {
     }
   }
 
-  async function markSelectedAsPrinted(printed: boolean) {
-    const ids = Array.from(selectedIds);
-    const result = await batchUpdateShopeeReturns(ids, { is_printed: printed });
-    if (result.success) {
-      setReturns((prev) =>
-        prev.map((r) =>
-          selectedIds.has(r.id) ? { ...r, is_printed: printed } : r
-        )
-      );
-      setSelectedIds(new Set());
-      toast.success(`已更新 ${ids.length} 筆商品為${printed ? '已列印' : '未列印'}`);
-    } else {
-      toast.error(result.error || '更新列印狀態失敗');
-    }
-  }
-
   async function handleDeleteSelected() {
     if (!confirm(`確定要刪除這 ${selectedIds.size} 筆商品資料嗎？`)) return;
 
@@ -938,99 +881,6 @@ export default function ShopeeReturnsPage() {
       toast.error('新增失敗');
     }
     setIsManualSubmitting(false);
-  }
-
-  function formatLabelDate(dateStr: string | null): string {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      const match = dateStr.match(/\d{1,2}[-/](\d{1,2})/);
-      return match ? match[1] : '-';
-    }
-    return format(date, 'M/d');
-  }
-
-  async function handlePrint() {
-    const selectedReturns = filteredReturns.filter((r) => selectedIds.has(r.id));
-    const printData = selectedReturns.length > 0 ? selectedReturns : filteredReturns.filter((r) => !r.is_processed);
-
-    if (printData.length === 0) {
-      toast.error('\u6c92\u6709\u53ef\u5217\u5370\u7684\u8cc7\u6599');
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('\u7121\u6cd5\u958b\u555f\u5217\u5370\u8996\u7a97\uff0c\u8acb\u78ba\u8a8d\u700f\u89bd\u5668\u5141\u8a31\u5f48\u51fa\u8996\u7a97');
-      return;
-    }
-
-    const labels = printData.map((r) => {
-      // Determine shipping display: directly use shipping_method field value
-      const shippingDisplay = r.shipping_method || AUTO_PICKUP_SHIPPING_METHOD;
-
-      return {
-        orderNumber: r.order_number,
-        trackingNumber: r.tracking_number || '',
-        date: formatLabelDate(r.dispute_deadline),
-        platform: r.platform || 'shopee',
-        shippingDisplay,
-      };
-    });
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>\u8766\u76ae\u9000\u8ca8\u6a19\u7c64 - ${format(new Date(), 'yyyy/MM/dd')}</title>
-        <style>
-          @page { size: A4; margin: 5mm; }
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: 'Microsoft JhengHei', 'Arial', sans-serif; }
-          .labels-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; padding: 5mm; }
-          .label { border: 2px solid #000; display: grid; grid-template-columns: 2.5fr 1fr 1fr 1.5fr; height: 25mm; page-break-inside: avoid; }
-          .label-cell { border-right: 2px solid #000; display: flex; align-items: center; justify-content: center; padding: 2mm; text-align: center; font-size: 11pt; font-weight: bold; overflow: hidden; word-break: break-all; }
-          .label-cell:last-child { border-right: none; }
-          .label-cell.order-info { flex-direction: column; font-size: 9pt; line-height: 1.3; gap: 1mm; }
-          .label-cell.order-info .order-number { font-size: 10pt; }
-          .label-cell.order-info .tracking-number { font-size: 9pt; color: #333; }
-          .label-cell.platform { background: #fff; font-size: 12pt; }
-          .label-cell.date { font-size: 12pt; }
-          .label-cell.shipping { font-size: 10pt; }
-          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .labels-container { gap: 2mm; } }
-        </style>
-      </head>
-      <body>
-        <div class="labels-container">
-          ${labels.map((label) => `
-            <div class="label">
-              <div class="label-cell order-info">
-                <div class="order-number">${label.orderNumber}</div>
-                <div class="tracking-number">${label.trackingNumber}</div>
-              </div>
-              <div class=\"label-cell platform\">${formatShopeeReturnPlatform(label.platform as ShopeeReturn['platform'])}</div>
-              <div class="label-cell date">${label.date}</div>
-              <div class="label-cell shipping">${label.shippingDisplay}</div>
-            </div>
-          `).join('')}
-        </div>
-        <script>window.onload = function() { window.print(); }</script>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-
-    const printedIds = printData.map((r) => r.id);
-    const result = await batchUpdateShopeeReturns(printedIds, { is_printed: true });
-    if (result.success) {
-      setReturns((prev) =>
-        prev.map((r) =>
-          printedIds.includes(r.id) ? { ...r, is_printed: true } : r
-        )
-      );
-    }
   }
 
   const unprocessedCount = groupedReturns.filter((group) => !group.isProcessed).length;
@@ -1132,10 +982,6 @@ export default function ShopeeReturnsPage() {
               {'\u532f\u51fa'}
             </a>
           </Button>
-          <Button size="sm" onClick={handlePrint}>
-            <Printer className="w-4 h-4 mr-1" />
-            {'\u5217\u5370'}
-          </Button>
         </div>
       </div>
 
@@ -1184,10 +1030,10 @@ export default function ShopeeReturnsPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
-                  <Filter className="w-3 h-3 mr-1" />
+                <SelectTrigger className="h-9 w-[124px] shrink-0 text-sm">
+                  <Filter className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="min-w-[118px]">
@@ -1198,8 +1044,8 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={scannedFilter} onValueChange={(v) => setScannedFilter(v as typeof scannedFilter)}>
-                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
-                  <ScanLine className="w-3 h-3 mr-1" />
+                <SelectTrigger className="h-9 w-[124px] shrink-0 text-sm">
+                  <ScanLine className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="min-w-[118px]">
@@ -1210,8 +1056,8 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={inboundFilter} onValueChange={(v) => setInboundFilter(v as typeof inboundFilter)}>
-                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
-                  <Package className="w-3 h-3 mr-1" />
+                <SelectTrigger className="h-9 w-[124px] shrink-0 text-sm">
+                  <Package className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="min-w-[118px]">
@@ -1221,21 +1067,9 @@ export default function ShopeeReturnsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={printFilter} onValueChange={(v) => setPrintFilter(v as typeof printFilter)}>
-                <SelectTrigger className="h-7 w-[118px] shrink-0 text-xs">
-                  <Printer className="w-3 h-3 mr-1" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="min-w-[118px]">
-                  <SelectItem value="all">{'\u5168\u90e8'}</SelectItem>
-                  <SelectItem value="printed">{'\u5df2\u5217\u5370'}</SelectItem>
-                  <SelectItem value="not_printed">{'\u672a\u5217\u5370'}</SelectItem>
-                </SelectContent>
-              </Select>
-
               <Select value={colorTagFilter} onValueChange={(v) => setColorTagFilter(v as ColorTagFilter)}>
-                <SelectTrigger className="h-7 w-[132px] shrink-0 text-xs">
-                  <Palette className="w-3 h-3 mr-1" />
+                <SelectTrigger className="h-9 w-[142px] shrink-0 text-sm">
+                  <Palette className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="min-w-[132px]">
@@ -1248,8 +1082,8 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as PlatformFilter)}>
-                <SelectTrigger className="h-7 w-[132px] shrink-0 text-xs">
-                  <Store className="w-3 h-3 mr-1" />
+                <SelectTrigger className="h-9 w-[142px] shrink-0 text-sm">
+                  <Store className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="min-w-[132px]">
@@ -1261,8 +1095,8 @@ export default function ShopeeReturnsPage() {
               </Select>
 
               <Select value={shippingMethodFilter} onValueChange={setShippingMethodFilter}>
-                <SelectTrigger className="h-7 w-[260px] shrink-0 text-xs">
-                  <Truck className="w-3 h-3 mr-1" />
+                <SelectTrigger className="h-9 w-[280px] shrink-0 text-sm">
+                  <Truck className="w-4 h-4 mr-2" />
                   <SelectValue placeholder={'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'} />
                 </SelectTrigger>
                 <SelectContent className="min-w-[260px]">
@@ -1353,33 +1187,32 @@ export default function ShopeeReturnsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="text-sm [&_th]:px-4 [&_td]:px-4 [&_th]:py-3 [&_td]:py-3">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[40px] sticky left-0 bg-background">
+                    <TableHead className="w-[48px] sticky left-0 bg-background">
                       <Checkbox checked={isAllPaginatedSelected} onCheckedChange={toggleSelectAll} />
                     </TableHead>
-                    <TableHead className="w-[110px]">
+                    <TableHead className="w-[132px]">
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                        <Calendar className="w-4 h-4" />
                         {'\u8655\u7406\u65e5\u671f'}
                       </div>
                     </TableHead>
-                    <TableHead className="w-[70px] cursor-pointer hover:bg-muted/50 select-none" onClick={() => handleSort('is_scanned')}>
+                    <TableHead className="w-[86px] cursor-pointer hover:bg-muted/50 select-none" onClick={() => handleSort('is_scanned')}>
                       <div className="flex items-center">
                         {'\u6383\u63cf'}
                         {getSortIcon('is_scanned')}
                       </div>
                     </TableHead>
-                    <TableHead className="w-[60px]">{'\u5165\u5eab'}</TableHead>
-                    <TableHead className="w-[60px]">{'\u72c0\u614b'}</TableHead>
-                    <TableHead className="w-[60px]">{'\u5217\u5370'}</TableHead>
-                    <TableHead className="w-[50px]">{'\u5e73\u53f0'}</TableHead>
-                    <TableHead className="min-w-[120px]">{'\u8a02\u55ae\u7de8\u865f'}</TableHead>
-                    <TableHead className="min-w-[120px]">{'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'}</TableHead>
-                    <TableHead className="min-w-[100px]">{'\u9000\u8ca8\u5bc4\u4ef6\u7de8\u865f'}</TableHead>
-                    <TableHead className="w-[100px] hidden md:table-cell">{'\u722d\u8b70\u7533\u8acb\u671f\u9650'}</TableHead>
-                    <TableHead className="min-w-[150px]">{'\u5099\u8a3b'}</TableHead>
+                    <TableHead className="w-[86px]">{'\u5165\u5eab'}</TableHead>
+                    <TableHead className="w-[86px]">{'\u72c0\u614b'}</TableHead>
+                    <TableHead className="w-[70px]">{'\u5e73\u53f0'}</TableHead>
+                    <TableHead className="min-w-[150px]">{'\u8a02\u55ae\u7de8\u865f'}</TableHead>
+                    <TableHead className="min-w-[150px]">{'\u9000\u8ca8\u904b\u9001\u65b9\u5f0f'}</TableHead>
+                    <TableHead className="min-w-[140px]">{'\u9000\u8ca8\u5bc4\u4ef6\u7de8\u865f'}</TableHead>
+                    <TableHead className="w-[130px] hidden md:table-cell">{'\u722d\u8b70\u7533\u8acb\u671f\u9650'}</TableHead>
+                    <TableHead className="min-w-[220px]">{'\u5099\u8a3b'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1403,7 +1236,7 @@ export default function ShopeeReturnsPage() {
                       <TableCell>
                         <input
                           type="date"
-                          className="text-xs border rounded px-1 py-1 w-full max-w-[110px] cursor-pointer"
+                          className="h-8 text-sm border rounded px-2 py-1 w-full max-w-[128px] cursor-pointer"
                           defaultValue={group.processedAt ? group.processedAt.slice(0, 10) : ''}
                           onChange={async (e) => {
                             const newDate = e.target.value || null;
@@ -1413,53 +1246,44 @@ export default function ShopeeReturnsPage() {
                       </TableCell>
                       <TableCell>
                         {group.isScanned ? (
-                          <Badge className="bg-indigo-100 text-indigo-800 text-[10px] px-1">{'\u5df2\u6383\u63cf'}</Badge>
+                          <Badge className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5">{'\u5df2\u6383\u63cf'}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-[10px] px-1">{'\u672a\u6383\u63cf'}</Badge>
+                          <Badge variant="outline" className="text-gray-500 border-gray-300 text-xs px-2 py-0.5">{'\u672a\u6383\u63cf'}</Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         <button onClick={() => toggleInbound(group)} className="flex items-center">
                           {group.isInbound ? (
-                            <Badge className="bg-blue-100 text-blue-800 cursor-pointer text-[10px] px-1">{'\u5df2\u5165\u5eab'}</Badge>
+                            <Badge className="bg-blue-100 text-blue-800 cursor-pointer text-xs px-2 py-0.5">{'\u5df2\u5165\u5eab'}</Badge>
                           ) : (
-                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">{'\u672a\u5165\u5eab'}</Badge>
+                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-xs px-2 py-0.5">{'\u672a\u5165\u5eab'}</Badge>
                           )}
                         </button>
                       </TableCell>
                       <TableCell>
                         <button onClick={() => toggleProcessed(group)} className="flex items-center">
                           {group.isProcessed ? (
-                            <Badge className="bg-green-100 text-green-800 cursor-pointer text-[10px] px-1">{'\u5df2\u8655\u7406'}</Badge>
+                            <Badge className="bg-green-100 text-green-800 cursor-pointer text-xs px-2 py-0.5">{'\u5df2\u8655\u7406'}</Badge>
                           ) : (
-                            <Badge variant="outline" className="cursor-pointer text-yellow-700 border-yellow-300 text-[10px] px-1">{'\u672a\u8655\u7406'}</Badge>
+                            <Badge variant="outline" className="cursor-pointer text-yellow-700 border-yellow-300 text-xs px-2 py-0.5">{'\u672a\u8655\u7406'}</Badge>
                           )}
                         </button>
                       </TableCell>
-                      <TableCell>
-                        <button onClick={() => togglePrinted(group)} className="flex items-center">
-                          {group.isPrinted ? (
-                            <Badge className="bg-purple-100 text-purple-800 cursor-pointer text-[10px] px-1">{'\u5df2\u5217\u5370'}</Badge>
-                          ) : (
-                            <Badge variant="outline" className="cursor-pointer text-gray-500 border-gray-300 text-[10px] px-1">{'\u672a\u5217\u5370'}</Badge>
-                          )}
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-xs text-center">{formatShopeeReturnPlatform(group.platform)}</TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="text-sm text-center">{formatShopeeReturnPlatform(group.platform)}</TableCell>
+                      <TableCell className="font-mono text-sm">
                         <Link href={`/shopee-returns/${group.primaryId}`} className="underline underline-offset-2 hover:text-primary">
                           {group.orderNumber}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-xs">{group.shippingMethod || AUTO_PICKUP_SHIPPING_METHOD}</TableCell>
-                      <TableCell className="font-mono text-xs">{group.trackingNumber || '-'}</TableCell>
-                      <TableCell className="text-xs hidden md:table-cell">{group.disputeDeadline || '-'}</TableCell>
+                      <TableCell className="text-sm">{group.shippingMethod || AUTO_PICKUP_SHIPPING_METHOD}</TableCell>
+                      <TableCell className="font-mono text-sm">{group.trackingNumber || '-'}</TableCell>
+                      <TableCell className="text-sm hidden md:table-cell">{group.disputeDeadline || '-'}</TableCell>
                       <TableCell>
                         <div className="relative group/note">
                           <Input
                             placeholder={'\u8f38\u5165\u5099\u8a3b...'}
                             value={getNoteValue(group)}
-                            className="text-xs h-8 min-w-[120px]"
+                            className="text-sm h-9 min-w-[200px]"
                             onChange={(e) => debouncedUpdateNote(group.groupKey, e.target.value)}
                             onBlur={(e) => flushNoteUpdate(group, e.target.value)}
                             onKeyDown={(e) => {
