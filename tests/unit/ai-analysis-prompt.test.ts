@@ -159,6 +159,51 @@ describe('buildAIAnalysisPromptPayload', () => {
     expect(prompt).not.toContain('"dataset_counts"');
   });
 
+  it('does not include image fields in AI analysis payload or prompt', () => {
+    type PromptParams = Parameters<typeof buildAIAnalysisPromptPayload>[0];
+    const imageUrl = 'https://example.com/customer-return-photo.jpg';
+
+    const returns = [
+      {
+        channel_source: 'official',
+        reason_category: 'quality',
+        reason_detail: 'photo should not be sent',
+        refund_type: 'refund',
+        return_items: [{ reason: 'damaged', resolution_type: 'full' }],
+        return_images: [{ image_url: imageUrl }],
+      },
+    ] as unknown as PromptParams['returns'];
+
+    const shopeeReturns = [
+      {
+        platform: 'shopee',
+        shipping_method: 'store pickup',
+        return_reason: 'wrong item',
+        buyer_note: 'text only',
+        return_reason_note: 'inspection note',
+        note: 'admin note',
+        image_url: imageUrl,
+      },
+    ] as unknown as PromptParams['shopeeReturns'];
+
+    const payload = buildAIAnalysisPromptPayload({
+      period: '2026-03',
+      returns,
+      shopeeReturns,
+      pickupRecords: [],
+      skuGroups: [],
+    });
+    const serializedPayload = JSON.stringify(payload);
+    const prompt = buildTextOnlyAIAnalysisPrompt(payload);
+
+    expect(serializedPayload).not.toContain('return_images');
+    expect(serializedPayload).not.toContain('image_url');
+    expect(serializedPayload).not.toContain(imageUrl);
+    expect(prompt).not.toContain('return_images');
+    expect(prompt).not.toContain('image_url');
+    expect(prompt).not.toContain(imageUrl);
+  });
+
   it('stores a prompt snapshot without raw text arrays', () => {
     const payload = buildAIAnalysisPromptPayload({
       period: '2026-03',
