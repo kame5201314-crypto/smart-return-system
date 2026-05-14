@@ -182,7 +182,7 @@ describe('buildAIAnalysisPromptPayload', () => {
       period: '2026-03',
       prompt,
       payload,
-      modelCandidates: ['models/gemini-2.0-flash-lite'],
+      modelCandidates: ['models/gemini-2.5-flash-lite'],
     });
 
     expect(snapshot.prompt_character_count).toBe(prompt.length);
@@ -229,7 +229,7 @@ describe('buildAIAnalysisPromptPayload', () => {
 
   it('stores response diagnostics with model and usage metadata', () => {
     const snapshot = buildAIAnalysisResponseSnapshot({
-      model: 'models/gemini-2.0-flash-lite',
+      model: 'models/gemini-2.5-flash-lite',
       text: '{"summary":"ok"}',
       usageMetadata: {
         promptTokenCount: 123,
@@ -238,7 +238,7 @@ describe('buildAIAnalysisPromptPayload', () => {
     });
 
     expect(snapshot).toMatchObject({
-      model: 'models/gemini-2.0-flash-lite',
+      model: 'models/gemini-2.5-flash-lite',
       response_character_count: 16,
     });
     expect(snapshot.usage_metadata).toMatchObject({

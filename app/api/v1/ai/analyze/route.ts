@@ -247,8 +247,8 @@ function buildStoredReportResponse(
 
 const GEMINI_TEXT_MODELS = [
   process.env.GEMINI_TEXT_MODEL?.replace(/\\n/g, '').trim(),
-  'models/gemini-2.0-flash-lite',
-  'models/gemini-2.0-flash',
+  'models/gemini-2.5-flash-lite',
+  'models/gemini-2.5-flash',
   'models/gemini-flash-latest',
 ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
 const GEMINI_MAX_OUTPUT_TOKENS = (() => {
