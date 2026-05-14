@@ -8,6 +8,7 @@ from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
+from app.core.config import get_settings
 from app.core.security import verify_api_key
 from app.models.schemas import (
     AICheckBatchRequest,
@@ -17,7 +18,6 @@ from app.models.schemas import (
     AnnotationResult,
     TaskStatusResponse,
 )
-from app.services.openai_vision import get_vision_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-check", tags=["AI 檢查"])
@@ -26,7 +26,18 @@ router = APIRouter(prefix="/ai-check", tags=["AI 檢查"])
 _task_status: dict = {}
 
 
+def require_image_ai_enabled() -> None:
+    if not get_settings().enable_image_ai:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image AI routes are disabled. Set ENABLE_IMAGE_AI=true to enable them.",
+        )
+
+
 def require_vision_service():
+    require_image_ai_enabled()
+    from app.services.openai_vision import get_vision_service
+
     try:
         return get_vision_service()
     except RuntimeError as exc:
@@ -215,6 +226,8 @@ async def check_async(
     import uuid
     from datetime import datetime, timezone
 
+    require_image_ai_enabled()
+
     task_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
@@ -276,6 +289,8 @@ async def get_task_status(
     _: str = Depends(verify_api_key),
 ):
     """查詢非同步任務狀態"""
+    require_image_ai_enabled()
+
     if task_id not in _task_status:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
