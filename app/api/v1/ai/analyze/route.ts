@@ -22,6 +22,10 @@ import {
   buildAIJsonRepairPrompt,
   parseAIAnalysisResponseText,
 } from '@/lib/utils/ai-analysis-response';
+import {
+  buildAIUsageEventRecord,
+  type AIUsageEventInput,
+} from '@/lib/utils/ai-usage';
 import { buildLocalAIAnalysisFallback } from '@/lib/utils/ai-analysis-fallback';
 import { isShopeeReturnInReportPeriod } from '@/lib/utils/return-period';
 
@@ -346,6 +350,26 @@ async function repairAIResponseJson(
   });
 }
 
+async function recordAIUsageEvent(
+  supabase: ReturnType<typeof createUntypedAdminClient>,
+  input: AIUsageEventInput
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('ai_usage_events')
+      .insert(buildAIUsageEventRecord(input));
+
+    if (error) {
+      console.warn('AI usage event insert failed:', error.message);
+    }
+  } catch (error) {
+    console.warn(
+      'AI usage event insert failed:',
+      getErrorMessage(error) || 'Unknown error'
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const isAuthenticated = await isAuthenticatedRequest(request);
@@ -565,6 +589,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingReport && extractPromptFingerprint(existingReport.raw_prompt) === payloadFingerprint) {
+      await recordAIUsageEvent(untypedSupabase, {
+        feature: 'return_ai_analysis',
+        reportPeriod: period,
+        model: 'cache',
+        requestFingerprint: payloadFingerprint,
+        cached: true,
+        success: true,
+        usageMetadata: null,
+        metadata: {
+          report_id: typeof existingReport.id === 'string' ? existingReport.id : null,
+          source: 'ai_analysis_reports',
+        },
+      });
+
       return NextResponse.json({
         success: true,
         saved: true,
@@ -629,6 +667,20 @@ export async function POST(request: NextRequest) {
 
     if (containsLikelyMojibake(analysisResult)) {
       console.error('AI response appears to contain mojibake-like content:', aiResponse);
+      await recordAIUsageEvent(untypedSupabase, {
+        feature: 'return_ai_analysis',
+        reportPeriod: period,
+        model: aiResult.model,
+        requestFingerprint: payloadFingerprint,
+        cached: false,
+        success: false,
+        usageMetadata: aiResult.usageMetadata,
+        metadata: {
+          failure: 'mojibake_response',
+          prompt_character_count: prompt.length,
+        },
+      });
+
       return NextResponse.json(
         { success: false, error: 'AI 回應內容疑似亂碼，請重新分析' },
         { status: 502 }
@@ -683,6 +735,22 @@ export async function POST(request: NextRequest) {
       console.error('Save report error:', saveError);
       // Still return the analysis even if save fails
     }
+
+    await recordAIUsageEvent(untypedSupabase, {
+      feature: 'return_ai_analysis',
+      reportPeriod: period,
+      model: aiResult.model,
+      requestFingerprint: payloadFingerprint,
+      cached: false,
+      success: aiResult.model !== 'local-text-fallback',
+      usageMetadata: aiResult.usageMetadata,
+      metadata: {
+        report_id: report?.id || null,
+        saved,
+        fallback: aiResult.model === 'local-text-fallback',
+        prompt_character_count: prompt.length,
+      },
+    });
 
     return NextResponse.json({
       success: true,
