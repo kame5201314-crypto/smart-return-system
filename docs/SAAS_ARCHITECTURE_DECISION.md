@@ -4,6 +4,21 @@
 日期：2026-05-15
 修正原因：目前 AI 退貨系統已上市，上市版必須被保護，SaaS 改造不可直接影響既有使用者。
 
+## 執行狀態
+
+已完成：
+
+- `master` 保持為已上市穩定版。
+- 已建立保護 tag：`internal-stable-2026-05-15`。
+- 已建立 SaaS 改造分支：`develop-saas`。
+- 已在 `develop-saas` 啟用 CI quality gate。
+
+外部平台待完成：
+
+- SaaS Vercel Project。
+- SaaS Supabase Project。
+- SaaS 專用 env、Gemini key、cron secret、webhook、logging/Sentry、domain、billing credentials。
+
 ## 決策摘要
 
 採用「單一 repo、雙長期分支、雙 Vercel Project、雙 Supabase Project」。

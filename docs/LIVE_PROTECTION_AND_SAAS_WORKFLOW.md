@@ -4,6 +4,23 @@
 狀態：Active
 目的：保護目前已上市的 AI 退貨系統，避免 SaaS 商業化改造影響既有使用者。
 
+## 目前執行狀態
+
+已完成：
+
+- 已把目前上市穩定版鎖定在 tag：`internal-stable-2026-05-15`。
+- 已建立 SaaS 改造分支：`develop-saas`。
+- 已將 SaaS 改造工作推到 `develop-saas`，`master` 保持上市版穩定狀態。
+- 已在 `develop-saas` 加上 GitHub Actions quality gate，包含 lint、typecheck、完整測試與 build。
+
+尚未由程式碼自動完成、需在外部平台操作：
+
+- 建立第二個 Vercel Project：SaaS 專用。
+- 建立第二個 Supabase Project：SaaS 專用。
+- SaaS Vercel Project 的 production branch 必須設定為 `develop-saas`。
+- SaaS Vercel Project 必須使用 SaaS Supabase env，不可使用公司 production Supabase env。
+- SaaS Gemini API key、cron secret、webhook、logging/Sentry、domain、billing credentials 都需與上市版分開。
+
 ## 重要紀錄
 
 目前 AI 退貨系統已上市，`master` 必須視為 production 穩定版。
