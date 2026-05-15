@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database.types';
+import { assertDeploymentSafety } from '@/lib/config/deployment-safety';
 
 /**
  * Admin client with service role key
@@ -13,6 +14,8 @@ export function createAdminClient() {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('Missing Supabase admin credentials');
   }
+
+  assertDeploymentSafety();
 
   return createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
@@ -33,6 +36,8 @@ export function createUntypedAdminClient() {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('Missing Supabase admin credentials');
   }
+
+  assertDeploymentSafety();
 
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: {

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/types/database.types';
+import { assertDeploymentSafety } from '@/lib/config/deployment-safety';
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -10,6 +11,8 @@ export async function createClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Missing Supabase server credentials');
   }
+
+  assertDeploymentSafety();
 
   return createServerClient<Database>(
     supabaseUrl,
