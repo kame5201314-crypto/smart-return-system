@@ -23,6 +23,10 @@ import {
   parseAIAnalysisResponseText,
 } from '@/lib/utils/ai-analysis-response';
 import {
+  decideAIAnalysisCacheReuse,
+  isAIAnalysisCacheEnabled,
+} from '@/lib/utils/ai-analysis-cache';
+import {
   buildAIUsageEventRecord,
   type AIUsageEventInput,
 } from '@/lib/utils/ai-usage';
@@ -588,7 +592,15 @@ export async function POST(request: NextRequest) {
       console.warn('Existing AI report query error:', existingReportError.message);
     }
 
-    if (existingReport && extractPromptFingerprint(existingReport.raw_prompt) === payloadFingerprint) {
+    const cacheDecision = decideAIAnalysisCacheReuse({
+      cacheEnabled: isAIAnalysisCacheEnabled(),
+      existingFingerprint: existingReport
+        ? extractPromptFingerprint(existingReport.raw_prompt)
+        : null,
+      payloadFingerprint,
+    });
+
+    if (existingReport && cacheDecision.reuse) {
       await recordAIUsageEvent(untypedSupabase, {
         feature: 'return_ai_analysis',
         reportPeriod: period,
@@ -600,6 +612,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           report_id: typeof existingReport.id === 'string' ? existingReport.id : null,
           source: 'ai_analysis_reports',
+          cache_decision: cacheDecision.reason,
         },
       });
 
