@@ -5,7 +5,12 @@ on:
     branches:
       - master
       - main
+      - develop-saas
   pull_request:
+    branches:
+      - master
+      - main
+      - develop-saas
 
 jobs:
   test-and-predeploy-gates:
@@ -27,6 +32,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       - name: Predeploy checks
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -41,3 +49,18 @@ jobs:
 
       - name: Full test suite
         run: npm run test:all
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SCHEMA_DRIFT_ALERT_WEBHOOK_URL: ${{ secrets.SCHEMA_DRIFT_ALERT_WEBHOOK_URL }}
+          SCHEMA_DRIFT_ALERT_TOKEN: ${{ secrets.SCHEMA_DRIFT_ALERT_TOKEN }}
+          SUPABASE_PROJECT_CHECK_BYPASS: "1"
+          SCHEMA_GATE_BYPASS: "1"
+          ALERT_CONFIG_BYPASS: "1"
+          CONSISTENCY_CHECK_STRICT: "0"
+        run: npm run build
