@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { config as loadDotenv } from 'dotenv';
 
-const EXPECTED_PROJECT_ID = 'fdzfnenizyppxglypden';
+const DEFAULT_INTERNAL_PROJECT_ID = 'fdzfnenizyppxglypden';
 const PROJECT_NAME = 'smart-return-system';
 
 function normalizeEnvValue(value) {
@@ -18,6 +18,7 @@ function loadEnvironmentFiles() {
   const candidates = [
     '.env.local',
     '.env.production.local',
+    '.env.saas.local',
   ];
 
   const loaded = [];
@@ -41,15 +42,36 @@ function verifyEnvironment() {
   }
 
   let hasErrors = false;
+  const appMode = normalizeEnvValue(process.env.APP_MODE).toLowerCase();
+  const expectedProjectId =
+    normalizeEnvValue(process.env.SUPABASE_PROJECT_ID_EXPECTED) ||
+    (appMode === 'saas'
+      ? normalizeEnvValue(process.env.SAAS_SUPABASE_PROJECT_ID)
+      : normalizeEnvValue(process.env.INTERNAL_SUPABASE_PROJECT_ID)) ||
+    DEFAULT_INTERNAL_PROJECT_ID;
+  const internalProjectId =
+    normalizeEnvValue(process.env.INTERNAL_SUPABASE_PROJECT_ID) ||
+    DEFAULT_INTERNAL_PROJECT_ID;
+
+  if (appMode && !['internal', 'saas'].includes(appMode)) {
+    console.error(`APP_MODE must be "internal" or "saas" when set. Current value: ${appMode}`);
+    hasErrors = true;
+  } else if (appMode) {
+    console.log(`APP_MODE: ${appMode}`);
+  }
 
   const supabaseUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
   if (!supabaseUrl) {
     console.error('NEXT_PUBLIC_SUPABASE_URL is not set');
     hasErrors = true;
-  } else if (!supabaseUrl.includes(EXPECTED_PROJECT_ID)) {
+  } else if (expectedProjectId && !supabaseUrl.includes(expectedProjectId)) {
     console.error('NEXT_PUBLIC_SUPABASE_URL does not match expected project');
-    console.error(`Expected project ID: ${EXPECTED_PROJECT_ID}`);
+    console.error(`Expected project ID: ${expectedProjectId}`);
     console.error(`Current URL: ${supabaseUrl}`);
+    hasErrors = true;
+  } else if (appMode === 'saas' && internalProjectId && supabaseUrl.includes(internalProjectId)) {
+    console.error('APP_MODE=saas cannot use the internal Supabase project');
+    console.error(`Internal project ID: ${internalProjectId}`);
     hasErrors = true;
   } else {
     console.log('NEXT_PUBLIC_SUPABASE_URL: OK');
@@ -92,8 +114,18 @@ function verifyEnvironment() {
     console.log('GEMINI_API_KEY: OK');
   }
 
+  const geminiTextModel = normalizeEnvValue(process.env.GEMINI_TEXT_MODEL);
+  if (geminiTextModel) {
+    const normalizedModel = geminiTextModel.replace(/^models\//, '');
+    if (normalizedModel !== 'gemini-2.5-flash-lite') {
+      console.warn(`GEMINI_TEXT_MODEL is set to ${geminiTextModel}; expected gemini-2.5-flash-lite for SaaS`);
+    } else {
+      console.log('GEMINI_TEXT_MODEL: OK');
+    }
+  }
+
   console.log(`\nProject: ${PROJECT_NAME}`);
-  console.log(`Expected Supabase project: ${EXPECTED_PROJECT_ID}`);
+  console.log(`Expected Supabase project: ${expectedProjectId}`);
 
   if (hasErrors) {
     console.error('\nEnvironment verification failed.');

@@ -253,8 +253,14 @@ function buildStoredReportResponse(
   };
 }
 
+function normalizeGeminiModelName(value: string | undefined): string {
+  const normalized = value?.replace(/\\n/g, '').trim();
+  if (!normalized) return '';
+  return normalized.startsWith('models/') ? normalized : `models/${normalized}`;
+}
+
 const GEMINI_TEXT_MODELS = [
-  process.env.GEMINI_TEXT_MODEL?.replace(/\\n/g, '').trim(),
+  normalizeGeminiModelName(process.env.GEMINI_TEXT_MODEL),
   'models/gemini-2.5-flash-lite',
   'models/gemini-2.5-flash',
   'models/gemini-flash-latest',
