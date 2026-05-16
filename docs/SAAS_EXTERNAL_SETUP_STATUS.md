@@ -27,6 +27,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`
   - `GEMINI_MAX_OUTPUT_TOKENS=1200`
   - `ENABLE_IMAGE_AI=false`
+- Added local SaaS safety scripts:
+  - `npm run saas:verify-checkout`
+  - `npm run saas:verify-env`
+  - `npm run saas:build`
+  - `npm run saas:predeploy`
+- Hardened the Supabase project predeploy check so `APP_MODE=saas` uses `SAAS_SUPABASE_PROJECT_ID` before falling back to the internal project id.
 - Ran local verification in the SaaS checkout:
   - `npm ci`: passed
   - `npm run lint`: passed with existing warnings only
@@ -61,6 +67,9 @@ Create `.env.saas.local` locally from `.env.saas.example`, or set the same value
 
 Required before migration/deployment:
 
+- `SAAS_VERCEL_PROJECT_NAME`
+- `SAAS_VERCEL_PROJECT_ID`
+- `INTERNAL_VERCEL_PROJECT_ID`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -95,11 +104,20 @@ Optional before billing launch:
 After the SaaS Supabase and secret values exist:
 
 1. Fill `.env.saas.local` in the SaaS checkout.
-2. Run `node scripts/verify-env.mjs`.
-3. Apply migrations to the SaaS Supabase Project only.
-4. Run `npm run lint`.
-5. Run `npm run typecheck`.
-6. Run `npm run test:all`.
-7. Run `npm run build`.
-8. Deploy the SaaS Vercel Project.
-9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+2. Run `npm run saas:verify-checkout`.
+3. Run `npm run saas:verify-env`.
+4. Run `npm run saas:predeploy`.
+5. Apply migrations to the SaaS Supabase Project only.
+6. Deploy the SaaS Vercel Project.
+7. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+
+If you need to run the individual checks:
+
+1. Run `node scripts/verify-env.mjs`.
+2. Apply migrations to the SaaS Supabase Project only.
+3. Run `npm run lint`.
+4. Run `npm run typecheck`.
+5. Run `npm run test:all`.
+6. Run `npm run build`.
+7. Deploy the SaaS Vercel Project.
+8. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.

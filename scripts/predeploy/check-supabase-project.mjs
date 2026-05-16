@@ -35,7 +35,17 @@ function main() {
   }
 
   const strict = isStrictMode();
-  const expectedProjectId = normalizeEnvValue(process.env.SUPABASE_PROJECT_ID_EXPECTED)
+  const appMode = normalizeEnvValue(process.env.APP_MODE).toLowerCase();
+  const defaultProjectId =
+    appMode === 'saas'
+      ? normalizeEnvValue(process.env.SAAS_SUPABASE_PROJECT_ID)
+      : normalizeEnvValue(process.env.INTERNAL_SUPABASE_PROJECT_ID);
+  const expectedProjectId =
+    normalizeEnvValue(process.env.SUPABASE_PROJECT_ID_EXPECTED)
+    || defaultProjectId
+    || 'fdzfnenizyppxglypden';
+  const internalProjectId =
+    normalizeEnvValue(process.env.INTERNAL_SUPABASE_PROJECT_ID)
     || 'fdzfnenizyppxglypden';
   const supabaseUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
@@ -52,6 +62,17 @@ function main() {
 
   if (!supabaseUrl.includes(expectedProjectId)) {
     const message = `[supabase-project-check] NEXT_PUBLIC_SUPABASE_URL does not include expected project id (${expectedProjectId})`;
+    if (strict) {
+      console.error(`${message} (strict mode: fail)`);
+      process.exitCode = 1;
+      return;
+    }
+    console.warn(`${message} (non-strict mode: warning)`);
+    return;
+  }
+
+  if (appMode === 'saas' && internalProjectId && supabaseUrl.includes(internalProjectId)) {
+    const message = `[supabase-project-check] APP_MODE=saas cannot use internal project id (${internalProjectId})`;
     if (strict) {
       console.error(`${message} (strict mode: fail)`);
       process.exitCode = 1;
