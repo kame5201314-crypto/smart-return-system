@@ -80,6 +80,9 @@ health-check-report.json
 
 # Local Vercel env pulls (contain secrets)
 .vercel.*.env
+
+# Local Vercel project link
+.vercel/
+
 # Local secret temp files
 .tmp_*
-
