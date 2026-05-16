@@ -27,6 +27,21 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`
   - `GEMINI_MAX_OUTPUT_TOKENS=1200`
   - `ENABLE_IMAGE_AI=false`
+- Ran local verification in the SaaS checkout:
+  - `npm ci`: passed
+  - `npm run lint`: passed with existing warnings only
+  - `npm run typecheck`: passed
+  - `npm run test:all`: passed
+  - `npm run build`: passed without live/internal env values
+
+## Verification Notes
+
+- Local build was intentionally run without SaaS Supabase secrets.
+- Because `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` were not set, Supabase-dependent predeploy checks ran in non-strict mode and skipped DB validation.
+- `npm ci` reported existing dependency audit issues:
+  - 2 moderate
+  - 6 high
+- Do not run `npm audit fix` automatically; review dependency changes before applying because it may modify production dependencies.
 
 ## Not Completed Yet
 
