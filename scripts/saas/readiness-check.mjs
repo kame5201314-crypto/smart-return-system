@@ -1,0 +1,251 @@
+#!/usr/bin/env node
+
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { config as loadDotenv } from 'dotenv';
+
+const DEFAULT_SAAS_BRANCH = 'develop-saas';
+const DEFAULT_SAAS_PROJECT_NAME = 'smart-return-system-saas';
+const DEFAULT_SAAS_PROJECT_ID = 'prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8';
+const DEFAULT_INTERNAL_PROJECT_ID = 'prj_aaRiMeML9D4G7U71QRDZYVonLH8h';
+const DEFAULT_INTERNAL_SUPABASE_PROJECT_ID = 'fdzfnenizyppxglypden';
+
+const strict = process.argv.includes('--strict');
+const checks = [];
+
+function normalizeEnvValue(value) {
+  if (!value) return '';
+  return String(value).replace(/\\n/g, '').trim();
+}
+
+function isPlaceholder(value) {
+  const normalized = normalizeEnvValue(value).toLowerCase();
+  return (
+    !normalized ||
+    normalized.includes('replace_with') ||
+    normalized.includes('your-saas') ||
+    normalized.includes('your_saas')
+  );
+}
+
+function record(status, label, detail = '') {
+  checks.push({ status, label, detail });
+}
+
+function gitOutput(command) {
+  return execSync(command, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function commandExists(command) {
+  try {
+    const lookup = process.platform === 'win32' ? `where ${command}` : `command -v ${command}`;
+    execSync(lookup, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function currentBranch() {
+  const envBranch =
+    normalizeEnvValue(process.env.VERCEL_GIT_COMMIT_REF) ||
+    normalizeEnvValue(process.env.GITHUB_HEAD_REF) ||
+    normalizeEnvValue(process.env.GITHUB_REF_NAME) ||
+    normalizeEnvValue(process.env.BRANCH_NAME) ||
+    normalizeEnvValue(process.env.CI_COMMIT_BRANCH);
+
+  if (envBranch) return envBranch;
+
+  try {
+    return gitOutput('git rev-parse --abbrev-ref HEAD');
+  } catch {
+    return '';
+  }
+}
+
+function loadSaasEnvIfPresent() {
+  const envPath = path.resolve(process.cwd(), '.env.saas.local');
+  if (!fs.existsSync(envPath)) {
+    record('warn', '.env.saas.local', 'missing; create it from .env.saas.example before deploy');
+    return false;
+  }
+
+  loadDotenv({ path: envPath, override: true, quiet: true });
+  record('pass', '.env.saas.local', 'loaded');
+  return true;
+}
+
+function readVercelProject() {
+  const projectPath = path.resolve(process.cwd(), '.vercel', 'project.json');
+  if (!fs.existsSync(projectPath)) return null;
+  return JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+}
+
+function checkGitBranch() {
+  const expected = normalizeEnvValue(process.env.SAAS_ALLOWED_BRANCH) || DEFAULT_SAAS_BRANCH;
+  const actual = currentBranch();
+  if (actual === expected) {
+    record('pass', 'Git branch', actual);
+  } else {
+    record('fail', 'Git branch', `expected ${expected}, got ${actual || '(unknown)'}`);
+  }
+}
+
+function checkVercelProject() {
+  const expectedName =
+    normalizeEnvValue(process.env.SAAS_VERCEL_PROJECT_NAME) || DEFAULT_SAAS_PROJECT_NAME;
+  const expectedId =
+    normalizeEnvValue(process.env.SAAS_VERCEL_PROJECT_ID) || DEFAULT_SAAS_PROJECT_ID;
+  const internalId =
+    normalizeEnvValue(process.env.INTERNAL_VERCEL_PROJECT_ID) || DEFAULT_INTERNAL_PROJECT_ID;
+  const project = readVercelProject();
+
+  if (!project) {
+    record('warn', 'Vercel link', 'missing .vercel/project.json; link the SaaS project before deploy');
+    return;
+  }
+
+  if (project.projectName === expectedName && project.projectId === expectedId) {
+    record('pass', 'Vercel project', `${project.projectName} (${project.projectId})`);
+  } else {
+    record('fail', 'Vercel project', `expected ${expectedName}/${expectedId}`);
+  }
+
+  if (project.projectId === internalId) {
+    record('fail', 'Vercel project safety', 'linked to internal/live project');
+  } else {
+    record('pass', 'Vercel project safety', 'not linked to internal/live project');
+  }
+}
+
+function checkEnvValues() {
+  const required = [
+    'APP_MODE',
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SAAS_SUPABASE_PROJECT_ID',
+    'GEMINI_API_KEY',
+    'ADMIN_SESSION_SECRET',
+    'CRON_SECRET',
+    'SCHEMA_DRIFT_ALERT_TOKEN',
+  ];
+
+  for (const key of required) {
+    if (isPlaceholder(process.env[key])) {
+      record('warn', `env:${key}`, 'missing or placeholder');
+    } else {
+      record('pass', `env:${key}`, 'set');
+    }
+  }
+
+  const appMode = normalizeEnvValue(process.env.APP_MODE).toLowerCase();
+  if (appMode && appMode !== 'saas') {
+    record('fail', 'APP_MODE', `expected saas, got ${appMode}`);
+  }
+
+  const imageAi = normalizeEnvValue(process.env.ENABLE_IMAGE_AI).toLowerCase();
+  if (!imageAi || imageAi === 'false' || imageAi === '0') {
+    record('pass', 'ENABLE_IMAGE_AI', 'disabled');
+  } else {
+    record('fail', 'ENABLE_IMAGE_AI', 'must stay false for return AI');
+  }
+
+  const model = normalizeEnvValue(process.env.GEMINI_TEXT_MODEL).replace(/^models\//, '');
+  if (!model || model === 'gemini-2.5-flash-lite') {
+    record('pass', 'GEMINI_TEXT_MODEL', model || 'uses route default');
+  } else {
+    record('warn', 'GEMINI_TEXT_MODEL', `expected gemini-2.5-flash-lite, got ${model}`);
+  }
+}
+
+function checkSupabaseSafety() {
+  const url = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const expected =
+    normalizeEnvValue(process.env.SUPABASE_PROJECT_ID_EXPECTED) ||
+    normalizeEnvValue(process.env.SAAS_SUPABASE_PROJECT_ID);
+  const internal =
+    normalizeEnvValue(process.env.INTERNAL_SUPABASE_PROJECT_ID) ||
+    DEFAULT_INTERNAL_SUPABASE_PROJECT_ID;
+
+  if (!url || isPlaceholder(url)) return;
+
+  if (internal && url.includes(internal)) {
+    record('fail', 'Supabase safety', 'SaaS env points to internal/live Supabase project');
+  } else {
+    record('pass', 'Supabase safety', 'does not point to internal/live project');
+  }
+
+  if (expected && !isPlaceholder(expected) && !url.includes(expected)) {
+    record('fail', 'Supabase project id', `URL does not include expected id ${expected}`);
+  } else if (expected && !isPlaceholder(expected)) {
+    record('pass', 'Supabase project id', expected);
+  }
+}
+
+function checkSecretFiles() {
+  const gitignorePath = path.resolve(process.cwd(), '.gitignore');
+  const gitignore = fs.existsSync(gitignorePath)
+    ? fs.readFileSync(gitignorePath, 'utf8')
+    : '';
+
+  for (const pattern of ['.env*.local', '.vercel/', '.vercel.*.env']) {
+    if (gitignore.includes(pattern)) {
+      record('pass', `gitignore:${pattern}`, 'protected');
+    } else {
+      record('fail', `gitignore:${pattern}`, 'missing');
+    }
+  }
+}
+
+function checkLocalTools() {
+  if (commandExists('vercel')) {
+    record('pass', 'Vercel CLI', 'available');
+  } else {
+    record('warn', 'Vercel CLI', 'not found; required only for env/deploy operations');
+  }
+
+  if (commandExists('supabase')) {
+    record('pass', 'Supabase CLI', 'available');
+  } else {
+    record('warn', 'Supabase CLI', 'not found; required only for migration operations');
+  }
+}
+
+function printSummary() {
+  let failCount = 0;
+  let warnCount = 0;
+
+  for (const check of checks) {
+    if (check.status === 'fail') failCount += 1;
+    if (check.status === 'warn') warnCount += 1;
+    const prefix =
+      check.status === 'pass'
+        ? 'PASS'
+        : check.status === 'warn'
+          ? 'WARN'
+          : 'FAIL';
+    console.log(`[saas-doctor] ${prefix}: ${check.label}${check.detail ? ` - ${check.detail}` : ''}`);
+  }
+
+  console.log('');
+  console.log(`[saas-doctor] Summary: ${checks.length - failCount - warnCount} pass, ${warnCount} warn, ${failCount} fail`);
+
+  if (failCount > 0 || (strict && warnCount > 0)) {
+    process.exitCode = 1;
+  }
+}
+
+loadSaasEnvIfPresent();
+checkGitBranch();
+checkVercelProject();
+checkEnvValues();
+checkSupabaseSafety();
+checkSecretFiles();
+checkLocalTools();
+printSummary();

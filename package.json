@@ -22,6 +22,8 @@
     "saas:verify-checkout": "node scripts/saas/verify-saas-checkout.mjs",
     "saas:verify-env": "node scripts/saas/run-with-saas-env.mjs npm run verify-env",
     "saas:build": "node scripts/saas/run-with-saas-env.mjs npm run build",
+    "saas:doctor": "node scripts/saas/readiness-check.mjs",
+    "saas:doctor:strict": "node scripts/saas/readiness-check.mjs --strict",
     "saas:predeploy": "npm run saas:verify-checkout && npm run saas:verify-env && npm run lint && npm run typecheck && npm run test:all && npm run saas:build",
     "prebuild:branch-policy": "node scripts/predeploy/check-branch-policy.mjs",
     "prebuild:check": "node scripts/predeploy/check-supabase-project.mjs",

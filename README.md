@@ -68,10 +68,17 @@ npm run build
 npm run saas:verify-checkout
 ```
 
+查看目前 SaaS 上線準備狀態：
+
+```bash
+npm run saas:doctor
+```
+
 建立 `.env.saas.local` 後，才能執行 SaaS strict 檢查：
 
 ```bash
 npm run saas:verify-env
+npm run saas:doctor:strict
 npm run saas:predeploy
 ```
 

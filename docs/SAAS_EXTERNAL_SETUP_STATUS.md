@@ -31,6 +31,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `npm run saas:verify-checkout`
   - `npm run saas:verify-env`
   - `npm run saas:build`
+  - `npm run saas:doctor`
+  - `npm run saas:doctor:strict`
   - `npm run saas:predeploy`
 - Hardened the Supabase project predeploy check so `APP_MODE=saas` uses `SAAS_SUPABASE_PROJECT_ID` before falling back to the internal project id.
 - Replaced the root `README.md` with SaaS commercial checkout guidance and explicitly documented that return AI analysis is text-only.
@@ -108,11 +110,13 @@ After the SaaS Supabase and secret values exist:
 
 1. Fill `.env.saas.local` in the SaaS checkout.
 2. Run `npm run saas:verify-checkout`.
-3. Run `npm run saas:verify-env`.
-4. Run `npm run saas:predeploy`.
-5. Apply migrations to the SaaS Supabase Project only.
-6. Deploy the SaaS Vercel Project.
-7. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+3. Run `npm run saas:doctor`.
+4. Run `npm run saas:verify-env`.
+5. Run `npm run saas:doctor:strict`.
+6. Run `npm run saas:predeploy`.
+7. Apply migrations to the SaaS Supabase Project only.
+8. Deploy the SaaS Vercel Project.
+9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 
 If you need to run the individual checks:
 
