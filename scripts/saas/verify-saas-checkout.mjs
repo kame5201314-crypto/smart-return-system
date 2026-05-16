@@ -22,6 +22,23 @@ function gitOutput(command) {
   }).trim();
 }
 
+function currentBranch() {
+  const envBranch =
+    normalizeEnvValue(process.env.VERCEL_GIT_COMMIT_REF) ||
+    normalizeEnvValue(process.env.GITHUB_HEAD_REF) ||
+    normalizeEnvValue(process.env.GITHUB_REF_NAME) ||
+    normalizeEnvValue(process.env.BRANCH_NAME) ||
+    normalizeEnvValue(process.env.CI_COMMIT_BRANCH);
+
+  if (envBranch) return envBranch;
+
+  try {
+    return gitOutput('git rev-parse --abbrev-ref HEAD');
+  } catch {
+    return '';
+  }
+}
+
 function fail(message) {
   console.error(`[saas-checkout] ${message}`);
   process.exitCode = 1;
@@ -53,17 +70,12 @@ function main() {
   const internalProjectId =
     normalizeEnvValue(process.env.INTERNAL_VERCEL_PROJECT_ID) || DEFAULT_INTERNAL_PROJECT_ID;
 
-  let currentBranch = '';
-  try {
-    currentBranch = gitOutput('git rev-parse --abbrev-ref HEAD');
-  } catch {
-    fail('Unable to read current git branch');
-  }
+  const branch = currentBranch();
 
-  if (currentBranch === expectedBranch) {
-    pass(`Git branch OK (${currentBranch})`);
+  if (branch === expectedBranch) {
+    pass(`Git branch OK (${branch})`);
   } else {
-    fail(`Expected branch ${expectedBranch}, current branch is ${currentBranch || '(unknown)'}`);
+    fail(`Expected branch ${expectedBranch}, current branch is ${branch || '(unknown)'}`);
   }
 
   const project = readVercelProject();

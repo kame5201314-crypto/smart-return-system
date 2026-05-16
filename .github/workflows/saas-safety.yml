@@ -1,0 +1,46 @@
+name: SaaS Safety Gates
+
+on:
+  push:
+    branches:
+      - develop-saas
+  pull_request:
+    branches:
+      - develop-saas
+
+jobs:
+  saas-safety:
+    runs-on: ubuntu-latest
+
+    env:
+      APP_MODE: saas
+      SAAS_ALLOWED_BRANCH: develop-saas
+      BRANCH_POLICY_STRICT: "true"
+      SAAS_VERCEL_PROJECT_NAME: smart-return-system-saas
+      SAAS_VERCEL_PROJECT_ID: prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8
+      INTERNAL_VERCEL_PROJECT_ID: prj_aaRiMeML9D4G7U71QRDZYVonLH8h
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify SaaS checkout
+        run: npm run saas:verify-checkout
+
+      - name: Enforce SaaS branch policy
+        run: npm run prebuild:branch-policy
+
+      - name: Validate Node scripts
+        run: npm run test:scripts
+
+      - name: Typecheck
+        run: npm run typecheck

@@ -1,171 +1,97 @@
-# AI Visual QC Automator
+# AI 退貨管理系統商業版
 
-視覺品管自動化系統 - Operations Hub 雙核心架構
+這個資料夾是 SaaS / 商業版改造用 checkout，必須和已上市舊版分開操作。
 
-## 專案概述
+- 目前分支：`develop-saas`
+- SaaS Vercel Project：`smart-return-system-saas`
+- SaaS Vercel Project ID：`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`
+- 已上市舊版 Vercel Project ID：`prj_aaRiMeML9D4G7U71QRDZYVonLH8h`
 
-自動化檢查外包上傳的圖影檔案，利用 AI 揪出錯字、規格錯誤，並自動生成標註與備註文字，節省 80% 審核時間。
+## 重要原則
+
+- 不要在這個資料夾部署到已上市舊版 Vercel Project。
+- 不要把 SaaS 專用 env 指到已上市舊版 Supabase。
+- 不要把公司內部或已上市資料匯入 SaaS Supabase。
+- 不要提交 `.env.saas.local`、`.env.local`、`.vercel/` 或任何金鑰。
+- SaaS 部署只允許從 `develop-saas` 進行。
+- 已上市舊版只在 `master` 修 critical bug，SaaS 改造不要 merge 回 `master`。
+
+## 系統定位
+
+本系統用於退貨流程管理與退貨文字資料分析，包含：
+
+- 蝦皮 / 商城 / 其他退貨資料匯入
+- 退貨訂單管理、驗貨、入庫、掃描、派車收件
+- 買家備註、退貨原因、退貨原因備註與管理備註
+- AI 退貨分析報告
+- 掃描紀錄、未匹配掃描、掃描 KPI
+- 備份、schema gate、部署前檢查與一致性檢查
+
+## AI 成本與圖片路徑
+
+退貨 AI 分析只應分析文字資料，不分析圖片。
+
+- 文字模型：`gemini-2.5-flash-lite`
+- SaaS 預設：`ENABLE_IMAGE_AI=false`
+- 退貨 AI prompt 應只包含訂單、商品、貨號、退貨原因、買家備註、退貨原因備註、驗貨結果等文字欄位
+- 舊的 `backend/` 圖片審查路徑不得在 SaaS 退貨分析流程中啟用
 
 ## 技術架構
 
-### 前端 (Frontend)
-- **框架**: Next.js 15 (App Router)
-- **UI**: Tailwind CSS + shadcn/ui
-- **部署**: Vercel
+- Frontend / Backend：Next.js App Router
+- Database：Supabase Postgres
+- AI：Google Gemini text model
+- Deployment：Vercel
+- Test：Vitest
 
-### 後端 (Backend)
-- **框架**: Python FastAPI
-- **AI**: OpenAI GPT-4o Vision + Whisper
-- **部署**: Docker (Railway / Render / AWS)
-
-### 資料庫 (Database)
-- **服務**: Supabase
-- **Schema 架構**:
-  - `public` - 共用 (organizations, users)
-  - `outsourcing_qc` - 外包審核
-  - `infringement_system` - 侵權監控
-  - `ops_metrics` - 營運儀表板
-
-## 快速開始
-
-### 1. 前端開發
+## 本機開發
 
 ```bash
-cd frontend
-cp .env.local.example .env.local
-# 編輯 .env.local 填入 Supabase 憑證
-npm install
+npm ci
 npm run dev
 ```
 
-### 2. 後端開發
+常用檢查：
 
 ```bash
-cd backend
-cp .env.example .env
-# 編輯 .env 填入所有 API 金鑰
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+npm run lint
+npm run typecheck
+npm run test:all
+npm run build
 ```
 
-### 3. Docker 開發環境
+## SaaS 專用檢查
+
+在商業版 checkout 先確認沒有連錯專案：
 
 ```bash
-# 在專案根目錄
-cp .env.example .env
-docker-compose up -d
+npm run saas:verify-checkout
 ```
 
-## 資料庫設定
-
-1. 建立 Supabase 專案
-2. 到 SQL Editor 執行以下遷移檔案：
-   - `supabase/migrations/001_create_schemas.sql`
-   - `supabase/migrations/002_infringement_and_metrics.sql`
-   - `supabase/migrations/003_rls_policies.sql`
-
-## 核心功能
-
-### A. 雲端同步與監控
-- 連結 Google Drive 資料夾
-- 定時掃描新檔案
-- 支援 JPG/PNG/WebP/GIF 圖片與 MP4/WebM 影片
-
-### B. AI 智能檢查引擎
-- 圖片 OCR 糾錯
-- 產品規格比對
-- 禁用詞彙檢測
-- 品牌規範檢查
-- AI 創意建議
-
-### C. 雙屏審核界面
-- 左側：原始圖片/影片預覽
-- 右側：AI 檢查報告
-- 互動標註與確認
-
-### D. 一鍵反饋生成
-- 產出專屬 URL 網頁
-- 包含錯誤標記與備註
-- 外包商可直接對照修改
-
-## 環境變數
-
-### 前端 (.env.local)
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-ADMIN_USERNAME=
-ADMIN_PASSWORD=
-ADMIN_SESSION_SECRET=
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### 後端 (.env)
-```
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
-OPENAI_API_KEY=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-API_SECRET_KEY=
-```
-
-## API 文件
-
-啟動後端服務後，訪問：
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-## 維運檢查（退貨系統）
+建立 `.env.saas.local` 後，才能執行 SaaS strict 檢查：
 
 ```bash
-# 檢查 AI 報告與來源資料是否一致（所有已產生報告月份）
-node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-totals.mjs --strict
-
-# 僅修復指定月份（例：2026-01）
-node --env-file=.env.vercel.production scripts/maintenance/reconcile-ai-report-totals.mjs --period=2026-01 --apply
+npm run saas:verify-env
+npm run saas:predeploy
 ```
 
-注意：`--apply` 只會更新 `ai_analysis_reports.total_returns` 與 `ai_analysis_reports.total_refund_amount`，不會刪除任何原始資料。
+`.env.saas.local` 請從 `.env.saas.example` 複製後填入 SaaS 專用值，不要使用已上市舊版 Supabase 或 Gemini key。
 
-### 每日排程（Vercel Cron）
+## 部署前必要條件
 
-- `/api/cron/backup`：每日 03:00（UTC+8）
-- `/api/cron/reconcile-ai-reports`：每日 04:00（UTC+8）
-- `/api/cron/shopee-scan-smoke`：每日 04:05（UTC+8）
-- `/api/cron/shopee-scan-daily-report`：每日 04:10（UTC+8）
+SaaS 正式部署前必須完成：
 
-需要環境變數：
+- 建立 SaaS 專用 Supabase Project
+- 填入 SaaS 專用 Supabase URL / anon key / service role key
+- 填入 SaaS 專用 Gemini API key
+- Vercel Project production branch 確認為 `develop-saas`
+- 跑過 `npm run saas:predeploy`
+- 只對 SaaS Supabase 套用 migration
+- 完成登入、匯入、退貨列表、退貨明細、掃描、AI 報告、備註、匯出 smoke test
 
-- `CRON_SECRET`：保護 cron API
-- `SCHEMA_DRIFT_ALERT_WEBHOOK_URL`：schema drift / 對帳異常告警
-- `RECONCILE_CRON_AUTO_FIX`：是否自動修正報告 totals（預設 `1`）
-- `RECONCILE_COMPARE_AMOUNT`：是否一起比對退款金額（預設 `1`）
-- `SHOPEE_SCAN_SLA_HOURS`：未匹配掃描逾時門檻（小時，預設 `24`）
-- `SHOPEE_SCAN_UNMATCHED_RATE_ALERT_THRESHOLD`：未匹配率告警門檻（%，預設 `25`）
-- `SHOPEE_SCAN_DUPLICATE_RATE_ALERT_THRESHOLD`：重掃率告警門檻（%，預設 `35`）
-- `SHOPEE_SCAN_STALE_UNMATCHED_ALERT_THRESHOLD`：逾時未匹配筆數告警門檻（預設 `1`）
+## 相關文件
 
-手動演練（部署後建議執行）：
-
-```bash
-node --env-file=.env.vercel.production scripts/maintenance/cron-drill.mjs --base-url=https://smart-return-system.vercel.app
-```
-
-部署後 smoke test（僅檢查，不改客戶資料）：
-
-```bash
-node --env-file=.env.vercel.production scripts/maintenance/postdeploy-shopee-scan-smoke.mjs --base-url=https://smart-return-system.vercel.app
-```
-
-## 資安注意事項
-
-- 所有 API Key 必須存放於 .env 檔案
-- .env 檔案已加入 .gitignore
-- 前端僅顯示通用錯誤訊息
-- 所有資料表啟用 RLS，依 org_id 隔離
-
-## 授權
-
-私有專案 - 保留所有權利
+- `docs/LIVE_PROTECTION_AND_SAAS_WORKFLOW.md`
+- `docs/SAAS_ARCHITECTURE_DECISION.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `docs/DEPLOYMENT_ROLLBACK_SOP.md`
