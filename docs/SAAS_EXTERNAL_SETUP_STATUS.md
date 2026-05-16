@@ -38,6 +38,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Replaced the root `README.md` with SaaS commercial checkout guidance and explicitly documented that return AI analysis is text-only.
 - Added `.github/workflows/saas-safety.yml` to run SaaS branch and checkout safety checks on `develop-saas`.
 - Updated `scripts/saas/verify-saas-checkout.mjs` so CI can detect the branch from GitHub/Vercel environment variables.
+- Expanded `.github/workflows/saas-safety.yml` so every `develop-saas` push runs `lint`, `typecheck`, `test:all`, and `build`.
 - Ran local verification in the SaaS checkout:
   - `npm ci`: passed
   - `npm run lint`: passed with existing warnings only

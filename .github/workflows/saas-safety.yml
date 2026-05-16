@@ -42,5 +42,14 @@ jobs:
       - name: Validate Node scripts
         run: npm run test:scripts
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Unit, UI, E2E, and integration tests
+        run: npm run test:all
+
+      - name: Production build
+        run: npm run build
