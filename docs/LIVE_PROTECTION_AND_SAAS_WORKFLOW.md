@@ -207,3 +207,61 @@ bug fix = master 先修，再 cherry-pick 到 develop-saas
 SaaS 功能 = 只進 develop-saas
 production 出事 = Vercel rollback 先救火
 ```
+
+---
+
+## 補充一：雙工作目錄的物理隔離
+
+為了避免「走錯資料夾、在上市版改到 SaaS 功能」這類人為失誤，採用**兩個本機工作目錄**：
+
+| 工作目錄 | 固定分支 | 用途 |
+|---|---|---|
+| `D:\AI專案\AI退貨管理系統\smart-return-system` | `master` | 已上市版，只修 bug |
+| `D:\AI專案\AI退貨系統商業版_2026.5.16` | `develop-saas` | SaaS 改造 |
+
+重點：
+
+- 這是**同一個 Git 倉庫、同一份提交歷史**的兩個工作目錄，**不是**複製兩份專案、也不是兩個長期 repo。bug fix、migration、商業邏輯仍只有一份來源。
+- 兩個目錄各自獨立 `node_modules`、各自獨立 `.env*.local` / `.vercel/`，這正是隔離的目的，不要共用、不要互相複製。
+- 若用 `git worktree` 建立第二個目錄：移除時必須 `git worktree remove <路徑>`，**不要直接刪資料夾**（直接刪會留下 stale worktree 記錄）。
+- 若是各自獨立 clone：兩邊各自 `git fetch` / `git pull`，不會自動同步，須各自手動更新。
+- 不論哪種方式，**上市版目錄永遠停在 `master`、SaaS 目錄永遠停在 `develop-saas`**，不要在任一目錄切到對方的分支。
+
+## 補充二：GitHub Branch Protection（平台端設定）
+
+CI quality gate 與本機腳本擋不住「直接 push 壞東西到 `master`」。必須在 GitHub 倉庫 Settings → Branches 對 `master` 設定保護規則：
+
+- ☐ Require a pull request before merging（禁止直接 push）
+- ☐ Require status checks to pass before merging（綁定 lint / typecheck / test / build 的 workflow）
+- ☐ Require branches to be up to date before merging
+- ☐ Do not allow bypassing the above settings（含管理者）
+- ☐ Block force pushes
+- ☐ Restrict deletions（禁止刪除 `master`）
+
+建議對 `develop-saas` 也至少開「Block force pushes」與「Restrict deletions」，避免 SaaS 改造歷史被意外破壞。
+
+> 狀態：尚未設定。這是 `SAAS_EXTERNAL_SETUP_STATUS.md` 的「Not Completed」之外、需在 GitHub 平台手動完成的一項。
+
+## 補充三：每次動手前的操作確認（人與 AI 助手共用）
+
+部署前的自動防呆已由腳本涵蓋（`npm run saas:verify-checkout`、`npm run saas:doctor`）。但「日常每次動手前」仍需人為確認，避免在錯的目錄／分支開始工作：
+
+任何人或 AI 助手（Claude、Codex）在這個專案動手前，**先執行並確認**：
+
+```bash
+pwd                  # 確認在正確的工作目錄
+git status -sb       # 確認分支正確、工作區乾淨、與 origin 的落後/領先
+git remote -v        # 確認是正確的 repo
+git branch -vv       # 確認分支追蹤正確
+```
+
+路徑邊界：
+
+- 退貨上市版：只在 `D:\AI專案\AI退貨管理系統\smart-return-system`（`master`）
+- SaaS 商業版：只在 `D:\AI專案\AI退貨系統商業版_2026.5.16`（`develop-saas`）
+- AI 上架系統：除非明確指定，**禁止操作**
+
+額外規則：
+
+- 動手前若發現本機落後 `origin`，**先 `git pull` 再開始**，不要在落後狀態改檔。
+- 部署 SaaS 前，先在 SaaS 目錄跑 `npm run saas:verify-checkout` 與 `npm run saas:doctor`，全綠才繼續。
