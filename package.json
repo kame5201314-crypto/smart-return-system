@@ -25,6 +25,7 @@
     "saas:doctor": "node scripts/saas/readiness-check.mjs",
     "saas:doctor:strict": "node scripts/saas/readiness-check.mjs --strict",
     "saas:predeploy": "npm run saas:verify-checkout && npm run saas:verify-env && npm run lint && npm run typecheck && npm run test:all && npm run saas:build",
+    "safety:agent-boundary": "node scripts/safety/check-agent-boundary.mjs",
     "prebuild:branch-policy": "node scripts/predeploy/check-branch-policy.mjs",
     "prebuild:check": "node scripts/predeploy/check-supabase-project.mjs",
     "prebuild:schema-gate": "node scripts/predeploy/schema-gate.mjs",
