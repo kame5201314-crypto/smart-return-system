@@ -63,9 +63,15 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Project ID: `prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`
   - Live/internal Vercel project was not touched.
 - SaaS readiness check:
-  - `npm run saas:doctor`: 9 pass, 11 warn, 0 fail
+  - `npm run saas:doctor`: 23 pass, 11 warn, 0 fail
   - `.env.saas.local`: missing
   - Supabase CLI: not installed; required only when migration operations are authorized.
+- `npm run saas:doctor` now checks the commercial foundation:
+  - SaaS plan definitions are present and match Basic/Growth/Pro/Enterprise baseline.
+  - AI quota source is `org.plan` configuration, not `APP_MODE`.
+  - Required feature flags are present.
+  - Billing provider stays disabled until credentials are configured.
+  - SaaS commercial foundation migration exists.
 - AI cost safety check:
   - SaaS env default uses `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`.
   - Return AI prompt is text-only and explicitly says no images are provided.

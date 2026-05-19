@@ -11,6 +11,20 @@ const DEFAULT_SAAS_PROJECT_NAME = 'smart-return-system-saas';
 const DEFAULT_SAAS_PROJECT_ID = 'prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8';
 const DEFAULT_INTERNAL_PROJECT_ID = 'prj_aaRiMeML9D4G7U71QRDZYVonLH8h';
 const DEFAULT_INTERNAL_SUPABASE_PROJECT_ID = 'fdzfnenizyppxglypden';
+const FEATURE_FLAG_DEFAULTS = {
+  ENABLE_PUBLIC_SIGNUP: 'false',
+  ENABLE_BILLING: 'false',
+  ENABLE_SUBSCRIPTION_PLAN: 'false',
+  ENABLE_AI_USAGE_LIMIT: 'true',
+  ENABLE_ADVANCED_ANALYTICS: 'false',
+  ENABLE_MULTI_TENANT_ADMIN: 'false',
+  ENABLE_IMAGE_AI: 'false',
+};
+const BILLING_PROVIDER_KEYS = {
+  ecpay: ['ECPAY_MERCHANT_ID', 'ECPAY_HASH_KEY', 'ECPAY_HASH_IV', 'ECPAY_MODE'],
+  stripe: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_BASIC', 'STRIPE_PRICE_GROWTH', 'STRIPE_PRICE_PRO'],
+  tappay: ['TAPPAY_PARTNER_KEY', 'TAPPAY_MERCHANT_ID', 'TAPPAY_APP_ID', 'TAPPAY_APP_KEY', 'TAPPAY_MODE'],
+};
 
 const strict = process.argv.includes('--strict');
 const checks = [];
@@ -164,6 +178,102 @@ function checkEnvValues() {
   }
 }
 
+function checkCommercialFoundation() {
+  const requiredFiles = [
+    'lib/config/saas-plans.ts',
+    'lib/config/feature-flags.ts',
+    'supabase/migrations/023_saas_commercial_foundation.sql',
+  ];
+
+  for (const file of requiredFiles) {
+    if (fs.existsSync(path.resolve(process.cwd(), file))) {
+      record('pass', `commercial:${file}`, 'present');
+    } else {
+      record('fail', `commercial:${file}`, 'missing');
+    }
+  }
+
+  const plansPath = path.resolve(process.cwd(), 'lib/config/saas-plans.ts');
+  if (fs.existsSync(plansPath)) {
+    const source = fs.readFileSync(plansPath, 'utf8');
+    const expectedPlanSnippets = [
+      'monthlyPriceTwd: 1490',
+      'aiMonthlyLimit: 5',
+      'monthlyPriceTwd: 2990',
+      'aiMonthlyLimit: 30',
+      'monthlyPriceTwd: 7990',
+      'aiMonthlyLimit: 100',
+      'enterprise',
+    ];
+    const missing = expectedPlanSnippets.filter((snippet) => !source.includes(snippet));
+    if (missing.length === 0) {
+      record('pass', 'SaaS plans', 'Basic/Growth/Pro/Enterprise baseline found');
+    } else {
+      record('fail', 'SaaS plans', `missing baseline snippets: ${missing.join(', ')}`);
+    }
+
+    if (source.includes('getOrgAIUsageLimit') && !source.includes('APP_MODE')) {
+      record('pass', 'SaaS AI quota source', 'uses org plan config, not APP_MODE');
+    } else {
+      record('fail', 'SaaS AI quota source', 'must derive quota from org.plan, not APP_MODE');
+    }
+  }
+
+  const flagsPath = path.resolve(process.cwd(), 'lib/config/feature-flags.ts');
+  if (fs.existsSync(flagsPath)) {
+    const source = fs.readFileSync(flagsPath, 'utf8');
+    const requiredFlags = [
+      'public_signup',
+      'billing',
+      'subscription_plan',
+      'ai_usage_limit',
+      'advanced_analytics',
+      'multi_tenant_admin',
+      'image_ai',
+    ];
+    const missing = requiredFlags.filter((flag) => !source.includes(flag));
+    if (missing.length === 0) {
+      record('pass', 'SaaS feature flags', 'required flags found');
+    } else {
+      record('fail', 'SaaS feature flags', `missing flags: ${missing.join(', ')}`);
+    }
+  }
+}
+
+function checkFeatureFlagEnvDefaults() {
+  for (const [key, expected] of Object.entries(FEATURE_FLAG_DEFAULTS)) {
+    const actual = normalizeEnvValue(process.env[key]).toLowerCase();
+    if (!actual) {
+      record('pass', `flag:${key}`, `uses code default ${expected}`);
+    } else if (actual === expected) {
+      record('pass', `flag:${key}`, actual);
+    } else {
+      const status = key === 'ENABLE_IMAGE_AI' ? 'fail' : 'warn';
+      record(status, `flag:${key}`, `expected default ${expected}, got ${actual}`);
+    }
+  }
+}
+
+function checkBillingReadiness() {
+  const provider = normalizeEnvValue(process.env.BILLING_PROVIDER).toLowerCase();
+  if (!provider) {
+    record('pass', 'Billing provider', 'not configured; billing stays disabled');
+    return;
+  }
+
+  if (!(provider in BILLING_PROVIDER_KEYS)) {
+    record('fail', 'Billing provider', `unsupported provider ${provider}`);
+    return;
+  }
+
+  const missing = BILLING_PROVIDER_KEYS[provider].filter((key) => isPlaceholder(process.env[key]));
+  if (missing.length > 0) {
+    record('warn', 'Billing credentials', `${provider} missing or placeholder: ${missing.join(', ')}`);
+  } else {
+    record('pass', 'Billing credentials', `${provider} configured`);
+  }
+}
+
 function checkSupabaseSafety() {
   const url = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const expected =
@@ -245,6 +355,9 @@ loadSaasEnvIfPresent();
 checkGitBranch();
 checkVercelProject();
 checkEnvValues();
+checkCommercialFoundation();
+checkFeatureFlagEnvDefaults();
+checkBillingReadiness();
 checkSupabaseSafety();
 checkSecretFiles();
 checkLocalTools();
