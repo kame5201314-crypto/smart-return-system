@@ -184,12 +184,26 @@ SaaS 新功能要可開關，避免一次影響所有使用者。
 - 確認穩定後再擴大。
 - 出問題先關 flag，不急著 rollback 程式碼。
 
+2026-05-19 已補上商業版基礎設定：
+
+- 方案設定集中在 `lib/config/saas-plans.ts`。
+- Feature flag 設定集中在 `lib/config/feature-flags.ts`。
+- `.env.saas.example` 已包含 public signup、billing、subscription plan、AI usage limit、advanced analytics、multi-tenant admin、image AI 的預設開關。
+- 新功能預設不得全量開啟；若需要平台設定或正式金流 credentials，必須先取得明確授權。
+
 ## 資料安全
 
 - 公司 production DB 不可作為 SaaS 測試 DB。
 - SaaS 測試資料需使用合成資料或脫敏資料。
 - migration 必須進 repo，不可靠 Dashboard 手動長期維護。
 - destructive migration 前必須備份。
+
+2026-05-19 多租戶檢查：
+
+- 既有 `supabase/schema.sql` 有 `organizations` / `org_id` / RLS 的早期設計。
+- 目前可實際部署的 migration 並未完整把所有 SaaS runtime 查詢綁定到 `org_id`。
+- `supabase/migrations/023_saas_commercial_foundation.sql` 新增 SaaS organization、member、subscription、billing event 與 AI usage `org_id` foundation，但尚未套用到任何資料庫。
+- 在 SaaS Supabase Project 正式建立前，只維護 migration 與 checklist，不對 production / internal DB 執行任何 schema 變更。
 
 ## 時程限制
 

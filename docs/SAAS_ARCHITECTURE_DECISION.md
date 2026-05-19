@@ -187,6 +187,29 @@ SaaS 新功能應以 feature flag 漸進開放：
 即使未來 SaaS 功能穩定，也不可一次全員開啟。
 先開給 1-2 個 Beta 客戶，確認無問題後再擴大。
 
+### 2026-05-19 補充：方案與旗標基準
+
+商業版方案基準已固定在程式碼設定，不用 `APP_MODE` 寫死產品邏輯：
+
+| Plan | Monthly price | AI monthly limit | Billing |
+|---|---:|---:|---|
+| Basic | NT$ 1,490 | 5 | required |
+| Growth | NT$ 2,990 | 30 | required |
+| Pro | NT$ 7,990 | 100 | required |
+| Enterprise | quote | contract-based | optional |
+
+目前新增的 feature flag 名稱：
+
+- `public_signup`
+- `billing`
+- `subscription_plan`
+- `ai_usage_limit`
+- `advanced_analytics`
+- `multi_tenant_admin`
+- `image_ai`
+
+環境變數只作為預設值或緊急關閉開關；正式權限應由 `organizations.plan` 與 `organizations.feature_flags` 決定。
+
 ## AI 成本安全線
 
 SaaS 上線前必須維持：
@@ -197,6 +220,14 @@ SaaS 上線前必須維持：
 - AI 分析有用量計數。
 - AI 分析有快取，避免同一月份同一資料重複送模型。
 - AI 額度由 `org.plan` 控制，不提供真正無限額度。
+
+2026-05-19 檢查結果：
+
+- `GEMINI_TEXT_MODEL` 預設為 `gemini-2.5-flash-lite`。
+- AI prompt 明確標示 text-only，沒有提供或分析圖片。
+- `ENABLE_IMAGE_AI=false` 是 SaaS env 預設，且 doctor 會檢查。
+- `ai_usage_events` 已存在，後續 SaaS migration 草案補上 `org_id`。
+- `ai_analysis_reports.raw_prompt` 的 fingerprint 可支援相同資料集快取重用。
 
 ## Migration 原則
 

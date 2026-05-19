@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-16
+Last updated: 2026-05-19
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -46,6 +46,38 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `npm run test:all`: passed
   - `npm run build`: passed without live/internal env values
 
+## 2026-05-19 SaaS Audit
+
+- Preflight passed in the SaaS checkout:
+  - Path: `D:\AI專案\AI退貨系統商業版_2026.5.16`
+  - Branch: `develop-saas`
+  - Working tree: clean before changes
+  - `npm run safety:agent-boundary`: passed
+- GitHub Branch Protection check:
+  - `gh api repos/kame5201314-crypto/smart-return-system/branches/master/protection`
+  - Result: `Branch not protected`
+  - Action taken: no platform change was made. Manual setup is still required.
+- SaaS Vercel checkout check:
+  - `npm run saas:verify-checkout`: passed
+  - Linked project: `smart-return-system-saas`
+  - Project ID: `prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`
+  - Live/internal Vercel project was not touched.
+- SaaS readiness check:
+  - `npm run saas:doctor`: 9 pass, 11 warn, 0 fail
+  - `.env.saas.local`: missing
+  - Supabase CLI: not installed; required only when migration operations are authorized.
+- AI cost safety check:
+  - SaaS env default uses `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`.
+  - Return AI prompt is text-only and explicitly says no images are provided.
+  - `ENABLE_IMAGE_AI=false` is the SaaS default and is checked by `npm run saas:doctor`.
+  - AI usage event recording exists in `supabase/migrations/022_ai_usage_events.sql`.
+  - AI report cache/fingerprint reuse exists in `lib/utils/ai-analysis-cache.ts`.
+- SaaS commercial foundation added locally:
+  - Plan definitions: Basic, Growth, Pro, Enterprise in `lib/config/saas-plans.ts`.
+  - Feature flag definitions: public signup, billing, subscription plan, AI usage limit, advanced analytics, multi-tenant admin, image AI in `lib/config/feature-flags.ts`.
+  - Billing env placeholders expanded for ECPay, Stripe, and TapPay in `.env.saas.example`.
+  - SaaS-only migration draft added in `supabase/migrations/023_saas_commercial_foundation.sql`.
+
 ## Verification Notes
 
 - Local build was intentionally run without SaaS Supabase secrets.
@@ -61,11 +93,13 @@ These are intentionally not completed because they require private credentials o
 
 - SaaS Supabase Project is not connected yet.
 - SaaS Supabase migrations have not been applied.
+- SaaS tenant/org RLS has not been applied to any database.
 - SaaS Gemini API key has not been added to Vercel.
 - SaaS domain has not been configured.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - SaaS production deployment has not been run.
+- GitHub Branch Protection for `master` is not enabled yet.
 
 ## Required Values Before Deployment
 
@@ -95,6 +129,36 @@ Optional before billing launch:
 - `ECPAY_HASH_KEY`
 - `ECPAY_HASH_IV`
 - `ECPAY_MODE`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_BASIC`
+- `STRIPE_PRICE_GROWTH`
+- `STRIPE_PRICE_PRO`
+- `TAPPAY_PARTNER_KEY`
+- `TAPPAY_MERCHANT_ID`
+- `TAPPAY_APP_ID`
+- `TAPPAY_APP_KEY`
+- `TAPPAY_MODE`
+
+Feature flags before controlled rollout:
+
+- `ENABLE_PUBLIC_SIGNUP=false`
+- `ENABLE_BILLING=false`
+- `ENABLE_SUBSCRIPTION_PLAN=false`
+- `ENABLE_AI_USAGE_LIMIT=true`
+- `ENABLE_ADVANCED_ANALYTICS=false`
+- `ENABLE_MULTI_TENANT_ADMIN=false`
+- `ENABLE_IMAGE_AI=false`
+
+## Supabase Values Still Needed From Owner
+
+- SaaS `NEXT_PUBLIC_SUPABASE_URL`
+- SaaS `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- SaaS `SUPABASE_SERVICE_ROLE_KEY`
+- SaaS `SAAS_SUPABASE_PROJECT_ID`
+- SaaS `SUPABASE_PROJECT_ID_EXPECTED`
+
+Do not use the internal/live Supabase project for any of these values.
 
 ## Safety Rules
 
@@ -115,7 +179,7 @@ After the SaaS Supabase and secret values exist:
 4. Run `npm run saas:verify-env`.
 5. Run `npm run saas:doctor:strict`.
 6. Run `npm run saas:predeploy`.
-7. Apply migrations to the SaaS Supabase Project only.
+7. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql` when tenant and billing foundation tables are approved.
 8. Deploy the SaaS Vercel Project.
 9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 
