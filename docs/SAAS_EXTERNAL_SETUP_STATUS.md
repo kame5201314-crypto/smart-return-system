@@ -90,6 +90,31 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - SaaS commercial website pages added for `/`, `/pricing`, `/features/*`, `/signup`, `/contact`, `/invite/[token]`, and `/legal/*`.
   - SaaS in-app settings skeleton added for `/settings`, `/settings/billing`, `/settings/usage`, and `/settings/team`.
 
+## 2026-05-20 SaaS Platform Update
+
+- SaaS Supabase Project was created for the commercial checkout:
+  - Project ref: `auyznbwtjvemyamujmgt`
+  - URL domain: `auyznbwtjvemyamujmgt.supabase.co`
+  - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` were not used.
+- Local SaaS env file was created as an ignored local file:
+  - `.env.saas.local`
+  - Supabase URL, anon key, service role key, SaaS project id, and generated local-only secrets are set locally.
+  - `GEMINI_API_KEY` still requires a real value before strict AI readiness checks can pass.
+- Supabase CLI is available locally:
+  - `2.100.1`
+- GitHub Branch Protection for `master` was enabled:
+  - Required check: `test-and-predeploy-gates`
+  - Branch must be up to date before merge.
+  - PR review required with 1 approval.
+  - Admin enforcement enabled.
+  - Force pushes and deletions disabled.
+- P0 runtime org isolation was added for return actions, AI analyze API, and admin export routes.
+- SaaS platform admin skeleton pages were added:
+  - `/internal/orgs`
+  - `/internal/orgs/[id]`
+  - `/internal/billing/events`
+  - These pages currently use static demo data and do not read or write Supabase.
+
 ## Verification Notes
 
 - Local build was intentionally run without SaaS Supabase secrets.
@@ -101,18 +126,16 @@ This file tracks external SaaS setup work that must stay separate from the live 
 
 ## Not Completed Yet
 
-These are intentionally not completed because they require private credentials or a new external project.
+These are intentionally not completed because they require private credentials, DB migration authorization, billing setup, or deployment authorization.
 
-- SaaS Supabase Project is not connected yet.
 - SaaS Supabase migrations have not been applied.
 - SaaS tenant/org RLS has not been applied to any database.
-- P0 runtime actions and exports have not yet been rewritten to require `getOrgContext()` and explicit `org_id` filters.
 - SaaS Gemini API key has not been added to Vercel.
 - SaaS domain has not been configured.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - SaaS production deployment has not been run.
-- GitHub Branch Protection for `master` is not enabled yet.
+- Platform admin pages are not wired to live SaaS DB data yet.
 
 ## Required Values Before Deployment
 
@@ -164,15 +187,13 @@ Feature flags before controlled rollout:
 - `ENABLE_MULTI_TENANT_ADMIN=false`
 - `ENABLE_IMAGE_AI=false`
 
-## Supabase Values Still Needed From Owner
+## SaaS Values Still Needed From Owner
 
-- SaaS `NEXT_PUBLIC_SUPABASE_URL`
-- SaaS `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- SaaS `SUPABASE_SERVICE_ROLE_KEY`
-- SaaS `SAAS_SUPABASE_PROJECT_ID`
-- SaaS `SUPABASE_PROJECT_ID_EXPECTED`
+- SaaS `GEMINI_API_KEY`
+- Billing credentials for the selected provider when Stage 2 starts.
+- SaaS domain, logging, and deployment settings when rollout is approved.
 
-Do not use the internal/live Supabase project for any of these values.
+Do not use the internal/live Supabase project for any SaaS values.
 
 ## Safety Rules
 
