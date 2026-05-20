@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 
-import { createClient } from '@/lib/supabase/server';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
+import { getOrgContext, SaaSOrgContextError } from '@/lib/saas/org-context';
 
 interface PickupRecordExportData {
   id: string;
@@ -21,41 +20,23 @@ interface PickupRecordExportData {
   updated_at: string;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Allow signed admin session first
-    const adminSessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-    if (await verifyAdminSessionToken(adminSessionToken)) {
-      return await exportPickupRecords();
-    }
+    const orgContext = await getOrgContext({
+      requirements: {
+        roles: ['owner', 'admin', 'staff'],
+      },
+    });
 
-    // Fallback to Supabase user + admin role check
-    const authClient = await createClient();
-    const { data: { user }, error: authError } = await authClient.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const untypedSupabase = createUntypedAdminClient();
-    const { data: profile, error: profileError } = await untypedSupabase
-      .from('users')
-      .select('role')
-      .eq('email', user.email || '')
-      .single();
-
-    if (profileError || !profile || profile.role !== 'admin') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-
-    return await exportPickupRecords();
+    return await exportPickupRecords(orgContext.orgId);
   } catch (error) {
+    if (error instanceof SaaSOrgContextError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      );
+    }
+
     console.error('Pickup records export error:', error);
     return NextResponse.json(
       { success: false, error: 'Export failed' },
@@ -64,12 +45,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function exportPickupRecords() {
+async function exportPickupRecords(orgId: string) {
   const supabase = createUntypedAdminClient();
 
   const { data, error } = await supabase
     .from('pickup_records')
     .select('*')
+    .eq('org_id', orgId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -128,4 +110,3 @@ async function exportPickupRecords() {
     },
   });
 }
-

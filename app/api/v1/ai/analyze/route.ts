@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
-import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
 import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import { getOrgContext, SaaSOrgContextError } from '@/lib/saas/org-context';
 import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
 import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
 import { buildReconcileMismatches } from '@/lib/maintenance/reconcile-ai-reports';
@@ -362,12 +362,16 @@ async function repairAIResponseJson(
 
 async function recordAIUsageEvent(
   supabase: ReturnType<typeof createUntypedAdminClient>,
+  orgId: string,
   input: AIUsageEventInput
 ): Promise<void> {
   try {
     const { error } = await supabase
       .from('ai_usage_events')
-      .insert(buildAIUsageEventRecord(input));
+      .insert({
+        ...buildAIUsageEventRecord(input),
+        org_id: orgId,
+      });
 
     if (error) {
       console.warn('AI usage event insert failed:', error.message);
@@ -382,13 +386,12 @@ async function recordAIUsageEvent(
 
 export async function POST(request: NextRequest) {
   try {
-    const isAuthenticated = await isAuthenticatedRequest(request);
-    if (!isAuthenticated) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const orgContext = await getOrgContext({
+      requirements: {
+        roles: ['owner', 'admin', 'staff'],
+        writable: true,
+      },
+    });
 
     const body = await request.json();
     const { period } = body; // e.g., '2024-01'
@@ -439,6 +442,7 @@ export async function POST(request: NextRequest) {
           inspector_comment
         )
       `)
+      .eq('org_id', orgContext.orgId)
       .gte('created_at', startDate)
       .lt('created_at', endDate);
 
@@ -468,6 +472,7 @@ export async function POST(request: NextRequest) {
             inspector_comment
           )
         `)
+        .eq('org_id', orgContext.orgId)
         .gte('created_at', startDate)
         .lt('created_at', endDate);
 
@@ -484,6 +489,7 @@ export async function POST(request: NextRequest) {
         const basicQuery = await supabase
           .from('return_requests')
           .select('*')
+          .eq('org_id', orgContext.orgId)
           .gte('created_at', startDate)
           .lt('created_at', endDate);
 
@@ -496,6 +502,7 @@ export async function POST(request: NextRequest) {
       const basicQuery = await supabase
         .from('return_requests')
         .select('*')
+        .eq('org_id', orgContext.orgId)
         .gte('created_at', startDate)
         .lt('created_at', endDate);
 
@@ -510,7 +517,8 @@ export async function POST(request: NextRequest) {
     let shopeeReturns: ShopeeReturnData[] = [];
     const shopeeQuery = await untypedSupabase
       .from('shopee_returns')
-      .select('*');
+      .select('*')
+      .eq('org_id', orgContext.orgId);
 
     if (!shopeeQuery.error && shopeeQuery.data) {
       shopeeReturns = (shopeeQuery.data as ShopeeReturnData[]).filter((row) =>
@@ -525,6 +533,7 @@ export async function POST(request: NextRequest) {
     const pickupQuery = await untypedSupabase
       .from('pickup_records')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .gte('created_at', startDate)
       .lt('created_at', endDate);
 
@@ -586,6 +595,7 @@ export async function POST(request: NextRequest) {
     const { data: existingReport, error: existingReportError } = await untypedSupabase
       .from('ai_analysis_reports')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .eq('report_period', period)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -607,7 +617,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingReport && cacheDecision.reuse) {
-      await recordAIUsageEvent(untypedSupabase, {
+      await recordAIUsageEvent(untypedSupabase, orgContext.orgId, {
         feature: 'return_ai_analysis',
         reportPeriod: period,
         model: 'cache',
@@ -686,7 +696,7 @@ export async function POST(request: NextRequest) {
 
     if (containsLikelyMojibake(analysisResult)) {
       console.error('AI response appears to contain mojibake-like content:', aiResponse);
-      await recordAIUsageEvent(untypedSupabase, {
+      await recordAIUsageEvent(untypedSupabase, orgContext.orgId, {
         feature: 'return_ai_analysis',
         reportPeriod: period,
         model: aiResult.model,
@@ -724,6 +734,7 @@ export async function POST(request: NextRequest) {
 
     // Save report to database
     const reportData = {
+      org_id: orgContext.orgId,
       report_period: period,
       report_type: 'monthly',
       pain_points: analysisResult.pain_points,
@@ -755,7 +766,7 @@ export async function POST(request: NextRequest) {
       // Still return the analysis even if save fails
     }
 
-    await recordAIUsageEvent(untypedSupabase, {
+    await recordAIUsageEvent(untypedSupabase, orgContext.orgId, {
       feature: 'return_ai_analysis',
       reportPeriod: period,
       model: aiResult.model,
@@ -799,6 +810,13 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof SaaSOrgContextError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      );
+    }
+
     console.error('AI analysis error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -813,13 +831,11 @@ export async function POST(request: NextRequest) {
 // Get existing reports
 export async function GET(request: NextRequest) {
   try {
-    const isAuthenticated = await isAuthenticatedRequest(request);
-    if (!isAuthenticated) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const orgContext = await getOrgContext({
+      requirements: {
+        roles: ['owner', 'admin', 'staff'],
+      },
+    });
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period');
@@ -830,6 +846,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('ai_analysis_reports')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .order('created_at', { ascending: false });
 
     if (period) {
@@ -871,11 +888,13 @@ export async function GET(request: NextRequest) {
         untypedSupabase
           .from('return_requests')
           .select('created_at, refund_amount')
+          .eq('org_id', orgContext.orgId)
           .gte('created_at', startDate)
           .lt('created_at', endDate),
         untypedSupabase
           .from('shopee_returns')
-          .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price'),
+          .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price')
+          .eq('org_id', orgContext.orgId),
       ]);
 
       if (!returnRequestResult.error && !shopeeReturnResult.error) {
@@ -912,6 +931,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: normalizedData });
   } catch (error) {
+    if (error instanceof SaaSOrgContextError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      );
+    }
+
     console.error('Get reports error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to get reports' },

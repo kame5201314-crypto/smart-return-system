@@ -16,6 +16,7 @@ import {
 import { CHANNELS, ERROR_MESSAGES, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
 import type { ApiResponse, CustomerSession, ReturnRequestWithRelations } from '@/types';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import { getOrgContext, type SaaSOrgContext } from '@/lib/saas/org-context';
 import {
   applyFallbackResolutionTypeToItems,
   isReturnItemResolutionType,
@@ -38,6 +39,19 @@ function getErrorMessage(error: unknown): string {
     }
   }
   return '';
+}
+
+async function getReturnOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext();
+}
+
+async function getWritableReturnOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext({
+    requirements: {
+      roles: ['owner', 'admin', 'staff'],
+      writable: true,
+    },
+  });
 }
 
 function getMissingColumnName(error: unknown, table: string): string | null {
@@ -112,7 +126,8 @@ async function insertReturnItemsWithResolutionFallback(
 
 async function ensureRoundTripPickupRecord(
   adminClient: ReturnType<typeof createAdminClient>,
-  returnRequestId: string
+  returnRequestId: string,
+  orgId: string
 ): Promise<{ success: true; created: boolean; updated: boolean } | { success: false; error: string }> {
   const untypedAdminClient = createUntypedAdminClient();
   const { data: requestData, error: requestError } = await adminClient
@@ -128,6 +143,7 @@ async function ensureRoundTripPickupRecord(
       )
     `)
     .eq('id', returnRequestId)
+    .eq('org_id', orgId)
     .single() as {
       data: {
         id: string;
@@ -149,6 +165,7 @@ async function ensureRoundTripPickupRecord(
   const { data: existingRows, error: existingError } = await untypedAdminClient
     .from('pickup_records')
     .select('id, delivery_status, notes')
+    .eq('org_id', orgId)
     .eq('order_number', orderNumber)
     .order('created_at', { ascending: false })
     .limit(1) as {
@@ -180,7 +197,8 @@ async function ensureRoundTripPickupRecord(
         tracking_number: requestData.tracking_number || null,
         updated_at: new Date().toISOString(),
       } as never)
-      .eq('id', existing.id);
+      .eq('id', existing.id)
+      .eq('org_id', orgId);
 
     if (updateError) {
       return { success: false, error: `更新派車收件失敗: ${updateError.message}` };
@@ -192,6 +210,7 @@ async function ensureRoundTripPickupRecord(
   const { error: insertError } = await untypedAdminClient
     .from('pickup_records')
     .insert({
+      org_id: orgId,
       process_date: new Date().toISOString().slice(0, 10),
       order_number: orderNumber,
       tracking_number: requestData.tracking_number || null,
@@ -219,11 +238,13 @@ export async function customerLogin(
 ): Promise<ApiResponse<CustomerSession>> {
   try {
     const validated = customerLoginSchema.parse(input);
+    const orgContext = await getReturnOrgContext();
     const supabase = await createClient();
 
     const { data: order, error } = await supabase
       .from('orders')
       .select('id, order_number, customer_phone, customer_name, channel_source, delivered_at')
+      .eq('org_id', orgContext.orgId)
       .eq('order_number', validated.orderNumber)
       .eq('customer_phone', validated.phone)
       .single() as { data: { id: string; order_number: string; customer_phone: string; customer_name: string | null; channel_source: string | null; delivered_at: string | null } | null; error: Error | null };
@@ -260,6 +281,7 @@ export async function customerLogin(
  */
 export async function getOrderForReturn(orderId: string) {
   try {
+    const orgContext = await getReturnOrgContext();
     const supabase = await createClient();
 
     const { data: order, error } = await supabase
@@ -275,6 +297,7 @@ export async function getOrderForReturn(orderId: string) {
         )
       `)
       .eq('id', orderId)
+      .eq('org_id', orgContext.orgId)
       .single();
 
     if (error || !order) {
@@ -297,6 +320,7 @@ export async function submitReturnApplication(
 ): Promise<ApiResponse<{ requestNumber: string }>> {
   try {
     const validated = returnApplySchema.parse(input);
+    const orgContext = await getWritableReturnOrgContext();
 
     if (imageUrls.length < 3 || imageUrls.length > 5) {
       return { success: false, error: ERROR_MESSAGES.INSUFFICIENT_IMAGES };
@@ -309,6 +333,7 @@ export async function submitReturnApplication(
       .from('orders')
       .select('id, channel_source, customer_id, delivered_at')
       .eq('id', validated.orderId)
+      .eq('org_id', orgContext.orgId)
       .single() as { data: { id: string; channel_source: string | null; customer_id: string | null; delivered_at: string | null } | null; error: Error | null };
 
     if (orderError || !order) {
@@ -327,6 +352,7 @@ export async function submitReturnApplication(
 
     // Create return request
     const insertData = {
+      org_id: orgContext.orgId,
       order_id: validated.orderId,
       customer_id: order.customer_id,
       channel_source: order.channel_source,
@@ -348,6 +374,7 @@ export async function submitReturnApplication(
 
     // Insert return items
     const returnItems = validated.selectedItems.map((item) => ({
+      org_id: orgContext.orgId,
       return_request_id: returnRequest.id,
       order_item_id: item.orderItemId,
       product_name: '', // Will be filled from order_items
@@ -365,12 +392,17 @@ export async function submitReturnApplication(
 
     if (itemInsertError) {
       console.error('Insert return items error:', itemInsertError);
-      await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+      await adminClient
+        .from('return_requests')
+        .delete()
+        .eq('id', returnRequest.id)
+        .eq('org_id', orgContext.orgId);
       return { success: false, error: ERROR_MESSAGES.GENERIC };
     }
 
     // Insert images
     const images = imageUrls.map((img) => ({
+      org_id: orgContext.orgId,
       return_request_id: returnRequest.id,
       image_url: img.url,
       storage_path: img.storagePath,
@@ -384,13 +416,22 @@ export async function submitReturnApplication(
 
     if (imageInsertError) {
       console.error('Insert return images error:', imageInsertError);
-      await adminClient.from('return_items').delete().eq('return_request_id', returnRequest.id);
-      await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+      await adminClient
+        .from('return_items')
+        .delete()
+        .eq('return_request_id', returnRequest.id)
+        .eq('org_id', orgContext.orgId);
+      await adminClient
+        .from('return_requests')
+        .delete()
+        .eq('id', returnRequest.id)
+        .eq('org_id', orgContext.orgId);
       return { success: false, error: ERROR_MESSAGES.GENERIC };
     }
 
     // Log activity
     const { error: logInsertError } = await adminClient.from('activity_logs').insert({
+      org_id: orgContext.orgId,
       entity_type: 'return_request',
       entity_id: returnRequest.id,
       action: 'created',
@@ -400,9 +441,21 @@ export async function submitReturnApplication(
 
     if (logInsertError) {
       console.error('Insert activity log error:', logInsertError);
-      await adminClient.from('return_images').delete().eq('return_request_id', returnRequest.id);
-      await adminClient.from('return_items').delete().eq('return_request_id', returnRequest.id);
-      await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+      await adminClient
+        .from('return_images')
+        .delete()
+        .eq('return_request_id', returnRequest.id)
+        .eq('org_id', orgContext.orgId);
+      await adminClient
+        .from('return_items')
+        .delete()
+        .eq('return_request_id', returnRequest.id)
+        .eq('org_id', orgContext.orgId);
+      await adminClient
+        .from('return_requests')
+        .delete()
+        .eq('id', returnRequest.id)
+        .eq('org_id', orgContext.orgId);
       return { success: false, error: ERROR_MESSAGES.GENERIC };
     }
 
@@ -424,6 +477,7 @@ export async function getReturnStatus(
   phone: string
 ): Promise<ApiResponse<ReturnRequestWithRelations>> {
   try {
+    const orgContext = await getReturnOrgContext();
     const supabase = await createClient();
 
     const selectWithResolution = `
@@ -470,6 +524,7 @@ export async function getReturnStatus(
     let { data, error } = await supabase
       .from('return_requests')
       .select(selectWithResolution)
+      .eq('org_id', orgContext.orgId)
       .eq('request_number', requestNumber)
       .single() as { data: ReturnRequestWithRelations & { order?: { customer_phone?: string } } | null; error: Error | null };
 
@@ -486,6 +541,7 @@ export async function getReturnStatus(
       const retry = await supabase
         .from('return_requests')
         .select(selectWithoutResolution)
+        .eq('org_id', orgContext.orgId)
         .eq('request_number', requestNumber)
         .single() as { data: ReturnRequestWithRelations & { order?: { customer_phone?: string } } | null; error: Error | null };
       data = retry.data;
@@ -526,7 +582,7 @@ export async function getReturnRequests(filters?: {
   dateTo?: string;
 }) {
   try {
-    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const orgContext = await getReturnOrgContext();
     const adminClient = createAdminClient();
 
     const buildQuery = (includeResolutionType: boolean) => {
@@ -559,6 +615,7 @@ export async function getReturnRequests(filters?: {
             ${returnItemsSelect}
           )
         `)
+        .eq('org_id', orgContext.orgId)
         .order('created_at', { ascending: false });
 
       if (filters?.status) {
@@ -625,6 +682,7 @@ export async function updateReturnStatus(
 ): Promise<ApiResponse> {
   try {
     const validated = statusUpdateSchema.parse(input);
+    const orgContext = await getWritableReturnOrgContext();
     const adminClient = createAdminClient();
 
     // Get current status
@@ -632,6 +690,7 @@ export async function updateReturnStatus(
       .from('return_requests')
       .select('status')
       .eq('id', validated.returnRequestId)
+      .eq('org_id', orgContext.orgId)
       .single() as { data: { status: string } | null; error: Error | null };
 
     if (fetchError || !current) {
@@ -679,7 +738,8 @@ export async function updateReturnStatus(
     const { error: updateError } = await adminClient
       .from('return_requests')
       .update(updateData as never)
-      .eq('id', validated.returnRequestId);
+      .eq('id', validated.returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (updateError) {
       console.error('Update return status error:', updateError);
@@ -688,6 +748,7 @@ export async function updateReturnStatus(
 
     // Log activity
     await adminClient.from('activity_logs').insert({
+      org_id: orgContext.orgId,
       entity_type: 'return_request',
       entity_id: validated.returnRequestId,
       action: 'status_changed',
@@ -714,7 +775,19 @@ export async function submitInspection(
 ): Promise<ApiResponse> {
   try {
     const validated = inspectionSchema.parse(input);
+    const orgContext = await getWritableReturnOrgContext();
     const adminClient = createAdminClient();
+
+    const { data: scopedReturnRequest, error: scopedReturnRequestError } = await adminClient
+      .from('return_requests')
+      .select('id')
+      .eq('id', validated.returnRequestId)
+      .eq('org_id', orgContext.orgId)
+      .single() as { data: { id: string } | null; error: Error | null };
+
+    if (scopedReturnRequestError || !scopedReturnRequest) {
+      return { success: false, error: ERROR_MESSAGES.NOT_FOUND };
+    }
 
     const resultVariants = validated.result === 'passed'
       ? ['passed', 'pass']
@@ -726,6 +799,7 @@ export async function submitInspection(
     // Build payload variants to handle schema/value differences across deployments.
     for (const resultValue of resultVariants) {
       const baseInspectionData: Record<string, unknown> = {
+        org_id: orgContext.orgId,
         return_request_id: validated.returnRequestId,
         result: resultValue,
         condition_grade: validated.conditionGrade || 'B',
@@ -803,6 +877,10 @@ export async function submitInspection(
         (lowerMessage.includes('inspected_by') || lowerMessage.includes('inspector_id'));
 
       if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+        if (missingColumn === 'org_id') {
+          break;
+        }
+
         await emitSchemaDriftAlert({
           source: 'return.actions.submitInspection',
           table: 'inspection_records',
@@ -885,7 +963,8 @@ export async function submitInspection(
         status: newStatus,
         closed_at: new Date().toISOString(),
       } as never)
-      .eq('id', validated.returnRequestId);
+      .eq('id', validated.returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (statusUpdateError) {
       console.error('Update return status after inspection error:', statusUpdateError);
@@ -895,7 +974,8 @@ export async function submitInspection(
         const { error: rollbackError } = await adminClient
           .from('inspection_records')
           .delete()
-          .eq('id', inspectionRecordId);
+          .eq('id', inspectionRecordId)
+          .eq('org_id', orgContext.orgId);
 
         if (rollbackError) {
           console.error('Rollback inspection record error:', rollbackError);
@@ -907,6 +987,7 @@ export async function submitInspection(
 
     // Log activity
     const { error: activityLogError } = await adminClient.from('activity_logs').insert({
+      org_id: orgContext.orgId,
       entity_type: 'return_request',
       entity_id: validated.returnRequestId,
       action: 'inspected',
@@ -948,6 +1029,7 @@ export async function updateReturnInfo(
   }
 ): Promise<ApiResponse> {
   try {
+    const orgContext = await getWritableReturnOrgContext();
     const adminClient = createAdminClient();
     let roundTripSyncMessage = '';
 
@@ -973,7 +1055,8 @@ export async function updateReturnInfo(
       const { error: requestError } = await adminClient
         .from('return_requests')
         .update(requestUpdateData as never)
-        .eq('id', returnRequestId);
+        .eq('id', returnRequestId)
+        .eq('org_id', orgContext.orgId);
 
       if (requestError) {
         console.error('Update return request error:', requestError);
@@ -994,7 +1077,8 @@ export async function updateReturnInfo(
       const { error: itemError } = await adminClient
         .from('return_items')
         .update(itemUpdateData as never)
-        .eq('return_request_id', returnRequestId);
+        .eq('return_request_id', returnRequestId)
+        .eq('org_id', orgContext.orgId);
 
       if (itemError) {
         console.error('Update return items error:', itemError);
@@ -1028,6 +1112,7 @@ export async function updateReturnInfo(
           .select('resolution_type')
           .eq('id', itemId)
           .eq('return_request_id', returnRequestId)
+          .eq('org_id', orgContext.orgId)
           .single() as { data: { resolution_type?: string | null } | null; error: Error | null };
 
         if (existingItemError) {
@@ -1063,7 +1148,8 @@ export async function updateReturnInfo(
           .from('return_items')
           .update({ resolution_type: rawResolutionType } as never)
           .eq('id', itemId)
-          .eq('return_request_id', returnRequestId);
+          .eq('return_request_id', returnRequestId)
+          .eq('org_id', orgContext.orgId);
 
         if (resolutionError) {
           if (isMissingColumnError(resolutionError, 'return_items', 'resolution_type')) {
@@ -1097,7 +1183,8 @@ export async function updateReturnInfo(
           const { error: fallbackMethodError } = await adminClient
             .from('return_requests')
             .update({ refund_method: fallbackResolutionType } as never)
-            .eq('id', returnRequestId);
+            .eq('id', returnRequestId)
+            .eq('org_id', orgContext.orgId);
 
           if (fallbackMethodError) {
             if (isMissingColumnError(fallbackMethodError, 'return_requests', 'refund_method')) {
@@ -1119,7 +1206,7 @@ export async function updateReturnInfo(
         }
 
         if (shouldSyncRoundTripToPickup) {
-          const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId);
+          const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId, orgContext.orgId);
           if (!pickupSyncResult.success) {
             return { success: false, error: `同步派車收件失敗: ${pickupSyncResult.error}` };
           }
@@ -1136,7 +1223,7 @@ export async function updateReturnInfo(
           ? '（資料庫尚未升級商品層級處理方式，已改存退貨單層級）'
           : '（資料庫尚未升級，處理方式本次僅暫時套用；請先套用 migration 以永久儲存）';
       } else if (shouldSyncRoundTripToPickup) {
-        const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId);
+        const pickupSyncResult = await ensureRoundTripPickupRecord(adminClient, returnRequestId, orgContext.orgId);
         if (!pickupSyncResult.success) {
           // Best-effort rollback for resolution updates when pickup sync fails
           for (const [itemId, previousResolution] of Object.entries(previousResolutionByItemId)) {
@@ -1144,7 +1231,8 @@ export async function updateReturnInfo(
               .from('return_items')
               .update({ resolution_type: previousResolution } as never)
               .eq('id', itemId)
-              .eq('return_request_id', returnRequestId);
+              .eq('return_request_id', returnRequestId)
+              .eq('org_id', orgContext.orgId);
           }
           return { success: false, error: `已更新處理方式，但同步派車收件失敗: ${pickupSyncResult.error}` };
         }
@@ -1170,7 +1258,7 @@ export async function updateReturnInfo(
  */
 export async function getReturnRequestDetail(id: string) {
   try {
-    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const orgContext = await getReturnOrgContext();
     const adminClient = createAdminClient();
 
     const buildDetailQuery = (includeResolutionType: boolean) => {
@@ -1232,6 +1320,7 @@ export async function getReturnRequestDetail(id: string) {
           )
         `)
         .eq('id', id)
+        .eq('org_id', orgContext.orgId)
         .single();
     };
 
@@ -1289,6 +1378,7 @@ export async function processRefund(
   userId: string
 ): Promise<ApiResponse<{ refundNumber: string }>> {
   try {
+    const orgContext = await getWritableReturnOrgContext();
     const adminClient = createAdminClient();
 
     // Get return request
@@ -1296,6 +1386,7 @@ export async function processRefund(
       .from('return_requests')
       .select('id, request_number, status, order_id')
       .eq('id', returnRequestId)
+      .eq('org_id', orgContext.orgId)
       .single() as { data: { id: string; request_number: string; status: string; order_id: string } | null; error: Error | null };
 
     if (fetchError || !returnRequest) {
@@ -1324,7 +1415,8 @@ export async function processRefund(
         refund_processed_by: userId,
         closed_at: new Date().toISOString(),
       } as never)
-      .eq('id', returnRequestId);
+      .eq('id', returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (updateError) {
       console.error('Update refund error:', updateError);
@@ -1333,6 +1425,7 @@ export async function processRefund(
 
     // Log activity
     await adminClient.from('activity_logs').insert({
+      org_id: orgContext.orgId,
       entity_type: 'return_request',
       entity_id: returnRequestId,
       action: 'refunded',
@@ -1363,13 +1456,14 @@ export async function processRefund(
  */
 export async function getReturnStatistics() {
   try {
-    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const orgContext = await getReturnOrgContext();
     const adminClient = createAdminClient();
 
     // Get counts by status
     const { data: returns, error } = await adminClient
       .from('return_requests')
-      .select('status, refund_amount');
+      .select('status, refund_amount')
+      .eq('org_id', orgContext.orgId);
 
     if (error) {
       console.error('Get statistics error:', error);
@@ -1402,6 +1496,7 @@ export async function deleteReturnRequest(
   userId: string
 ): Promise<ApiResponse> {
   try {
+    const orgContext = await getWritableReturnOrgContext();
     const adminClient = createAdminClient();
 
     // Get return request info for logging
@@ -1409,6 +1504,7 @@ export async function deleteReturnRequest(
       .from('return_requests')
       .select('id, request_number')
       .eq('id', returnRequestId)
+      .eq('org_id', orgContext.orgId)
       .single() as { data: { id: string; request_number: string } | null; error: Error | null };
 
     if (fetchError || !returnRequest) {
@@ -1420,7 +1516,8 @@ export async function deleteReturnRequest(
     const { error: deleteImagesError } = await adminClient
       .from('return_images')
       .delete()
-      .eq('return_request_id', returnRequestId);
+      .eq('return_request_id', returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (deleteImagesError) {
       console.error('Delete return_images error:', deleteImagesError);
@@ -1431,7 +1528,8 @@ export async function deleteReturnRequest(
     const { error: deleteItemsError } = await adminClient
       .from('return_items')
       .delete()
-      .eq('return_request_id', returnRequestId);
+      .eq('return_request_id', returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (deleteItemsError) {
       console.error('Delete return_items error:', deleteItemsError);
@@ -1442,7 +1540,8 @@ export async function deleteReturnRequest(
     const { error: deleteInspectionError } = await adminClient
       .from('inspection_records')
       .delete()
-      .eq('return_request_id', returnRequestId);
+      .eq('return_request_id', returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (deleteInspectionError) {
       console.error('Delete inspection_records error:', deleteInspectionError);
@@ -1454,7 +1553,8 @@ export async function deleteReturnRequest(
       .from('activity_logs')
       .delete()
       .eq('entity_type', 'return_request')
-      .eq('entity_id', returnRequestId);
+      .eq('entity_id', returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (deleteLogsError) {
       console.error('Delete activity_logs error:', deleteLogsError);
@@ -1465,7 +1565,8 @@ export async function deleteReturnRequest(
     const { error: deleteError } = await adminClient
       .from('return_requests')
       .delete()
-      .eq('id', returnRequestId);
+      .eq('id', returnRequestId)
+      .eq('org_id', orgContext.orgId);
 
     if (deleteError) {
       console.error('Delete return request error:', deleteError);
@@ -1492,7 +1593,7 @@ export async function getReturnsForExport(filters?: {
   dateTo?: string;
 }) {
   try {
-    // Use admin client to bypass RLS (admin page doesn't have user auth)
+    const orgContext = await getReturnOrgContext();
     const adminClient = createAdminClient();
 
     const buildQuery = (includeResolutionType: boolean) => {
@@ -1534,6 +1635,7 @@ export async function getReturnsForExport(filters?: {
             ${returnItemsSelect}
           )
         `)
+        .eq('org_id', orgContext.orgId)
         .order('created_at', { ascending: false });
 
       if (filters?.status) {
@@ -1641,6 +1743,7 @@ export async function createManualReturnRequest(input: {
   }[];
 }): Promise<ApiResponse<{ id: string; requestNumber: string }>> {
   try {
+    const orgContext = await getWritableReturnOrgContext();
     const adminClient = createAdminClient();
 
     if (!input.orderNumber.trim()) {
@@ -1656,6 +1759,7 @@ export async function createManualReturnRequest(input: {
       const { data: existingCustomer } = await adminClient
         .from('customers')
         .select('id')
+        .eq('org_id', orgContext.orgId)
         .eq('phone', input.customerPhone.trim())
         .single();
 
@@ -1665,6 +1769,7 @@ export async function createManualReturnRequest(input: {
         const { data: newCustomer, error: customerError } = await adminClient
           .from('customers')
           .insert({
+            org_id: orgContext.orgId,
             phone: input.customerPhone.trim(),
             name: input.customerName?.trim() || null,
           } as never)
@@ -1682,6 +1787,7 @@ export async function createManualReturnRequest(input: {
     const { data: existingOrder } = await adminClient
       .from('orders')
       .select('id')
+      .eq('org_id', orgContext.orgId)
       .eq('order_number', input.orderNumber.trim())
       .single();
 
@@ -1691,6 +1797,7 @@ export async function createManualReturnRequest(input: {
       const { data: newOrder, error: orderError } = await adminClient
         .from('orders')
         .insert({
+          org_id: orgContext.orgId,
           order_number: input.orderNumber.trim(),
           channel_source: input.channelSource,
           customer_id: customerId,
@@ -1712,6 +1819,7 @@ export async function createManualReturnRequest(input: {
     const { data: returnRequest, error: insertError } = await adminClient
       .from('return_requests')
       .insert({
+        org_id: orgContext.orgId,
         order_id: orderId,
         customer_id: customerId,
         channel_source: input.channelSource,
@@ -1732,6 +1840,7 @@ export async function createManualReturnRequest(input: {
     const returnItems = input.items
       .filter((item) => item.productName.trim())
       .map((item) => ({
+        org_id: orgContext.orgId,
         return_request_id: returnRequest.id,
         product_name: item.productName.trim(),
         product_sku: item.productSku?.trim() || null,
@@ -1755,6 +1864,7 @@ export async function createManualReturnRequest(input: {
 
     // Log activity
     await adminClient.from('activity_logs').insert({
+      org_id: orgContext.orgId,
       entity_type: 'return_request',
       entity_id: returnRequest.id,
       action: 'created',

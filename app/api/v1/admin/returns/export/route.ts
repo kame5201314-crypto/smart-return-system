@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
+import { createAdminClient } from '@/lib/supabase/admin';
 import ExcelJS from 'exceljs';
 import {
   RETURN_STATUS_LABELS,
@@ -12,6 +10,7 @@ import {
   RETURN_ITEM_RESOLUTION_TYPES,
 } from '@/config/constants';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import { getOrgContext, SaaSOrgContextError } from '@/lib/saas/org-context';
 
 interface ReturnExportData {
   request_number: string;
@@ -108,39 +107,21 @@ function applyFallbackResolutionTypeToItems(
 
 export async function GET(request: NextRequest) {
   try {
-    // Allow signed admin session first
-    const adminSessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-    if (await verifyAdminSessionToken(adminSessionToken)) {
-      return await exportReturns(request);
-    }
+    const orgContext = await getOrgContext({
+      requirements: {
+        roles: ['owner', 'admin', 'staff'],
+      },
+    });
 
-    // Fallback to Supabase user + admin role check
-    const authClient = await createClient();
-    const { data: { user }, error: authError } = await authClient.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: '未授權存取' },
-        { status: 401 }
-      );
-    }
-
-    const untypedSupabase = createUntypedAdminClient();
-    const { data: profile, error: profileError } = await untypedSupabase
-      .from('users')
-      .select('role')
-      .eq('email', user.email || '')
-      .single();
-
-    if (profileError || !profile || profile.role !== 'admin') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-
-    return await exportReturns(request);
+    return await exportReturns(request, orgContext.orgId);
   } catch (error) {
+    if (error instanceof SaaSOrgContextError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      );
+    }
+
     console.error('Export error:', error);
     return NextResponse.json(
       { success: false, error: 'Export failed' },
@@ -149,7 +130,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function exportReturns(request: NextRequest) {
+async function exportReturns(request: NextRequest, orgId: string) {
   const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const channel = searchParams.get('channel');
@@ -189,6 +170,7 @@ async function exportReturns(request: NextRequest) {
             ${returnItemsSelect}
           )
         `)
+        .eq('org_id', orgId)
         .order('created_at', { ascending: false });
 
       if (status) {
