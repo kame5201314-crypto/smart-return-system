@@ -185,7 +185,11 @@ function checkCommercialFoundation() {
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
     'lib/saas/platform-admin.ts',
+    'lib/saas/platform-admin-data.ts',
     'lib/saas/public-signup.ts',
+    'app/api/internal/saas/orgs/route.ts',
+    'app/api/internal/saas/orgs/[id]/route.ts',
+    'app/api/internal/saas/billing/events/route.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
@@ -328,6 +332,34 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform admin guard', 'admin auth + feature flag gate found');
     } else {
       record('fail', 'SaaS platform admin guard', 'must require admin auth and multi_tenant_admin flag without direct service-role access');
+    }
+  }
+
+  const platformAdminDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-data.ts');
+  const platformOrgRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/route.ts');
+  const platformOrgDetailRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/[id]/route.ts');
+  const platformBillingEventsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/events/route.ts');
+  if (
+    fs.existsSync(platformAdminDataPath) &&
+    fs.existsSync(platformOrgRoutePath) &&
+    fs.existsSync(platformOrgDetailRoutePath) &&
+    fs.existsSync(platformBillingEventsRoutePath)
+  ) {
+    const dataSource = fs.readFileSync(platformAdminDataPath, 'utf8');
+    const orgRouteSource = fs.readFileSync(platformOrgRoutePath, 'utf8');
+    const orgDetailRouteSource = fs.readFileSync(platformOrgDetailRoutePath, 'utf8');
+    const billingRouteSource = fs.readFileSync(platformBillingEventsRoutePath, 'utf8');
+    const routesUseGuard = [orgRouteSource, orgDetailRouteSource, billingRouteSource].every((source) =>
+      source.includes('requirePlatformAdminAccess') &&
+      source.includes('createUntypedAdminClient')
+    );
+    const dataLayerHasRepository =
+      dataSource.includes('createPlatformAdminDataRepository') &&
+      dataSource.includes('PlatformAdminDataRepository');
+    if (routesUseGuard && dataLayerHasRepository) {
+      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated');
+    } else {
+      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard and repository layer');
     }
   }
 }

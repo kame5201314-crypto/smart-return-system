@@ -1,0 +1,68 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import {
+  createPlatformAdminDataRepository,
+  type PlatformAdminDataRepository,
+  type PlatformAdminQueryClient,
+} from '@/lib/saas/platform-admin-data';
+import {
+  PlatformAdminAccessError,
+  requirePlatformAdminAccess,
+  type PlatformAdminContext,
+} from '@/lib/saas/platform-admin';
+
+interface HandlerDependencies {
+  requireAccess?: () => Promise<PlatformAdminContext>;
+  repository?: PlatformAdminDataRepository;
+}
+
+function parseLimit(request: NextRequest): number {
+  const raw = request.nextUrl.searchParams.get('limit');
+  const parsed = raw ? Number.parseInt(raw, 10) : 50;
+  if (!Number.isFinite(parsed)) {
+    return 50;
+  }
+  return Math.min(Math.max(parsed, 1), 100);
+}
+
+function getRepository(deps: HandlerDependencies): PlatformAdminDataRepository {
+  return deps.repository ?? createPlatformAdminDataRepository(
+    createUntypedAdminClient() as unknown as PlatformAdminQueryClient
+  );
+}
+
+export async function handleListPlatformOrganizations(
+  request: NextRequest,
+  deps: HandlerDependencies = {}
+) {
+  try {
+    await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+
+    const organizations = await getRepository(deps).listOrganizations({
+      limit: parseLimit(request),
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: organizations,
+    });
+  } catch (error) {
+    if (error instanceof PlatformAdminAccessError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
+    console.error('List platform organizations failed:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to load organizations' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  return handleListPlatformOrganizations(request);
+}
