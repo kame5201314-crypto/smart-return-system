@@ -118,6 +118,10 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `lib/saas/platform-admin.ts`
   - Requires admin auth and the `multi_tenant_admin` feature flag for live internal operations.
   - The guard does not use service-role access directly; service-role data access must stay inside explicit server routes.
+- SaaS public route allowlist was added:
+  - `lib/auth/public-routes.ts`
+  - Keeps `/`, `/pricing`, `/features/*`, `/signup`, `/contact`, `/invite/*`, `/legal/*`, `/portal/*`, and `/login` reachable before login.
+  - Keeps app/admin/internal routes protected by middleware.
 
 ## Verification Notes
 

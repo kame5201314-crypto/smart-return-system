@@ -182,6 +182,7 @@ function checkCommercialFoundation() {
   const requiredFiles = [
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
+    'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
     'lib/saas/platform-admin.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
@@ -251,6 +252,32 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS feature flags', 'required flags found');
     } else {
       record('fail', 'SaaS feature flags', `missing flags: ${missing.join(', ')}`);
+    }
+  }
+
+  const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
+  const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
+  if (fs.existsSync(publicRoutesPath) && fs.existsSync(proxyPath)) {
+    const publicRoutesSource = fs.readFileSync(publicRoutesPath, 'utf8');
+    const proxySource = fs.readFileSync(proxyPath, 'utf8');
+    const requiredPublicRouteSnippets = [
+      "'/'",
+      "'/pricing'",
+      "'/signup'",
+      "'/contact'",
+      "'/features'",
+      "'/invite'",
+      "'/legal'",
+      "'/portal'",
+      "'/login'",
+    ];
+    const missing = requiredPublicRouteSnippets.filter(
+      (snippet) => !publicRoutesSource.includes(snippet)
+    );
+    if (missing.length === 0 && proxySource.includes('isPublicRoute(pathname)')) {
+      record('pass', 'SaaS public routes', 'commercial website and portal routes stay public before login');
+    } else {
+      record('fail', 'SaaS public routes', `missing allowlist or proxy wiring: ${missing.join(', ')}`);
     }
   }
 

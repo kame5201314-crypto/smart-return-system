@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
+import { isPublicRoute } from '@/lib/auth/public-routes';
 
 export async function proxy(request: NextRequest) {
   // Skip middleware if Supabase is not configured
@@ -44,9 +45,7 @@ export async function proxy(request: NextRequest) {
   const isAuthenticated = isAdminAuthenticated || !!user;
   const pathname = request.nextUrl.pathname;
 
-  const isPublicRoute = pathname.startsWith('/portal') || pathname === '/login';
-
-  if (isPublicRoute) {
+  if (isPublicRoute(pathname)) {
     if (pathname === '/login' && isAuthenticated) {
       const url = request.nextUrl.clone();
       url.pathname = '/analytics';
