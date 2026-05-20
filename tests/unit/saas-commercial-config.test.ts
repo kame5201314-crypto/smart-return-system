@@ -3,36 +3,82 @@ import { describe, expect, it } from 'vitest';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import {
   getOrgAIUsageLimit,
+  getOrgMonthlyReturnSoftLimit,
+  getOrgSeatLimit,
   getSaaSPlanDefinition,
+  orgHasAdvancedAnalytics,
+  orgHasApiAccess,
   SAAS_PLAN_DEFINITIONS,
 } from '@/lib/config/saas-plans';
 
 describe('SaaS commercial configuration', () => {
-  it('defines the approved plan prices and AI limits', () => {
-    expect(SAAS_PLAN_DEFINITIONS.basic).toMatchObject({
-      monthlyPriceTwd: 1490,
-      aiMonthlyLimit: 5,
-    });
-    expect(SAAS_PLAN_DEFINITIONS.growth).toMatchObject({
-      monthlyPriceTwd: 2990,
-      aiMonthlyLimit: 30,
-    });
-    expect(SAAS_PLAN_DEFINITIONS.pro).toMatchObject({
-      monthlyPriceTwd: 7990,
-      aiMonthlyLimit: 100,
-    });
-    expect(SAAS_PLAN_DEFINITIONS.enterprise).toMatchObject({
-      monthlyPriceTwd: null,
-      aiMonthlyLimit: null,
-      billingRequired: false,
-    });
+  it('defines the approved plan matrix', () => {
+    expect(SAAS_PLAN_DEFINITIONS).toMatchInlineSnapshot(`
+      {
+        "basic": {
+          "aiMonthlyLimit": 5,
+          "billingRequired": true,
+          "code": "basic",
+          "hasAdvancedAnalytics": false,
+          "hasApiAccess": false,
+          "monthlyPriceTwd": 1490,
+          "monthlyReturnSoftLimit": 500,
+          "name": "Basic",
+          "seatLimit": 3,
+        },
+        "enterprise": {
+          "aiMonthlyLimit": null,
+          "billingRequired": false,
+          "code": "enterprise",
+          "hasAdvancedAnalytics": true,
+          "hasApiAccess": true,
+          "monthlyPriceTwd": null,
+          "monthlyReturnSoftLimit": null,
+          "name": "Enterprise",
+          "seatLimit": null,
+        },
+        "growth": {
+          "aiMonthlyLimit": 30,
+          "billingRequired": true,
+          "code": "growth",
+          "hasAdvancedAnalytics": true,
+          "hasApiAccess": false,
+          "monthlyPriceTwd": 2990,
+          "monthlyReturnSoftLimit": 2000,
+          "name": "Growth",
+          "seatLimit": 10,
+        },
+        "pro": {
+          "aiMonthlyLimit": 100,
+          "billingRequired": true,
+          "code": "pro",
+          "hasAdvancedAnalytics": true,
+          "hasApiAccess": true,
+          "monthlyPriceTwd": 7990,
+          "monthlyReturnSoftLimit": 8000,
+          "name": "Pro",
+          "seatLimit": 30,
+        },
+      }
+    `);
   });
 
-  it('resolves AI quota from org.plan instead of APP_MODE', () => {
+  it('resolves quotas and commercial limits from org.plan instead of APP_MODE', () => {
     expect(getOrgAIUsageLimit({ plan: 'basic' })).toBe(5);
     expect(getOrgAIUsageLimit({ plan: 'growth' })).toBe(30);
     expect(getOrgAIUsageLimit({ plan: 'pro' })).toBe(100);
     expect(getOrgAIUsageLimit({ plan: 'enterprise' })).toBeNull();
+    expect(getOrgSeatLimit({ plan: 'basic' })).toBe(3);
+    expect(getOrgSeatLimit({ plan: 'growth' })).toBe(10);
+    expect(getOrgSeatLimit({ plan: 'pro' })).toBe(30);
+    expect(getOrgSeatLimit({ plan: 'enterprise' })).toBeNull();
+    expect(getOrgMonthlyReturnSoftLimit({ plan: 'basic' })).toBe(500);
+    expect(getOrgMonthlyReturnSoftLimit({ plan: 'growth' })).toBe(2000);
+    expect(getOrgMonthlyReturnSoftLimit({ plan: 'pro' })).toBe(8000);
+    expect(getOrgMonthlyReturnSoftLimit({ plan: 'enterprise' })).toBeNull();
+    expect(orgHasAdvancedAnalytics({ plan: 'growth' })).toBe(true);
+    expect(orgHasApiAccess({ plan: 'growth' })).toBe(false);
+    expect(orgHasApiAccess({ plan: 'pro' })).toBe(true);
   });
 
   it('falls back to the Basic plan for unknown plan values', () => {
@@ -55,7 +101,7 @@ describe('SaaS commercial configuration', () => {
     expect(
       resolveSaaSFeatureFlags({
         env: {},
-        orgPlan: 'growth',
+        orgPlan: 'basic',
         orgFeatureFlags: {
           advanced_analytics: true,
           multi_tenant_admin: true,
@@ -65,6 +111,20 @@ describe('SaaS commercial configuration', () => {
     ).toMatchObject({
       billing: true,
       advanced_analytics: false,
+      multi_tenant_admin: false,
+    });
+
+    expect(
+      resolveSaaSFeatureFlags({
+        env: {},
+        orgPlan: 'growth',
+        orgFeatureFlags: {
+          advanced_analytics: true,
+          multi_tenant_admin: true,
+        },
+      })
+    ).toMatchObject({
+      advanced_analytics: true,
       multi_tenant_admin: false,
     });
 

@@ -198,16 +198,27 @@ function checkCommercialFoundation() {
     const source = fs.readFileSync(plansPath, 'utf8');
     const expectedPlanSnippets = [
       'monthlyPriceTwd: 1490',
+      'seatLimit: 3',
+      'monthlyReturnSoftLimit: 500',
       'aiMonthlyLimit: 5',
+      'hasAdvancedAnalytics: false',
+      'hasApiAccess: false',
       'monthlyPriceTwd: 2990',
+      'seatLimit: 10',
+      'monthlyReturnSoftLimit: 2000',
       'aiMonthlyLimit: 30',
+      'hasAdvancedAnalytics: true',
+      'hasApiAccess: false',
       'monthlyPriceTwd: 7990',
+      'seatLimit: 30',
+      'monthlyReturnSoftLimit: 8000',
       'aiMonthlyLimit: 100',
+      'hasApiAccess: true',
       'enterprise',
     ];
     const missing = expectedPlanSnippets.filter((snippet) => !source.includes(snippet));
     if (missing.length === 0) {
-      record('pass', 'SaaS plans', 'Basic/Growth/Pro/Enterprise baseline found');
+      record('pass', 'SaaS plans', 'approved Basic/Growth/Pro/Enterprise matrix found');
     } else {
       record('fail', 'SaaS plans', `missing baseline snippets: ${missing.join(', ')}`);
     }

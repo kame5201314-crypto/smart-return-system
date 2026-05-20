@@ -70,7 +70,7 @@ export function resolveSaaSFeatureFlags(params?: {
     });
   }
 
-  if (plan.code !== 'pro' && plan.code !== 'enterprise') {
+  if (!plan.hasAdvancedAnalytics) {
     resolved.advanced_analytics = false;
   }
 
