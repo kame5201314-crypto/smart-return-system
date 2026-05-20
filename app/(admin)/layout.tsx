@@ -1,34 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Package,
   BarChart3,
   Brain,
-  Menu,
-  LogOut,
-  Loader2,
-  Truck,
   ClipboardList,
-  Printer,
   Database,
+  Loader2,
+  LogOut,
+  Menu,
+  Package,
+  Printer,
+  Settings,
+  Truck,
 } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { getCurrentUser, signOut } from '@/lib/actions/auth';
 import { toast } from 'sonner';
 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { getCurrentUser, signOut } from '@/lib/actions/auth';
+
 const navItems = [
-  { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
+  { href: '/analytics', label: '營運總覽', icon: BarChart3, exact: true },
   { href: '/returns', label: '退貨管理', icon: Package },
   { href: '/shopee-returns', label: '蝦皮退貨', icon: Printer },
-  { href: '/pickup', label: '派車收件', icon: ClipboardList },
-  { href: '/logistics', label: '物流快查', icon: Truck },
+  { href: '/pickup', label: '取件紀錄', icon: ClipboardList },
+  { href: '/logistics', label: '物流管理', icon: Truck },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
+  { href: '/settings', label: 'SaaS 設定', icon: Settings },
   { href: '/settings/backup', label: '資料備份', icon: Database },
 ];
 
@@ -39,11 +41,48 @@ interface UserInfo {
   role: string;
 }
 
-export default function AdminLayout({
-  children,
+function NavLink({
+  item,
+  pathname,
+  onClick,
 }: {
-  children: React.ReactNode;
+  item: (typeof navItems)[number];
+  pathname: string;
+  onClick?: () => void;
 }) {
+  const isActive = item.exact
+    ? pathname === item.href
+    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+        isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+      }`}
+    >
+      <Icon className="size-5" />
+      {item.label}
+    </Link>
+  );
+}
+
+function BrandLink({ onClick }: { onClick?: () => void }) {
+  return (
+    <Link
+      href="/analytics"
+      onClick={onClick}
+      className="flex h-16 items-center border-b px-6 transition-colors hover:bg-gray-50"
+    >
+      <Package className="size-8 text-primary" />
+      <span className="ml-2 text-lg font-bold">Smart Return SaaS</span>
+    </Link>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -71,53 +110,23 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r">
-          {/* Logo */}
-          <Link href="/analytics" className="flex items-center h-16 px-6 border-b hover:bg-gray-50 transition-colors">
-            <Package className="w-8 h-8 text-primary" />
-            <span className="ml-2 text-lg font-bold">退貨管理系統</span>
-          </Link>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-1">
-            {navItems.map((item) => {
-              const isActive = item.exact
-                ? pathname === item.href
-                : pathname === item.href || pathname.startsWith(item.href + '/');
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`
-                    flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                    ${isActive
-                      ? 'bg-primary text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                    }
-                  `}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
+        <div className="flex flex-grow flex-col border-r bg-white">
+          <BrandLink />
+          <nav className="flex-1 space-y-1 px-4 py-4">
+            {navItems.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} />
+            ))}
           </nav>
 
-          {/* User */}
-          <div className="p-4 border-t">
+          <div className="border-t p-4">
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarFallback className="bg-purple-100 text-purple-600">
-                  {userInitial}
-                </AvatarFallback>
+                <AvatarFallback className="bg-emerald-100 text-emerald-700">{userInitial}</AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.name || '載入中...'}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email || ''}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{user?.name || '載入中...'}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email || ''}</p>
               </div>
               <Button
                 variant="ghost"
@@ -126,73 +135,48 @@ export default function AdminLayout({
                 disabled={isLoggingOut}
                 title="登出"
               >
-                {isLoggingOut ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <LogOut className="w-4 h-4" />
-                )}
+                {isLoggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
               </Button>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b">
-        <div className="flex items-center justify-between h-16 px-4">
+      <div className="fixed inset-x-0 top-0 z-50 border-b bg-white lg:hidden">
+        <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <Package className="w-6 h-6 text-primary" />
-            <span className="font-bold">退貨管理</span>
+            <Package className="size-6 text-primary" />
+            <span className="font-bold">Smart Return SaaS</span>
           </div>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
-                <Menu className="w-5 h-5" />
+                <Menu className="size-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <div className="flex flex-col h-full">
-                <Link href="/analytics" className="flex items-center h-16 px-6 border-b hover:bg-gray-50 transition-colors" onClick={() => setMobileOpen(false)}>
-                  <Package className="w-6 h-6 text-primary" />
-                  <span className="ml-2 font-bold">退貨管理系統</span>
-                </Link>
-                <nav className="flex-1 px-4 py-4 space-y-1">
-                  {navItems.map((item) => {
-                    const isActive = item.exact
-                      ? pathname === item.href
-                      : pathname === item.href || pathname.startsWith(item.href + '/');
-                    const Icon = item.icon;
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={`
-                          flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                          ${isActive
-                            ? 'bg-primary text-white'
-                            : 'text-gray-700 hover:bg-gray-100'
-                          }
-                        `}
-                      >
-                        <Icon className="w-5 h-5" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
+              <div className="flex h-full flex-col">
+                <BrandLink onClick={() => setMobileOpen(false)} />
+                <nav className="flex-1 space-y-1 px-4 py-4">
+                  {navItems.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                      onClick={() => setMobileOpen(false)}
+                    />
+                  ))}
                 </nav>
-                {/* Mobile User Section */}
-                <div className="p-4 border-t">
-                  <div className="flex items-center gap-3 mb-3">
+                <div className="border-t p-4">
+                  <div className="mb-3 flex items-center gap-3">
                     <Avatar>
-                      <AvatarFallback className="bg-purple-100 text-purple-600">
+                      <AvatarFallback className="bg-emerald-100 text-emerald-700">
                         {userInitial}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user?.name || '載入中...'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email || ''}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{user?.name || '載入中...'}</p>
+                      <p className="truncate text-xs text-muted-foreground">{user?.email || ''}</p>
                     </div>
                   </div>
                   <Button
@@ -202,9 +186,9 @@ export default function AdminLayout({
                     disabled={isLoggingOut}
                   >
                     {isLoggingOut ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 size-4 animate-spin" />
                     ) : (
-                      <LogOut className="w-4 h-4 mr-2" />
+                      <LogOut className="mr-2 size-4" />
                     )}
                     登出
                   </Button>
@@ -215,8 +199,7 @@ export default function AdminLayout({
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0">
+      <main className="pt-16 lg:pl-64 lg:pt-0">
         <div className="p-6">{children}</div>
       </main>
     </div>
