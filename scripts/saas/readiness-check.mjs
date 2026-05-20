@@ -185,6 +185,7 @@ function checkCommercialFoundation() {
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
     'lib/saas/platform-admin.ts',
+    'lib/saas/public-signup.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
@@ -278,6 +279,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public routes', 'commercial website and portal routes stay public before login');
     } else {
       record('fail', 'SaaS public routes', `missing allowlist or proxy wiring: ${missing.join(', ')}`);
+    }
+  }
+
+  const publicSignupPath = path.resolve(process.cwd(), 'lib/saas/public-signup.ts');
+  const signupPagePath = path.resolve(process.cwd(), 'app/signup/page.tsx');
+  if (fs.existsSync(publicSignupPath) && fs.existsSync(signupPagePath)) {
+    const publicSignupSource = fs.readFileSync(publicSignupPath, 'utf8');
+    const signupPageSource = fs.readFileSync(signupPagePath, 'utf8');
+    if (
+      publicSignupSource.includes('resolveSaaSPublicSignupState') &&
+      publicSignupSource.includes('public_signup') &&
+      publicSignupSource.includes('closed_beta') &&
+      signupPageSource.includes('resolveSaaSPublicSignupState')
+    ) {
+      record('pass', 'SaaS public signup gate', 'signup page is controlled by public_signup flag');
+    } else {
+      record('fail', 'SaaS public signup gate', 'signup must stay closed by default and use public_signup flag');
     }
   }
 

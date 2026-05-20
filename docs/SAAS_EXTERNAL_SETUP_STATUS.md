@@ -122,6 +122,10 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `lib/auth/public-routes.ts`
   - Keeps `/`, `/pricing`, `/features/*`, `/signup`, `/contact`, `/invite/*`, `/legal/*`, `/portal/*`, and `/login` reachable before login.
   - Keeps app/admin/internal routes protected by middleware.
+- SaaS public signup gate was added:
+  - `lib/saas/public-signup.ts`
+  - `/signup` now renders closed Beta vs public signup copy from `ENABLE_PUBLIC_SIGNUP`.
+  - Public signup still does not create an org until SaaS DB migrations and server-side signup flow are approved.
 
 ## Verification Notes
 
@@ -145,6 +149,7 @@ These are intentionally not completed because they require private credentials, 
 - SaaS production deployment has not been run.
 - Platform admin pages are not wired to live SaaS DB data yet.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
+- Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
 
 ## Required Values Before Deployment
 
