@@ -135,6 +135,7 @@ Required before migration/deployment:
 
 Optional before billing launch:
 
+- `NEXT_PUBLIC_CONTACT_EMAIL`
 - `BILLING_PROVIDER`
 - `ECPAY_MERCHANT_ID`
 - `ECPAY_HASH_KEY`
