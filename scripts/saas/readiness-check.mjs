@@ -183,6 +183,7 @@ function checkCommercialFoundation() {
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
     'lib/saas/org-context.ts',
+    'lib/saas/platform-admin.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
@@ -266,6 +267,22 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS org context', 'auth user -> organization -> plan -> feature flags guard found');
     } else {
       record('fail', 'SaaS org context', 'must resolve org context without service-role membership lookup');
+    }
+  }
+
+  const platformAdminPath = path.resolve(process.cwd(), 'lib/saas/platform-admin.ts');
+  if (fs.existsSync(platformAdminPath)) {
+    const source = fs.readFileSync(platformAdminPath, 'utf8');
+    if (
+      source.includes('requirePlatformAdminAccess') &&
+      source.includes('requireRouteAuth({ requireAdmin: true })') &&
+      source.includes('multi_tenant_admin') &&
+      !source.includes('createAdminClient') &&
+      !source.includes('createUntypedAdminClient')
+    ) {
+      record('pass', 'SaaS platform admin guard', 'admin auth + feature flag gate found');
+    } else {
+      record('fail', 'SaaS platform admin guard', 'must require admin auth and multi_tenant_admin flag without direct service-role access');
     }
   }
 }

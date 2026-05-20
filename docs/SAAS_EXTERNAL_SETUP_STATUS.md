@@ -114,6 +114,10 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `/internal/orgs/[id]`
   - `/internal/billing/events`
   - These pages currently use static demo data and do not read or write Supabase.
+- SaaS platform admin guard was added:
+  - `lib/saas/platform-admin.ts`
+  - Requires admin auth and the `multi_tenant_admin` feature flag for live internal operations.
+  - The guard does not use service-role access directly; service-role data access must stay inside explicit server routes.
 
 ## Verification Notes
 
@@ -136,6 +140,7 @@ These are intentionally not completed because they require private credentials, 
 - Billing credentials have not been added.
 - SaaS production deployment has not been run.
 - Platform admin pages are not wired to live SaaS DB data yet.
+- Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
 
 ## Required Values Before Deployment
 
