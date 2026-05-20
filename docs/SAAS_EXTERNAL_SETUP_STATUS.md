@@ -86,6 +86,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - SaaS commercial v2 migration draft added in `supabase/migrations/024_saas_commercial_v2.sql` for member roles, invites, invoices, and audit logs. It has not been applied to any database.
   - SaaS tenant isolation audit added in `docs/SAAS_TENANT_ISOLATION_AUDIT.md`.
   - SaaS tenant org_id/RLS migration draft added in `supabase/migrations/025_attach_org_id_to_business_tables.sql`. It has not been applied to any database.
+  - SaaS org context guard added in `lib/saas/org-context.ts` to resolve authenticated user -> org -> plan -> feature flags without using service-role membership lookup.
 
 ## Verification Notes
 
@@ -103,6 +104,7 @@ These are intentionally not completed because they require private credentials o
 - SaaS Supabase Project is not connected yet.
 - SaaS Supabase migrations have not been applied.
 - SaaS tenant/org RLS has not been applied to any database.
+- P0 runtime actions and exports have not yet been rewritten to require `getOrgContext()` and explicit `org_id` filters.
 - SaaS Gemini API key has not been added to Vercel.
 - SaaS domain has not been configured.
 - SaaS logging/Sentry DSN has not been added.

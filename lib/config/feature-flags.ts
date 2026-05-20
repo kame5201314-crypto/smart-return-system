@@ -53,11 +53,13 @@ export function resolveSaaSFeatureFlags(params?: {
   const env = params?.env || process.env;
   const plan = getSaaSPlanDefinition(params?.orgPlan);
   const resolved = { ...DEFAULT_SAAS_FEATURE_FLAGS };
+  const envOverrides: Partial<Record<SaaSFeatureFlag, boolean>> = {};
 
   (Object.keys(SAAS_FEATURE_FLAG_ENV) as SaaSFeatureFlag[]).forEach((flag) => {
     const envValue = parseBooleanFlag(env[SAAS_FEATURE_FLAG_ENV[flag]]);
     if (envValue !== null) {
       resolved[flag] = envValue;
+      envOverrides[flag] = envValue;
     }
   });
 
@@ -76,6 +78,10 @@ export function resolveSaaSFeatureFlags(params?: {
 
   if (plan.code !== 'enterprise') {
     resolved.multi_tenant_admin = false;
+  }
+
+  if (envOverrides.image_ai === false) {
+    resolved.image_ai = false;
   }
 
   return resolved;

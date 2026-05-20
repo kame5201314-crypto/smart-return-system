@@ -142,4 +142,20 @@ describe('SaaS commercial configuration', () => {
       multi_tenant_admin: true,
     });
   });
+
+  it('keeps ENABLE_IMAGE_AI=false as a global kill switch', () => {
+    expect(
+      resolveSaaSFeatureFlags({
+        env: {
+          ENABLE_IMAGE_AI: 'false',
+        },
+        orgPlan: 'pro',
+        orgFeatureFlags: {
+          image_ai: true,
+        },
+      })
+    ).toMatchObject({
+      image_ai: false,
+    });
+  });
 });

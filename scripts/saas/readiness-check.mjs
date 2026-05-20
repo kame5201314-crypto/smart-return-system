@@ -182,6 +182,7 @@ function checkCommercialFoundation() {
   const requiredFiles = [
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
+    'lib/saas/org-context.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
@@ -249,6 +250,22 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS feature flags', 'required flags found');
     } else {
       record('fail', 'SaaS feature flags', `missing flags: ${missing.join(', ')}`);
+    }
+  }
+
+  const orgContextPath = path.resolve(process.cwd(), 'lib/saas/org-context.ts');
+  if (fs.existsSync(orgContextPath)) {
+    const source = fs.readFileSync(orgContextPath, 'utf8');
+    if (
+      source.includes('getOrgContext') &&
+      source.includes('organization_members') &&
+      source.includes('resolveSaaSFeatureFlags') &&
+      !source.includes('createAdminClient') &&
+      !source.includes('createUntypedAdminClient')
+    ) {
+      record('pass', 'SaaS org context', 'auth user -> organization -> plan -> feature flags guard found');
+    } else {
+      record('fail', 'SaaS org context', 'must resolve org context without service-role membership lookup');
     }
   }
 }

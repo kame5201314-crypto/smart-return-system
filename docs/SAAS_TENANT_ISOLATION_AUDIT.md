@@ -12,12 +12,12 @@ No database migration has been applied. No Supabase project has been touched.
 
 The current SaaS branch has the commercial foundation tables, but most production business tables still come from the internal/live-era schema. Several tables either have no `org_id`, or have RLS policies using `USING (true)` for every authenticated user. Runtime code also uses service-role clients heavily in server actions and API routes.
 
-Before implementing `getOrgContext()` and changing server actions, the safe order is:
+Before changing server actions, the safe order is:
 
 1. Review this audit.
 2. Review `supabase/migrations/025_attach_org_id_to_business_tables.sql`.
 3. Apply `023`, `024`, and `025` only to the SaaS Supabase project after credentials exist.
-4. Add `getOrgContext()` and replace service-role business paths with org-scoped queries.
+4. Use `getOrgContext()` and replace service-role business paths with org-scoped queries.
 
 ## Design Decisions
 
@@ -28,6 +28,19 @@ Before implementing `getOrgContext()` and changing server actions, the safe orde
 | Existing data | Fresh SaaS DB assumed | Do not backfill from live/internal data. If migration from live data is ever needed, write a separate import plan. |
 | Service role | Server-only, exceptional use | Service role bypasses RLS; every use must inject or filter `org_id` explicitly. |
 | Client access | anon/authenticated client + RLS | SaaS runtime should not rely on service-role access for user-scoped data. |
+
+## Local Guard Foundation
+
+`lib/saas/org-context.ts` now provides the first shared server guard for SaaS runtime work:
+
+- Resolves authenticated user -> `organization_members` -> `organizations`.
+- Normalizes role to `owner` / `admin` / `staff` / `viewer`; legacy `member` maps to `staff`.
+- Resolves `organizations.plan` through `lib/config/saas-plans.ts`.
+- Resolves feature flags through `lib/config/feature-flags.ts`, including plan gating.
+- Supports guard requirements for role, feature flag, and writable billing status.
+- Uses the authenticated Supabase server client for membership lookup; it does not use service-role clients for org context.
+
+This is only a local code foundation. P0 runtime action rewrites are still pending and must add explicit `.eq('org_id', orgId)` filters when service-role paths remain necessary.
 
 ## Schema And RLS Audit
 
@@ -170,9 +183,8 @@ Service-role policies may stay for controlled server-only paths, but runtime cod
 ## Next Local Tasks
 
 1. Review `025_attach_org_id_to_business_tables.sql`.
-2. Add `getOrgContext()` server utility.
-3. Convert P0 paths to require org context and add `.eq('org_id', orgId)` to every read/write.
-4. Add tests for org-scoped AI analysis, export, returns, and Shopee scan paths.
+2. Convert P0 paths to require org context and add `.eq('org_id', orgId)` to every read/write.
+3. Add tests for org-scoped AI analysis, export, returns, and Shopee scan paths.
 
 Blocked platform tasks:
 
