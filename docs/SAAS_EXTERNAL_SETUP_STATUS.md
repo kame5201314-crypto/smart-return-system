@@ -132,6 +132,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `lib/saas/public-signup.ts`
   - `/signup` now renders closed Beta vs public signup copy from `ENABLE_PUBLIC_SIGNUP`.
   - Public signup still does not create an org until SaaS DB migrations and server-side signup flow are approved.
+- SaaS public signup API safety foundation was added:
+  - `lib/saas/signup-request.ts`
+  - `/api/saas/signup`
+  - The API is closed by `ENABLE_PUBLIC_SIGNUP=false` by default.
+  - When the flag is enabled but persistence is not wired, the API returns `not_configured` instead of creating an org.
+  - MVP public signup is Basic-only until subscription creation and billing are wired.
 
 ## Verification Notes
 
@@ -156,6 +162,7 @@ These are intentionally not completed because they require private credentials, 
 - Platform admin pages are not wired to live SaaS DB data yet.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
+- Public signup request persistence and org creation are not wired yet; `/api/saas/signup` remains a guarded API foundation.
 
 ## Required Values Before Deployment
 

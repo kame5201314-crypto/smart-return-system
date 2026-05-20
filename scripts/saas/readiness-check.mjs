@@ -187,6 +187,8 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/public-signup.ts',
+    'lib/saas/signup-request.ts',
+    'app/api/saas/signup/route.ts',
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
@@ -287,7 +289,9 @@ function checkCommercialFoundation() {
   }
 
   const publicSignupPath = path.resolve(process.cwd(), 'lib/saas/public-signup.ts');
+  const signupRequestPath = path.resolve(process.cwd(), 'lib/saas/signup-request.ts');
   const signupPagePath = path.resolve(process.cwd(), 'app/signup/page.tsx');
+  const signupApiPath = path.resolve(process.cwd(), 'app/api/saas/signup/route.ts');
   if (fs.existsSync(publicSignupPath) && fs.existsSync(signupPagePath)) {
     const publicSignupSource = fs.readFileSync(publicSignupPath, 'utf8');
     const signupPageSource = fs.readFileSync(signupPagePath, 'utf8');
@@ -300,6 +304,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public signup gate', 'signup page is controlled by public_signup flag');
     } else {
       record('fail', 'SaaS public signup gate', 'signup must stay closed by default and use public_signup flag');
+    }
+  }
+
+  if (fs.existsSync(signupRequestPath) && fs.existsSync(signupApiPath)) {
+    const signupRequestSource = fs.readFileSync(signupRequestPath, 'utf8');
+    const signupApiSource = fs.readFileSync(signupApiPath, 'utf8');
+    if (
+      signupRequestSource.includes('submitSaaSPublicSignupRequest') &&
+      signupRequestSource.includes('feature_disabled') &&
+      signupRequestSource.includes('not_configured') &&
+      signupRequestSource.includes("plan: 'basic'") &&
+      signupApiSource.includes('handleSaaSPublicSignupRequest') &&
+      signupApiSource.includes('submitSaaSPublicSignupRequest')
+    ) {
+      record('pass', 'SaaS public signup API', 'API route is flag-gated and has no default persistence');
+    } else {
+      record('fail', 'SaaS public signup API', 'signup API must be flag-gated, Basic-only, and closed before persistence is wired');
     }
   }
 
