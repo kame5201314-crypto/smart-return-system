@@ -21,10 +21,28 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Ready for Claude to claim a UI task before editing.
+Notes: Ready for the next agent to claim a task before editing.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Claude
+Commit: (uncommitted, awaiting user approval)
+Scope: Task 4 - Empty / loading / error states (first wave)
+Files:
+- app/not-found.tsx (NEW)
+- app/(admin)/loading.tsx (NEW)
+- app/(admin)/error.tsx (NEW)
+- app/(admin)/returns/loading.tsx (NEW)
+- app/(admin)/returns/[id]/loading.tsx (NEW)
+- app/(admin)/shopee-returns/loading.tsx (NEW)
+- app/(admin)/shopee-returns/[id]/loading.tsx (NEW)
+- app/(customer)/portal/loading.tsx (NEW)
+- app/(customer)/portal/error.tsx (NEW)
+Status: done
+Notes: UI-only, no data layer changes. Gate all green (lint 0 errors, typecheck pass, 137 tests pass, build 53 pages). See HANDOFF_LOG for details.
+```
 
 ```text
 Owner: Codex
