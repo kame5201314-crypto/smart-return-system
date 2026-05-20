@@ -25,11 +25,12 @@ if (args.length === 0) {
 
 const [command, ...commandArgs] = args;
 const executable = process.platform === 'win32' && command === 'npm' ? 'npm.cmd' : command;
+const useShell = process.platform === 'win32' && executable.endsWith('.cmd');
 
 const result = spawnSync(executable, commandArgs, {
   stdio: 'inherit',
   env: process.env,
-  shell: false,
+  shell: useShell,
 });
 
 if (result.error) {
