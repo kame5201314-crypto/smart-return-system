@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -84,6 +84,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Billing env placeholders expanded for ECPay, Stripe, and TapPay in `.env.saas.example`.
   - SaaS-only migration draft added in `supabase/migrations/023_saas_commercial_foundation.sql`.
   - SaaS commercial v2 migration draft added in `supabase/migrations/024_saas_commercial_v2.sql` for member roles, invites, invoices, and audit logs. It has not been applied to any database.
+  - SaaS tenant isolation audit added in `docs/SAAS_TENANT_ISOLATION_AUDIT.md`.
+  - SaaS tenant org_id/RLS migration draft added in `supabase/migrations/025_attach_org_id_to_business_tables.sql`. It has not been applied to any database.
 
 ## Verification Notes
 
@@ -186,7 +188,7 @@ After the SaaS Supabase and secret values exist:
 4. Run `npm run saas:verify-env`.
 5. Run `npm run saas:doctor:strict`.
 6. Run `npm run saas:predeploy`.
-7. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql` and `supabase/migrations/024_saas_commercial_v2.sql` when tenant and billing foundation tables are approved.
+7. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql`, `supabase/migrations/024_saas_commercial_v2.sql`, and `supabase/migrations/025_attach_org_id_to_business_tables.sql` when tenant and billing foundation tables are approved.
 8. Deploy the SaaS Vercel Project.
 9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 

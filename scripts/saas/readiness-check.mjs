@@ -183,6 +183,8 @@ function checkCommercialFoundation() {
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
+    'supabase/migrations/024_saas_commercial_v2.sql',
+    'supabase/migrations/025_attach_org_id_to_business_tables.sql',
   ];
 
   for (const file of requiredFiles) {
