@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DemoDataBanner } from '@/components/saas/demo-data-banner';
 
 const roleRows = [
   ['Owner', '組織擁有者', '方案、帳務、成員、資料刪除與安全設定。'],
@@ -36,11 +37,19 @@ export default function TeamSettingsPage() {
             Stage 1 先支援 Owner / Admin / Staff / Viewer。Beta 期邀請流程仍可由平台管理員協助。
           </p>
         </div>
-        <Button disabled>
-          <MailPlus className="size-4" />
-          邀請成員
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button disabled title="Stage 2 邀請流程上線後開啟">
+            <MailPlus className="size-4" />
+            邀請成員
+          </Button>
+          <p className="text-xs text-muted-foreground">Beta 期由平台管理員代為邀請。</p>
+        </div>
       </div>
+
+      <DemoDataBanner>
+        <span className="font-medium">示意成員清單</span>
+        ：正式資料將由 organization_members 與 organization_invites 提供。
+      </DemoDataBanner>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Card className="rounded-lg">

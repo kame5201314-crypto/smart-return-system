@@ -4,7 +4,8 @@ import { ArrowRight, BarChart3, PackageCheck, Sparkles, TrendingUp } from 'lucid
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { DemoDataBanner } from '@/components/saas/demo-data-banner';
+import { UsageProgress } from '@/components/saas/usage-progress';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 
 const currentPlan = SAAS_PLAN_DEFINITIONS.growth;
@@ -55,6 +56,11 @@ export default function UsageSettingsPage() {
         </Button>
       </div>
 
+      <DemoDataBanner>
+        <span className="font-medium">示意資料</span>
+        ：使用量採 Growth 方案示意，正式資料將由 ai_usage_events 與退貨表月度統計提供。
+      </DemoDataBanner>
+
       <div className="grid gap-4 lg:grid-cols-3">
         {usageCards.map((item) => {
           const Icon = item.icon;
@@ -82,7 +88,7 @@ export default function UsageSettingsPage() {
                     / {item.limit.toLocaleString('zh-TW')}
                   </div>
                 </div>
-                <Progress value={value} />
+                <UsageProgress value={value} aria-label={`${item.label} 使用率 ${value}%`} />
               </CardContent>
             </Card>
           );

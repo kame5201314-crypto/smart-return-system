@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DemoDataBanner } from '@/components/saas/demo-data-banner';
 
 const billingTimeline = [
   ['trialing', '14 天試用，未付款到期後進入 suspended。'],
@@ -45,6 +46,11 @@ export default function BillingSettingsPage() {
           </Link>
         </Button>
       </div>
+
+      <DemoDataBanner>
+        <span className="font-medium">Beta 期示意資料</span>
+        ：訂閱、發票與付款資訊將於 Stage 2 接 ECPay 定期定額後接入。
+      </DemoDataBanner>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="rounded-lg lg:col-span-2">

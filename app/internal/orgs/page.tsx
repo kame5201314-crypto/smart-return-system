@@ -4,7 +4,6 @@ import { ArrowRight, Building2, CircleDollarSign, PauseCircle, PlayCircle, Users
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -13,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DemoDataBanner } from '@/components/saas/demo-data-banner';
+import { UsageProgress } from '@/components/saas/usage-progress';
 import { SAAS_PLAN_DEFINITIONS, type SaaSPlanCode } from '@/lib/config/saas-plans';
 
 const orgRows = [
@@ -90,17 +91,25 @@ export default function InternalOrgsPage() {
             平台管理員的租戶總覽骨架。此頁目前只放示意資料，不讀寫任何 Supabase 專案。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button disabled variant="outline">
-            <PauseCircle className="size-4" />
-            停用租戶
-          </Button>
-          <Button disabled>
-            <PlayCircle className="size-4" />
-            手動開通
-          </Button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-wrap gap-2">
+            <Button disabled variant="outline" title="multi_tenant_admin 旗標開啟後可用">
+              <PauseCircle className="size-4" />
+              停用租戶
+            </Button>
+            <Button disabled title="multi_tenant_admin 旗標開啟後可用">
+              <PlayCircle className="size-4" />
+              手動開通
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">需 platform admin guard 與 audit log 接好後啟用。</p>
         </div>
       </div>
+
+      <DemoDataBanner>
+        <span className="font-medium">租戶清單示意</span>
+        ：實際資料將由 service role 後端 route 讀取 organizations + organization_members + subscriptions。
+      </DemoDataBanner>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryItems.map((item) => {
@@ -166,20 +175,29 @@ export default function InternalOrgsPage() {
                       <div className="mb-1 text-xs text-muted-foreground">
                         {org.seatsUsed} / {plan.seatLimit ?? '合約'}
                       </div>
-                      <Progress value={seatPercent} />
+                      <UsageProgress
+                        value={seatPercent}
+                        aria-label={`${org.name} 席次使用率 ${seatPercent}%`}
+                      />
                     </TableCell>
                     <TableCell className="min-w-32">
                       <div className="mb-1 text-xs text-muted-foreground">
                         {org.returnsUsed.toLocaleString('zh-TW')} /{' '}
                         {plan.monthlyReturnSoftLimit?.toLocaleString('zh-TW') ?? '合約'}
                       </div>
-                      <Progress value={returnPercent} />
+                      <UsageProgress
+                        value={returnPercent}
+                        aria-label={`${org.name} 退貨量使用率 ${returnPercent}%`}
+                      />
                     </TableCell>
                     <TableCell className="min-w-28">
                       <div className="mb-1 text-xs text-muted-foreground">
                         {org.aiUsed} / {plan.aiMonthlyLimit ?? '合約'}
                       </div>
-                      <Progress value={aiPercent} />
+                      <UsageProgress
+                        value={aiPercent}
+                        aria-label={`${org.name} AI 額度使用率 ${aiPercent}%`}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="ghost" size="sm">

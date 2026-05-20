@@ -1,22 +1,23 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowLeft, Building2, FileClock, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, ShieldCheck } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { InternalNavLink } from '@/components/internal/nav-link';
 
 const internalNav = [
   {
     href: '/internal/orgs',
     label: 'Organizations',
     description: '租戶、方案與狀態',
-    icon: Building2,
+    iconName: 'building',
   },
   {
     href: '/internal/billing/events',
     label: 'Billing Events',
     description: '金流事件與重送檢查',
-    icon: FileClock,
+    iconName: 'fileClock',
   },
 ] as const;
 
@@ -55,22 +56,15 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
             Internal Console
           </div>
           <nav className="grid gap-1">
-            {internalNav.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-neutral-100"
-                >
-                  <span className="flex items-center gap-2 font-medium">
-                    <Icon className="size-4 text-emerald-700" />
-                    {item.label}
-                  </span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
-                </Link>
-              );
-            })}
+            {internalNav.map((item) => (
+              <InternalNavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                description={item.description}
+                iconName={item.iconName}
+              />
+            ))}
           </nav>
         </aside>
 

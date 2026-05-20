@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DemoDataBanner } from '@/components/saas/demo-data-banner';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 
 const detail = {
@@ -66,15 +67,23 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             Demo route id: {id}. 正式版會以 organization id 查詢 SaaS Supabase，不跨 org 讀取資料。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button disabled variant="outline">
-            調整方案
-          </Button>
-          <Button disabled variant="outline">
-            停用 / 恢復
-          </Button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-wrap gap-2">
+            <Button disabled variant="outline" title="multi_tenant_admin 旗標開啟後可用">
+              調整方案
+            </Button>
+            <Button disabled variant="outline" title="multi_tenant_admin 旗標開啟後可用">
+              停用 / 恢復
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">需 platform admin guard 與 audit log 接好後啟用。</p>
         </div>
       </div>
+
+      <DemoDataBanner>
+        <span className="font-medium">租戶詳情示意</span>
+        ：成員、旗標、帳務、Audit 皆為 demo 內容，正式版以該 org_id 從 SaaS Supabase 查詢。
+      </DemoDataBanner>
 
       <div className="grid gap-4 lg:grid-cols-4">
         {[

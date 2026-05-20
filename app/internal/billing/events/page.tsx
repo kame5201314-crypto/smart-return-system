@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DemoDataBanner } from '@/components/saas/demo-data-banner';
 
 const eventRows = [
   {
@@ -71,11 +72,19 @@ export default function InternalBillingEventsPage() {
             金流 webhook 與電子發票事件的營運檢查骨架。正式重送功能目前關閉。
           </p>
         </div>
-        <Button disabled variant="outline">
-          <RotateCw className="size-4" />
-          重送事件
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button disabled variant="outline" title="Stage 2 webhook 重送功能上線後開啟">
+            <RotateCw className="size-4" />
+            重送事件
+          </Button>
+          <p className="text-xs text-muted-foreground">需 ECPay 測試金鑰與 idempotency 通過後啟用。</p>
+        </div>
       </div>
+
+      <DemoDataBanner>
+        <span className="font-medium">事件示意資料</span>
+        ：實際事件將由 ECPay / Stripe / TapPay webhook 寫入 billing_events，並通過簽章與 idempotency 檢查。
+      </DemoDataBanner>
 
       <div className="grid gap-4 md:grid-cols-3">
         {summaryItems.map((item) => {
