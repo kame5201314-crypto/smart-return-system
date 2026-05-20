@@ -14,14 +14,14 @@ import { Badge } from '@/components/ui/badge';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
-  title: '方案價格 | Smart Return SaaS',
-  description: 'Basic、Growth、Pro、Enterprise 固定月費方案，含席次、退貨量軟限制與 AI 分析額度。',
+  title: '價格方案 | Smart Return SaaS',
+  description: 'Basic、Growth、Pro、Enterprise 固定月費方案，含席次、退貨量軟上限與 AI 月額度。',
 };
 
 const comparisonRows = [
   ['成員席次', 'seat'],
-  ['退貨量軟限制', 'returns'],
-  ['AI 文字分析額度', 'ai'],
+  ['退貨量軟上限', 'returns'],
+  ['AI 分析額度', 'ai'],
 ] as const;
 
 export default function PricingPage() {
@@ -29,8 +29,8 @@ export default function PricingPage() {
     <MarketingShell>
       <PageHeader
         eyebrow="Pricing"
-        title="固定月費，退貨超量先提醒，AI 額度才硬控管。"
-        description="MVP 先採 Basic、Growth、Pro、Enterprise 四種方案。14 天免卡試用與公開註冊會在 Stage 3 開放；封閉 Beta 先由平台管理員手動開通。"
+        title="固定月費，退貨量不擋作業，AI 額度清楚封頂。"
+        description="MVP 方案以 Basic、Growth、Pro、Enterprise 四級為主。退貨量採軟提醒，AI 分析採硬上限，避免成本失控。"
       />
 
       <section className="bg-white py-14">
@@ -81,7 +81,7 @@ export default function PricingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
             <div className="grid min-w-[760px] grid-cols-5 border-b border-neutral-200 bg-neutral-100 text-sm font-semibold text-neutral-700">
-              <div className="p-4">比較項目</div>
+              <div className="p-4">方案限制</div>
               {planOrder.map((code) => (
                 <div key={code} className="p-4">
                   {SAAS_PLAN_DEFINITIONS[code].name}
@@ -102,7 +102,7 @@ export default function PricingPage() {
               <div className="p-4 font-medium text-neutral-950">進階分析</div>
               {planOrder.map((code) => (
                 <div key={`${code}-analytics`} className="p-4 text-neutral-700">
-                  {SAAS_PLAN_DEFINITIONS[code].hasAdvancedAnalytics ? '可用' : '不可用'}
+                  {SAAS_PLAN_DEFINITIONS[code].hasAdvancedAnalytics ? '可使用' : '未包含'}
                 </div>
               ))}
             </div>
@@ -113,9 +113,9 @@ export default function PricingPage() {
       <section className="bg-white py-14">
         <div className="mx-auto grid max-w-7xl gap-5 px-4 sm:px-6 md:grid-cols-3 lg:px-8">
           {[
-            ['退貨量', '退貨筆數是軟限制，超量先顯示提醒，不阻擋客服與倉庫作業。'],
-            ['AI 額度', 'AI 文字分析按月硬上限，fingerprint 快取命中不扣額度。'],
-            ['AI Pack', 'AI Pack 延後到 Stage 4+，MVP 不先做加購與 proration。'],
+            ['退貨量', '退貨筆數是軟限制，達 80% 與 100% 時提醒，但不會阻擋新增資料或日常處理。'],
+            ['AI 額度', 'AI 文字分析採硬上限；相同 fingerprint 命中快取時不重複扣額度。'],
+            ['AI Pack', 'AI Pack 延後到 Stage 4+；MVP 不做加購、proration 或退貨超量自動收費。'],
           ].map(([title, body]) => (
             <div key={title} className="rounded-lg border border-neutral-200 p-5">
               {title === 'AI 額度' ? <Sparkles className="size-5 text-emerald-700" /> : <Info className="size-5 text-cyan-700" />}

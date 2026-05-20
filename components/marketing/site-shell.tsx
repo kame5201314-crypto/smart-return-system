@@ -55,12 +55,12 @@ export function MarketingShell({ children }: { children: ReactNode }) {
               Smart Return SaaS
             </div>
             <p className="mt-4 max-w-md text-sm leading-6 text-neutral-300">
-              給台灣電商品牌的訂閱制退貨管理系統。封閉 Beta 階段採手動開通，金流與公開註冊分段開放。
+              面向台灣電商品牌的退貨管理 SaaS，協助客服、倉庫與營運團隊集中處理退貨、AI 分析與帳務控管。
             </p>
           </div>
 
           <div>
-            <div className="text-sm font-semibold">產品</div>
+            <div className="text-sm font-semibold">網站</div>
             <div className="mt-3 grid gap-2">
               {publicNavItems.map((item) => (
                 <Link key={item.href} href={item.href} className="text-sm text-neutral-300 hover:text-white">
@@ -82,7 +82,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-neutral-400">
-          © 2026 Smart Return System. All rights reserved.
+          Copyright 2026 Smart Return System. All rights reserved.
         </div>
       </footer>
     </div>

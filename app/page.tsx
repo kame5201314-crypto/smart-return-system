@@ -26,24 +26,25 @@ import { Badge } from '@/components/ui/badge';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
-  title: 'Smart Return SaaS | 訂閱制退貨管理系統',
-  description: '給台灣電商品牌的 SaaS 退貨管理系統，支援退貨流程、AI 文字分析、多租戶隔離與訂閱制方案。',
+  title: 'Smart Return SaaS | 電商退貨管理訂閱制平台',
+  description:
+    'Smart Return SaaS 協助台灣電商品牌集中處理退貨、AI 文字分析、用量控管與訂閱制商業化流程。',
 };
 
 const trustItems = [
   ['14 天', '免卡試用'],
   ['ECPay', '定期定額準備'],
-  ['RLS', '多租戶隔離'],
+  ['RLS', '租戶資料隔離'],
   ['AI', '文字分析控管'],
 ] as const;
 
 const workflowIcons = [PackageCheck, Sparkles, ShieldCheck, BadgeCheck] as const;
 
 const operatingControls = [
-  [Clock3, '退貨量軟限制', '超量先提醒，不阻擋作業；連續超量再建議升級。'],
-  [Sparkles, 'AI 額度硬上限', 'Basic 5 次、Growth 30 次、Pro 100 次，Enterprise 依合約。'],
-  [LockKeyhole, '資料隔離', '所有客戶資料都要綁 org.plan、org_id 與角色權限。'],
-  [Building2, '台灣金流準備', '優先 ECPay 定期定額與電子發票，Stripe / TapPay 延後。'],
+  [Clock3, '退貨量軟限制', '到達 80% 與 100% 時提醒 Owner / Admin，但不阻擋日常作業。'],
+  [Sparkles, 'AI 額度硬上限', 'Basic 5 次、Growth 30 次、Pro 100 次；Enterprise 依合約設定。'],
+  [LockKeyhole, '權限與旗標', '每個功能同時看 plan、feature flag 與角色權限，避免新功能直接全量開放。'],
+  [Building2, '台灣商務準備', '優先規劃 ECPay 定期定額與電子發票，Stripe / TapPay 保留為後續選項。'],
 ] as const;
 
 export default function HomePage() {
@@ -59,10 +60,11 @@ export default function HomePage() {
               SaaS 商業版封閉 Beta
             </Badge>
             <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-              每月固定費，把退貨、驗貨、AI 分析收進同一套流程。
+              把退貨、AI 分析與訂閱用量，收進同一個營運工作台。
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-neutral-200 sm:text-lg">
-              Basic、Growth、Pro、Enterprise 四種方案，先以手動開通服務 Beta 客戶，再分階段接上 ECPay、電子發票與公開註冊。
+              Smart Return SaaS 為台灣電商品牌設計，從退貨登記、檢查、AI 原因分析到方案權限控管，
+              讓客服、倉庫與營運主管用同一份資料協作。
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="bg-white text-neutral-950 hover:bg-neutral-100">
@@ -72,7 +74,7 @@ export default function HomePage() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white">
-                <Link href="/pricing">查看方案</Link>
+                <Link href="/pricing">查看價格</Link>
               </Button>
             </div>
           </div>
@@ -94,12 +96,12 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <p className="text-sm font-semibold text-emerald-700">商業版核心</p>
+              <p className="text-sm font-semibold text-emerald-700">營運核心</p>
               <h2 className="mt-3 text-3xl font-semibold leading-tight text-neutral-950">
-                從客服到倉庫，退貨資料只流向正確的組織。
+                先把每日退貨處理穩住，再逐步開放計費與公開註冊。
               </h2>
               <p className="mt-4 text-base leading-7 text-neutral-600">
-                先把 SaaS 需要的 org、plan、feature flag 與用量限制建好，再讓金流與公開註冊逐步開放。
+                商業版採 MVP-first 節奏：Stage 1 手動開通，Stage 2 接定期定額與發票，Stage 3 才開放公開註冊。
               </p>
             </div>
 
@@ -123,12 +125,12 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <p className="text-sm font-semibold text-emerald-700">固定月費方案</p>
-              <h2 className="mt-3 text-3xl font-semibold text-neutral-950">先賣清楚的四種方案。</h2>
+              <p className="text-sm font-semibold text-emerald-700">訂閱方案</p>
+              <h2 className="mt-3 text-3xl font-semibold text-neutral-950">固定月費，AI 額度清楚控管。</h2>
             </div>
             <Button asChild variant="outline">
               <Link href="/pricing">
-                完整比較
+                比較方案
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -160,9 +162,9 @@ export default function HomePage() {
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
               <p className="text-sm font-semibold text-emerald-300">上線節奏</p>
-              <h2 className="mt-3 text-3xl font-semibold leading-tight">先封閉付費 Beta，再開公開註冊。</h2>
+              <h2 className="mt-3 text-3xl font-semibold leading-tight">用階段控管風險，不急著一次開滿。</h2>
               <p className="mt-4 text-sm leading-6 text-neutral-300">
-                商業化功能會依 Stage 開啟，不直接全量啟用，避免金流、資料隔離與 AI 成本一起放大風險。
+                每個階段都有明確 gate：資料隔離、AI 成本、計費、通知與公開註冊分批完成。
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">

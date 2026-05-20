@@ -1,9 +1,9 @@
 import { ArrowDownLeft, BadgeCheck, BarChart3, PackageCheck, ScanLine } from 'lucide-react';
 
 const rows = [
-  ['RMA-2048', '蝦皮', '待審核', 'NT$ 1,280'],
-  ['RMA-2049', '官網', '驗貨中', 'NT$ 860'],
-  ['RMA-2050', 'momo', '退款中', 'NT$ 2,410'],
+  ['RMA-2048', '蝦皮', '待檢查', 'NT$ 1,280'],
+  ['RMA-2049', '官網', '已完成', 'NT$ 860'],
+  ['RMA-2050', 'momo', '待退款', 'NT$ 2,410'],
 ] as const;
 
 const bars = ['h-20', 'h-28', 'h-16', 'h-32', 'h-24', 'h-36', 'h-20'] as const;
@@ -41,7 +41,7 @@ export function DashboardScene() {
           <div className="rounded-lg border border-rose-300/25 bg-rose-300/12 p-4">
             <ArrowDownLeft className="mb-5 size-5 text-rose-200" />
             <div className="text-2xl font-semibold text-white">12</div>
-            <div className="mt-1 text-xs text-rose-100/80">異常爭議</div>
+            <div className="mt-1 text-xs text-rose-100/80">待處理退款</div>
           </div>
         </div>
 
@@ -67,7 +67,7 @@ export function DashboardScene() {
           </div>
 
           <div className="rounded-lg border border-white/12 bg-neutral-950/60 p-4">
-            <div className="mb-4 text-sm font-medium text-white">退貨原因趨勢</div>
+            <div className="mb-4 text-sm font-medium text-white">退貨趨勢</div>
             <div className="flex h-40 items-end gap-2">
               {bars.map((height, index) => (
                 <div
@@ -77,16 +77,16 @@ export function DashboardScene() {
               ))}
             </div>
             <div className="mt-3 flex items-center justify-between text-xs text-neutral-400">
-              <span>尺寸</span>
-              <span>瑕疵</span>
-              <span>錯寄</span>
+              <span>週一</span>
+              <span>週三</span>
+              <span>週日</span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="absolute bottom-6 left-4 right-4 grid grid-cols-3 gap-2 md:hidden">
-        {['待審核 18', '驗貨中 9', '退款中 15'].map((item) => (
+        {['待檢查 18', '已完成 9', '待退款 15'].map((item) => (
           <div key={item} className="rounded-lg border border-white/12 bg-white/10 p-3 text-center text-xs text-white">
             {item}
           </div>

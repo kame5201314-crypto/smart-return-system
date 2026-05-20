@@ -16,21 +16,21 @@ import { Button } from '@/components/ui/button';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 
 export const metadata: Metadata = {
-  title: '試用申請 | Smart Return SaaS',
-  description: '申請 Smart Return SaaS 商業版 Beta 或公開註冊 14 天試用。',
+  title: '申請試用 | Smart Return SaaS',
+  description: '申請 Smart Return SaaS 封閉 Beta 或 14 天免卡試用。',
 };
 
 const onboardingSteps = [
-  ['填寫基本資料', '提供品牌名稱、主要銷售通路、每月退貨量與需要的帳號數。'],
-  ['確認方案與角色', '依 Basic、Growth、Pro 或 Enterprise 建立 org.plan 與 Owner 權限。'],
-  ['開通 14 天試用', '試用期間可登入系統、匯入資料並驗證退貨流程與 AI 額度。'],
-  ['完成上線檢查', '確認 org_id、RLS、feature flag 與用量限制都已通過安全檢查。'],
+  ['填寫需求', '提供品牌名稱、聯絡方式、每月退貨量與目前使用的平台，方便確認導入範圍。'],
+  ['確認方案', 'Beta 期會先依 Basic、Growth、Pro 或 Enterprise 建立對應 org.plan。'],
+  ['開通試用', 'Stage 1 採手動開通，由平台管理員建立 org、Owner 與 14 天 trial。'],
+  ['導入資料', '確認 org_id、RLS 與 feature flags 後，再開始匯入或建立測試資料。'],
 ] as const;
 
 const betaControls = [
-  [ClipboardList, '方案綁定 org.plan', '方案限制不靠 APP_MODE 寫死，所有額度與功能由租戶方案解析。'],
-  [MailCheck, '邀請流程分段開', 'Owner / Admin 可邀請 Staff / Viewer；Beta 期先保留人工審核。'],
-  [LockKeyhole, '公開註冊旗標控管', 'ENABLE_PUBLIC_SIGNUP 預設關閉，未授權前不會直接建立租戶。'],
+  [ClipboardList, '方案不寫死', '功能限制會依 org.plan 計算，不用 APP_MODE 寫死商業邏輯。'],
+  [MailCheck, '角色清楚', 'Owner / Admin / Staff / Viewer 分工，Beta 期先用邀請制控管成員。'],
+  [LockKeyhole, '公開註冊預設關閉', 'ENABLE_PUBLIC_SIGNUP 預設 false；未授權前不會自動建立客戶 org。'],
 ] as const;
 
 export default function SignupPage() {
@@ -43,8 +43,8 @@ export default function SignupPage() {
     <MarketingShell>
       <PageHeader
         eyebrow="Beta Signup"
-        title="申請 Smart Return SaaS 商業版試用"
-        description="Stage 1 先採手動開通，Stage 3 才以 public_signup 旗標開放公開註冊。未開旗標前，這裡只收 Beta 申請，不會直接建立 org。"
+        title="申請 Smart Return SaaS 試用。"
+        description="目前採封閉 Beta 節奏，先由平台管理員手動開通；公開註冊會等 SaaS DB、計費與通知流程完成後再開放。"
       />
 
       <section className="bg-white py-14">
@@ -63,9 +63,9 @@ export default function SignupPage() {
 
             <div className="mt-6 grid gap-3 text-sm">
               {[
-                ['預設方案', 'Basic 14 天試用，公開註冊只送 Basic'],
-                ['Beta 開通', '平台管理員手動建立 org、Owner 與 trial'],
-                ['安全條件', '023/024/025 migration 與 RLS 通過後才接正式建立流程'],
+                ['預設方案', '公開註冊 MVP 先以 Basic 試用為主，避免方案與計費流程過早複雜。'],
+                ['Beta 開通', '封閉 Beta 由平台管理員手動建立 org、Owner 與 trial 狀態。'],
+                ['安全前提', '023/024/025 migration 與 RLS 通過後，才會開放資料寫入流程。'],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-md border border-emerald-200 bg-white/70 p-3">
                   <div className="text-xs font-medium text-emerald-800">{label}</div>
@@ -86,7 +86,7 @@ export default function SignupPage() {
               </Button>
             </div>
             <p className="mt-3 text-xs text-neutral-500">
-              目前模式：{signupState.mode}。真實建立租戶前仍需平台管理員與 SaaS DB guard。
+              目前模式：{signupState.mode}。API gate 已存在，但未接 persistence 前不會建立 org。
             </p>
           </div>
 
@@ -122,11 +122,11 @@ export default function SignupPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 text-sm text-neutral-600 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <div className="flex items-center gap-2">
             <BadgeCheck className="size-4 text-emerald-700" />
-            <span>公開註冊開放前，所有租戶建立都必須保留 audit log。</span>
+            <span>公開註冊開放前，所有 org 建立與成員邀請都會保留 audit log。</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-4 text-cyan-700" />
-            <span>AI 額度、席次與退貨量限制以 org.plan 為準。</span>
+            <span>AI 額度依 org.plan 控制，避免商業化初期成本失控。</span>
           </div>
         </div>
       </section>

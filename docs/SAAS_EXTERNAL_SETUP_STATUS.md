@@ -138,6 +138,9 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - The API is closed by `ENABLE_PUBLIC_SIGNUP=false` by default.
   - When the flag is enabled but persistence is not wired, the API returns `not_configured` instead of creating an org.
   - MVP public signup is Basic-only until subscription creation and billing are wired.
+- SaaS public website copy was repaired for readable Traditional Chinese across:
+  - `/`, `/pricing`, `/features/*`, `/signup`, `/contact`, `/invite/[token]`, `/legal/*`
+  - shared marketing navigation, footer, pricing data, public signup state, and dashboard hero mockup.
 
 ## Verification Notes
 

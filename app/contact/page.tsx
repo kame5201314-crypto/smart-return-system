@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
   title: '聯絡我們 | Smart Return SaaS',
-  description: '申請封閉 Beta、Enterprise 報價或導入諮詢。',
+  description: '聯絡 Smart Return SaaS，申請封閉 Beta、Enterprise 洽談或導入評估。',
 };
 
 const contactReasons = [
-  [Building2, '封閉 Beta', '適合已經有穩定退貨量、需要客服與倉庫協作的品牌。'],
-  [MessageSquareText, '導入諮詢', '盤點目前退貨流程、資料來源、成員角色與 AI 分析需求。'],
-  [Clock3, 'Enterprise', '討論 SLA、權限、資料保存、帳務與客製導入範圍。'],
+  [Building2, '封閉 Beta', '適合已經有退貨處理痛點，希望先用手動開通方式導入的電商品牌。'],
+  [MessageSquareText, '導入評估', '可討論每月退貨量、客服與倉庫流程、AI 使用頻率與資料隔離需求。'],
+  [Clock3, 'Enterprise', '可洽談 SLA、客製權限、資料保留政策、多倉流程與合約條件。'],
 ] as const;
 
 export default function ContactPage() {
@@ -24,21 +24,21 @@ export default function ContactPage() {
     <MarketingShell>
       <PageHeader
         eyebrow="Contact"
-        title="先用封閉 Beta，把商業版流程跑穩。"
-        description="留下品牌與退貨量級，我們會優先安排適合 SaaS Beta 的電商品牌導入。正式公開註冊會在 Stage 3 開放。"
+        title="聯絡我們，安排商業版 Beta 導入。"
+        description="請提供品牌規模、每月退貨量、目前平台與想改善的流程，我們會依 Stage 1 手動開通節奏安排後續。"
       />
 
       <section className="bg-white py-14">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-6">
             <Mail className="size-6 text-emerald-700" />
-            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">申請 Beta 或 Enterprise 報價</h2>
+            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">申請 Beta 或 Enterprise 洽談</h2>
             <p className="mt-3 text-sm leading-6 text-neutral-600">
-              請附上品牌名稱、每月退貨筆數、目前使用的平台與希望導入的時間。
+              目前公開註冊預設關閉，請先透過 Email 聯絡。正式公開註冊會在 SaaS DB、計費、通知與發票流程完成後開放。
             </p>
             <Button asChild className="mt-6">
               <Link href={mailHref}>
-                寄送申請信
+                寄信聯絡
                 <ArrowRight className="size-4" />
               </Link>
             </Button>

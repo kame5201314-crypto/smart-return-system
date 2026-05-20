@@ -7,21 +7,21 @@ import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
   title: '退貨流程管理 | Smart Return SaaS',
-  description: '集中管理退貨申請、審核、收貨、驗貨、退款與跨部門交接。',
+  description: '集中管理退貨登記、商品檢查、平台掃描、退款狀態與物流處理。',
 };
 
 const steps = [
-  ['申請', '客服或客戶建立退貨，保留來源、品項、原因與照片附件。'],
-  ['審核', '依退貨原因與訂單資料判斷是否核准，避免資訊散落在訊息紀錄。'],
-  ['收貨', '倉庫用掃描與狀態更新確認包裹進站，降低漏件與重複處理。'],
-  ['驗貨', '記錄檢查結果、異常爭議與退款建議，主管可追蹤每筆進度。'],
+  ['登記', '客服建立退貨單，保留訂單、客戶、品項、原因與備註，讓後續處理有一致資料來源。'],
+  ['檢查', '倉庫記錄商品狀態、照片、處理方式與責任歸屬，減少口頭交接與漏記。'],
+  ['判斷', '營運主管依退貨原因、商品狀態與平台規則決定退款、換貨或拒收。'],
+  ['結案', '追蹤退款、補件、物流與內部稽核，讓每筆退貨都有清楚狀態。'],
 ] as const;
 
 const capabilityCards = [
-  [PackageSearch, '退貨單集中清單', '用狀態、渠道、原因、日期與關鍵字快速找到待處理退貨。'],
-  [ScanLine, '掃描與收貨流程', '支援包裹掃描、未匹配記錄與每日 KPI，適合倉庫現場作業。'],
-  [ClipboardCheck, '驗貨與異常追蹤', '驗貨結果、備註、爭議狀態與退款處理留在同一筆退貨紀錄。'],
-  [Truck, '多渠道資料整合', '先支援既有蝦皮與官網流程，後續保留 momo、經銷商與其他渠道。'],
+  [PackageSearch, '退貨單集中管理', '從客服輸入到倉庫檢查，所有退貨單用同一套狀態與欄位追蹤。'],
+  [ScanLine, '平台掃描輔助', '支援掃描與比對退貨資料，降低倉庫收件時找不到訂單的時間成本。'],
+  [ClipboardCheck, '檢查紀錄與稽核', '保留檢查結果、處理建議與操作紀錄，方便主管追蹤與事後稽核。'],
+  [Truck, '物流與退款節點', '把待收件、待檢查、待退款、已結案等節點放在同一個作業流中。'],
 ] as const;
 
 export default function ReturnsFeaturePage() {
@@ -29,14 +29,14 @@ export default function ReturnsFeaturePage() {
     <MarketingShell>
       <PageHeader
         eyebrow="Returns Workflow"
-        title="讓退貨不再靠訊息截圖與人工追問。"
-        description="Smart Return SaaS 把客服、倉庫、主管會看的退貨資料集中成同一條作業線，先解決最常見的漏件、重複處理與狀態不一致。"
+        title="把退貨處理從零散訊息，整理成可追蹤的作業流。"
+        description="Smart Return SaaS 讓客服、倉庫與營運主管用一致的退貨狀態協作，減少查單、漏記與重複溝通。"
       />
 
       <section className="bg-white py-14">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-5">
-            <div className="text-sm font-semibold text-neutral-500">退貨狀態流</div>
+            <div className="text-sm font-semibold text-neutral-500">退貨處理節點</div>
             <div className="mt-6 grid gap-3">
               {steps.map(([title, body], index) => (
                 <div key={title} className="grid grid-cols-[2.5rem_1fr] gap-4">
@@ -68,7 +68,7 @@ export default function ReturnsFeaturePage() {
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-5 px-4 sm:px-6 md:flex-row md:items-center lg:px-8">
           <div>
             <p className="text-sm font-semibold text-emerald-300">封閉 Beta</p>
-            <h2 className="mt-2 text-2xl font-semibold">先讓真實退貨團隊跑完完整流程。</h2>
+            <h2 className="mt-2 text-2xl font-semibold">先讓退貨流程穩定，再接上訂閱與公開註冊。</h2>
           </div>
           <Button asChild className="bg-white text-neutral-950 hover:bg-neutral-100">
             <Link href="/signup">

@@ -8,7 +8,7 @@ describe('SaaS public signup state', () => {
       mode: 'closed_beta',
       isPublicSignupEnabled: false,
       statusLabel: '封閉 Beta',
-      primaryCtaLabel: '聯絡 Beta 開通',
+      primaryCtaLabel: '聯絡 Beta 導入',
     });
   });
 
@@ -20,8 +20,8 @@ describe('SaaS public signup state', () => {
     ).toMatchObject({
       mode: 'public_signup',
       isPublicSignupEnabled: true,
-      statusLabel: '公開註冊開放中',
-      primaryCtaLabel: '送出試用申請',
+      statusLabel: '公開註冊開放',
+      primaryCtaLabel: '開始試用',
     });
   });
 

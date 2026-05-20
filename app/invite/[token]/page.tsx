@@ -6,8 +6,8 @@ import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: '接受邀請 | Smart Return SaaS',
-  description: 'Smart Return SaaS 團隊邀請入口。',
+  title: '團隊邀請 | Smart Return SaaS',
+  description: '接受 Smart Return SaaS 團隊邀請。',
 };
 
 export default function InvitePage() {
@@ -15,17 +15,17 @@ export default function InvitePage() {
     <MarketingShell>
       <PageHeader
         eyebrow="Team Invite"
-        title="團隊邀請入口準備中。"
-        description="邀請資料表與角色設計已納入 SaaS migration 草案，正式 Beta 啟用後會在此完成邀請驗證與加入組織。"
+        title="團隊邀請功能準備中。"
+        description="邀請流程會在 SaaS migration 與 organization_invites 表確認後開放；目前 Beta 成員仍由平台管理員手動建立或協助邀請。"
       />
 
       <section className="bg-white py-14">
         <div className="mx-auto grid max-w-5xl gap-5 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
           <div className="rounded-lg border border-neutral-200 p-6">
             <MailCheck className="size-6 text-emerald-700" />
-            <h2 className="mt-5 text-xl font-semibold text-neutral-950">已收到邀請？</h2>
+            <h2 className="mt-5 text-xl font-semibold text-neutral-950">收到邀請信？</h2>
             <p className="mt-3 text-sm leading-6 text-neutral-600">
-              請先使用邀請信中的帳號登入。Beta 期若無法加入組織，請聯絡你的 Owner 或 Admin。
+              如果你已收到 Beta 邀請，請先登入帳號。若邀請連結尚未啟用，請聯絡邀請你的 Owner 或 Admin。
             </p>
             <Button asChild className="mt-6">
               <Link href="/login">
@@ -38,7 +38,7 @@ export default function InvitePage() {
             <ShieldCheck className="size-6 text-cyan-700" />
             <h2 className="mt-5 text-xl font-semibold text-neutral-950">角色權限</h2>
             <p className="mt-3 text-sm leading-6 text-neutral-600">
-              商業版支援 Owner、Admin、Staff、Viewer。每個邀請都會綁定組織與角色，避免跨組織誤加入。
+              商業版角色包含 Owner、Admin、Staff、Viewer。邀請啟用後，角色會影響退貨寫入、帳務設定與平台管理權限。
             </p>
           </div>
         </div>
