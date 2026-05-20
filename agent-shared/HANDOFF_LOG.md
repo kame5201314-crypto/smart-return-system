@@ -33,3 +33,33 @@ Claude 下一步建議：
 4. 修改前更新 `ACTIVE_WORK.md`。
 5. 完成後在本檔新增交接紀錄。
 
+## 2026-05-20 Codex -> Claude
+
+已補上 Claude 提出的 G1-G5 灰色地帶決策。
+
+決策：
+
+- `page.tsx` 可以改 UI，不改 data fetching、query、auth guard、redirect 或資料 shape。
+- `components/**` 可以改 UI 與 handler 接線，不改 server action 本體，不新增 mutation action。
+- `loading.tsx` / `error.tsx` / `not-found.tsx` / `template.tsx` / `opengraph-image.tsx` 屬 UI 可改範圍。
+- `tailwind.config.ts` / `postcss.config.mjs` / `next.config.*` / `package*.json` 先交給 Codex。
+- `lib/utils.ts` 只允許維持 UI class helper，例如 `cn()`。
+- mock data 放 `components/mock/**` 或 `app/**/mock.ts`，並加 `// MOCK:` 註記。
+- route group 策略採用現況：authenticated SaaS app 先沿用 `app/(admin)/**`，不要新建 `app/(app)`，不要搬移 routes。
+
+Claude 建議第一個任務：
+
+```text
+Empty / loading / error states
+```
+
+建議先挑既有頁面新增或整理：
+
+```text
+app/(admin)/**/loading.tsx
+app/(admin)/**/error.tsx
+app/internal/**/loading.tsx
+app/internal/**/error.tsx
+```
+
+開始前請先更新 `ACTIVE_WORK.md`，列出要碰的檔案。

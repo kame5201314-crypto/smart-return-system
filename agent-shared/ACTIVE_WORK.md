@@ -16,16 +16,35 @@ Notes:
 ## Current
 
 ```text
+Owner: none
+Started:
+Scope:
+Files:
+Status:
+Notes: Ready for Claude to claim a UI task before editing.
+```
+
+## Recent Completed
+
+```text
 Owner: Codex
-Started: 2026-05-20
+Commit: docs(saas): clarify shared agent boundaries
+Scope: Clarify Claude/Codex split edge cases and route group strategy
+Files:
+- agent-shared/**
+Status: done
+Notes: Current route strategy is to keep authenticated SaaS app pages in app/(admin).
+```
+
+```text
+Owner: Codex
+Commit: 92dcdd5
 Scope: Create shared agent coordination folder
 Files:
 - agent-shared/**
 Status: done
-Notes: No UI/backend runtime changes in this task. Ready for Claude UI work.
+Notes: No UI/backend runtime changes in this task.
 ```
-
-## Recent Completed
 
 ```text
 Owner: Codex
