@@ -187,6 +187,7 @@ function checkCommercialFoundation() {
     'lib/saas/subscription-access.ts',
     'lib/saas/subscription-lifecycle.ts',
     'lib/saas/team-limits.ts',
+    'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
@@ -475,6 +476,27 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS team seat limits', 'team DTOs account for active seats and pending invites before enabling invites');
     } else {
       record('fail', 'SaaS team seat limits', 'team invite DTOs must enforce org.plan seat limits');
+    }
+  }
+
+  const returnUsagePolicyPath = path.resolve(
+    process.cwd(),
+    'lib/saas/return-usage-policy.ts'
+  );
+  if (fs.existsSync(returnUsagePolicyPath) && fs.existsSync(uiBackendContractsPath)) {
+    const policySource = fs.readFileSync(returnUsagePolicyPath, 'utf8');
+    const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
+    if (
+      policySource.includes('resolveSaaSReturnUsagePolicy') &&
+      policySource.includes('shouldBlockOperations: false') &&
+      policySource.includes('resolveSaaSReturnUpgradeSuggestion') &&
+      policySource.includes('consecutive_overage') &&
+      uiContractSource.includes('resolveSaaSReturnUsagePolicy') &&
+      uiContractSource.includes('plan soft limit')
+    ) {
+      record('pass', 'SaaS return usage soft limits', 'return volume warnings are centralized and remain non-blocking');
+    } else {
+      record('fail', 'SaaS return usage soft limits', 'return soft limits must warn at 80/100 percent, never block operations, and support consecutive overage suggestions');
     }
   }
 

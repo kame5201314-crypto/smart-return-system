@@ -8,6 +8,7 @@ import type {
   PlatformOrgDetail,
   PlatformOrgSummary,
 } from '@/lib/saas/platform-admin-data';
+import { resolveSaaSReturnUsagePolicy } from '@/lib/saas/return-usage-policy';
 import { resolveSaaSTeamSeatUsage } from '@/lib/saas/team-limits';
 
 export type ViewState = 'loading' | 'ready' | 'empty' | 'error' | 'gated';
@@ -307,6 +308,36 @@ function buildUsageWarning(
   return [];
 }
 
+function buildReturnUsageWarning(
+  used: number,
+  limit: number | null
+): UsageSettingsView['warnings'] {
+  const policy = resolveSaaSReturnUsagePolicy({
+    used,
+    monthlyReturnSoftLimit: limit,
+  });
+
+  if (policy.warningType === 'returns_100') {
+    return [
+      {
+        type: 'returns_100',
+        message: 'Return usage has reached the plan soft limit.',
+      },
+    ];
+  }
+
+  if (policy.warningType === 'returns_80') {
+    return [
+      {
+        type: 'returns_80',
+        message: 'Return usage has reached 80% of the plan soft limit.',
+      },
+    ];
+  }
+
+  return [];
+}
+
 export function buildUsageSettingsView(input: {
   plan: unknown;
   usage: UsageSettingsView['usage'];
@@ -333,13 +364,7 @@ export function buildUsageSettingsView(input: {
       aiUsedThisMonth,
     },
     warnings: [
-      ...buildUsageWarning(
-        returnsThisMonth,
-        plan.monthlyReturnSoftLimit,
-        'returns_80',
-        'returns_100',
-        'Return'
-      ),
+      ...buildReturnUsageWarning(returnsThisMonth, plan.monthlyReturnSoftLimit),
       ...buildUsageWarning(
         aiUsedThisMonth,
         plan.aiMonthlyLimit,

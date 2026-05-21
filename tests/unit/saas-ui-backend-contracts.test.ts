@@ -74,6 +74,26 @@ describe('SaaS UI/backend contracts', () => {
     ).toEqual([]);
   });
 
+  it('uses return soft-limit policy for 100 percent usage warnings', () => {
+    expect(
+      buildUsageSettingsView({
+        plan: 'basic',
+        usage: {
+          seatsUsed: 1,
+          returnsThisMonth: 500,
+          aiUsedThisMonth: 0,
+          periodStart: '2026-05-01',
+          periodEnd: '2026-05-31',
+        },
+      }).warnings
+    ).toEqual([
+      {
+        type: 'returns_100',
+        message: 'Return usage has reached the plan soft limit.',
+      },
+    ]);
+  });
+
   it('builds billing settings view models from validated billing state', () => {
     expect(
       buildBillingSettingsView({

@@ -2,6 +2,39 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS return usage soft-limit policy.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/return-usage-policy.ts`
+- `tests/unit/saas-return-usage-policy.test.ts`
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Return usage warnings now come from one backend policy for 80% and 100% of `org.plan.monthlyReturnSoftLimit`.
+- Return volume remains non-blocking; the policy always reports `shouldBlockOperations=false`.
+- Added a pure resolver for future month-end upgrade suggestions after two consecutive over-limit months.
+- No UI page, route write, DB query, migration, billing charge, or platform operation was added.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS subscription lifecycle timing policy.
 
 Commit:

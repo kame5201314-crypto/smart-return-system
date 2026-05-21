@@ -92,6 +92,11 @@ interface UsageSettingsView {
 }
 ```
 
+Return volume warnings are soft-limit signals only. UI may show `returns_80`
+or `returns_100`, but return creation and daily operations must not be blocked
+by return count. Consecutive monthly overage upgrade suggestions are computed
+by Codex-owned backend policy, not UI state.
+
 ## Settings Team
 
 UI path:

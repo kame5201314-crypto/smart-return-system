@@ -33,6 +33,25 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS return usage soft-limit policy
+Files:
+- lib/saas/return-usage-policy.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-return-usage-policy.test.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Centralized return volume soft-limit warnings at 80/100 percent and added consecutive 2-month upgrade suggestion resolver. Return volume remains non-blocking.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS subscription lifecycle timing policy
 Files:
 - lib/saas/subscription-lifecycle.ts

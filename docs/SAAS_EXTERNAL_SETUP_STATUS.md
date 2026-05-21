@@ -175,6 +175,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `buildTeamSettingsView()` now reserves seats for active/non-disabled members plus pending invites.
   - When the plan seat limit is full, team DTOs force `actions.canInvite=false`.
   - No live team invite route was exposed and no DB query or migration was added.
+- SaaS return usage soft-limit policy was added:
+  - `lib/saas/return-usage-policy.ts`
+  - `buildUsageSettingsView()` now uses the centralized return soft-limit resolver for `returns_80` and `returns_100` warnings.
+  - Return volume remains a soft limit: warnings do not block return creation or daily operations.
+  - A future month-end job can use the resolver to mark upgrade suggestions after two consecutive over-limit months.
+  - No live route, DB query, migration, or billing charge was added.
 - Billing foundation was added without enabling real billing:
   - `lib/saas/billing.ts`
   - `/api/billing/ecpay/webhook`
