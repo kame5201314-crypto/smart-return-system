@@ -188,6 +188,7 @@ function checkCommercialFoundation() {
     'lib/saas/subscription-lifecycle.ts',
     'lib/saas/team-limits.ts',
     'lib/saas/invite-policy.ts',
+    'lib/saas/invite-token-data.ts',
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
@@ -535,6 +536,7 @@ function checkCommercialFoundation() {
 
   const teamLimitsPath = path.resolve(process.cwd(), 'lib/saas/team-limits.ts');
   const invitePolicyPath = path.resolve(process.cwd(), 'lib/saas/invite-policy.ts');
+  const inviteTokenDataPath = path.resolve(process.cwd(), 'lib/saas/invite-token-data.ts');
   if (fs.existsSync(invitePolicyPath)) {
     const source = fs.readFileSync(invitePolicyPath, 'utf8');
     if (
@@ -546,6 +548,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite status policy', 'invite status and acceptability rules are centralized before live invite routes');
     } else {
       record('fail', 'SaaS invite status policy', 'invite pending/accepted/expired/revoked and role rules must be centralized before live invite routes');
+    }
+  }
+
+  if (fs.existsSync(inviteTokenDataPath)) {
+    const source = fs.readFileSync(inviteTokenDataPath, 'utf8');
+    if (
+      source.includes('createInviteTokenDataRepository') &&
+      source.includes('getInviteByToken') &&
+      source.includes("from('organization_invites')") &&
+      source.includes(".eq('token', token)") &&
+      source.includes('organizations(id, name, slug, plan, status)') &&
+      source.includes('resolveSaaSInviteStatus') &&
+      source.includes('canAcceptSaaSInvite')
+    ) {
+      record('pass', 'SaaS invite token data repository', 'invite token live-data lookup is present without exposing a route');
+    } else {
+      record('fail', 'SaaS invite token data repository', 'invite token lookup must use organization_invites, organization context, and shared invite policy before exposing routes');
     }
   }
 

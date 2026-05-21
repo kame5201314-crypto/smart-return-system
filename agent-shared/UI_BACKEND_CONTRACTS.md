@@ -284,3 +284,16 @@ Available helpers:
 - `buildTeamSettingsViewInput()`
 
 These helpers prepare future `/settings/team` live data from `organizations`, `organization_members`, and `organization_invites` rows. They do not expose a route, send invites, run migrations, or change UI by themselves.
+
+Codex also has a local invite token data repository foundation in:
+
+```text
+lib/saas/invite-token-data.ts
+```
+
+Available helpers:
+
+- `createInviteTokenDataRepository()`
+- `getInviteByToken()`
+
+These helpers prepare future `/invite/[token]` live data from `organization_invites` plus organization context. They resolve pending, accepted, and expired invite states through the shared invite policy. They do not expose a route, accept an invite, send email, run migrations, or change UI by themselves.

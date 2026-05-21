@@ -2,6 +2,37 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS invite token data repository foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/invite-token-data.ts`
+- `tests/unit/saas-invite-token-data.test.ts`
+
+Updated:
+
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added a repository for future `/invite/[token]` live data lookup.
+- The repository reads `organization_invites` by token and includes organization context for future invite acceptance screens.
+- Invite acceptance remains policy-only: pending/accepted/expired and acceptable role checks reuse `lib/saas/invite-policy.ts`.
+- No route was exposed, no UI file was changed, no invite was accepted, no invite email was sent, and no migration was applied.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS invite status policy foundation.
 
 Commit:
