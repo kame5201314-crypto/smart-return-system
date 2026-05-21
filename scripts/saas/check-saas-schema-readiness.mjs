@@ -73,6 +73,8 @@ const requiredColumns = [
   ['organizations', 'feature_flags'],
   ['organizations', 'billing_email'],
   ['organizations', 'tax_id'],
+  ['organizations', 'owner_email'],
+  ['organizations', 'member_count'],
   ['organization_members', 'org_id'],
   ['organization_members', 'user_id'],
   ['organization_members', 'role'],

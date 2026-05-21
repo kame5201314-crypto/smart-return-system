@@ -33,6 +33,22 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin read model migration draft
+Files:
+- supabase/migrations/027_saas_platform_admin_read_model.sql
+- scripts/saas/check-saas-schema-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added a draft migration for organizations.owner_email and organizations.member_count because platform admin APIs already read those fields. No migration was applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: ECPay webhook signature verification
 Files:
 - lib/saas/billing.ts

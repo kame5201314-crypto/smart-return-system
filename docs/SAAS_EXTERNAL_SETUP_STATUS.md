@@ -174,9 +174,14 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `scripts/saas/check-saas-schema-readiness.mjs`
   - `npm run saas:schema-gate`
   - `npm run saas:schema-gate:strict`
-  - The gate checks 023-026 foundation tables and tenant `org_id` columns required by platform admin live data, billing events, signup requests, AI usage, and business records.
+  - The gate checks 023-027 foundation tables and tenant `org_id` columns required by platform admin live data, billing events, signup requests, AI usage, and business records.
   - Non-strict mode reports readiness without blocking local development.
   - Strict mode should remain blocked until SaaS migrations are approved and applied.
+  - No Supabase data was changed.
+- Platform admin read model migration draft was added without applying migrations:
+  - `supabase/migrations/027_saas_platform_admin_read_model.sql`
+  - Adds `organizations.owner_email` and `organizations.member_count`, matching the platform admin API read columns.
+  - Adds a trigger to refresh `member_count` from `organization_members`.
   - No Supabase data was changed.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
@@ -205,7 +210,7 @@ These are intentionally not completed because they require private credentials, 
 - Billing credentials have not been added.
 - Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
 - SaaS production deployment has not been run.
-- Platform admin pages are not wired to live SaaS DB data yet; the schema readiness gate now defines the DB shape required before live consumption is enabled.
+- Platform admin pages are not wired to live SaaS DB data yet; the schema readiness gate and `027` draft now define the DB shape required before live consumption is enabled.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
 - Public signup request persistence code and `026` migration draft exist, but the migration has not been applied.
@@ -289,7 +294,7 @@ After the SaaS Supabase and secret values exist:
 5. Run `npm run saas:doctor:strict`.
 6. Run `npm run saas:schema-gate:strict`.
 7. Run `npm run saas:predeploy`.
-8. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql`, `supabase/migrations/024_saas_commercial_v2.sql`, `supabase/migrations/025_attach_org_id_to_business_tables.sql`, and `supabase/migrations/026_saas_public_signup_requests.sql` when tenant, billing, and signup request tables are approved.
+8. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql`, `supabase/migrations/024_saas_commercial_v2.sql`, `supabase/migrations/025_attach_org_id_to_business_tables.sql`, `supabase/migrations/026_saas_public_signup_requests.sql`, and `supabase/migrations/027_saas_platform_admin_read_model.sql` when tenant, billing, signup request, and platform admin read-model tables are approved.
 9. Deploy the SaaS Vercel Project.
 10. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 

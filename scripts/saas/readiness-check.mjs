@@ -200,6 +200,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
     'supabase/migrations/026_saas_public_signup_requests.sql',
+    'supabase/migrations/027_saas_platform_admin_read_model.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -434,6 +435,29 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS billing webhook foundation', 'ECPay route is disabled by flag and verifies CheckMacValue before recording events');
     } else {
       record('fail', 'SaaS billing webhook foundation', 'billing webhook must be flag-gated, credential-gated, and CheckMacValue-gated');
+    }
+  }
+
+  const platformAdminReadModelMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/027_saas_platform_admin_read_model.sql'
+  );
+  if (
+    fs.existsSync(platformAdminReadModelMigrationPath) &&
+    fs.existsSync(platformAdminDataPath)
+  ) {
+    const migrationSource = fs.readFileSync(platformAdminReadModelMigrationPath, 'utf8');
+    const dataSource = fs.readFileSync(platformAdminDataPath, 'utf8');
+    if (
+      migrationSource.includes('owner_email') &&
+      migrationSource.includes('member_count') &&
+      migrationSource.includes('refresh_organization_member_count') &&
+      dataSource.includes('owner_email') &&
+      dataSource.includes('member_count')
+    ) {
+      record('pass', 'SaaS platform admin read model', 'migration draft matches platform admin API read columns');
+    } else {
+      record('fail', 'SaaS platform admin read model', 'platform admin API read columns must be represented in migration drafts');
     }
   }
 }

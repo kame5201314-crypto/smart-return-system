@@ -2,6 +2,33 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added the platform admin read model migration draft.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `supabase/migrations/027_saas_platform_admin_read_model.sql`
+
+Updated:
+
+- `scripts/saas/check-saas-schema-readiness.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Notes:
+
+- Platform admin APIs already read `organizations.owner_email` and `organizations.member_count`.
+- `027` aligns the migration draft with those API read columns and adds a trigger to refresh `member_count` from `organization_members`.
+- The schema readiness gate now checks those columns.
+- No Supabase migration was applied and no data was changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added local ECPay CheckMacValue verification for the billing webhook.
 
 Commit:
