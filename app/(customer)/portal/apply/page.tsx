@@ -186,8 +186,9 @@ export default function ReturnApplyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 flex items-center justify-center">
-        <div className="animate-pulse text-white">載入中...</div>
+      <div className="min-h-screen bg-gradient-to-b from-purple-600 to-purple-800 flex flex-col items-center justify-center gap-3 text-white">
+        <Loader2 className="size-8 animate-spin" />
+        <p className="text-sm">載入中…</p>
       </div>
     );
   }

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { getOrderForReturn } from '@/lib/actions/return.actions';
 import { getRemainingDays } from '@/lib/validations/return.schema';
@@ -47,8 +48,26 @@ export default function CustomerDashboardPage() {
 
   if (loading || !session) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-pulse text-muted-foreground">載入中...</div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-32" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-6 w-48 rounded-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
       </div>
     );
   }
