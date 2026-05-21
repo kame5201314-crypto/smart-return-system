@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { toast } from 'sonner';
 import { searchReturnsByPhone } from '@/lib/actions/customer-return.actions';
@@ -168,7 +169,26 @@ export default function TrackQueryPage() {
         {/* Results */}
         {searched && (
           <div className="mt-6 space-y-4">
-            {results.length > 0 ? (
+            {loading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <Card key={i} className="shadow-lg border-0 bg-white">
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-5 w-32" />
+                      </div>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="h-16 w-full rounded-lg" />
+                    <div className="space-y-2 border-t pt-4">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : results.length > 0 ? (
               results.map((item) => {
                 const statusInfo = STATUS_LABELS[item.status] || { label: item.status, color: 'bg-gray-100 text-gray-800', icon: null };
                 return (
@@ -217,6 +237,8 @@ export default function TrackQueryPage() {
                                 <img
                                   src={img.image_url}
                                   alt="退貨圖片"
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-cover"
                                 />
                               </a>
