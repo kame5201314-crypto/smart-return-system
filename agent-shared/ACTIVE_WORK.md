@@ -33,6 +33,22 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: AI quota enforcement hardening
+Files:
+- lib/saas/ai-quota.ts
+- app/api/v1/ai/analyze/route.ts
+- tests/unit/saas-ai-quota.test.ts
+- tests/unit/saas-runtime-org-isolation.test.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Return AI analysis now checks monthly non-cached successful AI usage against org.plan before Gemini provider calls. Cache hits remain allowed and do not consume quota.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin API DTO wiring
 Files:
 - app/api/internal/saas/orgs/route.ts

@@ -2,6 +2,34 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Hardened AI quota enforcement for SaaS plans.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/ai-quota.ts`
+- `tests/unit/saas-ai-quota.test.ts`
+
+Updated:
+
+- `app/api/v1/ai/analyze/route.ts`
+- `tests/unit/saas-runtime-org-isolation.test.ts`
+
+Notes:
+
+- Return AI analysis now checks monthly usage before Gemini provider calls.
+- Quota source is `org.plan` via `planDefinition.aiMonthlyLimit`.
+- Counted usage is non-cached, successful `return_ai_analysis` events for the current UTC month.
+- Cached report reuse remains allowed and records a cached usage event without consuming quota.
+- Enterprise remains unlimited, and `ai_usage_limit=false` remains a kill switch for the hard limit.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Wired platform admin internal APIs to backend DTO contracts.
 
 Commit:

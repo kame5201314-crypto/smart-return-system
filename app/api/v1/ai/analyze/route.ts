@@ -3,6 +3,11 @@ import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admi
 import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { getOrgContext, SaaSOrgContextError } from '@/lib/saas/org-context';
+import {
+  assertAIQuotaAvailable,
+  SaaSAIQuotaError,
+  type AIQuotaQueryClient,
+} from '@/lib/saas/ai-quota';
 import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
 import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
 import { buildReconcileMismatches } from '@/lib/maintenance/reconcile-ai-reports';
@@ -641,6 +646,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await assertAIQuotaAvailable({
+      client: untypedSupabase as unknown as AIQuotaQueryClient,
+      context: orgContext,
+    });
+
     let aiResult: GeminiTextResponse;
     let aiResponse: string;
     let analysisResult: AIAnalysisResponsePayload;
@@ -813,6 +823,18 @@ export async function POST(request: NextRequest) {
     if (error instanceof SaaSOrgContextError) {
       return NextResponse.json(
         { success: false, error: error.message },
+        { status: error.status }
+      );
+    }
+
+    if (error instanceof SaaSAIQuotaError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          code: error.code,
+          quota: error.decision,
+        },
         { status: error.status }
       );
     }
