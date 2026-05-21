@@ -29,7 +29,7 @@ Status values:
 | todo | Billing foundation | ECPay env / webhook / idempotency; no real billing without test keys and approval |
 | todo | AI quota enforcement hardening | Ensure all AI entrypoints use `org.plan` quota |
 | todo | SaaS predeploy strict gate | Needs Gemini key and migration status confirmation |
-| todo | Convert UI mock contracts to backend DTOs | Start from `UI_BACKEND_CONTRACTS.md` |
+| done | Convert UI mock contracts to backend DTOs | This commit; added `lib/saas/ui-backend-contracts.ts` and unit tests |
 
 ## Shared Rules
 

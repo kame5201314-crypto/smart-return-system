@@ -2,6 +2,29 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Converted UI mock contracts into backend DTO code.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+
+Notes:
+
+- Platform admin list/detail/billing event UI shapes now have backend DTO builders.
+- Usage settings warnings are derived from `org.plan` limits.
+- Platform organization DTO builders require real usage snapshots and throw when they are missing.
+- No live backend route was exposed or rewired in this change.
+- Migrations and external platform operations remain blocked until explicit approval and SaaS DB password are available.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Resolved the shared-folder collision model.
 
 Decision:
