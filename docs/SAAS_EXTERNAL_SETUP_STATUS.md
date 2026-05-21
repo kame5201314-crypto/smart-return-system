@@ -234,6 +234,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `supabase/migrations/030_saas_invoice_status_alignment.sql`
   - Aligns `invoices.status` and billing settings DTOs on `draft`, `issued`, `paid`, `failed`, and `void`.
   - No Supabase data was changed and no billing provider was enabled.
+- SaaS settings billing data repository foundation was added without exposing live routes:
+  - `lib/saas/settings-billing-data.ts`
+  - Builds the future `/settings/billing` DTO input from `organizations`, `subscriptions`, and latest `invoices` rows.
+  - Keeps the live route unwired until SaaS migrations and schema readiness are approved.
+  - No UI file was changed, no Supabase query was run, no migration was applied, and no billing provider was enabled.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
   - Tests include ECPay's published payment-notification checksum example.

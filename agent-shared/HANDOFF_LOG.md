@@ -2,6 +2,40 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS settings billing data repository foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `.gitignore`
+- `lib/saas/settings-billing-data.ts`
+- `tests/unit/saas-settings-billing-data.test.ts`
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added a repository/input builder for future `/settings/billing` live data wiring.
+- The data layer reads organization billing fields, subscription period/provider fields, and the latest invoice summary by `org_id`.
+- `buildBillingSettingsViewInput()` returns the validated input shape consumed by `buildBillingSettingsView()`.
+- Ignored local `.codex-logs/` output so generated agent logs do not pollute the shared checkout.
+- No route was exposed, no UI file was changed, no migration was applied, and no billing provider was enabled.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Aligned SaaS invoice statuses between schema draft and billing settings DTOs.
 
 Commit:

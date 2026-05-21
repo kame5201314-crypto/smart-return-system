@@ -33,6 +33,25 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS settings billing data repository foundation
+Files:
+- .gitignore
+- lib/saas/settings-billing-data.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-settings-billing-data.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added repository/input builder for future billing settings live data from organizations, subscriptions, and latest invoices. No route was exposed, no UI file was changed, no migration was applied, and no billing provider was enabled.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS invoice status schema and DTO alignment
 Files:
 - supabase/migrations/030_saas_invoice_status_alignment.sql

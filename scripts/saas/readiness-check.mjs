@@ -192,6 +192,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
     'lib/saas/billing.ts',
+    'lib/saas/settings-billing-data.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
@@ -451,11 +452,13 @@ function checkCommercialFoundation() {
   }
 
   const uiBackendContractsPath = path.resolve(process.cwd(), 'lib/saas/ui-backend-contracts.ts');
+  const settingsBillingDataPath = path.resolve(process.cwd(), 'lib/saas/settings-billing-data.ts');
   if (fs.existsSync(uiBackendContractsPath)) {
     const source = fs.readFileSync(uiBackendContractsPath, 'utf8');
     if (
       source.includes('buildUsageSettingsView') &&
       source.includes('buildBillingSettingsView') &&
+      source.includes('BillingSettingsViewInput') &&
       source.includes('buildTeamSettingsView') &&
       source.includes('buildPlatformOrganizationListView') &&
       source.includes('buildPlatformOrganizationDetailView') &&
@@ -464,6 +467,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS UI/backend DTO builders', 'settings and platform admin contracts have validated DTO builders');
     } else {
       record('fail', 'SaaS UI/backend DTO builders', 'UI contracts must have validation builders before live backend wiring');
+    }
+  }
+
+  if (fs.existsSync(settingsBillingDataPath) && fs.existsSync(uiBackendContractsPath)) {
+    const dataSource = fs.readFileSync(settingsBillingDataPath, 'utf8');
+    const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
+    if (
+      dataSource.includes('createSettingsBillingDataRepository') &&
+      dataSource.includes('buildBillingSettingsViewInput') &&
+      dataSource.includes("from('organizations')") &&
+      dataSource.includes("from('subscriptions')") &&
+      dataSource.includes("from('invoices')") &&
+      uiContractSource.includes('BillingSettingsViewInput')
+    ) {
+      record('pass', 'SaaS settings billing data repository', 'billing settings live-data input builder is present without exposing a route');
+    } else {
+      record('fail', 'SaaS settings billing data repository', 'billing settings live-data wiring must use the repository and DTO input builder before exposing routes');
     }
   }
 

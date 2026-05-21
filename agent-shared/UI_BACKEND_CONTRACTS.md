@@ -244,3 +244,16 @@ Available builders:
 - `buildPlatformBillingEventsView()`
 
 These helpers do not expose routes by themselves. They validate and normalize backend data before a future route or server action returns it to UI.
+
+Codex also has a local billing settings data repository foundation in:
+
+```text
+lib/saas/settings-billing-data.ts
+```
+
+Available helpers:
+
+- `createSettingsBillingDataRepository()`
+- `buildBillingSettingsViewInput()`
+
+These helpers prepare future `/settings/billing` live data from `organizations`, `subscriptions`, and latest `invoices` rows. They do not expose a route, run migrations, enable billing, or change UI by themselves.

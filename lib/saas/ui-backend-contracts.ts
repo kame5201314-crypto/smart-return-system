@@ -71,6 +71,28 @@ export interface BillingSettingsView {
   };
 }
 
+export interface BillingSettingsViewInput {
+  org: {
+    id: string;
+    name: string;
+    plan: unknown;
+    status: string;
+  };
+  subscription: {
+    provider: string | null;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+  invoiceSummary: {
+    latestInvoiceId: string | null;
+    latestInvoiceStatus: string | null;
+    billingEmail: string | null;
+    taxId: string | null;
+  };
+  actions: BillingSettingsView['actions'];
+}
+
 export interface UsageSettingsView {
   plan: {
     code: SaaSPlanCode;
@@ -384,27 +406,7 @@ export function buildUsageSettingsView(input: {
   };
 }
 
-export function buildBillingSettingsView(input: {
-  org: {
-    id: string;
-    name: string;
-    plan: unknown;
-    status: string;
-  };
-  subscription: {
-    provider: string | null;
-    currentPeriodStart: string | null;
-    currentPeriodEnd: string | null;
-    cancelAtPeriodEnd: boolean;
-  } | null;
-  invoiceSummary: {
-    latestInvoiceId: string | null;
-    latestInvoiceStatus: string | null;
-    billingEmail: string | null;
-    taxId: string | null;
-  };
-  actions: BillingSettingsView['actions'];
-}): BillingSettingsView {
+export function buildBillingSettingsView(input: BillingSettingsViewInput): BillingSettingsView {
   return {
     org: {
       id: requireString(input.org.id, 'billing.org.id'),
