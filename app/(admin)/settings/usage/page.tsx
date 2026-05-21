@@ -1,70 +1,71 @@
 import Link from 'next/link';
-import { ArrowRight, BarChart3, PackageCheck, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowRight, BarChart3, PackageCheck, Sparkles, TrendingUp, TriangleAlert } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DemoDataBanner } from '@/components/saas/demo-data-banner';
 import { UsageProgress } from '@/components/saas/usage-progress';
-import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
+import { SettingsStateCard } from '@/components/saas/settings-state-card';
+import { loadUsageSettingsView } from '@/lib/saas/settings-live-data';
+import type { UsageSettingsView } from '@/lib/saas/ui-backend-contracts';
 
-const currentPlan = SAAS_PLAN_DEFINITIONS.growth;
-const usageCards = [
-  {
-    label: '退貨量',
-    used: 1320,
-    limit: currentPlan.monthlyReturnSoftLimit || 0,
-    helper: '軟限制：超量提醒，不阻擋作業。',
-    icon: PackageCheck,
-  },
-  {
-    label: 'AI 文字分析',
-    used: 21,
-    limit: currentPlan.aiMonthlyLimit || 0,
-    helper: '硬限制：100% 後停止新增 AI 分析。',
-    icon: Sparkles,
-  },
-  {
-    label: '成員席次',
-    used: 7,
-    limit: currentPlan.seatLimit || 0,
-    helper: 'Owner / Admin 可管理邀請。',
-    icon: BarChart3,
-  },
-] as const;
-
-function percent(used: number, limit: number) {
-  if (limit <= 0) return 0;
+function percent(used: number, limit: number | null) {
+  if (!limit || limit <= 0) return 0;
   return Math.min(100, Math.round((used / limit) * 100));
 }
 
-export default function UsageSettingsPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950">用量與額度</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Growth 方案示意資料。正式資料會從 org.plan、ai_usage_events 與退貨表月度統計讀取。
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/settings/billing">
-            管理訂閱
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </div>
+function badgeVariant(value: number): 'destructive' | 'secondary' | 'outline' {
+  if (value >= 100) return 'destructive';
+  if (value >= 80) return 'secondary';
+  return 'outline';
+}
 
-      <DemoDataBanner>
-        <span className="font-medium">示意資料</span>
-        ：使用量採 Growth 方案示意，正式資料將由 ai_usage_events 與退貨表月度統計提供。
-      </DemoDataBanner>
+function UsageContent({ data }: { data: UsageSettingsView }) {
+  const cards = [
+    {
+      label: '退貨量',
+      used: data.usage.returnsThisMonth,
+      limit: data.plan.monthlyReturnSoftLimit,
+      helper: '軟限制：超量提醒，不阻擋作業。',
+      icon: PackageCheck,
+    },
+    {
+      label: 'AI 文字分析',
+      used: data.usage.aiUsedThisMonth,
+      limit: data.plan.aiMonthlyLimit,
+      helper: '硬限制：100% 後停止新增 AI 分析。',
+      icon: Sparkles,
+    },
+    {
+      label: '成員席次',
+      used: data.usage.seatsUsed,
+      limit: data.plan.seatLimit,
+      helper: 'Owner / Admin 可管理邀請。',
+      icon: BarChart3,
+    },
+  ] as const;
+
+  return (
+    <>
+      {data.warnings.length > 0 ? (
+        <div className="space-y-2">
+          {data.warnings.map((warning) => (
+            <div
+              key={warning.type}
+              className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>{warning.message}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {usageCards.map((item) => {
+        {cards.map((item) => {
           const Icon = item.icon;
           const value = percent(item.used, item.limit);
+          const limitLabel = item.limit === null ? '合約' : item.limit.toLocaleString('zh-TW');
           return (
             <Card key={item.label} className="rounded-lg">
               <CardHeader>
@@ -72,8 +73,8 @@ export default function UsageSettingsPage() {
                   <span className="flex size-10 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
                     <Icon className="size-5" />
                   </span>
-                  <Badge variant={value >= 100 ? 'destructive' : value >= 80 ? 'secondary' : 'outline'}>
-                    {value}%
+                  <Badge variant={item.limit === null ? 'outline' : badgeVariant(value)}>
+                    {item.limit === null ? '合約' : `${value}%`}
                   </Badge>
                 </div>
                 <CardTitle className="text-base">{item.label}</CardTitle>
@@ -84,9 +85,7 @@ export default function UsageSettingsPage() {
                   <div className="text-2xl font-semibold text-gray-950">
                     {item.used.toLocaleString('zh-TW')}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    / {item.limit.toLocaleString('zh-TW')}
-                  </div>
+                  <div className="text-sm text-muted-foreground">/ {limitLabel}</div>
                 </div>
                 <UsageProgress value={value} aria-label={`${item.label} 使用率 ${value}%`} />
               </CardContent>
@@ -134,6 +133,39 @@ export default function UsageSettingsPage() {
           </CardContent>
         </Card>
       </div>
+    </>
+  );
+}
+
+export default async function UsageSettingsPage() {
+  const result = await loadUsageSettingsView();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-950">用量與額度</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            追蹤本月退貨量軟限制、AI 月額度與席次使用；資料來自 org.plan 與當月統計。
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/settings/billing">
+            管理訂閱
+            <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+      </div>
+
+      {result.state === 'ready' ? (
+        <UsageContent data={result.data} />
+      ) : result.state === 'gated' ? (
+        <SettingsStateCard variant="gated" gated={result.gated} />
+      ) : result.state === 'empty' ? (
+        <SettingsStateCard variant="empty" message={result.message} />
+      ) : (
+        <SettingsStateCard variant="error" message={result.message} />
+      )}
     </div>
   );
 }
