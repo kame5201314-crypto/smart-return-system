@@ -2,6 +2,41 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS invite creation service and RPC draft.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/invite-creation.ts`
+- `tests/unit/saas-invite-creation.test.ts`
+- `supabase/migrations/032_saas_invite_creation_rpc.sql`
+
+Updated:
+
+- `tests/unit/saas-migration-plan.test.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added a pure invite creation use-case for the future `/settings/team` invite flow.
+- The service validates email, admin/staff/viewer role, plan seat availability, token, and expiration before calling a repository write.
+- Added draft `create_organization_invite` RPC for future atomic invite upsert plus `member.invited` audit log.
+- Updated migration plan checks so the SaaS migration chain now ends at `032`.
+- No migration was applied, no route was exposed, no UI file was changed, no invite was created, and no email was sent.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS invite acceptance RPC draft and repository wrapper.
 
 Commit:

@@ -190,6 +190,7 @@ function checkCommercialFoundation() {
     'lib/saas/invite-policy.ts',
     'lib/saas/invite-token-data.ts',
     'lib/saas/invite-acceptance.ts',
+    'lib/saas/invite-creation.ts',
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
@@ -217,6 +218,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/029_saas_billing_event_status.sql',
     'supabase/migrations/030_saas_invoice_status_alignment.sql',
     'supabase/migrations/031_saas_invite_acceptance_rpc.sql',
+    'supabase/migrations/032_saas_invite_creation_rpc.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -448,12 +450,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('031_saas_invite_acceptance_rpc.sql') &&
+      source.includes('032_saas_invite_creation_rpc.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-031 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-032 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-030 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-032 migration chain without applying migrations');
     }
   }
 
@@ -540,6 +542,7 @@ function checkCommercialFoundation() {
   const invitePolicyPath = path.resolve(process.cwd(), 'lib/saas/invite-policy.ts');
   const inviteTokenDataPath = path.resolve(process.cwd(), 'lib/saas/invite-token-data.ts');
   const inviteAcceptancePath = path.resolve(process.cwd(), 'lib/saas/invite-acceptance.ts');
+  const inviteCreationPath = path.resolve(process.cwd(), 'lib/saas/invite-creation.ts');
   if (fs.existsSync(invitePolicyPath)) {
     const source = fs.readFileSync(invitePolicyPath, 'utf8');
     if (
@@ -590,6 +593,25 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite acceptance service', 'invite acceptance use-case is centralized behind repository interfaces without exposing a route');
     } else {
       record('fail', 'SaaS invite acceptance service', 'invite acceptance must validate token/email/status and stay repository-backed before exposing routes');
+    }
+  }
+
+  if (fs.existsSync(inviteCreationPath)) {
+    const source = fs.readFileSync(inviteCreationPath, 'utf8');
+    if (
+      source.includes('createSaaSInvite') &&
+      source.includes('createSaaSInviteCreationRepository') &&
+      source.includes('generateSaaSInviteToken') &&
+      source.includes('create_organization_invite') &&
+      source.includes('canInviteSaaSTeamMember') &&
+      source.includes('seat_limit_reached') &&
+      source.includes('buildCreateOrganizationInviteRpcArgs') &&
+      !source.includes('createUntypedAdminClient') &&
+      !source.includes('createAdminClient')
+    ) {
+      record('pass', 'SaaS invite creation service', 'invite creation use-case validates role, seat limit, token, and RPC args without exposing a route');
+    } else {
+      record('fail', 'SaaS invite creation service', 'invite creation must validate role/seat limits and stay repository-backed before exposing routes');
     }
   }
 
@@ -777,6 +799,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/031_saas_invite_acceptance_rpc.sql'
   );
+  const inviteCreationMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/032_saas_invite_creation_rpc.sql'
+  );
   if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
     const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
@@ -805,6 +831,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite acceptance RPC draft', 'invite acceptance RPC draft matches the repository wrapper');
     } else {
       record('fail', 'SaaS invite acceptance RPC draft', 'invite acceptance must have an atomic RPC draft and matching repository wrapper');
+    }
+  }
+
+  if (fs.existsSync(inviteCreationMigrationPath) && fs.existsSync(inviteCreationPath)) {
+    const migrationSource = fs.readFileSync(inviteCreationMigrationPath, 'utf8');
+    const inviteCreationSource = fs.readFileSync(inviteCreationPath, 'utf8');
+    if (
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.create_organization_invite') &&
+      migrationSource.includes('ON CONFLICT (org_id, email)') &&
+      migrationSource.includes('member.invited') &&
+      migrationSource.includes('GRANT EXECUTE') &&
+      inviteCreationSource.includes('create_organization_invite') &&
+      inviteCreationSource.includes('buildCreateOrganizationInviteRpcArgs')
+    ) {
+      record('pass', 'SaaS invite creation RPC draft', 'invite creation RPC draft matches the repository wrapper');
+    } else {
+      record('fail', 'SaaS invite creation RPC draft', 'invite creation must have an atomic RPC draft and matching repository wrapper');
     }
   }
 }

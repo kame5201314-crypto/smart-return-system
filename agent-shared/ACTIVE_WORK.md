@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS invite creation service and RPC draft
+Files:
+- lib/saas/invite-creation.ts
+- tests/unit/saas-invite-creation.test.ts
+- supabase/migrations/032_saas_invite_creation_rpc.sql
+- tests/unit/saas-migration-plan.test.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added repository-backed invite creation use-case, URL-safe token generation, and draft atomic invite creation RPC. No migration was applied, no route was exposed, no UI file was changed, no invite email was sent, and no live invite was created.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS invite acceptance RPC draft and repository
 Files:
 - supabase/migrations/031_saas_invite_acceptance_rpc.sql

@@ -192,6 +192,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Adds the local repository wrapper for future `accept_organization_invite` RPC calls.
   - Adds `supabase/migrations/031_saas_invite_acceptance_rpc.sql` as an atomic invite acceptance RPC draft.
   - No live invite route was exposed, no Supabase client was created, no invite was accepted, no invite email was sent, and no migration was applied.
+- SaaS invite creation service foundation was added:
+  - `lib/saas/invite-creation.ts`
+  - Validates invite email, acceptable role, plan seat availability, token, and expiration before future invite writes.
+  - Adds the local repository wrapper for future `create_organization_invite` RPC calls.
+  - Adds `supabase/migrations/032_saas_invite_creation_rpc.sql` as an atomic invite creation RPC draft.
+  - No live invite route was exposed, no Supabase client was created, no invite email was sent, and no migration was applied.
 - SaaS return usage soft-limit policy was added:
   - `lib/saas/return-usage-policy.ts`
   - `buildUsageSettingsView()` now uses the centralized return soft-limit resolver for `returns_80` and `returns_100` warnings.
@@ -226,7 +232,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `scripts/saas/check-migration-plan.mjs`
   - `npm run saas:migration-plan`
   - `npm run saas:migration-plan:strict`
-  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full migration chain ending at `031`.
+  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full migration chain ending at `032`.
   - Strict mode should remain blocked until `SUPABASE_DB_PASSWORD` is available.
   - No Supabase data was changed.
 - Platform admin read model migration draft was added without applying migrations:

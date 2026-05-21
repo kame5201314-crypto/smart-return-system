@@ -134,6 +134,25 @@ interface TeamSettingsView {
 }
 ```
 
+Invite creation backend foundation:
+
+```text
+lib/saas/invite-creation.ts
+supabase/migrations/032_saas_invite_creation_rpc.sql
+```
+
+Codex owns:
+
+- `createSaaSInvite()`
+- `createSaaSInviteCreationRepository()`
+- `generateSaaSInviteToken()`
+- `buildCreateOrganizationInviteRpcArgs()`
+
+Future team invite UI should call a Codex-owned server route that wraps this
+service. The service validates email, role, seat availability, token, and
+expiration before the future `create_organization_invite` RPC write. No route,
+email sending, UI wiring, or migration apply exists yet.
+
 ## Platform Organization List
 
 UI path:
