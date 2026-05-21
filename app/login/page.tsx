@@ -151,7 +151,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-gray-400 text-sm mt-6">
-          © 2024 Smart Return System. All rights reserved.
+          © {new Date().getFullYear()} Smart Return System. All rights reserved.
         </p>
       </div>
     </div>
