@@ -113,6 +113,11 @@ export interface UsageSettingsView {
   }>;
 }
 
+export interface UsageSettingsViewInput {
+  plan: unknown;
+  usage: UsageSettingsView['usage'];
+}
+
 export interface TeamSettingsView {
   orgId: string;
   seatLimit: number | null;
@@ -381,10 +386,7 @@ function buildReturnUsageWarning(
   return [];
 }
 
-export function buildUsageSettingsView(input: {
-  plan: unknown;
-  usage: UsageSettingsView['usage'];
-}): UsageSettingsView {
+export function buildUsageSettingsView(input: UsageSettingsViewInput): UsageSettingsView {
   const plan = getSaaSPlanDefinition(input.plan);
   const seatsUsed = nonNegativeNumber(input.usage.seatsUsed, 'seatsUsed');
   const returnsThisMonth = nonNegativeNumber(

@@ -33,6 +33,24 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS settings usage data repository foundation
+Files:
+- lib/saas/settings-usage-data.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-settings-usage-data.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added repository/input builder for future usage settings live data from organizations, seats, return_requests, and successful non-cached AI usage. No route was exposed, no UI file was changed, no migration was applied, and no platform operation was added.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS settings team data repository foundation
 Files:
 - lib/saas/settings-team-data.ts

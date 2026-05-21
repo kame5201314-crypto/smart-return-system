@@ -245,6 +245,20 @@ Available builders:
 
 These helpers do not expose routes by themselves. They validate and normalize backend data before a future route or server action returns it to UI.
 
+Codex also has a local usage settings data repository foundation in:
+
+```text
+lib/saas/settings-usage-data.ts
+```
+
+Available helpers:
+
+- `createSettingsUsageDataRepository()`
+- `buildUsageSettingsViewInput()`
+- `buildCurrentUsagePeriod()`
+
+These helpers prepare future `/settings/usage` live data from `organizations`, `organization_members`, `organization_invites`, `return_requests`, and `ai_usage_events` rows. They do not expose a route, run migrations, enable billing, or change UI by themselves.
+
 Codex also has a local billing settings data repository foundation in:
 
 ```text

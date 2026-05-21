@@ -2,6 +2,38 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS settings usage data repository foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/settings-usage-data.ts`
+- `tests/unit/saas-settings-usage-data.test.ts`
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added a repository/input builder for future `/settings/usage` live data wiring.
+- The data layer reads organization plan, reserved seats, monthly return count, and monthly successful non-cached return AI usage.
+- The monthly window is UTC first-of-month to first-of-next-month, matching AI quota counting.
+- No route was exposed, no UI file was changed, no migration was applied, and no external platform operation was added.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS settings team data repository foundation.
 
 Commit:

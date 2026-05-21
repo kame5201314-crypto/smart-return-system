@@ -239,6 +239,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Builds the future `/settings/billing` DTO input from `organizations`, `subscriptions`, and latest `invoices` rows.
   - Keeps the live route unwired until SaaS migrations and schema readiness are approved.
   - No UI file was changed, no Supabase query was run, no migration was applied, and no billing provider was enabled.
+- SaaS settings usage data repository foundation was added without exposing live routes:
+  - `lib/saas/settings-usage-data.ts`
+  - Builds the future `/settings/usage` DTO input from `organizations`, `organization_members`, `organization_invites`, `return_requests`, and `ai_usage_events` rows.
+  - Uses a UTC month window matching AI quota counting and counts only successful non-cached return AI usage.
+  - No UI file was changed, no Supabase query was run, no migration was applied, and no billing provider was enabled.
 - SaaS settings team data repository foundation was added without exposing live routes:
   - `lib/saas/settings-team-data.ts`
   - Builds the future `/settings/team` DTO input from `organizations`, `organization_members`, and `organization_invites` rows.
