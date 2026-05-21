@@ -33,6 +33,24 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS subscription access policy
+Files:
+- lib/saas/subscription-access.ts
+- lib/saas/org-context.ts
+- tests/unit/saas-subscription-access.test.ts
+- tests/unit/saas-org-context.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Centralized subscription status access policy and made past_due read-only for writable guards, matching the product spec.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS migration apply plan check
 Files:
 - scripts/saas/check-migration-plan.mjs

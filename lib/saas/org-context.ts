@@ -6,10 +6,15 @@ import {
   type SaaSPlanCode,
   type SaaSPlanDefinition,
 } from '@/lib/config/saas-plans';
+import {
+  canCreateSaaSData,
+  normalizeSaaSSubscriptionStatus,
+  type SaaSSubscriptionStatus,
+} from '@/lib/saas/subscription-access';
 import { createClient } from '@/lib/supabase/server';
 
 export type SaaSOrgRole = 'owner' | 'admin' | 'staff' | 'viewer';
-export type SaaSOrgStatus = 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
+export type SaaSOrgStatus = SaaSSubscriptionStatus;
 
 export interface SaaSOrgRecord {
   id?: string | null;
@@ -110,9 +115,6 @@ const SAAS_FEATURE_FLAGS: SaaSFeatureFlag[] = [
 ];
 
 const VALID_ORG_ROLES: SaaSOrgRole[] = ['owner', 'admin', 'staff', 'viewer'];
-const VALID_ORG_STATUSES: SaaSOrgStatus[] = ['trialing', 'active', 'past_due', 'suspended', 'cancelled'];
-const WRITABLE_ORG_STATUSES: SaaSOrgStatus[] = ['trialing', 'active', 'past_due'];
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -133,11 +135,7 @@ export function normalizeSaaSOrgRole(value: unknown): SaaSOrgRole {
 }
 
 export function normalizeSaaSOrgStatus(value: unknown): SaaSOrgStatus {
-  const normalized = stringOrNull(value)?.toLowerCase();
-  if (VALID_ORG_STATUSES.includes(normalized as SaaSOrgStatus)) {
-    return normalized as SaaSOrgStatus;
-  }
-  return 'suspended';
+  return normalizeSaaSSubscriptionStatus(value);
 }
 
 function normalizeOrgFeatureFlags(value: unknown): Partial<Record<SaaSFeatureFlag, boolean>> | null {
@@ -214,7 +212,7 @@ export function buildSaaSOrgContext(params: {
 }
 
 export function canWriteSaaSOrgData(context: SaaSOrgContext): boolean {
-  return WRITABLE_ORG_STATUSES.includes(context.orgStatus);
+  return canCreateSaaSData(context.orgStatus);
 }
 
 export function assertSaaSOrgContext(

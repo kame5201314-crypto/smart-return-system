@@ -184,6 +184,7 @@ function checkCommercialFoundation() {
     'lib/config/feature-flags.ts',
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
+    'lib/saas/subscription-access.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
@@ -356,6 +357,24 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS org context', 'auth user -> organization -> plan -> feature flags guard found');
     } else {
       record('fail', 'SaaS org context', 'must resolve org context without service-role membership lookup');
+    }
+  }
+
+  const subscriptionAccessPath = path.resolve(process.cwd(), 'lib/saas/subscription-access.ts');
+  if (fs.existsSync(subscriptionAccessPath) && fs.existsSync(orgContextPath)) {
+    const accessSource = fs.readFileSync(subscriptionAccessPath, 'utf8');
+    const orgContextSource = fs.readFileSync(orgContextPath, 'utf8');
+    if (
+      accessSource.includes('SAAS_SUBSCRIPTION_ACCESS_POLICIES') &&
+      accessSource.includes('past_due') &&
+      accessSource.includes('canCreateData: false') &&
+      accessSource.includes('canUseAI: false') &&
+      accessSource.includes('canExport: false') &&
+      orgContextSource.includes('canCreateSaaSData(context.orgStatus)')
+    ) {
+      record('pass', 'SaaS subscription access policy', 'past_due and inactive statuses are read-only for write guards');
+    } else {
+      record('fail', 'SaaS subscription access policy', 'must keep past_due, suspended, and cancelled from write/AI/export paths');
     }
   }
 

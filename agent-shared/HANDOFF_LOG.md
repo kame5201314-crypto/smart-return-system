@@ -2,6 +2,37 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Hardened SaaS subscription access policy.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/subscription-access.ts`
+- `tests/unit/saas-subscription-access.test.ts`
+
+Updated:
+
+- `lib/saas/org-context.ts`
+- `tests/unit/saas-org-context.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Centralized subscription access rules for `trialing`, `active`, `past_due`, `suspended`, and `cancelled`.
+- `past_due` is now read-only for `writable` guards, matching the product spec: users can log in, view data, and manage billing, but cannot create data, use AI, or export.
+- No routes, migrations, or external platform state were changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added a read-only SaaS migration apply plan check.
 
 Commit:

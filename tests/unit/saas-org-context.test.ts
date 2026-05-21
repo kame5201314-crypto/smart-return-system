@@ -8,6 +8,7 @@ import {
   normalizeSaaSOrgRole,
   normalizeSaaSOrgStatus,
   SaaSOrgContextError,
+  canWriteSaaSOrgData,
   type SaaSOrgMembershipRecord,
   type SaaSOrgMembershipRepository,
 } from '@/lib/saas/org-context';
@@ -111,6 +112,27 @@ describe('SaaS org context', () => {
     expect(normalizeSaaSOrgRole('unknown')).toBe('viewer');
     expect(normalizeSaaSOrgStatus('active')).toBe('active');
     expect(normalizeSaaSOrgStatus('unexpected')).toBe('suspended');
+  });
+
+  it('uses the subscription access policy for writable org actions', () => {
+    const baseContext = buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-1',
+        role: 'owner',
+        organization: {
+          id: 'org-1',
+          plan: 'growth',
+          status: 'active',
+        },
+      },
+    });
+
+    expect(canWriteSaaSOrgData(baseContext)).toBe(true);
+    expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'trialing' })).toBe(true);
+    expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'past_due' })).toBe(false);
+    expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'suspended' })).toBe(false);
+    expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'cancelled' })).toBe(false);
   });
 
   it('loads context through the injected repository and requested org id', async () => {
@@ -226,6 +248,29 @@ describe('SaaS org context', () => {
             feature_flags: {
               advanced_analytics: true,
             },
+          },
+        }),
+        requirements: {
+          writable: true,
+        },
+        env: {},
+      })
+    ).rejects.toMatchObject({
+      code: 'subscription_inactive',
+      status: 402,
+    });
+
+    await expect(
+      getOrgContext({
+        auth: authOk,
+        repository: createRepository({
+          orgId: 'org-1',
+          role: 'owner',
+          organization: {
+            id: 'org-1',
+            plan: 'growth',
+            status: 'past_due',
+            feature_flags: {},
           },
         }),
         requirements: {
