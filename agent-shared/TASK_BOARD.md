@@ -26,7 +26,8 @@ Status values:
 | blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `026_*` chain |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | blocked | Platform admin live data wiring | Schema readiness gate exists; UI page live consumption still waits for migrations/live data readiness |
-| done | Billing foundation | This commit; ECPay webhook route is flag/credential/signature gated and records idempotent billing_events only after verification |
+| done | Billing foundation | ECPay webhook route is flag/credential/CheckMacValue gated and records idempotent billing_events only after verification |
+| done | ECPay webhook signature verification | This commit; default route path verifies CheckMacValue locally before recording events |
 | done | AI quota enforcement hardening | This commit; return AI analysis now checks `org.plan` monthly quota before provider calls |
 | blocked | SaaS predeploy strict gate | Schema readiness gate exists; final strict pass still needs Gemini key and SaaS migrations applied |
 | done | SaaS schema readiness gate | This commit; added `saas:schema-gate` / `saas:schema-gate:strict` for 023-026 table and org_id readiness checks |

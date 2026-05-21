@@ -4,6 +4,7 @@ import {
   createBillingEventsRepository,
   resolveBillingWebhookState,
   resolveECPayWebhookEvent,
+  verifyECPayCheckMacValue,
   type BillingEventsRepository,
   type BillingEventsQueryClient,
 } from '@/lib/saas/billing';
@@ -102,13 +103,16 @@ export async function handleECPayBillingWebhook(
     }
 
     const payload = await readWebhookPayload(request);
-    const signatureValid = await (deps.verifySignature?.(payload) ?? false);
+    const signatureValid = await (
+      deps.verifySignature?.(payload) ??
+      verifyECPayCheckMacValue(payload, deps.env)
+    );
 
     if (!signatureValid) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ECPay webhook signature verification is required.',
+          error: 'ECPay webhook signature verification failed.',
           code: 'signature_required',
         },
         { status: 401 }

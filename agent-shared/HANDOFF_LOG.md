@@ -2,6 +2,31 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added local ECPay CheckMacValue verification for the billing webhook.
+
+Commit:
+
+```text
+this commit
+```
+
+Updated:
+
+- `lib/saas/billing.ts`
+- `app/api/billing/ecpay/webhook/route.ts`
+- `tests/unit/saas-billing-foundation.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Notes:
+
+- The default webhook route now verifies `CheckMacValue` before writing `billing_events`.
+- The implementation follows the ECPay All-In-One checksum flow: sort parameters, exclude `CheckMacValue`, wrap with `HashKey` / `HashIV`, URL encode, lower-case, SHA256, upper-case compare.
+- Unit tests include ECPay's published payment-notification checksum example.
+- Billing still remains disabled by `ENABLE_BILLING=false`; no ECPay credentials were added and no payment API was called.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added a SaaS schema readiness gate without applying migrations.
 
 Commit:

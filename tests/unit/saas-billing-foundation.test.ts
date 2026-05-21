@@ -6,10 +6,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { handleECPayBillingWebhook } from '@/app/api/billing/ecpay/webhook/route';
 import {
   buildBillingEventRecord,
+  buildECPayCheckMacValue,
   createBillingEventsRepository,
   resolveBillingProviderConfig,
   resolveBillingWebhookState,
   resolveECPayWebhookEvent,
+  verifyECPayCheckMacValue,
   type BillingEventsRepository,
   type BillingEventsQueryClient,
 } from '@/lib/saas/billing';
@@ -22,6 +24,34 @@ const completeECPayEnv = {
   ECPAY_HASH_IV: 'hash-iv',
   ECPAY_MODE: 'test',
 };
+
+const ecpayOfficialChecksumEnv = {
+  ...completeECPayEnv,
+  ECPAY_HASH_KEY: 'pwFHCqoQZGmho4w6',
+  ECPAY_HASH_IV: 'EkRm7iFT261dpevs',
+};
+
+const ecpayOfficialChecksumPayload = {
+  CustomField1: '',
+  CustomField2: '',
+  CustomField3: '',
+  CustomField4: '',
+  MerchantID: '3002607',
+  MerchantTradeNo: 'ECPay1738978034',
+  PaymentDate: '2025/02/08 09:32:20',
+  PaymentType: 'Credit_CreditCard',
+  PaymentTypeChargeFee: '1',
+  RtnCode: '1',
+  RtnMsg: '交易成功',
+  SimulatePaid: '0',
+  StoreID: '',
+  TradeAmt: '30',
+  TradeDate: '2025/02/08 09:27:18',
+  TradeNo: '2502080927183709',
+};
+
+const ecpayOfficialCheckMacValue =
+  'C66199663DD43BF01058218601BEE874315E5FF57A1FE112A9114AC3701947BA';
 
 function buildWebhookRequest(body: Record<string, string>): NextRequest {
   return new NextRequest('http://localhost/api/billing/ecpay/webhook', {
@@ -126,6 +156,38 @@ describe('SaaS billing foundation', () => {
     });
   });
 
+  it('builds ECPay CheckMacValue with the official payment notification checksum example', () => {
+    expect(
+      buildECPayCheckMacValue({
+        payload: ecpayOfficialChecksumPayload,
+        hashKey: ecpayOfficialChecksumEnv.ECPAY_HASH_KEY,
+        hashIv: ecpayOfficialChecksumEnv.ECPAY_HASH_IV,
+      })
+    ).toBe(ecpayOfficialCheckMacValue);
+  });
+
+  it('verifies ECPay CheckMacValue and ignores CheckMacValue itself during calculation', () => {
+    expect(
+      verifyECPayCheckMacValue(
+        {
+          ...ecpayOfficialChecksumPayload,
+          CheckMacValue: ecpayOfficialCheckMacValue,
+        },
+        ecpayOfficialChecksumEnv
+      )
+    ).toBe(true);
+
+    expect(
+      verifyECPayCheckMacValue(
+        {
+          ...ecpayOfficialChecksumPayload,
+          CheckMacValue: 'BAD',
+        },
+        ecpayOfficialChecksumEnv
+      )
+    ).toBe(false);
+  });
+
   it('returns 404 for ECPay webhook when billing is disabled', async () => {
     const repository = createRepository();
     const response = await handleECPayBillingWebhook(
@@ -172,6 +234,58 @@ describe('SaaS billing foundation', () => {
       {
         env: completeECPayEnv,
         repository,
+      }
+    );
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({
+      success: false,
+      code: 'signature_required',
+    });
+    expect(repository.recordEvent).not.toHaveBeenCalled();
+  });
+
+  it('records ECPay webhook events after default CheckMacValue verification passes', async () => {
+    const repository = createRepository();
+    const payload = {
+      ...ecpayOfficialChecksumPayload,
+      CheckMacValue: ecpayOfficialCheckMacValue,
+    };
+    const response = await handleECPayBillingWebhook(
+      buildWebhookRequest(payload),
+      {
+        env: ecpayOfficialChecksumEnv,
+        repository,
+        resolveOrgId: () => 'org-1',
+      }
+    );
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      provider: 'ecpay',
+      eventStatus: 'created',
+    });
+    expect(repository.recordEvent).toHaveBeenCalledWith({
+      orgId: 'org-1',
+      provider: 'ecpay',
+      providerEventId: 'ECPay1738978034',
+      eventType: 'ecpay.payment_succeeded',
+      payload,
+    });
+  });
+
+  it('does not record ECPay webhook events when default CheckMacValue verification fails', async () => {
+    const repository = createRepository();
+    const response = await handleECPayBillingWebhook(
+      buildWebhookRequest({
+        ...ecpayOfficialChecksumPayload,
+        CheckMacValue: 'BAD',
+      }),
+      {
+        env: ecpayOfficialChecksumEnv,
+        repository,
+        resolveOrgId: () => 'org-1',
       }
     );
 

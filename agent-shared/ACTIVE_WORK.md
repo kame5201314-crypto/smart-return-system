@@ -33,6 +33,23 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: ECPay webhook signature verification
+Files:
+- lib/saas/billing.ts
+- app/api/billing/ecpay/webhook/route.ts
+- tests/unit/saas-billing-foundation.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Default ECPay webhook path now verifies CheckMacValue before recording billing_events. Billing remains closed by ENABLE_BILLING=false and no provider credentials or API calls were added.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS schema readiness gate
 Files:
 - scripts/saas/check-saas-schema-readiness.mjs

@@ -423,14 +423,17 @@ function checkCommercialFoundation() {
     if (
       billingSource.includes('resolveBillingWebhookState') &&
       billingSource.includes('createBillingEventsRepository') &&
+      billingSource.includes('buildECPayCheckMacValue') &&
+      billingSource.includes('verifyECPayCheckMacValue') &&
       billingSource.includes('provider_event_id') &&
       ecpayRouteSource.includes('billing_disabled') &&
       ecpayRouteSource.includes('credentials_missing') &&
-      ecpayRouteSource.includes('signature_required')
+      ecpayRouteSource.includes('signature_required') &&
+      ecpayRouteSource.includes('verifyECPayCheckMacValue')
     ) {
-      record('pass', 'SaaS billing webhook foundation', 'ECPay route is disabled by flag and requires credentials + signature verification');
+      record('pass', 'SaaS billing webhook foundation', 'ECPay route is disabled by flag and verifies CheckMacValue before recording events');
     } else {
-      record('fail', 'SaaS billing webhook foundation', 'billing webhook must be flag-gated, credential-gated, and signature-gated');
+      record('fail', 'SaaS billing webhook foundation', 'billing webhook must be flag-gated, credential-gated, and CheckMacValue-gated');
     }
   }
 }

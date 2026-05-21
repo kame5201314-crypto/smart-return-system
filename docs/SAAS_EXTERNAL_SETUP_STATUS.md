@@ -159,7 +159,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `lib/saas/billing.ts`
   - `/api/billing/ecpay/webhook`
   - ECPay webhook is closed while `ENABLE_BILLING=false`.
-  - If billing is enabled, the route still requires `BILLING_PROVIDER=ecpay`, complete ECPay credentials, and signature verification before writing `billing_events`.
+  - If billing is enabled, the route still requires `BILLING_PROVIDER=ecpay`, complete ECPay credentials, and CheckMacValue verification before writing `billing_events`.
   - Duplicate provider events are treated idempotently through the `billing_events` unique key.
   - No ECPay credentials were added, no payment API was called, and no migration was applied.
 - Public signup request persistence was wired without opening public signup:
@@ -178,6 +178,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Non-strict mode reports readiness without blocking local development.
   - Strict mode should remain blocked until SaaS migrations are approved and applied.
   - No Supabase data was changed.
+- ECPay webhook CheckMacValue verification was added locally:
+  - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
+  - Tests include ECPay's published payment-notification checksum example.
+  - Billing remains closed by `ENABLE_BILLING=false`.
+  - No ECPay credentials were added and no payment API was called.
 
 ## Verification Notes
 
@@ -198,7 +203,7 @@ These are intentionally not completed because they require private credentials, 
 - SaaS domain has not been configured.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
-- Billing webhook signature verification is not connected to live provider credentials yet.
+- Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
 - SaaS production deployment has not been run.
 - Platform admin pages are not wired to live SaaS DB data yet; the schema readiness gate now defines the DB shape required before live consumption is enabled.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
