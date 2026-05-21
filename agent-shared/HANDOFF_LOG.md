@@ -2,6 +2,37 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Hardened SaaS export subscription guards.
+
+Commit:
+
+```text
+this commit
+```
+
+Updated:
+
+- `lib/saas/org-context.ts`
+- `app/api/v1/admin/returns/export/route.ts`
+- `app/api/v1/admin/shopee-returns/export/route.ts`
+- `app/api/v1/admin/pickup/export/route.ts`
+- `tests/unit/saas-org-context.test.ts`
+- `tests/unit/saas-runtime-org-isolation.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added `exportable` to SaaS org context requirements.
+- Admin export APIs now require `exportable: true`.
+- `past_due`, `suspended`, and `cancelled` organizations cannot use export APIs.
+- No UI files, migrations, or external platform state were changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Hardened SaaS subscription access policy.
 
 Commit:

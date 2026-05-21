@@ -8,6 +8,7 @@ import {
   normalizeSaaSOrgRole,
   normalizeSaaSOrgStatus,
   SaaSOrgContextError,
+  canExportSaaSOrgData,
   canWriteSaaSOrgData,
   type SaaSOrgMembershipRecord,
   type SaaSOrgMembershipRepository,
@@ -133,6 +134,27 @@ describe('SaaS org context', () => {
     expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'past_due' })).toBe(false);
     expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'suspended' })).toBe(false);
     expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'cancelled' })).toBe(false);
+  });
+
+  it('uses the subscription access policy for export actions', () => {
+    const baseContext = buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-1',
+        role: 'admin',
+        organization: {
+          id: 'org-1',
+          plan: 'growth',
+          status: 'active',
+        },
+      },
+    });
+
+    expect(canExportSaaSOrgData(baseContext)).toBe(true);
+    expect(canExportSaaSOrgData({ ...baseContext, orgStatus: 'trialing' })).toBe(true);
+    expect(canExportSaaSOrgData({ ...baseContext, orgStatus: 'past_due' })).toBe(false);
+    expect(canExportSaaSOrgData({ ...baseContext, orgStatus: 'suspended' })).toBe(false);
+    expect(canExportSaaSOrgData({ ...baseContext, orgStatus: 'cancelled' })).toBe(false);
   });
 
   it('loads context through the injected repository and requested org id', async () => {
@@ -275,6 +297,29 @@ describe('SaaS org context', () => {
         }),
         requirements: {
           writable: true,
+        },
+        env: {},
+      })
+    ).rejects.toMatchObject({
+      code: 'subscription_inactive',
+      status: 402,
+    });
+
+    await expect(
+      getOrgContext({
+        auth: authOk,
+        repository: createRepository({
+          orgId: 'org-1',
+          role: 'admin',
+          organization: {
+            id: 'org-1',
+            plan: 'growth',
+            status: 'past_due',
+            feature_flags: {},
+          },
+        }),
+        requirements: {
+          exportable: true,
         },
         env: {},
       })

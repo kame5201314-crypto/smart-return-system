@@ -160,6 +160,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `getOrgContext({ requirements: { writable: true } })` now uses the centralized subscription access policy.
   - `past_due` is read-only for write, AI, and export guards, matching the product spec; users can still log in, view data, and manage billing.
   - `suspended` and `cancelled` remain read-only for data operations.
+- SaaS export access guards were hardened:
+  - `/api/v1/admin/returns/export`
+  - `/api/v1/admin/shopee-returns/export`
+  - `/api/v1/admin/pickup/export`
+  - These routes now require `getOrgContext({ requirements: { exportable: true } })`.
+  - `past_due`, `suspended`, and `cancelled` organizations cannot export data.
 - Billing foundation was added without enabling real billing:
   - `lib/saas/billing.ts`
   - `/api/billing/ecpay/webhook`

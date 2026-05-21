@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS export subscription guard
+Files:
+- lib/saas/org-context.ts
+- app/api/v1/admin/returns/export/route.ts
+- app/api/v1/admin/shopee-returns/export/route.ts
+- app/api/v1/admin/pickup/export/route.ts
+- tests/unit/saas-org-context.test.ts
+- tests/unit/saas-runtime-org-isolation.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Admin export APIs now require exportable subscription access so past_due, suspended, and cancelled orgs cannot export data.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS subscription access policy
 Files:
 - lib/saas/subscription-access.ts

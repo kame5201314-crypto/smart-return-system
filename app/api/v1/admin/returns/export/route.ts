@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
     const orgContext = await getOrgContext({
       requirements: {
         roles: ['owner', 'admin', 'staff'],
+        exportable: true,
       },
     });
 

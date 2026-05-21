@@ -7,6 +7,7 @@ import {
   type SaaSPlanDefinition,
 } from '@/lib/config/saas-plans';
 import {
+  canExportSaaSData,
   canCreateSaaSData,
   normalizeSaaSSubscriptionStatus,
   type SaaSSubscriptionStatus,
@@ -58,6 +59,7 @@ export interface SaaSOrgContextRequirements {
   roles?: SaaSOrgRole[];
   feature?: SaaSFeatureFlag;
   writable?: boolean;
+  exportable?: boolean;
 }
 
 export interface GetOrgContextOptions {
@@ -215,6 +217,10 @@ export function canWriteSaaSOrgData(context: SaaSOrgContext): boolean {
   return canCreateSaaSData(context.orgStatus);
 }
 
+export function canExportSaaSOrgData(context: SaaSOrgContext): boolean {
+  return canExportSaaSData(context.orgStatus);
+}
+
 export function assertSaaSOrgContext(
   context: SaaSOrgContext,
   requirements?: SaaSOrgContextRequirements
@@ -244,6 +250,14 @@ export function assertSaaSOrgContext(
       'subscription_inactive',
       402,
       `SaaS org status ${context.orgStatus} does not allow write actions.`
+    );
+  }
+
+  if (requirements.exportable && !canExportSaaSOrgData(context)) {
+    throw new SaaSOrgContextError(
+      'subscription_inactive',
+      402,
+      `SaaS org status ${context.orgStatus} does not allow export actions.`
     );
   }
 }

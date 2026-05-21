@@ -364,15 +364,29 @@ function checkCommercialFoundation() {
   if (fs.existsSync(subscriptionAccessPath) && fs.existsSync(orgContextPath)) {
     const accessSource = fs.readFileSync(subscriptionAccessPath, 'utf8');
     const orgContextSource = fs.readFileSync(orgContextPath, 'utf8');
+    const exportRoutePaths = [
+      'app/api/v1/admin/returns/export/route.ts',
+      'app/api/v1/admin/shopee-returns/export/route.ts',
+      'app/api/v1/admin/pickup/export/route.ts',
+    ];
+    const exportRoutesAreGuarded = exportRoutePaths.every((routePath) => {
+      const fullPath = path.resolve(process.cwd(), routePath);
+      return (
+        fs.existsSync(fullPath) &&
+        fs.readFileSync(fullPath, 'utf8').includes('exportable: true')
+      );
+    });
     if (
       accessSource.includes('SAAS_SUBSCRIPTION_ACCESS_POLICIES') &&
       accessSource.includes('past_due') &&
       accessSource.includes('canCreateData: false') &&
       accessSource.includes('canUseAI: false') &&
       accessSource.includes('canExport: false') &&
-      orgContextSource.includes('canCreateSaaSData(context.orgStatus)')
+      orgContextSource.includes('canCreateSaaSData(context.orgStatus)') &&
+      orgContextSource.includes('canExportSaaSData(context.orgStatus)') &&
+      exportRoutesAreGuarded
     ) {
-      record('pass', 'SaaS subscription access policy', 'past_due and inactive statuses are read-only for write guards');
+      record('pass', 'SaaS subscription access policy', 'past_due and inactive statuses are read-only for write and export guards');
     } else {
       record('fail', 'SaaS subscription access policy', 'must keep past_due, suspended, and cancelled from write/AI/export paths');
     }
