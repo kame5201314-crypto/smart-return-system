@@ -33,6 +33,25 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Signup persistence backend
+Files:
+- lib/saas/signup-request.ts
+- lib/saas/signup-request-repository.ts
+- app/api/saas/signup/route.ts
+- tests/unit/saas-public-signup-request.test.ts
+- scripts/saas/readiness-check.mjs
+- supabase/migrations/026_saas_public_signup_requests.sql
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Public signup remains closed by default. When explicitly enabled after SaaS migrations, requests persist to signup_requests via service-role server repository; org creation is still a separate approval step.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Billing foundation
 Files:
 - lib/saas/billing.ts

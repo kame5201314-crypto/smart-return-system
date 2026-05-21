@@ -26,9 +26,14 @@ export interface SaaSPublicSignupRequestRepository {
   createRequest(input: SaaSPublicSignupRequestInput): Promise<{ id?: string | null }>;
 }
 
+export type SaaSPublicSignupRequestRepositoryFactory =
+  () => SaaSPublicSignupRequestRepository;
+
 export interface SubmitSaaSPublicSignupRequestOptions {
   env?: Record<string, string | undefined>;
-  repository?: SaaSPublicSignupRequestRepository;
+  repository?:
+    | SaaSPublicSignupRequestRepository
+    | SaaSPublicSignupRequestRepositoryFactory;
 }
 
 export class SaaSPublicSignupRequestError extends Error {
@@ -170,6 +175,19 @@ export function normalizeSaaSPublicSignupRequest(
   };
 }
 
+function resolveSignupRequestRepository(
+  repository:
+    | SaaSPublicSignupRequestRepository
+    | SaaSPublicSignupRequestRepositoryFactory
+    | undefined
+): SaaSPublicSignupRequestRepository | undefined {
+  if (!repository) {
+    return undefined;
+  }
+
+  return typeof repository === 'function' ? repository() : repository;
+}
+
 export async function submitSaaSPublicSignupRequest(
   value: unknown,
   options: SubmitSaaSPublicSignupRequestOptions = {}
@@ -186,7 +204,18 @@ export async function submitSaaSPublicSignupRequest(
 
   const input = normalizeSaaSPublicSignupRequest(value);
 
-  if (!options.repository) {
+  let repository: SaaSPublicSignupRequestRepository | undefined;
+  try {
+    repository = resolveSignupRequestRepository(options.repository);
+  } catch {
+    throw new SaaSPublicSignupRequestError(
+      'not_configured',
+      503,
+      'Public signup persistence is not configured.'
+    );
+  }
+
+  if (!repository) {
     throw new SaaSPublicSignupRequestError(
       'not_configured',
       503,
@@ -195,7 +224,7 @@ export async function submitSaaSPublicSignupRequest(
   }
 
   try {
-    const request = await options.repository.createRequest(input);
+    const request = await repository.createRequest(input);
 
     return {
       accepted: true,

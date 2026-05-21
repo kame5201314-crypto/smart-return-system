@@ -4,11 +4,15 @@ import {
   SaaSPublicSignupRequestError,
   submitSaaSPublicSignupRequest,
   type SaaSPublicSignupRequestRepository,
+  type SaaSPublicSignupRequestRepositoryFactory,
 } from '@/lib/saas/signup-request';
+import { createDefaultSaaSPublicSignupRequestRepository } from '@/lib/saas/signup-request-repository';
 
 interface HandlerDependencies {
   env?: Record<string, string | undefined>;
-  repository?: SaaSPublicSignupRequestRepository;
+  repository?:
+    | SaaSPublicSignupRequestRepository
+    | SaaSPublicSignupRequestRepositoryFactory;
 }
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +35,11 @@ export async function handleSaaSPublicSignupRequest(
 ) {
   try {
     const payload = await readJsonBody(request);
-    const result = await submitSaaSPublicSignupRequest(payload, deps);
+    const result = await submitSaaSPublicSignupRequest(payload, {
+      env: deps.env,
+      repository:
+        deps.repository ?? createDefaultSaaSPublicSignupRequestRepository,
+    });
 
     return NextResponse.json(
       {

@@ -2,6 +2,36 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Wired public signup request persistence without opening public signup.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/signup-request-repository.ts`
+- `supabase/migrations/026_saas_public_signup_requests.sql`
+
+Updated:
+
+- `lib/saas/signup-request.ts`
+- `app/api/saas/signup/route.ts`
+- `tests/unit/saas-public-signup-request.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Notes:
+
+- `ENABLE_PUBLIC_SIGNUP=false` still blocks validation and persistence before any DB client is created.
+- If the flag is explicitly enabled, valid Basic-only signup requests persist to `signup_requests`.
+- `026` is a migration draft only. It was not applied to Supabase.
+- Signup creates a request record only; it does not create an organization or subscription yet.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added the billing foundation without enabling real billing.
 
 Commit:

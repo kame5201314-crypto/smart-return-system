@@ -23,8 +23,8 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `025_*` chain |
-| todo | Signup persistence backend | Wire after migrations; public signup remains closed by default |
+| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `026_*` chain |
+| done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | todo | Platform admin live data wiring | API DTO wiring is done; UI page consumption still waits for migrations/live data readiness |
 | done | Billing foundation | This commit; ECPay webhook route is flag/credential/signature gated and records idempotent billing_events only after verification |
 | done | AI quota enforcement hardening | This commit; return AI analysis now checks `org.plan` monthly quota before provider calls |

@@ -189,6 +189,7 @@ function checkCommercialFoundation() {
     'lib/saas/billing.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
+    'lib/saas/signup-request-repository.ts',
     'app/api/saas/signup/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
     'app/api/internal/saas/orgs/route.ts',
@@ -197,6 +198,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
+    'supabase/migrations/026_saas_public_signup_requests.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -292,6 +294,7 @@ function checkCommercialFoundation() {
 
   const publicSignupPath = path.resolve(process.cwd(), 'lib/saas/public-signup.ts');
   const signupRequestPath = path.resolve(process.cwd(), 'lib/saas/signup-request.ts');
+  const signupRepositoryPath = path.resolve(process.cwd(), 'lib/saas/signup-request-repository.ts');
   const signupPagePath = path.resolve(process.cwd(), 'app/signup/page.tsx');
   const signupApiPath = path.resolve(process.cwd(), 'app/api/saas/signup/route.ts');
   if (fs.existsSync(publicSignupPath) && fs.existsSync(signupPagePath)) {
@@ -309,20 +312,29 @@ function checkCommercialFoundation() {
     }
   }
 
-  if (fs.existsSync(signupRequestPath) && fs.existsSync(signupApiPath)) {
+  if (
+    fs.existsSync(signupRequestPath) &&
+    fs.existsSync(signupRepositoryPath) &&
+    fs.existsSync(signupApiPath)
+  ) {
     const signupRequestSource = fs.readFileSync(signupRequestPath, 'utf8');
+    const signupRepositorySource = fs.readFileSync(signupRepositoryPath, 'utf8');
     const signupApiSource = fs.readFileSync(signupApiPath, 'utf8');
     if (
       signupRequestSource.includes('submitSaaSPublicSignupRequest') &&
       signupRequestSource.includes('feature_disabled') &&
       signupRequestSource.includes('not_configured') &&
       signupRequestSource.includes("plan: 'basic'") &&
+      signupRepositorySource.includes('createDefaultSaaSPublicSignupRequestRepository') &&
+      signupRepositorySource.includes('createUntypedAdminClient') &&
+      signupRepositorySource.includes('signup_requests') &&
       signupApiSource.includes('handleSaaSPublicSignupRequest') &&
-      signupApiSource.includes('submitSaaSPublicSignupRequest')
+      signupApiSource.includes('submitSaaSPublicSignupRequest') &&
+      signupApiSource.includes('createDefaultSaaSPublicSignupRequestRepository')
     ) {
-      record('pass', 'SaaS public signup API', 'API route is flag-gated and has no default persistence');
+      record('pass', 'SaaS public signup API', 'API route is flag-gated and persistence is wired behind the disabled-by-default flag');
     } else {
-      record('fail', 'SaaS public signup API', 'signup API must be flag-gated, Basic-only, and closed before persistence is wired');
+      record('fail', 'SaaS public signup API', 'signup API must be flag-gated, Basic-only, and persist to signup_requests only after the flag is enabled');
     }
   }
 
