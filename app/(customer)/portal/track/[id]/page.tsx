@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Package, Truck, Clock, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Clock, AlertCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
 
 import { getReturnStatus } from '@/lib/actions/return.actions';
@@ -58,16 +58,37 @@ export default function TrackReturnPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-pulse text-muted-foreground">載入中...</div>
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-20" />
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (error || !returnRequest) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">{error}</p>
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-red-50">
+          <AlertCircle className="size-7 text-red-600" />
+        </div>
+        <p className="mb-4 text-muted-foreground">{error || '找不到此退貨申請'}</p>
         <Button onClick={() => router.push('/portal/dashboard')}>返回首頁</Button>
       </div>
     );
@@ -211,6 +232,8 @@ export default function TrackReturnPage() {
                   <img
                     src={image.image_url}
                     alt={image.image_type || 'Photo'}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </div>
