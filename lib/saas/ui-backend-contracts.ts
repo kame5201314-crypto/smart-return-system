@@ -8,6 +8,7 @@ import type {
   PlatformOrgDetail,
   PlatformOrgSummary,
 } from '@/lib/saas/platform-admin-data';
+import { resolveSaaSTeamSeatUsage } from '@/lib/saas/team-limits';
 
 export type ViewState = 'loading' | 'ready' | 'empty' | 'error' | 'gated';
 
@@ -442,32 +443,46 @@ export function buildTeamSettingsView(input: {
   actions: TeamSettingsView['actions'];
 }): TeamSettingsView {
   const plan = getSaaSPlanDefinition(input.plan);
+  const members = input.members.map((member) => ({
+    id: requireString(member.id, 'team.member.id'),
+    email: requireString(member.email, 'team.member.email'),
+    displayName: member.displayName,
+    role: normalizeTeamMemberRole(member.role),
+    status: normalizeTeamMemberStatus(member.status),
+    joinedAt: member.joinedAt,
+  }));
+  const invites = input.invites.map((invite) => ({
+    id: requireString(invite.id, 'team.invite.id'),
+    email: requireString(invite.email, 'team.invite.email'),
+    role: normalizeInviteRole(invite.role),
+    status: normalizeInviteStatus(invite.status),
+    expiresAt: requireString(invite.expiresAt, 'team.invite.expiresAt'),
+  }));
+  const seatUsage = resolveSaaSTeamSeatUsage({
+    seatLimit: plan.seatLimit,
+    activeMemberCount: members.filter((member) => member.status !== 'disabled').length,
+    pendingInviteCount: invites.filter((invite) => invite.status === 'pending').length,
+  });
+  const requestedCanInvite = requireBoolean(input.actions.canInvite, 'team.actions.canInvite');
+  const canInvite = requestedCanInvite && !seatUsage.isFull;
 
   return {
     orgId: requireString(input.orgId, 'team.orgId'),
     seatLimit: plan.seatLimit,
-    members: input.members.map((member) => ({
-      id: requireString(member.id, 'team.member.id'),
-      email: requireString(member.email, 'team.member.email'),
-      displayName: member.displayName,
-      role: normalizeTeamMemberRole(member.role),
-      status: normalizeTeamMemberStatus(member.status),
-      joinedAt: member.joinedAt,
-    })),
-    invites: input.invites.map((invite) => ({
-      id: requireString(invite.id, 'team.invite.id'),
-      email: requireString(invite.email, 'team.invite.email'),
-      role: normalizeInviteRole(invite.role),
-      status: normalizeInviteStatus(invite.status),
-      expiresAt: requireString(invite.expiresAt, 'team.invite.expiresAt'),
-    })),
+    members,
+    invites,
     actions: {
-      canInvite: requireBoolean(input.actions.canInvite, 'team.actions.canInvite'),
+      canInvite,
       canChangeRoles: requireBoolean(
         input.actions.canChangeRoles,
         'team.actions.canChangeRoles'
       ),
-      ...(input.actions.disabledReason ? { disabledReason: input.actions.disabledReason } : {}),
+      ...(input.actions.disabledReason || (!canInvite && requestedCanInvite && seatUsage.isFull)
+        ? {
+            disabledReason:
+              input.actions.disabledReason || 'Seat limit has been reached for this plan.',
+          }
+        : {}),
     },
   };
 }

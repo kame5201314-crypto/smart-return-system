@@ -166,6 +166,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `/api/v1/admin/pickup/export`
   - These routes now require `getOrgContext({ requirements: { exportable: true } })`.
   - `past_due`, `suspended`, and `cancelled` organizations cannot export data.
+- SaaS team seat limit policy was added:
+  - `lib/saas/team-limits.ts`
+  - `buildTeamSettingsView()` now reserves seats for active/non-disabled members plus pending invites.
+  - When the plan seat limit is full, team DTOs force `actions.canInvite=false`.
+  - No live team invite route was exposed and no DB query or migration was added.
 - Billing foundation was added without enabling real billing:
   - `lib/saas/billing.ts`
   - `/api/billing/ecpay/webhook`

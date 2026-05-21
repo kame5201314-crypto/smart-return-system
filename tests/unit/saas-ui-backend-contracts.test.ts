@@ -249,6 +249,58 @@ describe('SaaS UI/backend contracts', () => {
     ).toThrow('Invalid invite role: owner');
   });
 
+  it('disables team invites when active seats and pending invites reach the plan limit', () => {
+    expect(
+      buildTeamSettingsView({
+        orgId: 'org-1',
+        plan: 'basic',
+        members: [
+          {
+            id: 'member-1',
+            email: 'owner@example.com',
+            displayName: null,
+            role: 'owner',
+            status: 'active',
+            joinedAt: null,
+          },
+          {
+            id: 'member-2',
+            email: 'admin@example.com',
+            displayName: null,
+            role: 'admin',
+            status: 'active',
+            joinedAt: null,
+          },
+          {
+            id: 'member-3',
+            email: 'disabled@example.com',
+            displayName: null,
+            role: 'viewer',
+            status: 'disabled',
+            joinedAt: null,
+          },
+        ],
+        invites: [
+          {
+            id: 'invite-1',
+            email: 'staff@example.com',
+            role: 'staff',
+            status: 'pending',
+            expiresAt: '2026-05-28T00:00:00.000Z',
+          },
+        ],
+        actions: {
+          canInvite: true,
+          canChangeRoles: true,
+        },
+      }).actions
+    ).toEqual({
+      canInvite: false,
+      canChangeRoles: true,
+      disabledReason: 'Seat limit has been reached for this plan.',
+    });
+  });
+
   it('requires real usage snapshots for platform organization DTOs', () => {
     expect(() => buildPlatformOrganizationListView([orgSummary], {})).toThrow(
       'Missing usage snapshot for organization: org-1'

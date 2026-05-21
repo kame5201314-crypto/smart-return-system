@@ -2,6 +2,38 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS team seat limit policy for backend DTOs.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/team-limits.ts`
+- `tests/unit/saas-team-limits.test.ts`
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Team seat usage now counts active/non-disabled members plus pending invites as reserved seats.
+- `buildTeamSettingsView()` forces `actions.canInvite=false` when the plan seat limit is full.
+- Enterprise remains unlimited because its seat limit is `null`.
+- No live team invite route was exposed and no DB query or migration was added.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Hardened SaaS export subscription guards.
 
 Commit:

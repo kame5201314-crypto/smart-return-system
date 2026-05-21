@@ -33,6 +33,24 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS team seat limit policy
+Files:
+- lib/saas/team-limits.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-team-limits.test.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Team DTOs now reserve seats for active members and pending invites before enabling invites. No live invite route or DB query was added.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS export subscription guard
 Files:
 - lib/saas/org-context.ts

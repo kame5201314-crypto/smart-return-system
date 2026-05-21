@@ -185,6 +185,7 @@ function checkCommercialFoundation() {
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
     'lib/saas/subscription-access.ts',
+    'lib/saas/team-limits.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
@@ -438,6 +439,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS UI/backend DTO builders', 'settings and platform admin contracts have validated DTO builders');
     } else {
       record('fail', 'SaaS UI/backend DTO builders', 'UI contracts must have validation builders before live backend wiring');
+    }
+  }
+
+  const teamLimitsPath = path.resolve(process.cwd(), 'lib/saas/team-limits.ts');
+  if (fs.existsSync(teamLimitsPath) && fs.existsSync(uiBackendContractsPath)) {
+    const teamLimitsSource = fs.readFileSync(teamLimitsPath, 'utf8');
+    const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
+    if (
+      teamLimitsSource.includes('resolveSaaSTeamSeatUsage') &&
+      teamLimitsSource.includes('pendingInviteCount') &&
+      teamLimitsSource.includes('reservedSeatCount') &&
+      uiContractSource.includes('resolveSaaSTeamSeatUsage') &&
+      uiContractSource.includes('Seat limit has been reached for this plan.')
+    ) {
+      record('pass', 'SaaS team seat limits', 'team DTOs account for active seats and pending invites before enabling invites');
+    } else {
+      record('fail', 'SaaS team seat limits', 'team invite DTOs must enforce org.plan seat limits');
     }
   }
 
