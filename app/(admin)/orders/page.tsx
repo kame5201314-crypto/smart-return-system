@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/saas/page-header';
 
 import { createClient } from '@/lib/supabase/client';
 import { CHANNEL_LIST } from '@/config/constants';
@@ -99,10 +100,10 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">訂單查詢</h1>
-        <p className="text-muted-foreground">查看所有訂單資訊</p>
-      </div>
+      <PageHeader
+        title="訂單查詢"
+        description="查看所有退貨關聯訂單與明細資訊。"
+      />
 
       <Card>
         <CardHeader>

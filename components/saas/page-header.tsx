@@ -4,12 +4,13 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   eyebrow?: string;
+  icon?: ReactNode;
   actions?: ReactNode;
 }
 
 // Shared SaaS admin page header. Keeps title / description / action layout
 // consistent across authenticated pages and responsive on small screens.
-export function PageHeader({ title, description, eyebrow, actions }: PageHeaderProps) {
+export function PageHeader({ title, description, eyebrow, icon, actions }: PageHeaderProps) {
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
       <div>
@@ -18,7 +19,10 @@ export function PageHeader({ title, description, eyebrow, actions }: PageHeaderP
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="text-2xl font-bold text-gray-950">{title}</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-950">
+          {icon}
+          {title}
+        </h1>
         {description ? (
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         ) : null}

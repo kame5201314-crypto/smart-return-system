@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/saas/page-header';
 import {
   Table,
   TableBody,
@@ -573,52 +574,50 @@ export default function PickupPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardList className="w-7 h-7" />
-            派車收件
-          </h1>
-          <p className="text-muted-foreground">追蹤物流派車收件狀態</p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            ref={importFileRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-          <Button
-            variant="outline"
-            onClick={() => importFileRef.current?.click()}
-            disabled={isImporting}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            {isImporting ? '匯入中...' : '匯入'}
-          </Button>
-          <Button asChild variant="outline">
-            <a href="/api/v1/admin/pickup/export" target="_blank" rel="noreferrer">
-              <Download className="w-4 h-4 mr-2" />
-              匯出
-            </a>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/pickup/scan">
-              <ScanLine className="w-4 h-4 mr-2" />
-              掃描頁面
-            </Link>
-          </Button>
-          <Button variant="outline" onClick={handlePrint} disabled={selectedIds.size === 0}>
-            <Printer className="w-4 h-4 mr-2" />
-            列印 {selectedIds.size > 0 && `(${selectedIds.size})`}
-          </Button>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="w-4 h-4 mr-2" />
-            新增記錄
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<ClipboardList className="size-6" />}
+        title="派車收件"
+        description="追蹤物流派車收件狀態。"
+        actions={
+          <>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              onClick={() => importFileRef.current?.click()}
+              disabled={isImporting}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isImporting ? '匯入中...' : '匯入'}
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/api/v1/admin/pickup/export" target="_blank" rel="noreferrer">
+                <Download className="w-4 h-4 mr-2" />
+                匯出
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/pickup/scan">
+                <ScanLine className="w-4 h-4 mr-2" />
+                掃描頁面
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={handlePrint} disabled={selectedIds.size === 0}>
+              <Printer className="w-4 h-4 mr-2" />
+              列印 {selectedIds.size > 0 && `(${selectedIds.size})`}
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="w-4 h-4 mr-2" />
+              新增記錄
+            </Button>
+          </>
+        }
+      />
 
       {/* Search & Stats */}
       <Card>
