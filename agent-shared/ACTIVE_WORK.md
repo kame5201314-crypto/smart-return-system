@@ -33,6 +33,23 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin API DTO wiring
+Files:
+- app/api/internal/saas/orgs/route.ts
+- app/api/internal/saas/orgs/[id]/route.ts
+- app/api/internal/saas/billing/events/route.ts
+- lib/saas/platform-admin-data.ts
+- tests/unit/saas-platform-admin-routes.test.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Internal platform admin APIs now return UI contract DTOs and require real usage snapshots. Feature flag remains closed by default.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Convert UI mock contracts to backend DTOs
 Files:
 - lib/saas/ui-backend-contracts.ts

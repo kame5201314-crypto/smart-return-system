@@ -11,6 +11,7 @@ import {
   requirePlatformAdminAccess,
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
+import { buildPlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
 
 interface HandlerDependencies {
   requireAccess?: () => Promise<PlatformAdminContext>;
@@ -32,6 +33,10 @@ function getRepository(deps: HandlerDependencies): PlatformAdminDataRepository {
   );
 }
 
+function getCurrentMonthStartIso(now = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
 export async function handleListPlatformOrganizations(
   request: NextRequest,
   deps: HandlerDependencies = {}
@@ -39,13 +44,18 @@ export async function handleListPlatformOrganizations(
   try {
     await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
 
-    const organizations = await getRepository(deps).listOrganizations({
+    const repository = getRepository(deps);
+    const organizations = await repository.listOrganizations({
       limit: parseLimit(request),
+    });
+    const usageByOrgId = await repository.listOrganizationUsage({
+      orgIds: organizations.map((org) => org.id),
+      periodStart: getCurrentMonthStartIso(),
     });
 
     return NextResponse.json({
       success: true,
-      data: organizations,
+      data: buildPlatformOrganizationListView(organizations, usageByOrgId),
     });
   } catch (error) {
     if (error instanceof PlatformAdminAccessError) {

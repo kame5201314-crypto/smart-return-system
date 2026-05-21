@@ -25,10 +25,11 @@ Status values:
 |---|---|---|
 | blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `025_*` chain |
 | todo | Signup persistence backend | Wire after migrations; public signup remains closed by default |
-| todo | Platform admin live data wiring | Use `UI_BACKEND_CONTRACTS.md`; keep feature flag closed until approved |
+| todo | Platform admin live data wiring | API DTO wiring is done; UI page consumption still waits for migrations/live data readiness |
 | todo | Billing foundation | ECPay env / webhook / idempotency; no real billing without test keys and approval |
 | todo | AI quota enforcement hardening | Ensure all AI entrypoints use `org.plan` quota |
 | todo | SaaS predeploy strict gate | Needs Gemini key and migration status confirmation |
+| done | Platform admin API DTO wiring | This commit; internal APIs return UI contract DTOs behind the platform admin flag |
 | done | Convert UI mock contracts to backend DTOs | This commit; added `lib/saas/ui-backend-contracts.ts` and unit tests |
 
 ## Shared Rules

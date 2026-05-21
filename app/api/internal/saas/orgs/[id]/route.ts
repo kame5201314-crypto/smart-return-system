@@ -11,6 +11,7 @@ import {
   requirePlatformAdminAccess,
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
+import { buildPlatformOrganizationDetailView } from '@/lib/saas/ui-backend-contracts';
 
 interface HandlerDependencies {
   requireAccess?: () => Promise<PlatformAdminContext>;
@@ -23,6 +24,10 @@ function getRepository(deps: HandlerDependencies): PlatformAdminDataRepository {
   );
 }
 
+function getCurrentMonthStartIso(now = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
 export async function handleGetPlatformOrganization(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -32,7 +37,8 @@ export async function handleGetPlatformOrganization(
     await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
 
     const { id } = await context.params;
-    const organization = await getRepository(deps).getOrganization({ orgId: id });
+    const repository = getRepository(deps);
+    const organization = await repository.getOrganization({ orgId: id });
 
     if (!organization) {
       return NextResponse.json(
@@ -41,9 +47,23 @@ export async function handleGetPlatformOrganization(
       );
     }
 
+    const [usageByOrgId, recentAuditLogs] = await Promise.all([
+      repository.listOrganizationUsage({
+        orgIds: [organization.id],
+        periodStart: getCurrentMonthStartIso(),
+      }),
+      repository.listAuditLogs({
+        orgId: organization.id,
+        limit: 20,
+      }),
+    ]);
+
     return NextResponse.json({
       success: true,
-      data: organization,
+      data: buildPlatformOrganizationDetailView(organization, {
+        usageByOrgId,
+        recentAuditLogs,
+      }),
     });
   } catch (error) {
     if (error instanceof PlatformAdminAccessError) {

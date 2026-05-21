@@ -2,6 +2,32 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Wired platform admin internal APIs to backend DTO contracts.
+
+Commit:
+
+```text
+this commit
+```
+
+Updated:
+
+- `app/api/internal/saas/orgs/route.ts`
+- `app/api/internal/saas/orgs/[id]/route.ts`
+- `app/api/internal/saas/billing/events/route.ts`
+- `lib/saas/platform-admin-data.ts`
+- `tests/unit/saas-platform-admin-routes.test.ts`
+
+Notes:
+
+- Organization list/detail and billing-event APIs now return DTOs aligned with `UI_BACKEND_CONTRACTS.md`.
+- Platform organization DTOs require repository-provided usage snapshots; missing usage returns a server error instead of fake production data.
+- Billing event status is derived from `processed_at` when the current migration schema has no `status` column.
+- Routes remain protected by `requirePlatformAdminAccess()` and the `multi_tenant_admin` feature flag.
+- No migrations were applied and no external platform settings were changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Converted UI mock contracts into backend DTO code.
 
 Commit:

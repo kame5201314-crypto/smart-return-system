@@ -31,10 +31,28 @@ export interface PlatformBillingEventSummary {
   createdAt: string | null;
 }
 
+export interface PlatformOrgUsageSnapshot {
+  returnsThisMonth: number;
+  aiUsedThisMonth: number;
+}
+
+export interface PlatformAuditLogSummary {
+  id: string;
+  action: string;
+  actorEmail: string | null;
+  createdAt: string;
+}
+
 export interface PlatformAdminDataRepository {
   listOrganizations(input?: { limit?: number }): Promise<PlatformOrgSummary[]>;
   getOrganization(input: { orgId: string }): Promise<PlatformOrgDetail | null>;
   listBillingEvents(input?: { limit?: number }): Promise<PlatformBillingEventSummary[]>;
+  listOrganizationUsage(input: {
+    orgIds: string[];
+    periodStart: string;
+  }): Promise<Record<string, PlatformOrgUsageSnapshot>>;
+  listOrganizationNames(input: { orgIds: string[] }): Promise<Record<string, string | null>>;
+  listAuditLogs(input: { orgId: string; limit?: number }): Promise<PlatformAuditLogSummary[]>;
 }
 
 interface SupabaseQueryError {
@@ -43,7 +61,9 @@ interface SupabaseQueryError {
 
 interface SupabaseQueryBuilder {
   select(columns: string): SupabaseQueryBuilder;
-  eq(column: string, value: string): SupabaseQueryBuilder;
+  eq(column: string, value: unknown): SupabaseQueryBuilder;
+  in(column: string, values: string[]): SupabaseQueryBuilder;
+  gte(column: string, value: string): SupabaseQueryBuilder;
   order(column: string, options: { ascending: boolean }): SupabaseQueryBuilder;
   limit(count: number): SupabaseQueryBuilder;
   maybeSingle(): Promise<{ data: unknown; error: SupabaseQueryError | null }>;
@@ -154,15 +174,87 @@ function normalizeBillingEvent(row: unknown): PlatformBillingEventSummary | null
     orgId,
     provider: stringOrFallback(row.provider, ''),
     eventType: stringOrFallback(row.event_type, ''),
-    status: stringOrFallback(row.status, 'pending'),
+    status: stringOrNull(row.status) ?? (stringOrNull(row.processed_at) ? 'processed' : 'received'),
     providerEventId: stringOrNull(row.provider_event_id),
     createdAt: stringOrNull(row.created_at),
+  };
+}
+
+function normalizeOrgName(row: unknown): { id: string; name: string | null } | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const id = stringOrNull(row.id);
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    name: stringOrNull(row.name),
+  };
+}
+
+function normalizeUsageRow(row: unknown): { orgId: string } | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const orgId = stringOrNull(row.org_id);
+  return orgId ? { orgId } : null;
+}
+
+function normalizeAuditLog(row: unknown): PlatformAuditLogSummary | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const id = stringOrNull(row.id);
+  const action = stringOrNull(row.action);
+  const createdAt = stringOrNull(row.created_at);
+  if (!id || !action || !createdAt) {
+    return null;
+  }
+
+  return {
+    id,
+    action,
+    actorEmail: stringOrNull(row.actor_email),
+    createdAt,
   };
 }
 
 function assertNoSupabaseError(error: SupabaseQueryError | null, fallbackMessage: string): void {
   if (error) {
     throw new Error(error.message || fallbackMessage);
+  }
+}
+
+function buildEmptyUsage(orgIds: string[]): Record<string, PlatformOrgUsageSnapshot> {
+  return Object.fromEntries(
+    orgIds.map((orgId) => [
+      orgId,
+      {
+        returnsThisMonth: 0,
+        aiUsedThisMonth: 0,
+      },
+    ])
+  );
+}
+
+function incrementUsage(
+  usageByOrgId: Record<string, PlatformOrgUsageSnapshot>,
+  rows: unknown,
+  field: keyof PlatformOrgUsageSnapshot
+): void {
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const normalized = normalizeUsageRow(row);
+    if (!normalized || !usageByOrgId[normalized.orgId]) {
+      continue;
+    }
+
+    usageByOrgId[normalized.orgId][field] += 1;
   }
 }
 
@@ -217,7 +309,7 @@ export function createPlatformAdminDataRepository(
       const limit = input.limit ?? 50;
       const { data, error } = await client
         .from('billing_events')
-        .select('id, org_id, provider, event_type, status, provider_event_id, created_at')
+        .select('id, org_id, provider, event_type, provider_event_id, processed_at, created_at')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -225,6 +317,72 @@ export function createPlatformAdminDataRepository(
       return (Array.isArray(data) ? data : [])
         .map((row) => normalizeBillingEvent(row))
         .filter((event): event is PlatformBillingEventSummary => event !== null);
+    },
+
+    async listOrganizationUsage(input) {
+      if (input.orgIds.length === 0) {
+        return {};
+      }
+
+      const usageByOrgId = buildEmptyUsage(input.orgIds);
+
+      const { data: returnRows, error: returnsError } = await client
+        .from('return_requests')
+        .select('id, org_id, created_at')
+        .in('org_id', input.orgIds)
+        .gte('created_at', input.periodStart);
+
+      assertNoSupabaseError(returnsError, 'Failed to load organization return usage.');
+      incrementUsage(usageByOrgId, returnRows, 'returnsThisMonth');
+
+      const { data: aiRows, error: aiError } = await client
+        .from('ai_usage_events')
+        .select('id, org_id, cached, success, created_at')
+        .in('org_id', input.orgIds)
+        .gte('created_at', input.periodStart)
+        .eq('cached', false)
+        .eq('success', true);
+
+      assertNoSupabaseError(aiError, 'Failed to load organization AI usage.');
+      incrementUsage(usageByOrgId, aiRows, 'aiUsedThisMonth');
+
+      return usageByOrgId;
+    },
+
+    async listOrganizationNames(input) {
+      if (input.orgIds.length === 0) {
+        return {};
+      }
+
+      const { data, error } = await client
+        .from('organizations')
+        .select('id, name')
+        .in('id', input.orgIds);
+
+      assertNoSupabaseError(error, 'Failed to load organization names.');
+
+      return Object.fromEntries(
+        (Array.isArray(data) ? data : [])
+          .map((row) => normalizeOrgName(row))
+          .filter((org): org is { id: string; name: string | null } => org !== null)
+          .map((org) => [org.id, org.name])
+      );
+    },
+
+    async listAuditLogs(input) {
+      const limit = input.limit ?? 20;
+      const { data, error } = await client
+        .from('audit_logs')
+        .select('id, action, created_at')
+        .eq('org_id', input.orgId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      assertNoSupabaseError(error, 'Failed to load organization audit logs.');
+
+      return (Array.isArray(data) ? data : [])
+        .map((row) => normalizeAuditLog(row))
+        .filter((log): log is PlatformAuditLogSummary => log !== null);
     },
   };
 }

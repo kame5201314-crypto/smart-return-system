@@ -11,6 +11,7 @@ import {
   requirePlatformAdminAccess,
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
+import { buildPlatformBillingEventsView } from '@/lib/saas/ui-backend-contracts';
 
 interface HandlerDependencies {
   requireAccess?: () => Promise<PlatformAdminContext>;
@@ -39,13 +40,17 @@ export async function handleListPlatformBillingEvents(
   try {
     await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
 
-    const events = await getRepository(deps).listBillingEvents({
+    const repository = getRepository(deps);
+    const events = await repository.listBillingEvents({
       limit: parseLimit(request),
+    });
+    const orgNamesById = await repository.listOrganizationNames({
+      orgIds: Array.from(new Set(events.map((event) => event.orgId))),
     });
 
     return NextResponse.json({
       success: true,
-      data: events,
+      data: buildPlatformBillingEventsView(events, orgNamesById),
     });
   } catch (error) {
     if (error instanceof PlatformAdminAccessError) {

@@ -74,6 +74,23 @@ function createRepository(): PlatformAdminDataRepository {
         createdAt: '2026-05-20T00:00:00.000Z',
       },
     ]),
+    listOrganizationUsage: vi.fn(async () => ({
+      'org-1': {
+        returnsThisMonth: 12,
+        aiUsedThisMonth: 4,
+      },
+    })),
+    listOrganizationNames: vi.fn(async () => ({
+      'org-1': 'Demo Org',
+    })),
+    listAuditLogs: vi.fn(async () => [
+      {
+        id: 'audit-1',
+        action: 'org.created',
+        actorEmail: null,
+        createdAt: '2026-05-20T00:00:00.000Z',
+      },
+    ]),
   };
 }
 
@@ -100,6 +117,7 @@ describe('SaaS platform admin API routes', () => {
       code: 'feature_disabled',
     });
     expect(repository.listOrganizations).not.toHaveBeenCalled();
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
   });
 
   it('lists organizations for platform admins and clamps limit to 100', async () => {
@@ -115,14 +133,24 @@ describe('SaaS platform admin API routes', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       success: true,
-      data: [
-        {
-          id: 'org-1',
-          plan: 'growth',
-        },
-      ],
+      data: {
+        organizations: [
+          {
+            id: 'org-1',
+            plan: 'growth',
+            usage: {
+              returnsThisMonth: 12,
+              aiUsedThisMonth: 4,
+            },
+          },
+        ],
+      },
     });
     expect(repository.listOrganizations).toHaveBeenCalledWith({ limit: 100 });
+    expect(repository.listOrganizationUsage).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+      periodStart: expect.any(String),
+    });
   });
 
   it('loads organization detail for platform admins', async () => {
@@ -140,7 +168,13 @@ describe('SaaS platform admin API routes', () => {
     expect(await response.json()).toMatchObject({
       success: true,
       data: {
-        id: 'org-1',
+        organization: {
+          id: 'org-1',
+          usage: {
+            returnsThisMonth: 12,
+            aiUsedThisMonth: 4,
+          },
+        },
         members: [
           {
             role: 'owner',
@@ -149,6 +183,14 @@ describe('SaaS platform admin API routes', () => {
       },
     });
     expect(repository.getOrganization).toHaveBeenCalledWith({ orgId: 'org-1' });
+    expect(repository.listOrganizationUsage).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+      periodStart: expect.any(String),
+    });
+    expect(repository.listAuditLogs).toHaveBeenCalledWith({
+      orgId: 'org-1',
+      limit: 20,
+    });
   });
 
   it('returns 404 when an organization does not exist', async () => {
@@ -169,6 +211,7 @@ describe('SaaS platform admin API routes', () => {
       success: false,
       error: 'Organization not found',
     });
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
   });
 
   it('lists billing events for platform admins', async () => {
@@ -184,14 +227,42 @@ describe('SaaS platform admin API routes', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       success: true,
-      data: [
-        {
-          id: 'event-1',
-          provider: 'ecpay',
-          status: 'processed',
-        },
-      ],
+      data: {
+        events: [
+          {
+            id: 'event-1',
+            orgName: 'Demo Org',
+            provider: 'ecpay',
+            status: 'processed',
+          },
+        ],
+      },
     });
     expect(repository.listBillingEvents).toHaveBeenCalledWith({ limit: 10 });
+    expect(repository.listOrganizationNames).toHaveBeenCalledWith({ orgIds: ['org-1'] });
+  });
+
+  it('does not serve platform organization DTOs when usage snapshots are missing', async () => {
+    const repository = createRepository();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(repository.listOrganizationUsage).mockResolvedValueOnce({});
+
+    try {
+      const response = await handleListPlatformOrganizations(
+        buildRequest('/api/internal/saas/orgs'),
+        {
+          requireAccess: async () => platformAdminContext,
+          repository,
+        }
+      );
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toMatchObject({
+        success: false,
+        error: 'Failed to load organizations',
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
