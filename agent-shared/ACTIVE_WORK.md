@@ -33,6 +33,29 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS billing event status schema draft
+Files:
+- supabase/migrations/029_saas_billing_event_status.sql
+- lib/saas/billing.ts
+- lib/saas/platform-admin-data.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/check-saas-schema-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-billing-foundation.test.ts
+- tests/unit/saas-migration-plan.test.ts
+- tests/unit/saas-schema-readiness.test.ts
+- agent-shared/CODEX_NON_UI_SCOPE.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added draft 029 for billing_events.status, aligned backend record defaults to received, and updated migration/schema gates to expect the full 001-029 chain. No migration was applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS schema gate commercial v2 coverage
 Files:
 - scripts/saas/check-saas-schema-readiness.mjs
@@ -151,7 +174,7 @@ Files:
 - agent-shared/HANDOFF_LOG.md
 - docs/SAAS_EXTERNAL_SETUP_STATUS.md
 Status: done
-Notes: Added a read-only pre-apply migration plan check that validates SaaS project ref, forbidden internal refs, DB password readiness, and full 001-028 migration chain. No migration is applied by the script.
+Notes: Added a read-only pre-apply migration plan check that validates SaaS project ref, forbidden internal refs, DB password readiness, and the full migration chain. Current chain ends at 029. No migration is applied by the script.
 ```
 
 ```text

@@ -24,6 +24,7 @@ describe('SaaS schema readiness gate', () => {
       "['subscriptions', 'current_period_end']",
       "['subscriptions', 'cancel_at_period_end']",
       "['subscriptions', 'canceled_at']",
+      "['billing_events', 'status']",
       "['billing_events', 'processed_at']",
       "['organization_invites', 'token']",
       "['organization_invites', 'expires_at']",

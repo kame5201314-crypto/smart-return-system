@@ -37,7 +37,7 @@ domain / billing / secret changes
 
 - SaaS DB password is still needed for migration operations.
 - SaaS migrations have not been applied.
-- New empty SaaS DB must receive the full migration chain from `001_*` through `025_*`; do not apply only `023/024/025`.
+- New empty SaaS DB must receive the full migration chain from `001_*` through `029_*`; do not apply only the SaaS tail migrations.
 - `GEMINI_API_KEY` may still be missing or placeholder.
 
 ## Routing Strategy

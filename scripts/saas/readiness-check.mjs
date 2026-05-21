@@ -208,6 +208,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/026_saas_public_signup_requests.sql',
     'supabase/migrations/027_saas_platform_admin_read_model.sql',
     'supabase/migrations/028_saas_manual_beta_org_provisioning.sql',
+    'supabase/migrations/029_saas_billing_event_status.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -439,12 +440,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('028_saas_manual_beta_org_provisioning.sql') &&
+      source.includes('029_saas_billing_event_status.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-029 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-029 migration chain without applying migrations');
     }
   }
 
@@ -562,6 +563,7 @@ function checkCommercialFoundation() {
       billingSource.includes('buildECPayCheckMacValue') &&
       billingSource.includes('verifyECPayCheckMacValue') &&
       billingSource.includes('provider_event_id') &&
+      billingSource.includes("status: input.status ?? 'received'") &&
       ecpayRouteSource.includes('billing_disabled') &&
       ecpayRouteSource.includes('credentials_missing') &&
       ecpayRouteSource.includes('signature_required') &&
@@ -604,6 +606,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/028_saas_manual_beta_org_provisioning.sql'
   );
+  const billingEventStatusMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/029_saas_billing_event_status.sql'
+  );
   if (
     fs.existsSync(platformOrgProvisioningPath) &&
     fs.existsSync(manualBetaProvisioningMigrationPath)
@@ -620,6 +626,20 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS manual Beta org provisioning', 'platform admin POST route has RPC-backed provisioning draft');
     } else {
       record('fail', 'SaaS manual Beta org provisioning', 'manual Beta org provisioning must be platform-admin gated and backed by a migration draft');
+    }
+  }
+
+  if (fs.existsSync(billingEventStatusMigrationPath) && fs.existsSync(billingFoundationPath)) {
+    const migrationSource = fs.readFileSync(billingEventStatusMigrationPath, 'utf8');
+    const billingSource = fs.readFileSync(billingFoundationPath, 'utf8');
+    if (
+      migrationSource.includes('ADD COLUMN IF NOT EXISTS status') &&
+      migrationSource.includes("'received', 'processed', 'failed', 'ignored'") &&
+      billingSource.includes("status: input.status ?? 'received'")
+    ) {
+      record('pass', 'SaaS billing event status schema', 'billing_events.status draft matches backend record defaults');
+    } else {
+      record('fail', 'SaaS billing event status schema', 'billing_events.status must support received/processed/failed/ignored and backend defaults');
     }
   }
 }

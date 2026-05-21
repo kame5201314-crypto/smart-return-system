@@ -2,6 +2,43 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS billing event status schema draft.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `supabase/migrations/029_saas_billing_event_status.sql`
+
+Updated:
+
+- `lib/saas/billing.ts`
+- `lib/saas/platform-admin-data.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/check-saas-schema-readiness.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/saas-billing-foundation.test.ts`
+- `tests/unit/saas-migration-plan.test.ts`
+- `tests/unit/saas-schema-readiness.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/CODEX_NON_UI_SCOPE.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added draft migration `029` for `billing_events.status` with `received`, `processed`, `failed`, and `ignored`.
+- Backend billing event records now default to `status='received'`, matching the platform admin billing event contract.
+- Migration plan and schema readiness checks now expect the full `001_*` through `029_*` chain.
+- No migration was applied, no billing provider was enabled, and no external platform setting was changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Expanded SaaS schema readiness gate coverage for commercial v2 columns.
 
 Commit:
@@ -212,7 +249,7 @@ Updated:
 Notes:
 
 - New scripts: `npm run saas:migration-plan` and `npm run saas:migration-plan:strict`.
-- The check validates `APP_MODE=saas`, expected SaaS Supabase project ref, forbidden internal project refs, `SUPABASE_DB_PASSWORD`, and the full migration chain ending at `028`.
+- The check validates `APP_MODE=saas`, expected SaaS Supabase project ref, forbidden internal project refs, `SUPABASE_DB_PASSWORD`, and the full migration chain. Current chain ends at `029`.
 - The script is intentionally read-only and prints that no migrations were applied.
 - Strict mode should remain blocked until `SUPABASE_DB_PASSWORD` is available.
 

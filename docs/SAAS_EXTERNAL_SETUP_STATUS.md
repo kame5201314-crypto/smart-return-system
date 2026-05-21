@@ -209,7 +209,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `scripts/saas/check-migration-plan.mjs`
   - `npm run saas:migration-plan`
   - `npm run saas:migration-plan:strict`
-  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full migration chain ending at `028`.
+  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full migration chain ending at `029`.
   - Strict mode should remain blocked until `SUPABASE_DB_PASSWORD` is available.
   - No Supabase data was changed.
 - Platform admin read model migration draft was added without applying migrations:
@@ -225,6 +225,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - The route remains closed while `ENABLE_MULTI_TENANT_ADMIN=false`.
   - The draft RPC creates the organization, optional owner membership, trialing manual subscription, and audit log in one SQL function.
   - No Supabase data was changed.
+- Billing event status schema draft was added without applying migrations:
+  - `supabase/migrations/029_saas_billing_event_status.sql`
+  - Adds `billing_events.status` with `received`, `processed`, `failed`, and `ignored` values to match the platform admin UI/backend contract.
+  - Backend billing event records now default to `status='received'`.
+  - No Supabase data was changed and billing remains disabled by `ENABLE_BILLING=false`.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
   - Tests include ECPay's published payment-notification checksum example.
@@ -337,7 +342,7 @@ After the SaaS Supabase and secret values exist:
 6. Run `npm run saas:migration-plan:strict`.
 7. Run `npm run saas:schema-gate:strict`.
 8. Run `npm run saas:predeploy`.
-9. Review and apply migrations to the SaaS Supabase Project only, using the full migration chain from `001_*` through `028_*`; do not apply only the SaaS tail migrations to a new empty DB.
+9. Review and apply migrations to the SaaS Supabase Project only, using the full migration chain from `001_*` through `029_*`; do not apply only the SaaS tail migrations to a new empty DB.
 10. Deploy the SaaS Vercel Project.
 11. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 

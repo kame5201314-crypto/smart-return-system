@@ -309,7 +309,7 @@ export function createPlatformAdminDataRepository(
       const limit = input.limit ?? 50;
       const { data, error } = await client
         .from('billing_events')
-        .select('id, org_id, provider, event_type, provider_event_id, processed_at, created_at')
+        .select('id, org_id, provider, event_type, status, provider_event_id, processed_at, created_at')
         .order('created_at', { ascending: false })
         .limit(limit);
 

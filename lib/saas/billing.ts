@@ -13,6 +13,8 @@ export interface BillingProviderConfig {
   configured: boolean;
 }
 
+export type BillingEventStatus = 'received' | 'processed' | 'failed' | 'ignored';
+
 export interface BillingWebhookState {
   billingEnabled: boolean;
   provider: BillingProvider;
@@ -26,6 +28,7 @@ export interface BillingEventInput {
   provider: BillingProvider;
   providerEventId: string;
   eventType: string;
+  status?: BillingEventStatus;
   payload: Record<string, unknown>;
 }
 
@@ -139,6 +142,7 @@ export function buildBillingEventRecord(input: BillingEventInput): Record<string
     provider: input.provider,
     provider_event_id: requireEventString(input.providerEventId, 'providerEventId'),
     event_type: requireEventString(input.eventType, 'eventType'),
+    status: input.status ?? 'received',
     payload: input.payload,
   };
 }

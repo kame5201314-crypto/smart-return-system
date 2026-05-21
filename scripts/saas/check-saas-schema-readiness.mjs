@@ -98,6 +98,7 @@ const requiredColumns = [
   ['billing_events', 'provider'],
   ['billing_events', 'provider_event_id'],
   ['billing_events', 'event_type'],
+  ['billing_events', 'status'],
   ['billing_events', 'payload'],
   ['billing_events', 'processed_at'],
   ['organization_invites', 'org_id'],

@@ -105,9 +105,25 @@ describe('SaaS billing foundation', () => {
       provider: 'ecpay',
       provider_event_id: 'trade-1',
       event_type: 'ecpay.payment_succeeded',
+      status: 'received',
       payload: {
         MerchantTradeNo: 'trade-1',
       },
+    });
+  });
+
+  it('allows billing event records to carry an explicit processing status', () => {
+    expect(
+      buildBillingEventRecord({
+        orgId: 'org-1',
+        provider: 'ecpay',
+        providerEventId: 'trade-1',
+        eventType: 'ecpay.payment_succeeded',
+        status: 'processed',
+        payload: {},
+      })
+    ).toMatchObject({
+      status: 'processed',
     });
   });
 
