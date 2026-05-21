@@ -2,6 +2,35 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added the billing foundation without enabling real billing.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/billing.ts`
+- `app/api/billing/ecpay/webhook/route.ts`
+- `tests/unit/saas-billing-foundation.test.ts`
+
+Updated:
+
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Notes:
+
+- ECPay webhook route returns 404 while `ENABLE_BILLING=false`.
+- If billing is enabled, it still requires `BILLING_PROVIDER=ecpay` and complete ECPay credentials.
+- Even with credentials, it rejects requests unless signature verification is explicitly provided.
+- Verified events are inserted into `billing_events` with provider/event idempotency handling.
+- No provider credentials were added, no payment API was called, and no migrations were applied.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Hardened AI quota enforcement for SaaS plans.
 
 Commit:

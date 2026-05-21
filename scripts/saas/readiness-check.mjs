@@ -186,9 +186,11 @@ function checkCommercialFoundation() {
     'lib/saas/org-context.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
+    'lib/saas/billing.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'app/api/saas/signup/route.ts',
+    'app/api/billing/ecpay/webhook/route.ts',
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
@@ -381,6 +383,25 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated');
     } else {
       record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard and repository layer');
+    }
+  }
+
+  const billingFoundationPath = path.resolve(process.cwd(), 'lib/saas/billing.ts');
+  const ecpayWebhookRoutePath = path.resolve(process.cwd(), 'app/api/billing/ecpay/webhook/route.ts');
+  if (fs.existsSync(billingFoundationPath) && fs.existsSync(ecpayWebhookRoutePath)) {
+    const billingSource = fs.readFileSync(billingFoundationPath, 'utf8');
+    const ecpayRouteSource = fs.readFileSync(ecpayWebhookRoutePath, 'utf8');
+    if (
+      billingSource.includes('resolveBillingWebhookState') &&
+      billingSource.includes('createBillingEventsRepository') &&
+      billingSource.includes('provider_event_id') &&
+      ecpayRouteSource.includes('billing_disabled') &&
+      ecpayRouteSource.includes('credentials_missing') &&
+      ecpayRouteSource.includes('signature_required')
+    ) {
+      record('pass', 'SaaS billing webhook foundation', 'ECPay route is disabled by flag and requires credentials + signature verification');
+    } else {
+      record('fail', 'SaaS billing webhook foundation', 'billing webhook must be flag-gated, credential-gated, and signature-gated');
     }
   }
 }

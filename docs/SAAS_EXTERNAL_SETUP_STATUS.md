@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -142,6 +142,27 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `/`, `/pricing`, `/features/*`, `/signup`, `/contact`, `/invite/[token]`, `/legal/*`
   - shared marketing navigation, footer, pricing data, public signup state, and dashboard hero mockup.
 
+## 2026-05-21 SaaS Backend Foundation Update
+
+- Platform admin API DTO wiring was added:
+  - `lib/saas/ui-backend-contracts.ts`
+  - `/api/internal/saas/orgs`
+  - `/api/internal/saas/orgs/[id]`
+  - `/api/internal/saas/billing/events`
+  - These routes remain gated by `ENABLE_MULTI_TENANT_ADMIN=false` by default.
+- AI usage hard limit was added:
+  - `lib/saas/ai-quota.ts`
+  - `/api/v1/ai/analyze` now checks monthly non-cached successful `return_ai_analysis` usage before Gemini calls.
+  - Quota source is `org.plan`, not `APP_MODE`.
+  - Cache hits are still allowed and do not consume quota.
+- Billing foundation was added without enabling real billing:
+  - `lib/saas/billing.ts`
+  - `/api/billing/ecpay/webhook`
+  - ECPay webhook is closed while `ENABLE_BILLING=false`.
+  - If billing is enabled, the route still requires `BILLING_PROVIDER=ecpay`, complete ECPay credentials, and signature verification before writing `billing_events`.
+  - Duplicate provider events are treated idempotently through the `billing_events` unique key.
+  - No ECPay credentials were added, no payment API was called, and no migration was applied.
+
 ## Verification Notes
 
 - Local build was intentionally run without SaaS Supabase secrets.
@@ -161,6 +182,7 @@ These are intentionally not completed because they require private credentials, 
 - SaaS domain has not been configured.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
+- Billing webhook signature verification is not connected to live provider credentials yet.
 - SaaS production deployment has not been run.
 - Platform admin pages are not wired to live SaaS DB data yet.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.

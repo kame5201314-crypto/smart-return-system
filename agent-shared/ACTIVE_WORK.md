@@ -33,6 +33,23 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Billing foundation
+Files:
+- lib/saas/billing.ts
+- app/api/billing/ecpay/webhook/route.ts
+- tests/unit/saas-billing-foundation.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: ECPay webhook route stays closed by default, requires billing flag, credentials, and signature verification, and records idempotent billing_events only after verification.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: AI quota enforcement hardening
 Files:
 - lib/saas/ai-quota.ts

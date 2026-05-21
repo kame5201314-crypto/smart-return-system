@@ -26,7 +26,7 @@ Status values:
 | blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `025_*` chain |
 | todo | Signup persistence backend | Wire after migrations; public signup remains closed by default |
 | todo | Platform admin live data wiring | API DTO wiring is done; UI page consumption still waits for migrations/live data readiness |
-| todo | Billing foundation | ECPay env / webhook / idempotency; no real billing without test keys and approval |
+| done | Billing foundation | This commit; ECPay webhook route is flag/credential/signature gated and records idempotent billing_events only after verification |
 | done | AI quota enforcement hardening | This commit; return AI analysis now checks `org.plan` monthly quota before provider calls |
 | todo | SaaS predeploy strict gate | Needs Gemini key and migration status confirmation |
 | done | Platform admin API DTO wiring | This commit; internal APIs return UI contract DTOs behind the platform admin flag |
