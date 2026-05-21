@@ -436,3 +436,11 @@ CREATE POLICY "activity_logs_owner_admin_select"
 
 -- Service-role full-access policies remain for controlled server-only paths.
 -- Runtime code must still pass and filter by org_id explicitly.
+
+-- ---------------------------------------------------------------------------
+-- 6. Supabase REST role grants.
+-- ---------------------------------------------------------------------------
+GRANT USAGE ON SCHEMA public TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, service_role;
