@@ -2,15 +2,16 @@
 
 import { ExternalLink, Truck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/saas/page-header';
 import { LOGISTICS_PROVIDERS } from '@/config/constants';
 
 export default function LogisticsPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">物流快查</h1>
-        <p className="text-muted-foreground">快速查詢各物流商包裹狀態</p>
-      </div>
+      <PageHeader
+        title="物流快查"
+        description="集中各物流商查詢入口，快速追蹤退貨包裹狀態。"
+      />
 
       <Card>
         <CardHeader>

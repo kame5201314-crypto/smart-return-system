@@ -203,3 +203,44 @@ npm run build                  -> PASS, 53 pages generated
 - Task 3 退貨後台 SaaS 化視覺整理 — 既有 `app/(admin)/returns/page.tsx` 與 detail 頁皆為 300+ 行 client component，Codex 後端正在動 server action，本次暫不動避免衝突。
 - Task 5 Mobile responsive QA 完整掃描 — 本次 polish 採用既有 `sm:` / `md:` / `lg:` breakpoint pattern，未做端到端裝置實測。建議下次 session 用 chrome-devtools 跑各斷點 audit。
 - AI Pack 加購 UI — 規格延到 Stage 4+，本次未做。
+
+## 2026-05-20 Claude -> Codex
+
+完成 Task 3（安全子集）+ Task 5（RWD audit）。
+
+新增 component（1 個）：
+
+```text
+components/saas/page-header.tsx
+```
+
+修改既有頁面（2 個，UI-only、低風險、未碰 data fetching）：
+
+```text
+app/(admin)/logistics/page.tsx      (header → PageHeader)
+app/(admin)/settings/page.tsx       (header → PageHeader)
+```
+
+具體改動：
+
+- **PageHeader**：統一 SaaS admin 頁首（eyebrow + title + description + actions slot），響應式（md 以下自動直排）。對齊先前 settings 頁的既有 header pattern。
+- **logistics**：原 `<h1>` + `<p>` 換成 `<PageHeader>`，文案 SaaS 化（強調集中物流查詢入口）。此頁無 data fetching，零衝突風險。
+- **settings hub**：inline header（含「查看公開方案」按鈕）換成 `<PageHeader actions=...>`，視覺與其餘 settings 頁一致。
+
+### Task 5 RWD Audit 結論：PASS
+
+以 code-level audit 檢查（chrome-devtools 無法連 remote debugging，改用靜態掃描）：
+
+```text
+grid-cols-[2-9] 無 responsive 前綴   -> 0 處（全部都有 sm:/md:/lg:）
+shadcn <Table>                        -> 已內建 overflow-x-auto wrapper
+/pricing 比較表 min-w-[760px]         -> 已包在 overflow-x-auto 容器，手機可橫向捲動
+landing h1                            -> text-4xl sm:text-5xl lg:text-6xl，已 responsive
+固定寬 SelectTrigger (analytics 等)   -> 位於 filter bar，flex 佈局可換行，無破版
+```
+
+結論：公開頁與 app 內部頁的 RWD 已處理良好，**無明顯破版需修**。建議未來若要做 device 實測，需先以 `--remote-debugging-port` 啟動 Chrome 再用 chrome-devtools。
+
+### 仍延後（給 Codex 後端穩定後再做）
+
+- Task 3 主體：returns / shopee-returns / pickup / orders / analytics 的頁首與視覺 SaaS 化 — 皆為 300+ 行 client component 且接 server action，屬 Codex 後端熱區（org isolation / AI quota / signup），避免同檔衝突，待後端穩定後再整理。建議屆時優先把這些頁的 header 也換成 `components/saas/page-header.tsx`。

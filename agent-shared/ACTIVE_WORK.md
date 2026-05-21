@@ -29,6 +29,21 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Claude
 Commit: (awaiting push)
+Scope: Task 3 (safe subset) + Task 5 RWD audit
+New component:
+- components/saas/page-header.tsx
+Modified pages:
+- app/(admin)/logistics/page.tsx (header → PageHeader)
+- app/(admin)/settings/page.tsx (header → PageHeader)
+Status: done
+Notes: Task 5 RWD audit = PASS (no breakage). Task 3 limited to safe pages; returns/shopee-returns/pickup/orders/analytics deferred (large client components in Codex backend hot zone). Gate all green.
+```
+
+## Recent Completed
+
+```text
+Owner: Claude
+Commit: (awaiting push)
 Scope: Task 1 + 2 (partial) - SaaS settings & platform admin UI polish
 New components:
 - components/saas/demo-data-banner.tsx

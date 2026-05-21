@@ -13,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/saas/page-header';
 
 const settingCards = [
   {
@@ -54,20 +55,18 @@ const guardRows = [
 export default function SettingsPage() {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950">SaaS 設定</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            商業版組織、訂閱、用量與團隊設定入口。Beta 期間部分功能仍採平台管理員手動開通。
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/pricing" target="_blank">
-            查看公開方案
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="SaaS 設定"
+        description="商業版組織、訂閱、用量與團隊設定入口。Beta 期間部分功能仍採平台管理員手動開通。"
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/pricing" target="_blank">
+              查看公開方案
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {settingCards.map((item) => {
