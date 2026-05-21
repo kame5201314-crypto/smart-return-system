@@ -33,6 +33,21 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS settings live data server loader
+Files:
+- lib/saas/settings-live-data.ts
+- tests/unit/saas-settings-live-data.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+Status: done
+Notes: Added server-side billing, usage, and team settings loaders that compose org context, server Supabase/RLS client, repository input builders, and UI DTO builders. No UI page was changed, no mock data is served, no migration was run, and no platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS invite creation service and RPC draft
 Files:
 - lib/saas/invite-creation.ts

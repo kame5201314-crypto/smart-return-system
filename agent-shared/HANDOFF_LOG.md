@@ -1,5 +1,53 @@
 # Handoff Log
 
+## 2026-05-21 Codex -> Claude
+
+Phase B settings live data server loader is ready for UI handoff.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/settings-live-data.ts`
+- `tests/unit/saas-settings-live-data.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+
+Server data functions:
+
+- `/settings/billing`: `loadBillingSettingsView()`
+- `/settings/usage`: `loadUsageSettingsView()`
+- `/settings/team`: `loadTeamSettingsView()`
+
+DTO shapes:
+
+- `/settings/billing`: `SettingsLiveDataResult<BillingSettingsView>`
+- `/settings/usage`: `SettingsLiveDataResult<UsageSettingsView>`
+- `/settings/team`: `SettingsLiveDataResult<TeamSettingsView>`
+
+State triggers:
+
+- Billing `ready`: owner/admin org context plus `billing` feature flag, then repository rows validate through `buildBillingSettingsView()`.
+- Billing `gated`: missing auth/membership, non-owner/admin role, or disabled billing feature.
+- Usage `ready`: any SaaS org member with a valid usage DTO.
+- Usage `gated`: missing auth or org membership.
+- Team `ready`: any SaaS org member with a valid team DTO. Management actions are disabled for non-owner/admin roles or write-restricted org status.
+- All three return `empty` when the org row is missing and `error` for repository/query/DTO failures.
+
+Notes:
+
+- No UI page files were edited.
+- The default loader path uses the authenticated server Supabase client/RLS instead of service-role access.
+- `saas:doctor` now checks that the settings loaders compose org context, repositories, and DTO builders without mock data or service-role defaults.
+- Platform admin API DTO routes already exist: `handleListPlatformOrganizations()`, `handleGetPlatformOrganization()`, and `handleListPlatformBillingEvents()`.
+- Gemini key remains deferred, so `saas:doctor:strict` / predeploy are still not expected to be fully green.
+
 ## 2026-05-21 Codex -> Claude / Codex
 
 Added SaaS invite creation service and RPC draft.

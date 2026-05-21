@@ -330,3 +330,100 @@ Available helpers:
 - `buildAcceptOrganizationInviteRpcArgs()`
 
 This helper prepares the future invite acceptance flow behind repository interfaces. It validates the token, signed-in user email, invite role, and invite lifecycle state before calling the `accept_organization_invite` RPC wrapper. The RPC is only a migration draft in `supabase/migrations/031_saas_invite_acceptance_rpc.sql`. This does not expose a route, accept live invites, send email, run migrations, or change UI by itself.
+
+## Settings Live Data Server Loader
+
+Codex has server-side settings live data loaders in:
+
+```text
+lib/saas/settings-live-data.ts
+```
+
+Available helpers:
+
+- `loadBillingSettingsView()`
+- `loadUsageSettingsView()`
+- `loadTeamSettingsView()`
+
+The default loader path uses the authenticated server Supabase client/RLS, not
+service-role access. Claude may consume these from Server Components after
+handoff, but should not change query shape or repository logic.
+
+Each helper returns:
+
+```ts
+type SettingsLiveDataResult<T> =
+  | { state: 'ready'; data: T; context: SettingsLiveDataContext }
+  | { state: 'empty'; data: null; message: string; context: SettingsLiveDataContext }
+  | { state: 'gated'; data: null; gated: GatedState }
+  | { state: 'error'; data: null; message: string };
+```
+
+### `/settings/billing`
+
+Server data function:
+
+```ts
+loadBillingSettingsView()
+```
+
+DTO shape:
+
+```ts
+BillingSettingsView
+```
+
+State triggers:
+
+- `ready`: `getOrgContext()` passes owner/admin role and `billing` feature flag, and billing rows build a valid DTO.
+- `empty`: organization billing row is missing.
+- `gated`: missing auth/membership, non-owner/admin role, or disabled billing feature.
+- `error`: repository query failure or DTO contract validation failure.
+
+### `/settings/usage`
+
+Server data function:
+
+```ts
+loadUsageSettingsView()
+```
+
+DTO shape:
+
+```ts
+UsageSettingsView
+```
+
+State triggers:
+
+- `ready`: `getOrgContext()` finds a SaaS org membership and usage rows build a valid DTO.
+- `empty`: organization usage plan row is missing.
+- `gated`: missing auth or membership.
+- `error`: repository query failure or DTO contract validation failure.
+
+### `/settings/team`
+
+Server data function:
+
+```ts
+loadTeamSettingsView()
+```
+
+DTO shape:
+
+```ts
+TeamSettingsView
+```
+
+State triggers:
+
+- `ready`: `getOrgContext()` finds a SaaS org membership and team rows build a valid DTO.
+- `empty`: organization team plan row is missing.
+- `gated`: missing auth or membership.
+- `error`: repository query failure or DTO contract validation failure.
+
+Action behavior:
+
+- Owner/admin on writable org: `canInvite=true`, `canChangeRoles=true`, subject to seat-limit validation in the DTO builder.
+- Non-owner/admin: `ready` state with management actions disabled and `disabledReason`.
+- Suspended/cancelled/past_due write-restricted org: `ready` state with management actions disabled and `disabledReason`.

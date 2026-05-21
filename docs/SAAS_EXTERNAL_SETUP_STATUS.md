@@ -272,6 +272,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Builds the future `/settings/team` DTO input from `organizations`, `organization_members`, and `organization_invites` rows.
   - Pending invite status is derived locally from invite timestamps so pending invites reserve seats before live invite routes are exposed.
   - No UI file was changed, no Supabase query was run, no migration was applied, and no invite email was sent.
+- SaaS settings live data server loaders were added for Claude UI handoff:
+  - `lib/saas/settings-live-data.ts`
+  - Exposes `loadBillingSettingsView()`, `loadUsageSettingsView()`, and `loadTeamSettingsView()`.
+  - Composes `getOrgContext()`, the authenticated server Supabase client/RLS, settings repositories, and UI DTO builders.
+  - Returns explicit `ready`, `empty`, `gated`, or `error` states and does not serve mock data.
+  - No UI file was changed, no migration was applied, and no platform setting was changed.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
   - Tests include ECPay's published payment-notification checksum example.

@@ -199,6 +199,7 @@ function checkCommercialFoundation() {
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
     'lib/saas/settings-usage-data.ts',
+    'lib/saas/settings-live-data.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
@@ -463,6 +464,7 @@ function checkCommercialFoundation() {
   const settingsBillingDataPath = path.resolve(process.cwd(), 'lib/saas/settings-billing-data.ts');
   const settingsTeamDataPath = path.resolve(process.cwd(), 'lib/saas/settings-team-data.ts');
   const settingsUsageDataPath = path.resolve(process.cwd(), 'lib/saas/settings-usage-data.ts');
+  const settingsLiveDataPath = path.resolve(process.cwd(), 'lib/saas/settings-live-data.ts');
   if (fs.existsSync(uiBackendContractsPath)) {
     const source = fs.readFileSync(uiBackendContractsPath, 'utf8');
     if (
@@ -535,6 +537,27 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS settings usage data repository', 'usage settings live-data input builder is present without exposing a route');
     } else {
       record('fail', 'SaaS settings usage data repository', 'usage settings live-data wiring must use the repository and DTO input builder before exposing routes');
+    }
+  }
+
+  if (fs.existsSync(settingsLiveDataPath)) {
+    const source = fs.readFileSync(settingsLiveDataPath, 'utf8');
+    if (
+      source.includes('loadBillingSettingsView') &&
+      source.includes('loadUsageSettingsView') &&
+      source.includes('loadTeamSettingsView') &&
+      source.includes('getOrgContext') &&
+      source.includes('createClient') &&
+      source.includes('buildBillingSettingsView') &&
+      source.includes('buildUsageSettingsView') &&
+      source.includes('buildTeamSettingsView') &&
+      source.includes('SettingsLiveDataResult') &&
+      !source.includes('createUntypedAdminClient') &&
+      !source.includes('createAdminClient')
+    ) {
+      record('pass', 'SaaS settings live data loaders', 'server settings loaders compose org context, RLS client, repositories, and UI DTO builders without mock data');
+    } else {
+      record('fail', 'SaaS settings live data loaders', 'settings loaders must use org context, server Supabase client, repositories, and DTO builders without service-role defaults');
     }
   }
 
