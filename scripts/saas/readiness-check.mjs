@@ -193,6 +193,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-provisioning.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
+    'lib/saas/settings-team-data.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
@@ -453,6 +454,7 @@ function checkCommercialFoundation() {
 
   const uiBackendContractsPath = path.resolve(process.cwd(), 'lib/saas/ui-backend-contracts.ts');
   const settingsBillingDataPath = path.resolve(process.cwd(), 'lib/saas/settings-billing-data.ts');
+  const settingsTeamDataPath = path.resolve(process.cwd(), 'lib/saas/settings-team-data.ts');
   if (fs.existsSync(uiBackendContractsPath)) {
     const source = fs.readFileSync(uiBackendContractsPath, 'utf8');
     if (
@@ -460,6 +462,7 @@ function checkCommercialFoundation() {
       source.includes('buildBillingSettingsView') &&
       source.includes('BillingSettingsViewInput') &&
       source.includes('buildTeamSettingsView') &&
+      source.includes('TeamSettingsViewInput') &&
       source.includes('buildPlatformOrganizationListView') &&
       source.includes('buildPlatformOrganizationDetailView') &&
       source.includes('buildPlatformBillingEventsView')
@@ -484,6 +487,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS settings billing data repository', 'billing settings live-data input builder is present without exposing a route');
     } else {
       record('fail', 'SaaS settings billing data repository', 'billing settings live-data wiring must use the repository and DTO input builder before exposing routes');
+    }
+  }
+
+  if (fs.existsSync(settingsTeamDataPath) && fs.existsSync(uiBackendContractsPath)) {
+    const dataSource = fs.readFileSync(settingsTeamDataPath, 'utf8');
+    const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
+    if (
+      dataSource.includes('createSettingsTeamDataRepository') &&
+      dataSource.includes('buildTeamSettingsViewInput') &&
+      dataSource.includes("from('organizations')") &&
+      dataSource.includes("from('organization_members')") &&
+      dataSource.includes("from('organization_invites')") &&
+      uiContractSource.includes('TeamSettingsViewInput')
+    ) {
+      record('pass', 'SaaS settings team data repository', 'team settings live-data input builder is present without exposing a route');
+    } else {
+      record('fail', 'SaaS settings team data repository', 'team settings live-data wiring must use the repository and DTO input builder before exposing routes');
     }
   }
 

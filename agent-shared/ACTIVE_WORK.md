@@ -33,6 +33,24 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS settings team data repository foundation
+Files:
+- lib/saas/settings-team-data.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-settings-team-data.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added repository/input builder for future team settings live data from organizations, organization_members, and organization_invites. No route was exposed, no UI file was changed, no migration was applied, and no invite email was sent.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS settings billing data repository foundation
 Files:
 - .gitignore

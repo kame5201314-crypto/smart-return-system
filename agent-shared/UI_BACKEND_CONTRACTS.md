@@ -257,3 +257,16 @@ Available helpers:
 - `buildBillingSettingsViewInput()`
 
 These helpers prepare future `/settings/billing` live data from `organizations`, `subscriptions`, and latest `invoices` rows. They do not expose a route, run migrations, enable billing, or change UI by themselves.
+
+Codex also has a local team settings data repository foundation in:
+
+```text
+lib/saas/settings-team-data.ts
+```
+
+Available helpers:
+
+- `createSettingsTeamDataRepository()`
+- `buildTeamSettingsViewInput()`
+
+These helpers prepare future `/settings/team` live data from `organizations`, `organization_members`, and `organization_invites` rows. They do not expose a route, send invites, run migrations, or change UI by themselves.

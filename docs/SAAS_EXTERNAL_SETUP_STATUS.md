@@ -239,6 +239,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Builds the future `/settings/billing` DTO input from `organizations`, `subscriptions`, and latest `invoices` rows.
   - Keeps the live route unwired until SaaS migrations and schema readiness are approved.
   - No UI file was changed, no Supabase query was run, no migration was applied, and no billing provider was enabled.
+- SaaS settings team data repository foundation was added without exposing live routes:
+  - `lib/saas/settings-team-data.ts`
+  - Builds the future `/settings/team` DTO input from `organizations`, `organization_members`, and `organization_invites` rows.
+  - Pending invite status is derived locally from invite timestamps so pending invites reserve seats before live invite routes are exposed.
+  - No UI file was changed, no Supabase query was run, no migration was applied, and no invite email was sent.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
   - Tests include ECPay's published payment-notification checksum example.

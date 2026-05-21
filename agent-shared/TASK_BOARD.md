@@ -45,6 +45,7 @@ Status values:
 | done | Convert UI mock contracts to backend DTOs | This commit; added `lib/saas/ui-backend-contracts.ts` and unit tests |
 | done | Settings UI/backend DTO builders | This commit; added billing and team settings builders with validation tests, no live routes exposed |
 | done | Settings billing data repository foundation | This commit; added repository/input builder for organizations, subscriptions, and invoices without exposing a live route |
+| done | Settings team data repository foundation | This commit; added repository/input builder for organizations, organization_members, and organization_invites without exposing a live route |
 | done | Team seat limit policy | This commit; team DTOs now reserve seats for active members and pending invites before enabling invites |
 
 ## Shared Rules

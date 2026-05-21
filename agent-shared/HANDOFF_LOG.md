@@ -2,6 +2,38 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS settings team data repository foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/settings-team-data.ts`
+- `tests/unit/saas-settings-team-data.test.ts`
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added a repository/input builder for future `/settings/team` live data wiring.
+- The data layer reads organization plan, organization members, and organization invites.
+- Invite status is derived from `accepted_at` and `expires_at` so pending invites can reserve seats before invite routes are exposed.
+- No route was exposed, no UI file was changed, no migration was applied, and no invite email or platform operation was added.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS settings billing data repository foundation.
 
 Commit:

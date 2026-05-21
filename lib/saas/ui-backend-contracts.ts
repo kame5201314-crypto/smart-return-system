@@ -138,6 +138,27 @@ export interface TeamSettingsView {
   };
 }
 
+export interface TeamSettingsViewInput {
+  orgId: string;
+  plan: unknown;
+  members: Array<{
+    id: string;
+    email: string;
+    displayName: string | null;
+    role: string;
+    status: string;
+    joinedAt: string | null;
+  }>;
+  invites: Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    expiresAt: string;
+  }>;
+  actions: TeamSettingsView['actions'];
+}
+
 export interface PlatformOrganizationListView {
   organizations: PlatformOrganizationListItem[];
 }
@@ -449,26 +470,7 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
   };
 }
 
-export function buildTeamSettingsView(input: {
-  orgId: string;
-  plan: unknown;
-  members: Array<{
-    id: string;
-    email: string;
-    displayName: string | null;
-    role: string;
-    status: string;
-    joinedAt: string | null;
-  }>;
-  invites: Array<{
-    id: string;
-    email: string;
-    role: string;
-    status: string;
-    expiresAt: string;
-  }>;
-  actions: TeamSettingsView['actions'];
-}): TeamSettingsView {
+export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSettingsView {
   const plan = getSaaSPlanDefinition(input.plan);
   const members = input.members.map((member) => ({
     id: requireString(member.id, 'team.member.id'),
