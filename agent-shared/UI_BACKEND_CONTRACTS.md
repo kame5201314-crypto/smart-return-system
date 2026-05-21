@@ -48,7 +48,7 @@ interface BillingSettingsView {
   } | null;
   invoiceSummary: {
     latestInvoiceId: string | null;
-    latestInvoiceStatus: 'draft' | 'issued' | 'paid' | 'void' | null;
+    latestInvoiceStatus: 'draft' | 'issued' | 'paid' | 'failed' | 'void' | null;
     billingEmail: string | null;
     taxId: string | null;
   };

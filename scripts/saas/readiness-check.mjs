@@ -209,6 +209,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/027_saas_platform_admin_read_model.sql',
     'supabase/migrations/028_saas_manual_beta_org_provisioning.sql',
     'supabase/migrations/029_saas_billing_event_status.sql',
+    'supabase/migrations/030_saas_invoice_status_alignment.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -440,12 +441,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('029_saas_billing_event_status.sql') &&
+      source.includes('030_saas_invoice_status_alignment.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-029 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-030 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-029 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-030 migration chain without applying migrations');
     }
   }
 
@@ -640,6 +641,24 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS billing event status schema', 'billing_events.status draft matches backend record defaults');
     } else {
       record('fail', 'SaaS billing event status schema', 'billing_events.status must support received/processed/failed/ignored and backend defaults');
+    }
+  }
+
+  const invoiceStatusMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/030_saas_invoice_status_alignment.sql'
+  );
+  if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
+    const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
+    const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
+    if (
+      migrationSource.includes('invoices_status_check') &&
+      migrationSource.includes("'draft', 'issued', 'paid', 'failed', 'void'") &&
+      uiContractSource.includes("'draft' | 'issued' | 'paid' | 'failed' | 'void'")
+    ) {
+      record('pass', 'SaaS invoice status schema', 'invoice status draft matches backend billing settings contract');
+    } else {
+      record('fail', 'SaaS invoice status schema', 'invoice status must align between migration drafts and billing settings DTOs');
     }
   }
 }

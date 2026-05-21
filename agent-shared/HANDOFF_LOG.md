@@ -2,6 +2,41 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Aligned SaaS invoice statuses between schema draft and billing settings DTOs.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `supabase/migrations/030_saas_invoice_status_alignment.sql`
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+- `tests/unit/saas-migration-plan.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/CODEX_NON_UI_SCOPE.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added draft migration `030` to align `invoices.status` with the billing settings DTO contract.
+- Allowed invoice statuses are now `draft`, `issued`, `paid`, `failed`, and `void`.
+- Migration plan and setup docs now expect the full `001_*` through `030_*` chain.
+- No migration was applied, no billing provider was enabled, and no external platform setting was changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS billing event status schema draft.
 
 Commit:
@@ -34,7 +69,7 @@ Notes:
 
 - Added draft migration `029` for `billing_events.status` with `received`, `processed`, `failed`, and `ignored`.
 - Backend billing event records now default to `status='received'`, matching the platform admin billing event contract.
-- Migration plan and schema readiness checks now expect the full `001_*` through `029_*` chain.
+- Migration plan and schema readiness checks now expect the full migration chain. Current chain ends at `030`.
 - No migration was applied, no billing provider was enabled, and no external platform setting was changed.
 
 ## 2026-05-21 Codex -> Claude / Codex

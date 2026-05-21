@@ -23,15 +23,16 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `029_*` chain |
+| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `030_*` chain |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | blocked | Platform admin live data wiring | Schema readiness gate exists; UI page live consumption still waits for migrations/live data readiness |
 | done | Platform admin read model migration draft | This commit; added `027` for `owner_email` / `member_count` alignment with platform admin APIs |
 | done | Manual Beta org provisioning backend foundation | This commit; added gated `POST /api/internal/saas/orgs` and `028` RPC draft, no DB apply |
-| done | SaaS migration apply plan check | This commit; added read-only `saas:migration-plan` checks for SaaS project ref, DB password, and full 001-029 chain |
+| done | SaaS migration apply plan check | This commit; added read-only `saas:migration-plan` checks for SaaS project ref, DB password, and full 001-030 chain |
 | done | Billing foundation | ECPay webhook route is flag/credential/CheckMacValue gated and records idempotent billing_events only after verification |
 | done | ECPay webhook signature verification | This commit; default route path verifies CheckMacValue locally before recording events |
 | done | Billing event status schema draft | This commit; added `029` draft and backend record defaults for `billing_events.status` |
+| done | Invoice status schema and DTO alignment | This commit; added `030` draft and aligned billing settings invoice statuses |
 | done | AI quota enforcement hardening | This commit; return AI analysis now checks `org.plan` monthly quota before provider calls |
 | done | Subscription access policy hardening | This commit; centralized trialing/active/past_due/suspended/cancelled access policy and made `past_due` read-only for write guards |
 | done | Subscription lifecycle timing policy | This commit; added local trial expiry, cancel-at-period-end, past_due grace, and suspended retention resolver |

@@ -33,6 +33,27 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS invoice status schema and DTO alignment
+Files:
+- supabase/migrations/030_saas_invoice_status_alignment.sql
+- lib/saas/ui-backend-contracts.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-ui-backend-contracts.test.ts
+- tests/unit/saas-migration-plan.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/CODEX_NON_UI_SCOPE.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added draft 030 for invoices.status and aligned billing settings DTOs on draft/issued/paid/failed/void. No DB migration was applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS billing event status schema draft
 Files:
 - supabase/migrations/029_saas_billing_event_status.sql
@@ -50,7 +71,7 @@ Files:
 - agent-shared/HANDOFF_LOG.md
 - docs/SAAS_EXTERNAL_SETUP_STATUS.md
 Status: done
-Notes: Added draft 029 for billing_events.status, aligned backend record defaults to received, and updated migration/schema gates to expect the full 001-029 chain. No migration was applied.
+Notes: Added draft 029 for billing_events.status, aligned backend record defaults to received, and updated migration/schema gates. Current chain ends at 030. No migration was applied.
 ```
 
 ```text

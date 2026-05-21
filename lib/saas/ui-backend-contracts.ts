@@ -33,7 +33,7 @@ export type OrgSubscriptionStatus =
   | 'cancelled';
 
 export type BillingProvider = 'manual' | 'ecpay' | 'stripe' | 'tappay';
-export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'void';
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'failed' | 'void';
 export type TeamMemberRole = 'owner' | 'admin' | 'staff' | 'viewer';
 export type TeamMemberStatus = 'active' | 'invited' | 'disabled';
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
@@ -176,7 +176,7 @@ const ORG_STATUSES: readonly OrgSubscriptionStatus[] = [
 ];
 
 const BILLING_PROVIDERS: readonly BillingProvider[] = ['manual', 'ecpay', 'stripe', 'tappay'];
-const INVOICE_STATUSES: readonly InvoiceStatus[] = ['draft', 'issued', 'paid', 'void'];
+const INVOICE_STATUSES: readonly InvoiceStatus[] = ['draft', 'issued', 'paid', 'failed', 'void'];
 const TEAM_MEMBER_ROLES: readonly TeamMemberRole[] = ['owner', 'admin', 'staff', 'viewer'];
 const TEAM_MEMBER_STATUSES: readonly TeamMemberStatus[] = ['active', 'invited', 'disabled'];
 const INVITE_STATUSES: readonly InviteStatus[] = ['pending', 'accepted', 'expired', 'revoked'];

@@ -148,6 +148,30 @@ describe('SaaS UI/backend contracts', () => {
     });
   });
 
+  it('accepts failed invoice status values from billing providers', () => {
+    expect(
+      buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'growth',
+          status: 'active',
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: 'invoice-1',
+          latestInvoiceStatus: 'failed',
+          billingEmail: null,
+          taxId: null,
+        },
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+        },
+      }).invoiceSummary.latestInvoiceStatus
+    ).toBe('failed');
+  });
+
   it('rejects invalid billing settings status values', () => {
     expect(() =>
       buildBillingSettingsView({
