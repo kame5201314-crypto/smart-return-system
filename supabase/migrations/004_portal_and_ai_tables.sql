@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS public.orders (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.orders
+    ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES public.customers(id),
+    ADD COLUMN IF NOT EXISTS channel_source VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'delivered',
+    ADD COLUMN IF NOT EXISTS metadata JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_phone ON public.orders(customer_phone);
@@ -61,6 +67,15 @@ CREATE TABLE IF NOT EXISTS public.return_requests (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.return_requests
+    ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES public.customers(id),
+    ADD COLUMN IF NOT EXISTS channel_source VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS review_notes TEXT,
+    ADD COLUMN IF NOT EXISTS refund_type VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS refund_processed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_return_requests_request_number ON public.return_requests(request_number);
 CREATE INDEX IF NOT EXISTS idx_return_requests_order_id ON public.return_requests(order_id);
