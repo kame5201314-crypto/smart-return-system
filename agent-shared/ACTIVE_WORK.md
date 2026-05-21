@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS invite status policy foundation
+Files:
+- lib/saas/invite-policy.ts
+- lib/saas/settings-team-data.ts
+- lib/saas/settings-usage-data.ts
+- tests/unit/saas-invite-policy.test.ts
+- tests/unit/saas-settings-team-data.test.ts
+- tests/unit/saas-settings-usage-data.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Centralized invite pending/accepted/expired/revoked status and admin/staff/viewer acceptability rules. No route was exposed, no UI file was changed, no migration was applied, and no invite email was sent.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS settings usage data repository foundation
 Files:
 - lib/saas/settings-usage-data.ts

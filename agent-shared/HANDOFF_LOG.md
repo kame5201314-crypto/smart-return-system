@@ -2,6 +2,40 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS invite status policy foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/invite-policy.ts`
+- `tests/unit/saas-invite-policy.test.ts`
+
+Updated:
+
+- `lib/saas/settings-team-data.ts`
+- `lib/saas/settings-usage-data.ts`
+- `tests/unit/saas-settings-team-data.test.ts`
+- `tests/unit/saas-settings-usage-data.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Centralized invite status resolution for `pending`, `accepted`, `expired`, and `revoked`.
+- Centralized acceptable invite roles as `admin`, `staff`, and `viewer`; `owner` invites stay rejected.
+- Settings team and usage repositories now use the shared policy before live invite routes are exposed.
+- No route was exposed, no UI file was changed, no migration was applied, and no invite email was sent.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS settings usage data repository foundation.
 
 Commit:

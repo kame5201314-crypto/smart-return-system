@@ -1,3 +1,4 @@
+import { resolveSaaSInviteStatus } from '@/lib/saas/invite-policy';
 import type { TeamSettingsView, TeamSettingsViewInput } from '@/lib/saas/ui-backend-contracts';
 
 interface SupabaseQueryError {
@@ -97,25 +98,16 @@ function normalizeMember(row: Record<string, unknown>): SettingsTeamMemberData {
   };
 }
 
-function resolveInviteStatus(row: Record<string, unknown>, now: Date): string {
-  if (stringOrNull(row.accepted_at)) {
-    return 'accepted';
-  }
-
-  const expiresAt = stringOrNull(row.expires_at);
-  if (expiresAt && Number.isFinite(Date.parse(expiresAt)) && Date.parse(expiresAt) <= now.getTime()) {
-    return 'expired';
-  }
-
-  return 'pending';
-}
-
 function normalizeInvite(row: Record<string, unknown>, now: Date): SettingsTeamInviteData {
   return {
     id: stringOrFallback(row.id, ''),
     email: stringOrFallback(row.email, ''),
     role: stringOrFallback(row.role, 'staff'),
-    status: resolveInviteStatus(row, now),
+    status: resolveSaaSInviteStatus({
+      acceptedAt: stringOrNull(row.accepted_at),
+      expiresAt: stringOrNull(row.expires_at),
+      now,
+    }),
     expiresAt: stringOrFallback(row.expires_at, ''),
   };
 }

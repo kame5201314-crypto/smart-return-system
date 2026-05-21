@@ -187,6 +187,7 @@ function checkCommercialFoundation() {
     'lib/saas/subscription-access.ts',
     'lib/saas/subscription-lifecycle.ts',
     'lib/saas/team-limits.ts',
+    'lib/saas/invite-policy.ts',
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
@@ -502,6 +503,7 @@ function checkCommercialFoundation() {
       dataSource.includes("from('organizations')") &&
       dataSource.includes("from('organization_members')") &&
       dataSource.includes("from('organization_invites')") &&
+      dataSource.includes('resolveSaaSInviteStatus') &&
       uiContractSource.includes('TeamSettingsViewInput')
     ) {
       record('pass', 'SaaS settings team data repository', 'team settings live-data input builder is present without exposing a route');
@@ -522,6 +524,7 @@ function checkCommercialFoundation() {
       dataSource.includes("from('return_requests')") &&
       dataSource.includes("from('ai_usage_events')") &&
       dataSource.includes('RETURN_AI_ANALYSIS_FEATURE') &&
+      dataSource.includes('resolveSaaSInviteStatus') &&
       uiContractSource.includes('UsageSettingsViewInput')
     ) {
       record('pass', 'SaaS settings usage data repository', 'usage settings live-data input builder is present without exposing a route');
@@ -531,6 +534,21 @@ function checkCommercialFoundation() {
   }
 
   const teamLimitsPath = path.resolve(process.cwd(), 'lib/saas/team-limits.ts');
+  const invitePolicyPath = path.resolve(process.cwd(), 'lib/saas/invite-policy.ts');
+  if (fs.existsSync(invitePolicyPath)) {
+    const source = fs.readFileSync(invitePolicyPath, 'utf8');
+    if (
+      source.includes('resolveSaaSInviteStatus') &&
+      source.includes('canAcceptSaaSInvite') &&
+      source.includes("'pending' | 'accepted' | 'expired' | 'revoked'") &&
+      source.includes("'admin' | 'staff' | 'viewer'")
+    ) {
+      record('pass', 'SaaS invite status policy', 'invite status and acceptability rules are centralized before live invite routes');
+    } else {
+      record('fail', 'SaaS invite status policy', 'invite pending/accepted/expired/revoked and role rules must be centralized before live invite routes');
+    }
+  }
+
   if (fs.existsSync(teamLimitsPath) && fs.existsSync(uiBackendContractsPath)) {
     const teamLimitsSource = fs.readFileSync(teamLimitsPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');

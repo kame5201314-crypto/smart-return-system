@@ -175,6 +175,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `buildTeamSettingsView()` now reserves seats for active/non-disabled members plus pending invites.
   - When the plan seat limit is full, team DTOs force `actions.canInvite=false`.
   - No live team invite route was exposed and no DB query or migration was added.
+- SaaS invite status policy was added:
+  - `lib/saas/invite-policy.ts`
+  - Centralizes invite status resolution for `pending`, `accepted`, `expired`, and `revoked`.
+  - Centralizes acceptable invite roles as `admin`, `staff`, and `viewer`; `owner` invites remain rejected.
+  - Settings team and usage repositories now use this policy before live invite routes are exposed.
+  - No live invite route was exposed, no invite email was sent, and no migration was applied.
 - SaaS return usage soft-limit policy was added:
   - `lib/saas/return-usage-policy.ts`
   - `buildUsageSettingsView()` now uses the centralized return soft-limit resolver for `returns_80` and `returns_100` warnings.

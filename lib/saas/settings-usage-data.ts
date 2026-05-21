@@ -1,4 +1,5 @@
 import { RETURN_AI_ANALYSIS_FEATURE } from '@/lib/saas/ai-quota';
+import { resolveSaaSInviteStatus, type SaaSInviteStatus } from '@/lib/saas/invite-policy';
 import type { UsageSettingsViewInput } from '@/lib/saas/ui-backend-contracts';
 
 interface SupabaseQueryError {
@@ -48,8 +49,7 @@ export interface SettingsUsageMemberData {
 
 export interface SettingsUsageInviteData {
   id: string;
-  acceptedAt: string | null;
-  expiresAt: string | null;
+  status: SaaSInviteStatus;
 }
 
 export interface SettingsUsageRow {
@@ -101,11 +101,15 @@ function normalizeMember(row: Record<string, unknown>): SettingsUsageMemberData 
   };
 }
 
-function normalizeInvite(row: Record<string, unknown>): SettingsUsageInviteData {
+function normalizeInvite(row: Record<string, unknown>, now: Date): SettingsUsageInviteData {
   return {
     id: stringOrFallback(row.id, ''),
-    acceptedAt: stringOrNull(row.accepted_at),
-    expiresAt: stringOrNull(row.expires_at),
+    status: resolveSaaSInviteStatus({
+      acceptedAt: stringOrNull(row.accepted_at),
+      expiresAt: stringOrNull(row.expires_at),
+      status: stringOrNull(row.status),
+      now,
+    }),
   };
 }
 
@@ -118,20 +122,9 @@ function normalizeUsageRow(row: Record<string, unknown>): SettingsUsageRow {
 function countReservedSeats(input: {
   members: SettingsUsageMemberData[];
   invites: SettingsUsageInviteData[];
-  now: Date;
 }): number {
   const activeMembers = input.members.filter((member) => member.status !== 'disabled').length;
-  const pendingInvites = input.invites.filter((invite) => {
-    if (invite.acceptedAt) {
-      return false;
-    }
-
-    if (!invite.expiresAt || !Number.isFinite(Date.parse(invite.expiresAt))) {
-      return true;
-    }
-
-    return Date.parse(invite.expiresAt) > input.now.getTime();
-  }).length;
+  const pendingInvites = input.invites.filter((invite) => invite.status === 'pending').length;
 
   return activeMembers + pendingInvites;
 }
@@ -179,7 +172,7 @@ export function createSettingsUsageDataRepository(
         .order('created_at', { ascending: false });
 
       assertNoSupabaseError(error, 'Failed to load organization invite usage.');
-      return rows(data).map(normalizeInvite);
+      return rows(data).map((row) => normalizeInvite(row, input.now ?? new Date()));
     },
 
     async listReturns(input) {
@@ -239,7 +232,6 @@ export async function buildUsageSettingsViewInput(
       seatsUsed: countReservedSeats({
         members,
         invites,
-        now,
       }),
       returnsThisMonth: returns.length,
       aiUsedThisMonth: aiUsage.length,
