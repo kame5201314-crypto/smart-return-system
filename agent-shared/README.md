@@ -48,4 +48,4 @@ npm run safety:agent-boundary
 - `TASK_BOARD.md`：共同任務板。
 - `ACTIVE_WORK.md`：目前誰正在碰哪些檔案，避免衝突。
 - `HANDOFF_LOG.md`：每次交接紀錄。
-
+- `REVIEW_CHECKLIST.md`：每次交接、commit、push 前的檢查清單。

@@ -42,3 +42,4 @@ Do not create app/(app) in Claude UI work.
 - 後端不可假資料上正式路徑。
 - 不要操作上市版資料夾。
 - 不要推 `master`。
+- 每次 commit / push 前依 `agent-shared/REVIEW_CHECKLIST.md` 檢查。
