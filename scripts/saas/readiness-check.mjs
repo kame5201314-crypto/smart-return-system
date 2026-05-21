@@ -421,11 +421,14 @@ function checkCommercialFoundation() {
       source.includes('signup_requests') &&
       source.includes('billing_events') &&
       source.includes('organization_members') &&
+      source.includes('upgrade_suggested_at') &&
+      source.includes('current_period_end') &&
+      source.includes('invoice_carrier') &&
       source.includes('org_id')
     ) {
-      record('pass', 'SaaS schema readiness gate', 'checks tenant, signup, billing, and platform-admin schema before live wiring');
+      record('pass', 'SaaS schema readiness gate', 'checks tenant, signup, billing, platform-admin, and commercial v2 schema before live wiring');
     } else {
-      record('fail', 'SaaS schema readiness gate', 'must check SaaS tenant, signup, billing, and platform-admin schema');
+      record('fail', 'SaaS schema readiness gate', 'must check SaaS tenant, signup, billing, platform-admin, and commercial v2 schema');
     }
   }
 

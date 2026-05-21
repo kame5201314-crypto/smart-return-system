@@ -200,7 +200,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `scripts/saas/check-saas-schema-readiness.mjs`
   - `npm run saas:schema-gate`
   - `npm run saas:schema-gate:strict`
-  - The gate checks 023-027 foundation tables and tenant `org_id` columns required by platform admin live data, billing events, signup requests, AI usage, and business records.
+  - The gate checks 023-028 foundation tables, commercial v2 columns, and tenant `org_id` columns required by platform admin live data, billing events, signup requests, AI usage, and business records.
+  - The checked commercial v2 columns include organization onboarding/billing/upgrade suggestion fields, subscription period/provider fields, invite token fields, invoice fields, and audit metadata.
   - Non-strict mode reports readiness without blocking local development.
   - Strict mode should remain blocked until SaaS migrations are approved and applied.
   - No Supabase data was changed.

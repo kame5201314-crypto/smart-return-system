@@ -33,6 +33,22 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS schema gate commercial v2 coverage
+Files:
+- scripts/saas/check-saas-schema-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-schema-readiness.test.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Strict schema gate now checks commercial v2 fields from the migration drafts, including upgrade suggestion, subscription period/provider, invoice, invite token, and audit metadata columns. No DB migration was applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS return usage soft-limit policy
 Files:
 - lib/saas/return-usage-policy.ts

@@ -2,6 +2,35 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Expanded SaaS schema readiness gate coverage for commercial v2 columns.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `tests/unit/saas-schema-readiness.test.ts`
+
+Updated:
+
+- `scripts/saas/check-saas-schema-readiness.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Strict schema gate now checks the commercial columns already defined by the SaaS migration drafts, including organization onboarding/billing/upgrade suggestion fields, subscription provider/period fields, invite token fields, invoice fields, and audit metadata.
+- Non-strict schema gate behavior is unchanged for local development without SaaS DB env.
+- No migration was applied and no Supabase data was changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS return usage soft-limit policy.
 
 Commit:
