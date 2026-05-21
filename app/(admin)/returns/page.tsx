@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useRef, type ChangeEvent } from 'react';
-import { Search, Download, Upload, Plus, LayoutGrid, List, Loader2, Trash2 } from 'lucide-react';
+import { Search, Download, Upload, Plus, LayoutGrid, List, Loader2, Trash2, PackageOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -590,9 +591,29 @@ export default function ReturnsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-pulse text-muted-foreground">載入中...</div>
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
         </div>
+      ) : filteredReturns.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+              <PackageOpen className="size-7 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">沒有符合條件的退貨資料</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                可調整搜尋與篩選條件，或匯入、手動新增第一筆退貨單。
+              </p>
+            </div>
+            <Button onClick={() => setManualDialogOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              手動新增退貨單
+            </Button>
+          </CardContent>
+        </Card>
       ) : view === 'kanban' ? (
         <KanbanBoard items={filteredReturns} />
       ) : (
