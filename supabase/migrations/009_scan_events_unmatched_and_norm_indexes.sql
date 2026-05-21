@@ -18,6 +18,9 @@ $$;
 -- Add normalized columns to shopee_returns
 -- ------------------------------------------------------------
 ALTER TABLE public.shopee_returns
+ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100);
+
+ALTER TABLE public.shopee_returns
 ADD COLUMN IF NOT EXISTS order_number_norm TEXT;
 
 ALTER TABLE public.shopee_returns
