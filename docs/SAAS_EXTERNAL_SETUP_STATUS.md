@@ -186,6 +186,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Builds the future `/invite/[token]` data lookup from `organization_invites` plus organization context.
   - Uses the shared invite policy to mark pending, accepted, and expired invites before the route is wired.
   - No live invite route was exposed, no invite was accepted, no invite email was sent, and no migration was applied.
+- SaaS invite acceptance service foundation was added:
+  - `lib/saas/invite-acceptance.ts`
+  - Validates invite token, signed-in user email, acceptable role, and invite lifecycle status before future membership writes.
+  - Uses repository interfaces so a later implementation can be backed by an atomic RPC after SaaS migrations are applied.
+  - No live invite route was exposed, no Supabase client was created, no invite was accepted, no invite email was sent, and no migration was applied.
 - SaaS return usage soft-limit policy was added:
   - `lib/saas/return-usage-policy.ts`
   - `buildUsageSettingsView()` now uses the centralized return soft-limit resolver for `returns_80` and `returns_100` warnings.

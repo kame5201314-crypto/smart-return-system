@@ -2,6 +2,37 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS invite acceptance service foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/invite-acceptance.ts`
+- `tests/unit/saas-invite-acceptance.test.ts`
+
+Updated:
+
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added a pure invite acceptance use-case for the future `/invite/[token]` flow.
+- The service validates token, signed-in user email, invite role, and lifecycle status before calling a repository write.
+- The future write is represented as an injected repository interface so it can be backed by an atomic RPC after SaaS migrations are applied.
+- No route was exposed, no UI file was changed, no Supabase client was created, no invite was accepted, no invite email was sent, and no migration was applied.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS invite token data repository foundation.
 
 Commit:

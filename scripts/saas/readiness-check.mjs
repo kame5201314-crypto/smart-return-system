@@ -189,6 +189,7 @@ function checkCommercialFoundation() {
     'lib/saas/team-limits.ts',
     'lib/saas/invite-policy.ts',
     'lib/saas/invite-token-data.ts',
+    'lib/saas/invite-acceptance.ts',
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
@@ -537,6 +538,7 @@ function checkCommercialFoundation() {
   const teamLimitsPath = path.resolve(process.cwd(), 'lib/saas/team-limits.ts');
   const invitePolicyPath = path.resolve(process.cwd(), 'lib/saas/invite-policy.ts');
   const inviteTokenDataPath = path.resolve(process.cwd(), 'lib/saas/invite-token-data.ts');
+  const inviteAcceptancePath = path.resolve(process.cwd(), 'lib/saas/invite-acceptance.ts');
   if (fs.existsSync(invitePolicyPath)) {
     const source = fs.readFileSync(invitePolicyPath, 'utf8');
     if (
@@ -565,6 +567,26 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite token data repository', 'invite token live-data lookup is present without exposing a route');
     } else {
       record('fail', 'SaaS invite token data repository', 'invite token lookup must use organization_invites, organization context, and shared invite policy before exposing routes');
+    }
+  }
+
+  if (fs.existsSync(inviteAcceptancePath)) {
+    const source = fs.readFileSync(inviteAcceptancePath, 'utf8');
+    if (
+      source.includes('acceptSaaSInvite') &&
+      source.includes('SaaSInviteAcceptanceRepository') &&
+      source.includes('getInviteByToken') &&
+      source.includes('acceptInvite') &&
+      source.includes('email_mismatch') &&
+      source.includes('invite_expired') &&
+      source.includes('invite_already_accepted') &&
+      source.includes('invite_revoked') &&
+      !source.includes('createUntypedAdminClient') &&
+      !source.includes('createAdminClient')
+    ) {
+      record('pass', 'SaaS invite acceptance service', 'invite acceptance use-case is centralized behind repository interfaces without exposing a route');
+    } else {
+      record('fail', 'SaaS invite acceptance service', 'invite acceptance must validate token/email/status and stay repository-backed before exposing routes');
     }
   }
 

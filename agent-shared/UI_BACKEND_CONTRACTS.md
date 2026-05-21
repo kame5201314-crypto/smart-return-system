@@ -297,3 +297,15 @@ Available helpers:
 - `getInviteByToken()`
 
 These helpers prepare future `/invite/[token]` live data from `organization_invites` plus organization context. They resolve pending, accepted, and expired invite states through the shared invite policy. They do not expose a route, accept an invite, send email, run migrations, or change UI by themselves.
+
+Codex also has a local invite acceptance service foundation in:
+
+```text
+lib/saas/invite-acceptance.ts
+```
+
+Available helpers:
+
+- `acceptSaaSInvite()`
+
+This helper prepares the future invite acceptance flow behind repository interfaces. It validates the token, signed-in user email, invite role, and invite lifecycle state before calling a future atomic repository write. It does not expose a route, create a Supabase client, accept live invites, send email, run migrations, or change UI by itself.

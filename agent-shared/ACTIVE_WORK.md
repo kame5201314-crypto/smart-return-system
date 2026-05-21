@@ -33,6 +33,23 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS invite acceptance service foundation
+Files:
+- lib/saas/invite-acceptance.ts
+- tests/unit/saas-invite-acceptance.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added pure invite acceptance use-case over repository interfaces. No route was exposed, no UI file was changed, no Supabase client was created, no invite email was sent, and no migration was applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS invite token data repository foundation
 Files:
 - lib/saas/invite-token-data.ts
