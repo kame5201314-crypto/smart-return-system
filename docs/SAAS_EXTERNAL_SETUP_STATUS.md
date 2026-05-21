@@ -170,6 +170,14 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - If the flag is explicitly enabled after migrations, valid Basic-only signup requests persist to `signup_requests`.
   - Signup request persistence does not create organizations or subscriptions yet.
   - No migration was applied.
+- SaaS schema readiness gate was added without applying migrations:
+  - `scripts/saas/check-saas-schema-readiness.mjs`
+  - `npm run saas:schema-gate`
+  - `npm run saas:schema-gate:strict`
+  - The gate checks 023-026 foundation tables and tenant `org_id` columns required by platform admin live data, billing events, signup requests, AI usage, and business records.
+  - Non-strict mode reports readiness without blocking local development.
+  - Strict mode should remain blocked until SaaS migrations are approved and applied.
+  - No Supabase data was changed.
 
 ## Verification Notes
 
@@ -192,7 +200,7 @@ These are intentionally not completed because they require private credentials, 
 - Billing credentials have not been added.
 - Billing webhook signature verification is not connected to live provider credentials yet.
 - SaaS production deployment has not been run.
-- Platform admin pages are not wired to live SaaS DB data yet.
+- Platform admin pages are not wired to live SaaS DB data yet; the schema readiness gate now defines the DB shape required before live consumption is enabled.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
 - Public signup request persistence code and `026` migration draft exist, but the migration has not been applied.
@@ -274,10 +282,11 @@ After the SaaS Supabase and secret values exist:
 3. Run `npm run saas:doctor`.
 4. Run `npm run saas:verify-env`.
 5. Run `npm run saas:doctor:strict`.
-6. Run `npm run saas:predeploy`.
-7. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql`, `supabase/migrations/024_saas_commercial_v2.sql`, `supabase/migrations/025_attach_org_id_to_business_tables.sql`, and `supabase/migrations/026_saas_public_signup_requests.sql` when tenant, billing, and signup request tables are approved.
-8. Deploy the SaaS Vercel Project.
-9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+6. Run `npm run saas:schema-gate:strict`.
+7. Run `npm run saas:predeploy`.
+8. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql`, `supabase/migrations/024_saas_commercial_v2.sql`, `supabase/migrations/025_attach_org_id_to_business_tables.sql`, and `supabase/migrations/026_saas_public_signup_requests.sql` when tenant, billing, and signup request tables are approved.
+9. Deploy the SaaS Vercel Project.
+10. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 
 If you need to run the individual checks:
 

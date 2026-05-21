@@ -192,6 +192,7 @@ function checkCommercialFoundation() {
     'lib/saas/signup-request-repository.ts',
     'app/api/saas/signup/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
+    'scripts/saas/check-saas-schema-readiness.mjs',
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
@@ -351,6 +352,22 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS org context', 'auth user -> organization -> plan -> feature flags guard found');
     } else {
       record('fail', 'SaaS org context', 'must resolve org context without service-role membership lookup');
+    }
+  }
+
+  const saasSchemaGatePath = path.resolve(process.cwd(), 'scripts/saas/check-saas-schema-readiness.mjs');
+  if (fs.existsSync(saasSchemaGatePath)) {
+    const source = fs.readFileSync(saasSchemaGatePath, 'utf8');
+    if (
+      source.includes('SAAS_SCHEMA_GATE_STRICT') &&
+      source.includes('signup_requests') &&
+      source.includes('billing_events') &&
+      source.includes('organization_members') &&
+      source.includes('org_id')
+    ) {
+      record('pass', 'SaaS schema readiness gate', 'checks tenant, signup, billing, and platform-admin schema before live wiring');
+    } else {
+      record('fail', 'SaaS schema readiness gate', 'must check SaaS tenant, signup, billing, and platform-admin schema');
     }
   }
 

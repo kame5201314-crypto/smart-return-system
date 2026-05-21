@@ -33,6 +33,22 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS schema readiness gate
+Files:
+- scripts/saas/check-saas-schema-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- package.json
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added read-only SaaS schema readiness scripts for 023-026 tables/columns and tenant org_id checks. This does not apply migrations; strict mode is expected to fail until SaaS migrations are approved and applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Signup persistence backend
 Files:
 - lib/saas/signup-request.ts

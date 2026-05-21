@@ -2,6 +2,34 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added a SaaS schema readiness gate without applying migrations.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `scripts/saas/check-saas-schema-readiness.mjs`
+
+Updated:
+
+- `package.json`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Notes:
+
+- New scripts: `npm run saas:schema-gate` and `npm run saas:schema-gate:strict`.
+- The gate checks the SaaS Supabase schema for 023-026 foundation tables and `org_id` columns needed by tenant isolation, signup persistence, billing events, and platform admin live data.
+- Non-strict mode reports readiness without blocking local development.
+- Strict mode is expected to fail until the SaaS migrations are approved and applied.
+- No migration was applied and no Supabase data was changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Wired public signup request persistence without opening public signup.
 
 Commit:
