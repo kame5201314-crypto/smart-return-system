@@ -174,8 +174,10 @@ const ORG_STATUSES: readonly OrgSubscriptionStatus[] = [
 ];
 
 const BILLING_PROVIDERS: readonly BillingProvider[] = ['manual', 'ecpay', 'stripe', 'tappay'];
+const INVOICE_STATUSES: readonly InvoiceStatus[] = ['draft', 'issued', 'paid', 'void'];
 const TEAM_MEMBER_ROLES: readonly TeamMemberRole[] = ['owner', 'admin', 'staff', 'viewer'];
 const TEAM_MEMBER_STATUSES: readonly TeamMemberStatus[] = ['active', 'invited', 'disabled'];
+const INVITE_STATUSES: readonly InviteStatus[] = ['pending', 'accepted', 'expired', 'revoked'];
 const BILLING_EVENT_STATUSES: readonly BillingEventStatus[] = [
   'received',
   'processed',
@@ -231,16 +233,39 @@ function normalizeBillingProvider(value: string): BillingProvider {
   return normalizeAllowed(value, BILLING_PROVIDERS, 'billing provider');
 }
 
+function normalizeInvoiceStatus(value: string): InvoiceStatus {
+  return normalizeAllowed(value, INVOICE_STATUSES, 'invoice status');
+}
+
 function normalizeTeamMemberRole(value: string): TeamMemberRole {
   return normalizeAllowed(value, TEAM_MEMBER_ROLES, 'team member role');
+}
+
+function normalizeInviteRole(value: string): Exclude<TeamMemberRole, 'owner'> {
+  const role = normalizeTeamMemberRole(value);
+  if (role === 'owner') {
+    throw new Error('Invalid invite role: owner');
+  }
+  return role;
 }
 
 function normalizeTeamMemberStatus(value: string): TeamMemberStatus {
   return normalizeAllowed(value, TEAM_MEMBER_STATUSES, 'team member status');
 }
 
+function normalizeInviteStatus(value: string): InviteStatus {
+  return normalizeAllowed(value, INVITE_STATUSES, 'invite status');
+}
+
 function normalizeBillingEventStatus(value: string): BillingEventStatus {
   return normalizeAllowed(value, BILLING_EVENT_STATUSES, 'billing event status');
+}
+
+function requireBoolean(value: boolean | undefined, fieldName: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw new Error(`Missing required UI backend contract field: ${fieldName}`);
+  }
+  return value;
 }
 
 function booleanFlagsOnly(flags: Record<string, unknown>): Record<string, boolean> {
@@ -330,6 +355,120 @@ export function buildUsageSettingsView(input: {
           ]
         : []),
     ],
+  };
+}
+
+export function buildBillingSettingsView(input: {
+  org: {
+    id: string;
+    name: string;
+    plan: unknown;
+    status: string;
+  };
+  subscription: {
+    provider: string | null;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+  invoiceSummary: {
+    latestInvoiceId: string | null;
+    latestInvoiceStatus: string | null;
+    billingEmail: string | null;
+    taxId: string | null;
+  };
+  actions: BillingSettingsView['actions'];
+}): BillingSettingsView {
+  return {
+    org: {
+      id: requireString(input.org.id, 'billing.org.id'),
+      name: requireString(input.org.name, 'billing.org.name'),
+      plan: normalizeSaaSPlanCode(input.org.plan),
+      status: normalizeOrgStatus(input.org.status),
+    },
+    subscription: input.subscription
+      ? {
+          provider: input.subscription.provider
+            ? normalizeBillingProvider(input.subscription.provider)
+            : null,
+          currentPeriodStart: input.subscription.currentPeriodStart,
+          currentPeriodEnd: input.subscription.currentPeriodEnd,
+          cancelAtPeriodEnd: requireBoolean(
+            input.subscription.cancelAtPeriodEnd,
+            'billing.subscription.cancelAtPeriodEnd'
+          ),
+        }
+      : null,
+    invoiceSummary: {
+      latestInvoiceId: input.invoiceSummary.latestInvoiceId,
+      latestInvoiceStatus: input.invoiceSummary.latestInvoiceStatus
+        ? normalizeInvoiceStatus(input.invoiceSummary.latestInvoiceStatus)
+        : null,
+      billingEmail: input.invoiceSummary.billingEmail,
+      taxId: input.invoiceSummary.taxId,
+    },
+    actions: {
+      canUpdateBilling: requireBoolean(
+        input.actions.canUpdateBilling,
+        'billing.actions.canUpdateBilling'
+      ),
+      canCancelRenewal: requireBoolean(
+        input.actions.canCancelRenewal,
+        'billing.actions.canCancelRenewal'
+      ),
+      ...(input.actions.disabledReason ? { disabledReason: input.actions.disabledReason } : {}),
+    },
+  };
+}
+
+export function buildTeamSettingsView(input: {
+  orgId: string;
+  plan: unknown;
+  members: Array<{
+    id: string;
+    email: string;
+    displayName: string | null;
+    role: string;
+    status: string;
+    joinedAt: string | null;
+  }>;
+  invites: Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    expiresAt: string;
+  }>;
+  actions: TeamSettingsView['actions'];
+}): TeamSettingsView {
+  const plan = getSaaSPlanDefinition(input.plan);
+
+  return {
+    orgId: requireString(input.orgId, 'team.orgId'),
+    seatLimit: plan.seatLimit,
+    members: input.members.map((member) => ({
+      id: requireString(member.id, 'team.member.id'),
+      email: requireString(member.email, 'team.member.email'),
+      displayName: member.displayName,
+      role: normalizeTeamMemberRole(member.role),
+      status: normalizeTeamMemberStatus(member.status),
+      joinedAt: member.joinedAt,
+    })),
+    invites: input.invites.map((invite) => ({
+      id: requireString(invite.id, 'team.invite.id'),
+      email: requireString(invite.email, 'team.invite.email'),
+      role: normalizeInviteRole(invite.role),
+      status: normalizeInviteStatus(invite.status),
+      expiresAt: requireString(invite.expiresAt, 'team.invite.expiresAt'),
+    })),
+    actions: {
+      canInvite: requireBoolean(input.actions.canInvite, 'team.actions.canInvite'),
+      canChangeRoles: requireBoolean(
+        input.actions.canChangeRoles,
+        'team.actions.canChangeRoles'
+      ),
+      ...(input.actions.disabledReason ? { disabledReason: input.actions.disabledReason } : {}),
+    },
   };
 }
 

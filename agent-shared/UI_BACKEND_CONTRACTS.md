@@ -220,3 +220,22 @@ Codex must not expose live backend routes until:
 - feature flags are checked;
 - role guards are checked;
 - tests cover tenant isolation and error states.
+
+## Current Backend DTO Helpers
+
+Codex has local DTO builders for contract validation in:
+
+```text
+lib/saas/ui-backend-contracts.ts
+```
+
+Available builders:
+
+- `buildUsageSettingsView()`
+- `buildBillingSettingsView()`
+- `buildTeamSettingsView()`
+- `buildPlatformOrganizationListView()`
+- `buildPlatformOrganizationDetailView()`
+- `buildPlatformBillingEventsView()`
+
+These helpers do not expose routes by themselves. They validate and normalize backend data before a future route or server action returns it to UI.

@@ -2,6 +2,32 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added settings UI/backend DTO builders for the contracts Claude already uses in settings pages.
+
+Commit:
+
+```text
+this commit
+```
+
+Updated:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added `buildBillingSettingsView()` for `/settings/billing` contract validation.
+- Added `buildTeamSettingsView()` for `/settings/team` contract validation.
+- The builders normalize plan, organization status, billing provider, invoice status, team roles, member status, and invite status.
+- Owner invites are rejected at the contract layer.
+- No routes were exposed, no DB queries were added, and no UI files were changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added the manual Beta organization provisioning backend foundation.
 
 Commit:

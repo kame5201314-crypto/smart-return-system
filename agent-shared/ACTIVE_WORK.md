@@ -33,6 +33,20 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Settings UI/backend DTO builders
+Files:
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Added billing and team settings DTO builders with validation tests. No routes were exposed, no DB queries were added, and no UI files were changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Manual Beta org provisioning backend foundation
 Files:
 - lib/saas/platform-admin-provisioning.ts

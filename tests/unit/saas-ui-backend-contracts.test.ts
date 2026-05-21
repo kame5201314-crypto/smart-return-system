@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildBillingSettingsView,
   buildPlatformBillingEventsView,
   buildPlatformOrganizationDetailView,
   buildPlatformOrganizationListView,
+  buildTeamSettingsView,
   buildUsageSettingsView,
 } from '@/lib/saas/ui-backend-contracts';
 import type {
@@ -70,6 +72,181 @@ describe('SaaS UI/backend contracts', () => {
         },
       }).warnings
     ).toEqual([]);
+  });
+
+  it('builds billing settings view models from validated billing state', () => {
+    expect(
+      buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'pro',
+          status: 'trialing',
+        },
+        subscription: {
+          provider: 'manual',
+          currentPeriodStart: '2026-05-01T00:00:00.000Z',
+          currentPeriodEnd: '2026-05-15T00:00:00.000Z',
+          cancelAtPeriodEnd: false,
+        },
+        invoiceSummary: {
+          latestInvoiceId: 'invoice-1',
+          latestInvoiceStatus: 'issued',
+          billingEmail: 'billing@example.com',
+          taxId: '12345678',
+        },
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+          disabledReason: 'Manual Beta accounts are managed by platform admin.',
+        },
+      })
+    ).toEqual({
+      org: {
+        id: 'org-1',
+        name: 'Demo Org',
+        plan: 'pro',
+        status: 'trialing',
+      },
+      subscription: {
+        provider: 'manual',
+        currentPeriodStart: '2026-05-01T00:00:00.000Z',
+        currentPeriodEnd: '2026-05-15T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+      invoiceSummary: {
+        latestInvoiceId: 'invoice-1',
+        latestInvoiceStatus: 'issued',
+        billingEmail: 'billing@example.com',
+        taxId: '12345678',
+      },
+      actions: {
+        canUpdateBilling: true,
+        canCancelRenewal: false,
+        disabledReason: 'Manual Beta accounts are managed by platform admin.',
+      },
+    });
+  });
+
+  it('rejects invalid billing settings status values', () => {
+    expect(() =>
+      buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'basic',
+          status: 'enabled',
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        actions: {
+          canUpdateBilling: false,
+          canCancelRenewal: false,
+        },
+      })
+    ).toThrow('Invalid organization status: enabled');
+  });
+
+  it('builds team settings view models with plan seat limits and invite guards', () => {
+    expect(
+      buildTeamSettingsView({
+        orgId: 'org-1',
+        plan: 'growth',
+        members: [
+          {
+            id: 'member-1',
+            email: 'owner@example.com',
+            displayName: 'Owner',
+            role: 'owner',
+            status: 'active',
+            joinedAt: '2026-05-01T00:00:00.000Z',
+          },
+          {
+            id: 'member-2',
+            email: 'viewer@example.com',
+            displayName: null,
+            role: 'viewer',
+            status: 'disabled',
+            joinedAt: null,
+          },
+        ],
+        invites: [
+          {
+            id: 'invite-1',
+            email: 'staff@example.com',
+            role: 'staff',
+            status: 'pending',
+            expiresAt: '2026-05-28T00:00:00.000Z',
+          },
+        ],
+        actions: {
+          canInvite: true,
+          canChangeRoles: true,
+        },
+      })
+    ).toEqual({
+      orgId: 'org-1',
+      seatLimit: 10,
+      members: [
+        {
+          id: 'member-1',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          role: 'owner',
+          status: 'active',
+          joinedAt: '2026-05-01T00:00:00.000Z',
+        },
+        {
+          id: 'member-2',
+          email: 'viewer@example.com',
+          displayName: null,
+          role: 'viewer',
+          status: 'disabled',
+          joinedAt: null,
+        },
+      ],
+      invites: [
+        {
+          id: 'invite-1',
+          email: 'staff@example.com',
+          role: 'staff',
+          status: 'pending',
+          expiresAt: '2026-05-28T00:00:00.000Z',
+        },
+      ],
+      actions: {
+        canInvite: true,
+        canChangeRoles: true,
+      },
+    });
+  });
+
+  it('rejects owner invites for team settings contracts', () => {
+    expect(() =>
+      buildTeamSettingsView({
+        orgId: 'org-1',
+        plan: 'basic',
+        members: [],
+        invites: [
+          {
+            id: 'invite-1',
+            email: 'owner@example.com',
+            role: 'owner',
+            status: 'pending',
+            expiresAt: '2026-05-28T00:00:00.000Z',
+          },
+        ],
+        actions: {
+          canInvite: true,
+          canChangeRoles: false,
+        },
+      })
+    ).toThrow('Invalid invite role: owner');
   });
 
   it('requires real usage snapshots for platform organization DTOs', () => {

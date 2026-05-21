@@ -374,6 +374,23 @@ function checkCommercialFoundation() {
     }
   }
 
+  const uiBackendContractsPath = path.resolve(process.cwd(), 'lib/saas/ui-backend-contracts.ts');
+  if (fs.existsSync(uiBackendContractsPath)) {
+    const source = fs.readFileSync(uiBackendContractsPath, 'utf8');
+    if (
+      source.includes('buildUsageSettingsView') &&
+      source.includes('buildBillingSettingsView') &&
+      source.includes('buildTeamSettingsView') &&
+      source.includes('buildPlatformOrganizationListView') &&
+      source.includes('buildPlatformOrganizationDetailView') &&
+      source.includes('buildPlatformBillingEventsView')
+    ) {
+      record('pass', 'SaaS UI/backend DTO builders', 'settings and platform admin contracts have validated DTO builders');
+    } else {
+      record('fail', 'SaaS UI/backend DTO builders', 'UI contracts must have validation builders before live backend wiring');
+    }
+  }
+
   const platformAdminPath = path.resolve(process.cwd(), 'lib/saas/platform-admin.ts');
   if (fs.existsSync(platformAdminPath)) {
     const source = fs.readFileSync(platformAdminPath, 'utf8');
