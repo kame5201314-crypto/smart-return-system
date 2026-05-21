@@ -9,6 +9,44 @@
 -- ---------------------------------------------------------------------------
 -- 1. Attach org_id columns.
 -- ---------------------------------------------------------------------------
+-- Legacy internal migrations created some org_id columns as VARCHAR and attached
+-- RLS policies that compare against public.users.org_id. SaaS uses UUID org ids.
+-- This migration is only approved for a fresh SaaS database, so the type
+-- conversion is safe before tenant data exists.
+DROP POLICY IF EXISTS "orders_select_org" ON public.orders;
+DROP POLICY IF EXISTS "orders_insert_org" ON public.orders;
+DROP POLICY IF EXISTS "orders_update_org" ON public.orders;
+DROP POLICY IF EXISTS "order_items_select" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_insert" ON public.order_items;
+DROP POLICY IF EXISTS "returns_select_org" ON public.return_requests;
+DROP POLICY IF EXISTS "returns_insert_org" ON public.return_requests;
+DROP POLICY IF EXISTS "returns_update" ON public.return_requests;
+DROP POLICY IF EXISTS "returns_delete_admin" ON public.return_requests;
+DROP POLICY IF EXISTS "return_items_select" ON public.return_items;
+DROP POLICY IF EXISTS "return_items_insert" ON public.return_items;
+DROP POLICY IF EXISTS "return_items_update" ON public.return_items;
+DROP POLICY IF EXISTS "return_images_select" ON public.return_images;
+DROP POLICY IF EXISTS "return_images_insert" ON public.return_images;
+DROP POLICY IF EXISTS "return_images_delete" ON public.return_images;
+DROP POLICY IF EXISTS "ai_analysis_select" ON public.ai_analysis_results;
+DROP POLICY IF EXISTS "ai_analysis_insert" ON public.ai_analysis_results;
+
+ALTER TABLE IF EXISTS public.orders
+  ALTER COLUMN org_id DROP NOT NULL,
+  ALTER COLUMN org_id TYPE UUID USING NULLIF(org_id, '')::uuid;
+
+ALTER TABLE IF EXISTS public.return_requests
+  ALTER COLUMN org_id DROP NOT NULL,
+  ALTER COLUMN org_id TYPE UUID USING NULLIF(org_id, '')::uuid;
+
+CREATE TABLE IF NOT EXISTS public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sku VARCHAR(100),
+  name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 ALTER TABLE IF EXISTS public.customers
   ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
 
@@ -22,6 +60,9 @@ ALTER TABLE IF EXISTS public.return_items
   ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
 
 ALTER TABLE IF EXISTS public.return_images
+  ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE IF EXISTS public.order_items
   ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
 
 ALTER TABLE IF EXISTS public.activity_logs
@@ -54,6 +95,9 @@ ALTER TABLE IF EXISTS public.shopee_scan_daily_kpis
 ALTER TABLE IF EXISTS public.scan_audit_logs
   ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
 
+ALTER TABLE IF EXISTS public.products
+  ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE;
+
 -- ---------------------------------------------------------------------------
 -- 2. Make org_id required after fresh-start/backfill review.
 -- ---------------------------------------------------------------------------
@@ -62,6 +106,7 @@ ALTER TABLE IF EXISTS public.orders ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.return_requests ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.return_items ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.return_images ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE IF EXISTS public.order_items ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.activity_logs ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.inspection_records ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.ai_analysis_reports ALTER COLUMN org_id SET NOT NULL;
@@ -72,6 +117,7 @@ ALTER TABLE IF EXISTS public.shopee_scan_events ALTER COLUMN org_id SET NOT NULL
 ALTER TABLE IF EXISTS public.shopee_unmatched_scans ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.shopee_scan_daily_kpis ALTER COLUMN org_id SET NOT NULL;
 ALTER TABLE IF EXISTS public.scan_audit_logs ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE IF EXISTS public.products ALTER COLUMN org_id SET NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- 3. Tenant indexes and unique constraints.
@@ -90,6 +136,9 @@ ON public.return_items(org_id, return_request_id);
 
 CREATE INDEX IF NOT EXISTS idx_return_images_org_request
 ON public.return_images(org_id, return_request_id);
+
+CREATE INDEX IF NOT EXISTS idx_order_items_org_order
+ON public.order_items(org_id, order_id);
 
 CREATE INDEX IF NOT EXISTS idx_activity_logs_org_created
 ON public.activity_logs(org_id, created_at DESC);
@@ -121,6 +170,9 @@ ON public.shopee_scan_daily_kpis(org_id, metric_date DESC);
 CREATE INDEX IF NOT EXISTS idx_scan_audit_logs_org_created
 ON public.scan_audit_logs(org_id, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_products_org_sku
+ON public.products(org_id, sku);
+
 ALTER TABLE IF EXISTS public.shopee_returns
   DROP CONSTRAINT IF EXISTS shopee_returns_order_number_option_sku_key;
 
@@ -148,6 +200,7 @@ ALTER TABLE IF EXISTS public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.return_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.return_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.return_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.inspection_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.ai_analysis_reports ENABLE ROW LEVEL SECURITY;
@@ -158,6 +211,7 @@ ALTER TABLE IF EXISTS public.shopee_scan_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.shopee_unmatched_scans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.shopee_scan_daily_kpis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.scan_audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.products ENABLE ROW LEVEL SECURITY;
 
 -- Drop known broad authenticated policies from internal/live-era migrations.
 DROP POLICY IF EXISTS "Allow all for authenticated users" ON public.shopee_returns;
