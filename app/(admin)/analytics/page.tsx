@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/saas/page-header';
 import {
   Select,
   SelectContent,
@@ -342,21 +343,19 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="w-6 h-6" />
-            數據中心
-          </h1>
-          <p className="text-muted-foreground">退貨數據分析與視覺化報表</p>
-        </div>
-        <Link href="/analytics/ai-report">
-          <Button>
-            <Brain className="w-4 h-4 mr-2" />
-            AI 智能分析
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        icon={<BarChart3 className="size-6" />}
+        title="數據中心"
+        description="退貨數據分析與視覺化報表。"
+        actions={
+          <Link href="/analytics/ai-report">
+            <Button>
+              <Brain className="w-4 h-4 mr-2" />
+              AI 智能分析
+            </Button>
+          </Link>
+        }
+      />
 
       {/* Filters */}
       <Card>

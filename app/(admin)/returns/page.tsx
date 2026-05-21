@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { KanbanBoard } from '@/components/kanban/kanban-board';
 import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
+import { PageHeader } from '@/components/saas/page-header';
 
 import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
@@ -480,37 +481,37 @@ export default function ReturnsPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">退貨管理</h1>
-          <p className="text-muted-foreground">管理所有退貨申請</p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            ref={importFileRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-          <Button onClick={() => setManualDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            手動新增
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => importFileRef.current?.click()}
-            disabled={isImporting}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            {isImporting ? '匯入中...' : '匯入'}
-          </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />
-            匯出 Excel
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="退貨管理"
+        description="管理所有退貨申請。"
+        actions={
+          <>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <Button onClick={() => setManualDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              手動新增
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => importFileRef.current?.click()}
+              disabled={isImporting}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isImporting ? '匯入中...' : '匯入'}
+            </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              匯出 Excel
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters */}
       <Card>
