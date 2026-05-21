@@ -28,6 +28,8 @@ DROP POLICY IF EXISTS "return_items_update" ON public.return_items;
 DROP POLICY IF EXISTS "return_images_select" ON public.return_images;
 DROP POLICY IF EXISTS "return_images_insert" ON public.return_images;
 DROP POLICY IF EXISTS "return_images_delete" ON public.return_images;
+DROP POLICY IF EXISTS "return_logs_select" ON public.return_logs;
+DROP POLICY IF EXISTS "return_logs_insert" ON public.return_logs;
 DROP POLICY IF EXISTS "ai_analysis_select" ON public.ai_analysis_results;
 DROP POLICY IF EXISTS "ai_analysis_insert" ON public.ai_analysis_results;
 
