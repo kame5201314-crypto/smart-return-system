@@ -78,6 +78,8 @@ const requiredColumns = [
   ['organization_members', 'org_id'],
   ['organization_members', 'user_id'],
   ['organization_members', 'role'],
+  ['organization_members', 'email'],
+  ['organization_members', 'status'],
   ['subscriptions', 'org_id'],
   ['subscriptions', 'status'],
   ['subscriptions', 'trial_end'],

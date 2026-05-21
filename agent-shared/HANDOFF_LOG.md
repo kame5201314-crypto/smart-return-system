@@ -2,6 +2,38 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added the manual Beta organization provisioning backend foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/platform-admin-provisioning.ts`
+- `supabase/migrations/028_saas_manual_beta_org_provisioning.sql`
+
+Updated:
+
+- `app/api/internal/saas/orgs/route.ts`
+- `tests/unit/saas-platform-admin-routes.test.ts`
+- `supabase/migrations/027_saas_platform_admin_read_model.sql`
+- `scripts/saas/check-saas-schema-readiness.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Notes:
+
+- `POST /api/internal/saas/orgs` is platform-admin gated and remains closed while `ENABLE_MULTI_TENANT_ADMIN=false`.
+- The route validates manual Beta org requests before calling the provisioning repository.
+- The repository calls a draft RPC, `create_manual_beta_organization`.
+- `028` creates the org, optional owner membership, trialing manual subscription, and audit log atomically in SQL.
+- No Supabase migration was applied and no data was changed.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added the platform admin read model migration draft.
 
 Commit:

@@ -186,6 +186,7 @@ function checkCommercialFoundation() {
     'lib/saas/org-context.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
+    'lib/saas/platform-admin-provisioning.ts',
     'lib/saas/billing.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
@@ -201,6 +202,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
     'supabase/migrations/026_saas_public_signup_requests.sql',
     'supabase/migrations/027_saas_platform_admin_read_model.sql',
+    'supabase/migrations/028_saas_manual_beta_org_provisioning.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -409,10 +411,14 @@ function checkCommercialFoundation() {
     const dataLayerHasRepository =
       dataSource.includes('createPlatformAdminDataRepository') &&
       dataSource.includes('PlatformAdminDataRepository');
-    if (routesUseGuard && dataLayerHasRepository) {
-      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated');
+    const orgRouteHasProvisioning =
+      orgRouteSource.includes('handleCreateManualBetaOrganization') &&
+      orgRouteSource.includes('createPlatformOrgProvisioningRepository') &&
+      orgRouteSource.includes('export async function POST');
+    if (routesUseGuard && dataLayerHasRepository && orgRouteHasProvisioning) {
+      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated, including manual Beta provisioning');
     } else {
-      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard and repository layer');
+      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, and gated manual Beta provisioning');
     }
   }
 
@@ -458,6 +464,33 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform admin read model', 'migration draft matches platform admin API read columns');
     } else {
       record('fail', 'SaaS platform admin read model', 'platform admin API read columns must be represented in migration drafts');
+    }
+  }
+
+  const platformOrgProvisioningPath = path.resolve(
+    process.cwd(),
+    'lib/saas/platform-admin-provisioning.ts'
+  );
+  const manualBetaProvisioningMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/028_saas_manual_beta_org_provisioning.sql'
+  );
+  if (
+    fs.existsSync(platformOrgProvisioningPath) &&
+    fs.existsSync(manualBetaProvisioningMigrationPath)
+  ) {
+    const provisioningSource = fs.readFileSync(platformOrgProvisioningPath, 'utf8');
+    const migrationSource = fs.readFileSync(manualBetaProvisioningMigrationPath, 'utf8');
+    if (
+      provisioningSource.includes('createPlatformOrgProvisioningRepository') &&
+      provisioningSource.includes('create_manual_beta_organization') &&
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.create_manual_beta_organization') &&
+      migrationSource.includes('platform.manual_beta_org_created') &&
+      migrationSource.includes('GRANT EXECUTE')
+    ) {
+      record('pass', 'SaaS manual Beta org provisioning', 'platform admin POST route has RPC-backed provisioning draft');
+    } else {
+      record('fail', 'SaaS manual Beta org provisioning', 'manual Beta org provisioning must be platform-admin gated and backed by a migration draft');
     }
   }
 }

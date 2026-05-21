@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Manual Beta org provisioning backend foundation
+Files:
+- lib/saas/platform-admin-provisioning.ts
+- app/api/internal/saas/orgs/route.ts
+- tests/unit/saas-platform-admin-routes.test.ts
+- supabase/migrations/027_saas_platform_admin_read_model.sql
+- supabase/migrations/028_saas_manual_beta_org_provisioning.sql
+- scripts/saas/check-saas-schema-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added gated platform admin POST foundation for manual Beta org provisioning via draft RPC. ENABLE_MULTI_TENANT_ADMIN remains false, and no migration was applied.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin read model migration draft
 Files:
 - supabase/migrations/027_saas_platform_admin_read_model.sql

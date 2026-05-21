@@ -7,6 +7,12 @@ import {
   type PlatformAdminQueryClient,
 } from '@/lib/saas/platform-admin-data';
 import {
+  createPlatformOrgProvisioningRepository,
+  normalizeManualBetaOrganizationInput,
+  PlatformOrgProvisioningError,
+  type PlatformOrgProvisioningRepository,
+} from '@/lib/saas/platform-admin-provisioning';
+import {
   PlatformAdminAccessError,
   requirePlatformAdminAccess,
   type PlatformAdminContext,
@@ -16,6 +22,7 @@ import { buildPlatformOrganizationListView } from '@/lib/saas/ui-backend-contrac
 interface HandlerDependencies {
   requireAccess?: () => Promise<PlatformAdminContext>;
   repository?: PlatformAdminDataRepository;
+  provisioningRepository?: PlatformOrgProvisioningRepository;
 }
 
 function parseLimit(request: NextRequest): number {
@@ -30,6 +37,14 @@ function parseLimit(request: NextRequest): number {
 function getRepository(deps: HandlerDependencies): PlatformAdminDataRepository {
   return deps.repository ?? createPlatformAdminDataRepository(
     createUntypedAdminClient() as unknown as PlatformAdminQueryClient
+  );
+}
+
+function getProvisioningRepository(
+  deps: HandlerDependencies
+): PlatformOrgProvisioningRepository {
+  return deps.provisioningRepository ?? createPlatformOrgProvisioningRepository(
+    createUntypedAdminClient()
   );
 }
 
@@ -73,6 +88,62 @@ export async function handleListPlatformOrganizations(
   }
 }
 
+async function readJsonBody(request: NextRequest): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    throw new PlatformOrgProvisioningError(
+      'invalid_request',
+      400,
+      'Request body must be valid JSON.'
+    );
+  }
+}
+
+export async function handleCreateManualBetaOrganization(
+  request: NextRequest,
+  deps: HandlerDependencies = {}
+) {
+  try {
+    const access = await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    const payload = await readJsonBody(request);
+    const input = normalizeManualBetaOrganizationInput(payload, access.userId);
+    const result = await getProvisioningRepository(deps).createManualBetaOrganization(input);
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: result,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof PlatformAdminAccessError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
+    if (error instanceof PlatformOrgProvisioningError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
+    console.error('Create manual Beta organization failed:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create manual Beta organization' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   return handleListPlatformOrganizations(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleCreateManualBetaOrganization(request);
 }

@@ -23,15 +23,16 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `027_*` chain |
+| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `028_*` chain |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | blocked | Platform admin live data wiring | Schema readiness gate exists; UI page live consumption still waits for migrations/live data readiness |
 | done | Platform admin read model migration draft | This commit; added `027` for `owner_email` / `member_count` alignment with platform admin APIs |
+| done | Manual Beta org provisioning backend foundation | This commit; added gated `POST /api/internal/saas/orgs` and `028` RPC draft, no DB apply |
 | done | Billing foundation | ECPay webhook route is flag/credential/CheckMacValue gated and records idempotent billing_events only after verification |
 | done | ECPay webhook signature verification | This commit; default route path verifies CheckMacValue locally before recording events |
 | done | AI quota enforcement hardening | This commit; return AI analysis now checks `org.plan` monthly quota before provider calls |
 | blocked | SaaS predeploy strict gate | Schema readiness gate exists; final strict pass still needs Gemini key and SaaS migrations applied |
-| done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-027 table and org_id readiness checks |
+| done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | Platform admin API DTO wiring | This commit; internal APIs return UI contract DTOs behind the platform admin flag |
 | done | Convert UI mock contracts to backend DTOs | This commit; added `lib/saas/ui-backend-contracts.ts` and unit tests |
 
