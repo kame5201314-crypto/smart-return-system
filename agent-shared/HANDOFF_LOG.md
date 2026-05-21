@@ -2,6 +2,37 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added a read-only SaaS migration apply plan check.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `scripts/saas/check-migration-plan.mjs`
+- `tests/unit/saas-migration-plan.test.ts`
+
+Updated:
+
+- `package.json`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- New scripts: `npm run saas:migration-plan` and `npm run saas:migration-plan:strict`.
+- The check validates `APP_MODE=saas`, expected SaaS Supabase project ref, forbidden internal project refs, `SUPABASE_DB_PASSWORD`, and the full migration chain ending at `028`.
+- The script is intentionally read-only and prints that no migrations were applied.
+- Strict mode should remain blocked until `SUPABASE_DB_PASSWORD` is available.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added settings UI/backend DTO builders for the contracts Claude already uses in settings pages.
 
 Commit:

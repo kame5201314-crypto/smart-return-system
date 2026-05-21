@@ -178,6 +178,13 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Non-strict mode reports readiness without blocking local development.
   - Strict mode should remain blocked until SaaS migrations are approved and applied.
   - No Supabase data was changed.
+- SaaS migration apply plan check was added without applying migrations:
+  - `scripts/saas/check-migration-plan.mjs`
+  - `npm run saas:migration-plan`
+  - `npm run saas:migration-plan:strict`
+  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full migration chain ending at `028`.
+  - Strict mode should remain blocked until `SUPABASE_DB_PASSWORD` is available.
+  - No Supabase data was changed.
 - Platform admin read model migration draft was added without applying migrations:
   - `supabase/migrations/027_saas_platform_admin_read_model.sql`
   - Adds `organizations.owner_email` and `organizations.member_count`, matching the platform admin API read columns.
@@ -300,11 +307,12 @@ After the SaaS Supabase and secret values exist:
 3. Run `npm run saas:doctor`.
 4. Run `npm run saas:verify-env`.
 5. Run `npm run saas:doctor:strict`.
-6. Run `npm run saas:schema-gate:strict`.
-7. Run `npm run saas:predeploy`.
-8. Review and apply migrations to the SaaS Supabase Project only, including `supabase/migrations/023_saas_commercial_foundation.sql`, `supabase/migrations/024_saas_commercial_v2.sql`, `supabase/migrations/025_attach_org_id_to_business_tables.sql`, `supabase/migrations/026_saas_public_signup_requests.sql`, `supabase/migrations/027_saas_platform_admin_read_model.sql`, and `supabase/migrations/028_saas_manual_beta_org_provisioning.sql` when tenant, billing, signup request, platform admin read-model, and manual Beta provisioning tables/functions are approved.
-9. Deploy the SaaS Vercel Project.
-10. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+6. Run `npm run saas:migration-plan:strict`.
+7. Run `npm run saas:schema-gate:strict`.
+8. Run `npm run saas:predeploy`.
+9. Review and apply migrations to the SaaS Supabase Project only, using the full migration chain from `001_*` through `028_*`; do not apply only the SaaS tail migrations to a new empty DB.
+10. Deploy the SaaS Vercel Project.
+11. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
 
 If you need to run the individual checks:
 

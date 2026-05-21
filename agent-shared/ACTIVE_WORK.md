@@ -33,6 +33,23 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS migration apply plan check
+Files:
+- scripts/saas/check-migration-plan.mjs
+- package.json
+- tests/unit/saas-migration-plan.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added a read-only pre-apply migration plan check that validates SaaS project ref, forbidden internal refs, DB password readiness, and full 001-028 migration chain. No migration is applied by the script.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Settings UI/backend DTO builders
 Files:
 - lib/saas/ui-backend-contracts.ts

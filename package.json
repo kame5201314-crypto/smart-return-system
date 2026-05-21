@@ -24,6 +24,8 @@
     "saas:build": "node scripts/saas/run-with-saas-env.mjs npm run build",
     "saas:doctor": "node scripts/saas/readiness-check.mjs",
     "saas:doctor:strict": "node scripts/saas/readiness-check.mjs --strict",
+    "saas:migration-plan": "node scripts/saas/run-with-saas-env.mjs node scripts/saas/check-migration-plan.mjs",
+    "saas:migration-plan:strict": "node scripts/saas/run-with-saas-env.mjs node scripts/saas/check-migration-plan.mjs --strict",
     "saas:schema-gate": "node scripts/saas/run-with-saas-env.mjs node scripts/saas/check-saas-schema-readiness.mjs",
     "saas:schema-gate:strict": "node scripts/saas/run-with-saas-env.mjs node scripts/saas/check-saas-schema-readiness.mjs --strict",
     "saas:predeploy": "npm run saas:verify-checkout && npm run saas:verify-env && npm run saas:schema-gate && npm run lint && npm run typecheck && npm run test:all && npm run saas:build",

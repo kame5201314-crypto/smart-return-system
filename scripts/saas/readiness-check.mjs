@@ -193,6 +193,7 @@ function checkCommercialFoundation() {
     'lib/saas/signup-request-repository.ts',
     'app/api/saas/signup/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
+    'scripts/saas/check-migration-plan.mjs',
     'scripts/saas/check-saas-schema-readiness.mjs',
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
@@ -371,6 +372,22 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS schema readiness gate', 'checks tenant, signup, billing, and platform-admin schema before live wiring');
     } else {
       record('fail', 'SaaS schema readiness gate', 'must check SaaS tenant, signup, billing, and platform-admin schema');
+    }
+  }
+
+  const saasMigrationPlanPath = path.resolve(process.cwd(), 'scripts/saas/check-migration-plan.mjs');
+  if (fs.existsSync(saasMigrationPlanPath)) {
+    const source = fs.readFileSync(saasMigrationPlanPath, 'utf8');
+    if (
+      source.includes('SUPABASE_DB_PASSWORD') &&
+      source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
+      source.includes('REQUIRED_SAAS_MIGRATIONS') &&
+      source.includes('028_saas_manual_beta_org_provisioning.sql') &&
+      source.includes('No migrations were applied by this check')
+    ) {
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and migration chain before apply');
+    } else {
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full migration chain without applying migrations');
     }
   }
 

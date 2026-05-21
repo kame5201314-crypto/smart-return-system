@@ -44,6 +44,16 @@ Files:
 - `REVIEW_CHECKLIST.md`: checklist before handoff, commit, and push.
 - `UI_BACKEND_CONTRACTS.md`: data contracts between Claude UI mocks and Codex backend wiring.
 
+Read-only SaaS safety commands:
+
+```powershell
+npm run saas:doctor
+npm run saas:migration-plan
+npm run saas:schema-gate
+```
+
+These commands must not apply migrations or change external platform state.
+
 Rule of thumb:
 
 - If it changes what users see, Claude can usually own it.
