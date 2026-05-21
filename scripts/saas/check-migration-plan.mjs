@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const EXPECTED_BRANCH = 'develop-saas';
-const EXPECTED_LAST_MIGRATION = '030_saas_invoice_status_alignment.sql';
+const EXPECTED_LAST_MIGRATION = '031_saas_invite_acceptance_rpc.sql';
 const REQUIRED_BASE_MIGRATIONS = [
   '001_return_system_schema.sql',
   '002_rls_and_init_data.sql',
@@ -21,6 +21,7 @@ const REQUIRED_SAAS_MIGRATIONS = [
   '028_saas_manual_beta_org_provisioning.sql',
   '029_saas_billing_event_status.sql',
   '030_saas_invoice_status_alignment.sql',
+  '031_saas_invite_acceptance_rpc.sql',
 ];
 const DEFAULT_FORBIDDEN_SUPABASE_REFS = [
   'fdzfnenizyppxglypden',

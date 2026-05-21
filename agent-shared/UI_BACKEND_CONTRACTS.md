@@ -307,5 +307,7 @@ lib/saas/invite-acceptance.ts
 Available helpers:
 
 - `acceptSaaSInvite()`
+- `createSaaSInviteAcceptanceRepository()`
+- `buildAcceptOrganizationInviteRpcArgs()`
 
-This helper prepares the future invite acceptance flow behind repository interfaces. It validates the token, signed-in user email, invite role, and invite lifecycle state before calling a future atomic repository write. It does not expose a route, create a Supabase client, accept live invites, send email, run migrations, or change UI by itself.
+This helper prepares the future invite acceptance flow behind repository interfaces. It validates the token, signed-in user email, invite role, and invite lifecycle state before calling the `accept_organization_invite` RPC wrapper. The RPC is only a migration draft in `supabase/migrations/031_saas_invite_acceptance_rpc.sql`. This does not expose a route, accept live invites, send email, run migrations, or change UI by itself.

@@ -216,6 +216,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/028_saas_manual_beta_org_provisioning.sql',
     'supabase/migrations/029_saas_billing_event_status.sql',
     'supabase/migrations/030_saas_invoice_status_alignment.sql',
+    'supabase/migrations/031_saas_invite_acceptance_rpc.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -447,10 +448,10 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('030_saas_invoice_status_alignment.sql') &&
+      source.includes('031_saas_invite_acceptance_rpc.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-030 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-031 migration chain before apply');
     } else {
       record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-030 migration chain without applying migrations');
     }
@@ -574,9 +575,11 @@ function checkCommercialFoundation() {
     const source = fs.readFileSync(inviteAcceptancePath, 'utf8');
     if (
       source.includes('acceptSaaSInvite') &&
+      source.includes('createSaaSInviteAcceptanceRepository') &&
       source.includes('SaaSInviteAcceptanceRepository') &&
       source.includes('getInviteByToken') &&
       source.includes('acceptInvite') &&
+      source.includes('accept_organization_invite') &&
       source.includes('email_mismatch') &&
       source.includes('invite_expired') &&
       source.includes('invite_already_accepted') &&
@@ -770,6 +773,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/030_saas_invoice_status_alignment.sql'
   );
+  const inviteAcceptanceMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/031_saas_invite_acceptance_rpc.sql'
+  );
   if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
     const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
@@ -781,6 +788,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invoice status schema', 'invoice status draft matches backend billing settings contract');
     } else {
       record('fail', 'SaaS invoice status schema', 'invoice status must align between migration drafts and billing settings DTOs');
+    }
+  }
+
+  if (fs.existsSync(inviteAcceptanceMigrationPath) && fs.existsSync(inviteAcceptancePath)) {
+    const migrationSource = fs.readFileSync(inviteAcceptanceMigrationPath, 'utf8');
+    const inviteAcceptanceSource = fs.readFileSync(inviteAcceptancePath, 'utf8');
+    if (
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.accept_organization_invite') &&
+      migrationSource.includes('FOR UPDATE') &&
+      migrationSource.includes('member.invite_accepted') &&
+      migrationSource.includes('GRANT EXECUTE') &&
+      inviteAcceptanceSource.includes('accept_organization_invite') &&
+      inviteAcceptanceSource.includes('buildAcceptOrganizationInviteRpcArgs')
+    ) {
+      record('pass', 'SaaS invite acceptance RPC draft', 'invite acceptance RPC draft matches the repository wrapper');
+    } else {
+      record('fail', 'SaaS invite acceptance RPC draft', 'invite acceptance must have an atomic RPC draft and matching repository wrapper');
     }
   }
 }

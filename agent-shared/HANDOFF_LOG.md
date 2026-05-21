@@ -2,6 +2,41 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS invite acceptance RPC draft and repository wrapper.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `supabase/migrations/031_saas_invite_acceptance_rpc.sql`
+
+Updated:
+
+- `lib/saas/invite-acceptance.ts`
+- `tests/unit/saas-invite-acceptance.test.ts`
+- `tests/unit/saas-migration-plan.test.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added draft `accept_organization_invite` RPC for future atomic invite acceptance.
+- The draft validates invite id/org/email/role, locks the invite row, creates or updates membership, marks `accepted_at`, and records `member.invite_accepted` in `audit_logs`.
+- Added local repository wrapper and RPC arg mapper; no live route uses it yet.
+- Updated migration plan checks so the SaaS migration chain now ends at `031`.
+- No migration was applied, no route was exposed, no UI file was changed, no invite was accepted, and no email was sent.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS invite acceptance service foundation.
 
 Commit:

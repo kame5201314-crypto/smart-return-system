@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS invite acceptance RPC draft and repository
+Files:
+- supabase/migrations/031_saas_invite_acceptance_rpc.sql
+- lib/saas/invite-acceptance.ts
+- tests/unit/saas-invite-acceptance.test.ts
+- tests/unit/saas-migration-plan.test.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added draft atomic invite acceptance RPC and local repository wrapper. No migration was applied, no route was exposed, no UI file was changed, no invite email was sent, and no live invite was accepted.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS invite acceptance service foundation
 Files:
 - lib/saas/invite-acceptance.ts

@@ -23,12 +23,12 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `030_*` chain |
+| blocked | SaaS migrations apply | Needs SaaS DB password and explicit approval; use full `001_*` to `031_*` chain |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | blocked | Platform admin live data wiring | Schema readiness gate exists; UI page live consumption still waits for migrations/live data readiness |
 | done | Platform admin read model migration draft | This commit; added `027` for `owner_email` / `member_count` alignment with platform admin APIs |
 | done | Manual Beta org provisioning backend foundation | This commit; added gated `POST /api/internal/saas/orgs` and `028` RPC draft, no DB apply |
-| done | SaaS migration apply plan check | This commit; added read-only `saas:migration-plan` checks for SaaS project ref, DB password, and full 001-030 chain |
+| done | SaaS migration apply plan check | This commit; added read-only `saas:migration-plan` checks for SaaS project ref, DB password, and full 001-031 chain |
 | done | Billing foundation | ECPay webhook route is flag/credential/CheckMacValue gated and records idempotent billing_events only after verification |
 | done | ECPay webhook signature verification | This commit; default route path verifies CheckMacValue locally before recording events |
 | done | Billing event status schema draft | This commit; added `029` draft and backend record defaults for `billing_events.status` |
@@ -41,6 +41,7 @@ Status values:
 | done | Invite status policy foundation | This commit; centralized pending/accepted/expired/revoked invite status and admin/staff/viewer acceptability rules |
 | done | Invite token data repository foundation | This commit; added future `/invite/[token]` token lookup from organization_invites without exposing a live route |
 | done | Invite acceptance service foundation | This commit; added repository-backed invite acceptance use-case without exposing a route or live write implementation |
+| done | Invite acceptance RPC draft | This commit; added `031` draft RPC and repository wrapper for atomic invite acceptance without applying migrations |
 | blocked | SaaS predeploy strict gate | Schema readiness gate exists; final strict pass still needs Gemini key and SaaS migrations applied |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | SaaS schema gate commercial v2 coverage | This commit; strict gate now checks organization billing/onboarding/upgrade suggestion fields, subscription period/provider fields, invoice fields, invite token fields, and audit metadata |

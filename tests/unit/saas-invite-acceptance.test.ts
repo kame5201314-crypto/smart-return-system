@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   acceptSaaSInvite,
+  buildAcceptOrganizationInviteRpcArgs,
+  createSaaSInviteAcceptanceRepository,
   SaaSInviteAcceptanceError,
   type SaaSInviteAcceptanceRepository,
 } from '@/lib/saas/invite-acceptance';
@@ -222,6 +224,107 @@ describe('SaaS invite acceptance service', () => {
     await expect(attempt).rejects.toMatchObject({
       code: 'accept_failed',
       status: 500,
+    });
+  });
+
+  it('maps invite acceptance input to the accept_organization_invite RPC args', () => {
+    expect(
+      buildAcceptOrganizationInviteRpcArgs({
+        inviteId: 'invite-1',
+        orgId: 'org-1',
+        userId: 'user-1',
+        userEmail: 'STAFF@EXAMPLE.COM',
+        role: 'staff',
+        acceptedAt: '2026-05-21T08:00:00.000Z',
+      })
+    ).toEqual({
+      p_invite_id: 'invite-1',
+      p_org_id: 'org-1',
+      p_user_id: 'user-1',
+      p_user_email: 'staff@example.com',
+      p_role: 'staff',
+      p_accepted_at: '2026-05-21T08:00:00.000Z',
+    });
+  });
+
+  it('persists invite acceptance through the RPC-backed repository wrapper', async () => {
+    const getInviteByToken = vi.fn(async () => buildInvite());
+    const rpc = vi.fn(async () => ({
+      data: {
+        membership_id: 'membership-1',
+        audit_log_id: 'audit-1',
+      },
+      error: null,
+    }));
+    const repository = createSaaSInviteAcceptanceRepository({
+      inviteReader: {
+        getInviteByToken,
+      },
+      rpcClient: {
+        rpc,
+      },
+    });
+
+    await expect(
+      repository.acceptInvite({
+        inviteId: 'invite-1',
+        orgId: 'org-1',
+        userId: 'user-1',
+        userEmail: 'staff@example.com',
+        role: 'staff',
+        acceptedAt: '2026-05-21T08:00:00.000Z',
+      })
+    ).resolves.toEqual({
+      membershipId: 'membership-1',
+    });
+    await expect(
+      repository.getInviteByToken({
+        token: 'token-1',
+      })
+    ).resolves.toMatchObject({
+      id: 'invite-1',
+    });
+    expect(rpc).toHaveBeenCalledWith('accept_organization_invite', {
+      p_invite_id: 'invite-1',
+      p_org_id: 'org-1',
+      p_user_id: 'user-1',
+      p_user_email: 'staff@example.com',
+      p_role: 'staff',
+      p_accepted_at: '2026-05-21T08:00:00.000Z',
+    });
+    expect(getInviteByToken).toHaveBeenCalledWith({
+      token: 'token-1',
+    });
+  });
+
+  it('wraps RPC-backed repository errors as acceptance failures', async () => {
+    const repository = createSaaSInviteAcceptanceRepository({
+      inviteReader: {
+        getInviteByToken: vi.fn(async () => buildInvite()),
+      },
+      rpcClient: {
+        rpc: vi.fn(async () => ({
+          data: null,
+          error: {
+            message: 'Invite has expired.',
+          },
+        })),
+      },
+    });
+
+    await expect(
+      repository.acceptInvite({
+        inviteId: 'invite-1',
+        orgId: 'org-1',
+        userId: 'user-1',
+        userEmail: 'staff@example.com',
+        role: 'staff',
+        acceptedAt: '2026-05-21T08:00:00.000Z',
+      })
+    ).rejects.toMatchObject({
+      code: 'accept_failed',
+      status: 500,
+      message: 'Invite has expired.',
     });
   });
 });
