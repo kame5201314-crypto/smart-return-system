@@ -160,6 +160,10 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `getOrgContext({ requirements: { writable: true } })` now uses the centralized subscription access policy.
   - `past_due` is read-only for write, AI, and export guards, matching the product spec; users can still log in, view data, and manage billing.
   - `suspended` and `cancelled` remain read-only for data operations.
+- SaaS subscription lifecycle timing policy was added:
+  - `lib/saas/subscription-lifecycle.ts`
+  - Defines local timing rules for `trial_end` expiration, `cancel_at_period_end`, `past_due` 7-day grace, and `suspended` 30-day retention.
+  - This is a pure resolver for future billing cron/webhook code; it does not write to Supabase or expose a route.
 - SaaS export access guards were hardened:
   - `/api/v1/admin/returns/export`
   - `/api/v1/admin/shopee-returns/export`

@@ -185,6 +185,7 @@ function checkCommercialFoundation() {
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
     'lib/saas/subscription-access.ts',
+    'lib/saas/subscription-lifecycle.ts',
     'lib/saas/team-limits.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
@@ -390,6 +391,24 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS subscription access policy', 'past_due and inactive statuses are read-only for write and export guards');
     } else {
       record('fail', 'SaaS subscription access policy', 'must keep past_due, suspended, and cancelled from write/AI/export paths');
+    }
+  }
+
+  const subscriptionLifecyclePath = path.resolve(process.cwd(), 'lib/saas/subscription-lifecycle.ts');
+  if (fs.existsSync(subscriptionLifecyclePath)) {
+    const source = fs.readFileSync(subscriptionLifecyclePath, 'utf8');
+    if (
+      source.includes('PAST_DUE_GRACE_DAYS = 7') &&
+      source.includes('SUSPENDED_RETENTION_DAYS = 30') &&
+      source.includes('resolveSaaSSubscriptionTimedStatus') &&
+      source.includes('trial_expired') &&
+      source.includes('cancelled_at_period_end') &&
+      source.includes('past_due_grace_expired') &&
+      source.includes('suspended_retention_expired')
+    ) {
+      record('pass', 'SaaS subscription lifecycle timing', 'trial, past_due, suspended, and cancel-at-period-end timing rules are defined');
+    } else {
+      record('fail', 'SaaS subscription lifecycle timing', 'must define trial_end expiry, 7-day past_due grace, 30-day suspended retention, and cancel-at-period-end rules');
     }
   }
 

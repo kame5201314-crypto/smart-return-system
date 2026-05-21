@@ -2,6 +2,35 @@
 
 ## 2026-05-21 Codex -> Claude / Codex
 
+Added SaaS subscription lifecycle timing policy.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/subscription-lifecycle.ts`
+- `tests/unit/saas-subscription-lifecycle.test.ts`
+
+Updated:
+
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added pure local resolver for timed subscription status transitions.
+- Covered trial expiration via `trialEnd`, `cancelAtPeriodEnd`, `past_due` 7-day grace, and `suspended` 30-day retention.
+- The resolver does not write to Supabase and does not expose a route; future billing cron/webhook code can use it after migrations are approved.
+
+## 2026-05-21 Codex -> Claude / Codex
+
 Added SaaS team seat limit policy for backend DTOs.
 
 Commit:

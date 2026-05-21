@@ -33,6 +33,22 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS subscription lifecycle timing policy
+Files:
+- lib/saas/subscription-lifecycle.ts
+- tests/unit/saas-subscription-lifecycle.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added pure local timed status resolver for trial_end expiry, cancel_at_period_end, past_due 7-day grace, and suspended 30-day retention. No route or DB write was added.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS team seat limit policy
 Files:
 - lib/saas/team-limits.ts
