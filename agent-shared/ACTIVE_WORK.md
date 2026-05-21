@@ -1,8 +1,12 @@
 # Active Work
 
-用來避免 Claude / Codex 同時改同一批檔案。
+Use this file to avoid Claude / Codex editing the same files at the same time.
 
-更新格式：
+This file is Codex-maintained. Claude should not edit it directly; Claude should declare task scope in the chat or commit message, and Codex records it here after handoff.
+
+This is a coordination log, not a hard git lock. In one shared working tree, prefer serialized work: one agent finishes, commits, and pushes before the next agent starts.
+
+Update format:
 
 ```text
 Owner:
@@ -28,84 +32,61 @@ Notes: Ready for the next agent to claim a task before editing.
 
 ```text
 Owner: Claude
-Commit: (awaiting push)
-Scope: Task 3 (safe subset) + Task 5 RWD audit
-New component:
+Commit: f0a937a
+Scope: Task 3 safe subset + Task 5 RWD audit
+Files:
 - components/saas/page-header.tsx
-Modified pages:
-- app/(admin)/logistics/page.tsx (header → PageHeader)
-- app/(admin)/settings/page.tsx (header → PageHeader)
+- app/(admin)/logistics/page.tsx
+- app/(admin)/settings/page.tsx
 Status: done
-Notes: Task 5 RWD audit = PASS (no breakage). Task 3 limited to safe pages; returns/shopee-returns/pickup/orders/analytics deferred (large client components in Codex backend hot zone). Gate all green.
+Notes: UI-only. Large client-heavy admin pages remain deferred.
 ```
-
-## Recent Completed
 
 ```text
 Owner: Claude
-Commit: (awaiting push)
-Scope: Task 1 + 2 (partial) - SaaS settings & platform admin UI polish
-New components:
+Commit: f216cc8
+Scope: Task 1 + 2 partial - SaaS settings and platform admin UI polish
+Files:
 - components/saas/demo-data-banner.tsx
 - components/saas/usage-progress.tsx
 - components/internal/nav-link.tsx
-Modified pages:
-- app/(admin)/settings/billing/page.tsx (banner)
-- app/(admin)/settings/usage/page.tsx (banner + UsageProgress)
-- app/(admin)/settings/team/page.tsx (banner + invite helper)
-- app/internal/layout.tsx (NavLink with active state)
-- app/internal/orgs/page.tsx (banner + UsageProgress + disabled-button helper)
-- app/internal/orgs/[id]/page.tsx (banner + disabled-button helper)
-- app/internal/billing/events/page.tsx (banner + disabled-button helper)
+- app/(admin)/settings/billing/page.tsx
+- app/(admin)/settings/usage/page.tsx
+- app/(admin)/settings/team/page.tsx
+- app/internal/layout.tsx
+- app/internal/orgs/page.tsx
+- app/internal/orgs/[id]/page.tsx
+- app/internal/billing/events/page.tsx
 Status: done
-Notes: UI-only. Build initially failed because lucide icon function was passed from server layout to client NavLink — fixed by switching to iconName string + client-side icon map. Gate all green after fix.
+Notes: UI-only. Build issue from server-to-client icon prop was fixed by using an iconName string.
 ```
 
 ```text
 Owner: Claude
 Commit: 927bf1a
-Scope: Task 4 - Empty / loading / error states (first wave)
+Scope: Task 4 - Empty / loading / error states
 Files:
-- app/not-found.tsx (NEW)
-- app/(admin)/loading.tsx (NEW)
-- app/(admin)/error.tsx (NEW)
-- app/(admin)/returns/loading.tsx (NEW)
-- app/(admin)/returns/[id]/loading.tsx (NEW)
-- app/(admin)/shopee-returns/loading.tsx (NEW)
-- app/(admin)/shopee-returns/[id]/loading.tsx (NEW)
-- app/(customer)/portal/loading.tsx (NEW)
-- app/(customer)/portal/error.tsx (NEW)
+- app/not-found.tsx
+- app/(admin)/loading.tsx
+- app/(admin)/error.tsx
+- app/(admin)/returns/loading.tsx
+- app/(admin)/returns/[id]/loading.tsx
+- app/(admin)/shopee-returns/loading.tsx
+- app/(admin)/shopee-returns/[id]/loading.tsx
+- app/(customer)/portal/loading.tsx
+- app/(customer)/portal/error.tsx
 Status: done
-Notes: UI-only, no data layer changes. Gate all green.
+Notes: UI-only, no data layer changes.
 ```
 
 ```text
 Owner: Codex
-Commit: docs(saas): clarify shared agent boundaries
-Scope: Clarify Claude/Codex split edge cases and route group strategy
+Commit: 6863003
+Scope: Shared review checklist
 Files:
-- agent-shared/**
+- agent-shared/REVIEW_CHECKLIST.md
+- agent-shared/README.md
+- agent-shared/TASK_BOARD.md
 Status: done
-Notes: Current route strategy is to keep authenticated SaaS app pages in app/(admin).
-```
-
-```text
-Owner: Codex
-Commit: 92dcdd5
-Scope: Create shared agent coordination folder
-Files:
-- agent-shared/**
-Status: done
-Notes: No UI/backend runtime changes in this task.
-```
-
-```text
-Owner: Codex
-Commit: 15e61c1
-Scope: Repair commercial website copy
-Files:
-- app public marketing pages
-- components/marketing/**
-- lib/saas/public-signup.ts
-Status: done
+Notes: Added handoff, commit, and push checklist.
 ```

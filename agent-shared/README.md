@@ -1,35 +1,30 @@
 # Agent Shared Workspace
 
-這個資料夾是商業版 `develop-saas` 的 Codex / Claude 協作區。
+This folder is the shared coordination area for the SaaS commercial branch.
 
-用途：
+Purpose:
 
-- Claude 負責 UI / UX / frontend polish。
-- Codex 負責非 UI 工作：DB schema、RLS、API、server actions、billing、AI quota、tests、CI gate、文件與安全邊界。
-- 所有協作紀錄、待辦與交接都集中在此資料夾。
+- Claude owns UI / UX / frontend polish.
+- Codex owns non-UI work: database, RLS, API routes, server actions, billing, AI quota, tests, CI gates, safety docs, and platform setup analysis.
+- Codex is the single maintainer for `agent-shared/**`.
+- Claude should read this folder, but should not edit it. Claude handoff notes belong in the chat or commit message; Codex records durable coordination notes here.
+- All durable coordination notes, task ownership, and handoffs live here.
 
-固定工作資料夾：
-
-```text
-D:\AI專案\AI退貨系統商業版_2026.5.16
-```
-
-固定分支：
+Required branch:
 
 ```text
 develop-saas
 ```
 
-禁止操作：
+Protected areas:
 
-```text
-D:\AI專案\AI退貨管理系統\smart-return-system
-master
-Vercel Production
-Supabase Production / internal DB
-```
+- Do not work in the live production checkout.
+- Do not push to `master`.
+- Do not deploy Vercel Production.
+- Do not apply Supabase migrations without explicit approval and target project confirmation.
+- Do not commit secrets.
 
-每次開始前都要執行：
+Required preflight before any write:
 
 ```powershell
 Get-Location
@@ -39,13 +34,24 @@ git branch -vv
 npm run safety:agent-boundary
 ```
 
-如果看到未提交變更，先停下回報，不要自行還原。
+Files:
 
-## Files
+- `CLAUDE_UI_SCOPE.md`: Claude UI ownership rules.
+- `CODEX_NON_UI_SCOPE.md`: Codex non-UI ownership rules.
+- `TASK_BOARD.md`: shared task board.
+- `ACTIVE_WORK.md`: current file ownership to avoid conflicts.
+- `HANDOFF_LOG.md`: handoff history.
+- `REVIEW_CHECKLIST.md`: checklist before handoff, commit, and push.
+- `UI_BACKEND_CONTRACTS.md`: data contracts between Claude UI mocks and Codex backend wiring.
 
-- `CLAUDE_UI_SCOPE.md`：Claude 可做與不可做的 UI 範圍。
-- `CODEX_NON_UI_SCOPE.md`：Codex 負責的非 UI 範圍。
-- `TASK_BOARD.md`：共同任務板。
-- `ACTIVE_WORK.md`：目前誰正在碰哪些檔案，避免衝突。
-- `HANDOFF_LOG.md`：每次交接紀錄。
-- `REVIEW_CHECKLIST.md`：每次交接、commit、push 前的檢查清單。
+Rule of thumb:
+
+- If it changes what users see, Claude can usually own it.
+- If it changes data, security, auth, billing, AI cost, API behavior, migrations, or platform state, Codex owns it.
+
+Concurrency rule:
+
+- Prefer serialized work in one shared working tree: one agent edits, commits, and pushes before the next agent starts.
+- `agent-shared/**` is a coordination log, not a hard git lock.
+- Do not rely on two agents editing `ACTIVE_WORK.md` at the same time; that can overwrite the claim itself.
+- Claude declares file scope in the chat or commit message. Codex updates `agent-shared/**` after the handoff.

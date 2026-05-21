@@ -24,7 +24,15 @@ Required state:
 
 If there are local changes from another agent, stop and report. Do not revert them.
 
-## 2. Claude UI Completion Checklist
+## 2. Shared Folder Ownership
+
+- `agent-shared/**` is Codex-maintained only.
+- Claude may read `agent-shared/**`, but should not edit it.
+- Claude should report task scope, changed files, gate results, and blockers in the chat or commit message.
+- Codex records durable handoff notes in `ACTIVE_WORK.md`, `HANDOFF_LOG.md`, and `TASK_BOARD.md`.
+- Do not use `ACTIVE_WORK.md` as a hard git lock. It is a coordination log.
+
+## 3. Claude UI Completion Checklist
 
 Claude should verify these before handing off a UI task:
 
@@ -46,12 +54,14 @@ npm run test:all
 npm run build
 ```
 
-After completion, update:
+After completion, report:
 
-- `agent-shared/ACTIVE_WORK.md`
-- `agent-shared/HANDOFF_LOG.md`
+- changed files
+- gate results
+- blockers
+- next suggested UI task
 
-## 3. Codex Non-UI Completion Checklist
+## 4. Codex Non-UI Completion Checklist
 
 Codex should verify these before handing off a non-UI task:
 
@@ -80,17 +90,20 @@ After completion, update:
 - `agent-shared/HANDOFF_LOG.md`
 - Relevant `docs/*.md` status files
 
-## 4. Conflict Protocol
+## 5. Conflict Protocol
 
 If Claude and Codex need to edit the same file:
 
-1. Mark the owner in `ACTIVE_WORK.md`.
+1. Serialize the work if possible: one agent finishes and commits before the other starts.
 2. The second agent should not edit the file yet.
-3. The second agent should write the requested change in `HANDOFF_LOG.md`.
-4. After the owner commits, fetch/pull and inspect the diff before continuing.
-5. If a conflict already exists, do not run `git reset --hard`; report it to the user.
+3. Claude should report the needed change in chat or commit message.
+4. Codex should record the durable note in `HANDOFF_LOG.md`.
+5. After the owner commits, fetch/pull and inspect the diff before continuing.
+6. If a conflict already exists, do not run `git reset --hard`; report it to the user.
 
-## 5. Commit / Push Protocol
+If two agents need to work truly in parallel, use separate git worktrees or separate branches instead of sharing one working tree.
+
+## 6. Commit / Push Protocol
 
 Before committing:
 
@@ -99,6 +112,8 @@ git status -sb
 git diff --stat
 git diff --check
 ```
+
+Stage only intended files. Prefer explicit paths over `git add -A`.
 
 Commit message prefixes:
 

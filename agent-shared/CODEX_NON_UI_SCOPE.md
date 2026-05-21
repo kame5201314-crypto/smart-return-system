@@ -1,27 +1,28 @@
 # Codex Non-UI Scope
 
-Codex 負責 UI 以外的 SaaS / 商業化底層工作。
+Codex owns non-UI SaaS commercial work.
 
 ## Ownership
 
-Codex 負責：
+Codex owns:
 
-- Supabase migration 設計與套用前檢查。
-- `org_id` / RLS / tenant isolation。
-- `getOrgContext()` 與 runtime org isolation。
-- API routes。
-- server actions。
-- signup persistence / org creation backend。
-- billing / ECPay webhook foundation。
-- AI usage limit、AI cache、quota guard。
-- feature flags。
-- platform admin backend。
-- tests、doctor、CI gate。
-- docs / architecture / safety workflow。
+- `agent-shared/**` coordination files.
+- Supabase migration design and migration readiness checks.
+- `org_id`, RLS, and tenant isolation.
+- `getOrgContext()` and runtime org isolation.
+- API routes.
+- Server actions.
+- Signup persistence and org creation backend.
+- Billing and ECPay webhook foundation.
+- AI usage limits, cache, and quota guards.
+- Feature flags.
+- Platform admin backend wiring.
+- Tests, doctor checks, CI gates.
+- Architecture docs, safety docs, and setup status docs.
 
 ## External Operation Rule
 
-以下操作必須先明確取得使用者授權：
+These actions require explicit user approval:
 
 ```text
 git push
@@ -32,31 +33,35 @@ GitHub branch protection writes
 domain / billing / secret changes
 ```
 
-目前已知阻塞：
+## Current External Blockers
 
-- `GEMINI_API_KEY` 仍可能是 placeholder。
-- SaaS migration 尚未套用到 `auyznbwtjvemyamujmgt`。
-- SaaS DB password 需要由使用者在 Supabase Dashboard 重設或提供。
-- 新 SaaS 空 DB 需要完整 migration chain `001_*` 到 `025_*`，不能只套 `023/024/025`。
-
-## Coordination
-
-Codex 若要改 UI 相關檔案，必須先看 `ACTIVE_WORK.md`，避免和 Claude 同時改同一批檔案。
+- SaaS DB password is still needed for migration operations.
+- SaaS migrations have not been applied.
+- New empty SaaS DB must receive the full migration chain from `001_*` through `025_*`; do not apply only `023/024/025`.
+- `GEMINI_API_KEY` may still be missing or placeholder.
 
 ## Routing Strategy
 
-現階段不建立新的 `app/(app)` route group。
+Do not create `app/(app)` yet.
 
-Authenticated SaaS app 先沿用既有：
+Authenticated SaaS app pages stay under:
 
 ```text
 app/(admin)/**
 ```
 
-理由：
+Reason:
 
-- 現有 routes、middleware、proxy、auth guard 都已落在這個結構。
-- 先做 SaaS backend / DB / billing / quota，避免 UI 與 routing migration 同時擴大風險。
-- 未來若要從 `(admin)` 遷移到 `(app)`，由 Codex 另開 routing migration 任務處理。
+- Existing routes, middleware, proxy, and auth guards already use this structure.
+- Backend, DB, billing, and quota work should land before a route-group migration.
+- A future route-group migration must be a separate Codex-owned task.
 
-Claude 可以 polish `app/(admin)` 內既有頁面，但不要搬移 route group。
+## Coordination
+
+Codex is the single writer for `agent-shared/**`.
+
+Before editing UI-owned files, check `ACTIVE_WORK.md` and the latest Claude commit.
+
+If Claude owns a file, write the request in `HANDOFF_LOG.md` instead of editing directly.
+
+If Claude reports a completed task in chat or a commit message, Codex should record the durable summary in `HANDOFF_LOG.md` and update `ACTIVE_WORK.md` after pulling the latest `develop-saas`.
