@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, CircleEllipsis, FileClock, RotateCw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleEllipsis, FileClock, RotateCw, ShieldCheck, XCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,37 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DemoDataBanner } from '@/components/saas/demo-data-banner';
+import { SettingsStateCard } from '@/components/saas/settings-state-card';
+import { loadPlatformBillingEventsView } from '@/lib/saas/platform-admin-live-data';
+import type { PlatformBillingEventsView } from '@/lib/saas/ui-backend-contracts';
 
-const eventRows = [
-  {
-    id: 'evt_ecpay_001',
-    provider: 'ecpay',
-    type: 'period_paid',
-    org: '朝露選品',
-    status: 'processed',
-    receivedAt: '2026-05-20 12:30',
-    idempotencyKey: 'ecpay:trade-20260520-001',
-  },
-  {
-    id: 'evt_ecpay_002',
-    provider: 'ecpay',
-    type: 'invoice_issued',
-    org: '島嶼生活',
-    status: 'pending',
-    receivedAt: '2026-05-20 12:36',
-    idempotencyKey: 'ecpay:invoice-20260520-002',
-  },
-  {
-    id: 'evt_stripe_001',
-    provider: 'stripe',
-    type: 'checkout.session.completed',
-    org: '巷口小店',
-    status: 'ignored',
-    receivedAt: '2026-05-20 12:40',
-    idempotencyKey: 'stripe:evt_demo_001',
-  },
-] as const;
+type EventStatus = PlatformBillingEventsView['events'][number]['status'];
 
 const guardRows = [
   ['signature verification', 'required', 'ECPay HashKey/HashIV、Stripe/TapPay webhook secret'],
@@ -50,58 +24,60 @@ const guardRows = [
   ['manual retry', 'disabled', 'Stage 2 測試金鑰通過後再開啟'],
 ] as const;
 
-const summaryItems = [
-  { label: 'Processed', value: '1', helper: '已處理事件', icon: CheckCircle2 },
-  { label: 'Pending', value: '1', helper: '等待 worker 或人工確認', icon: CircleEllipsis },
-  { label: 'Ignored', value: '1', helper: '非啟用 provider 或測試事件', icon: AlertTriangle },
-] as const;
-
-function statusBadge(status: string): 'default' | 'secondary' | 'outline' {
+function statusBadge(status: EventStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (status === 'processed') return 'default';
-  if (status === 'pending') return 'secondary';
+  if (status === 'received') return 'secondary';
+  if (status === 'failed') return 'destructive';
   return 'outline';
 }
 
-export default function InternalBillingEventsPage() {
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function EventsContent({ data }: { data: PlatformBillingEventsView }) {
+  const counts = data.events.reduce(
+    (acc, event) => {
+      acc[event.status] += 1;
+      return acc;
+    },
+    { received: 0, processed: 0, failed: 0, ignored: 0 } as Record<EventStatus, number>
+  );
+
+  const summaryItems = [
+    { label: 'Processed', value: counts.processed, helper: '已處理事件', icon: CheckCircle2 },
+    { label: 'Received', value: counts.received, helper: '已接收待處理', icon: CircleEllipsis },
+    { label: 'Failed', value: counts.failed, helper: '處理失敗', icon: XCircle },
+    { label: 'Ignored', value: counts.ignored, helper: '非啟用 provider 或重複事件', icon: AlertTriangle },
+  ] as const;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-2xl font-semibold">Billing Events</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            金流 webhook 與電子發票事件的營運檢查骨架。正式重送功能目前關閉。
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Button disabled variant="outline" title="Stage 2 webhook 重送功能上線後開啟">
-            <RotateCw className="size-4" />
-            重送事件
-          </Button>
-          <p className="text-xs text-muted-foreground">需 ECPay 測試金鑰與 idempotency 通過後啟用。</p>
-        </div>
-      </div>
-
-      <DemoDataBanner>
-        <span className="font-medium">事件示意資料</span>
-        ：實際事件將由 ECPay / Stripe / TapPay webhook 寫入 billing_events，並通過簽章與 idempotency 檢查。
-      </DemoDataBanner>
-
-      <div className="grid gap-4 md:grid-cols-3">
+    <>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryItems.map((item) => {
           const Icon = item.icon;
           return (
-          <Card key={item.label} className="rounded-lg">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-3">
-                <CardDescription>{item.label}</CardDescription>
-                <Icon className="size-4 text-emerald-700" />
-              </div>
-              <CardTitle className="text-2xl">{item.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">{item.helper}</p>
-            </CardContent>
-          </Card>
+            <Card key={item.label} className="rounded-lg">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-3">
+                  <CardDescription>{item.label}</CardDescription>
+                  <Icon className="size-4 text-emerald-700" />
+                </div>
+                <CardTitle className="text-2xl">{item.value.toLocaleString('zh-TW')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">{item.helper}</p>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
@@ -112,9 +88,7 @@ export default function InternalBillingEventsPage() {
             <FileClock className="size-5 text-emerald-700" />
             Event Ledger
           </CardTitle>
-          <CardDescription>
-            Stage 2 會由 ECPay 定期定額 webhook 寫入 billing_events，Stripe / TapPay 保留欄位但不先啟用。
-          </CardDescription>
+          <CardDescription>來自 billing_events，依接收時間排序。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -125,23 +99,23 @@ export default function InternalBillingEventsPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Org</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Idempotency Key</TableHead>
+                <TableHead>Provider Event Id</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {eventRows.map((event) => (
+              {data.events.map((event) => (
                 <TableRow key={event.id}>
-                  <TableCell className="text-muted-foreground">{event.receivedAt}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDateTime(event.createdAt)}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{event.provider}</Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{event.type}</TableCell>
-                  <TableCell className="font-medium">{event.org}</TableCell>
+                  <TableCell className="font-mono text-xs">{event.eventType}</TableCell>
+                  <TableCell className="font-medium">{event.orgName ?? event.orgId}</TableCell>
                   <TableCell>
                     <Badge variant={statusBadge(event.status)}>{event.status}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    {event.idempotencyKey}
+                    {event.providerEventId ?? '—'}
                   </TableCell>
                 </TableRow>
               ))}
@@ -181,6 +155,40 @@ export default function InternalBillingEventsPage() {
           </Table>
         </CardContent>
       </Card>
+    </>
+  );
+}
+
+export default async function InternalBillingEventsPage() {
+  const result = await loadPlatformBillingEventsView();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h2 className="text-2xl font-semibold">Billing Events</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            金流 webhook 與電子發票事件的營運檢查；資料來自 billing_events。
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <Button disabled variant="outline" title="Stage 2 webhook 重送功能上線後開啟">
+            <RotateCw className="size-4" />
+            重送事件
+          </Button>
+          <p className="text-xs text-muted-foreground">需 ECPay 測試金鑰與 idempotency 通過後啟用。</p>
+        </div>
+      </div>
+
+      {result.state === 'ready' ? (
+        <EventsContent data={result.data} />
+      ) : result.state === 'gated' ? (
+        <SettingsStateCard variant="gated" gated={result.gated} />
+      ) : result.state === 'empty' ? (
+        <SettingsStateCard variant="empty" message={result.message} />
+      ) : (
+        <SettingsStateCard variant="error" message={result.message} />
+      )}
     </div>
   );
 }
