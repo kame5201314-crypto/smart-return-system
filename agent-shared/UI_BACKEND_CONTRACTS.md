@@ -148,10 +148,51 @@ Codex owns:
 - `generateSaaSInviteToken()`
 - `buildCreateOrganizationInviteRpcArgs()`
 
-Future team invite UI should call a Codex-owned server route that wraps this
-service. The service validates email, role, seat availability, token, and
-expiration before the future `create_organization_invite` RPC write. No route,
-email sending, UI wiring, or migration apply exists yet.
+Team invite UI should call the Codex-owned server route below. The service
+validates email, role, seat availability, token, and expiration before the
+`create_organization_invite` RPC write. Email sending remains unwired.
+
+Team invite API foundation:
+
+```text
+POST /api/saas/team/invites
+```
+
+Request:
+
+```ts
+{
+  email: string;
+  role: 'admin' | 'staff' | 'viewer';
+}
+```
+
+Success response:
+
+```ts
+{
+  success: true;
+  data: {
+    created: true;
+    inviteId: string;
+    orgId: string;
+    email: string;
+    role: 'admin' | 'staff' | 'viewer';
+    token: string;
+    expiresAt: string;
+    createdAt: string;
+  };
+}
+```
+
+Backend rules:
+
+- Requires authenticated SaaS org context.
+- Requires owner/admin role and writable subscription status.
+- Counts active/non-disabled members plus pending invites before write.
+- Rejects owner/member invite roles.
+- Uses the `create_organization_invite` RPC through the invite creation service.
+- Does not send email; Claude UI may show/copy the returned invite token/link after user action.
 
 ## Platform Organization List
 

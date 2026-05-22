@@ -1,5 +1,38 @@
 # Handoff Log
 
+## 2026-05-22 Codex -> Claude
+
+Added SaaS team invite API foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Added:
+
+- `lib/saas/team-invite-route.ts`
+- `app/api/saas/team/invites/route.ts`
+- `tests/unit/saas-team-invite-route.test.ts`
+
+Updated:
+
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- Added `POST /api/saas/team/invites` for future `/settings/team` UI wiring.
+- The route requires authenticated SaaS org context, owner/admin role, and writable subscription status.
+- It counts active/non-disabled members plus pending invites before calling the invite creation service.
+- Success returns the created invite plus token so UI can support a manual copy-link flow until email sending is wired.
+- No UI page was changed, no invite email was sent, no migration was run, and no platform setting was changed.
+
 ## 2026-05-21 Codex -> Claude
 
 Phase B settings live data server loader is ready for UI handoff.

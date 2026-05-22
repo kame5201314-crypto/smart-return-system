@@ -200,10 +200,12 @@ function checkCommercialFoundation() {
     'lib/saas/settings-team-data.ts',
     'lib/saas/settings-usage-data.ts',
     'lib/saas/settings-live-data.ts',
+    'lib/saas/team-invite-route.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
     'app/api/saas/signup/route.ts',
+    'app/api/saas/team/invites/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
     'scripts/saas/check-migration-plan.mjs',
     'scripts/saas/check-saas-schema-readiness.mjs',
@@ -566,6 +568,7 @@ function checkCommercialFoundation() {
   const inviteTokenDataPath = path.resolve(process.cwd(), 'lib/saas/invite-token-data.ts');
   const inviteAcceptancePath = path.resolve(process.cwd(), 'lib/saas/invite-acceptance.ts');
   const inviteCreationPath = path.resolve(process.cwd(), 'lib/saas/invite-creation.ts');
+  const teamInviteRoutePath = path.resolve(process.cwd(), 'lib/saas/team-invite-route.ts');
   if (fs.existsSync(invitePolicyPath)) {
     const source = fs.readFileSync(invitePolicyPath, 'utf8');
     if (
@@ -635,6 +638,28 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite creation service', 'invite creation use-case validates role, seat limit, token, and RPC args without exposing a route');
     } else {
       record('fail', 'SaaS invite creation service', 'invite creation must validate role/seat limits and stay repository-backed before exposing routes');
+    }
+  }
+
+  if (fs.existsSync(teamInviteRoutePath)) {
+    const source = fs.readFileSync(teamInviteRoutePath, 'utf8');
+    const routePath = path.resolve(process.cwd(), 'app/api/saas/team/invites/route.ts');
+    const routeSource = fs.existsSync(routePath) ? fs.readFileSync(routePath, 'utf8') : '';
+    if (
+      source.includes('createSaaSTeamInviteFromRequest') &&
+      source.includes('getOrgContext') &&
+      source.includes("roles: ['owner', 'admin']") &&
+      source.includes('writable: true') &&
+      source.includes('createSettingsTeamDataRepository') &&
+      source.includes('createSaaSInvite') &&
+      source.includes('createSaaSInviteCreationRepository') &&
+      routeSource.includes('handleCreateSaaSTeamInviteRequest') &&
+      routeSource.includes('SaaSOrgContextError') &&
+      routeSource.includes('SaaSInviteCreationError')
+    ) {
+      record('pass', 'SaaS team invite API foundation', 'team invite route is owner/admin gated and reuses seat-limited invite creation service');
+    } else {
+      record('fail', 'SaaS team invite API foundation', 'team invite route must require org context, owner/admin role, writable status, seat counts, and invite creation service');
     }
   }
 

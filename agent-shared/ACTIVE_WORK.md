@@ -33,6 +33,24 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS team invite API foundation
+Files:
+- app/api/saas/team/invites/route.ts
+- lib/saas/team-invite-route.ts
+- tests/unit/saas-team-invite-route.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added owner/admin writable-org team invite API handler for Claude team UI handoff. It counts active seats plus pending invites and calls the invite creation RPC wrapper. No UI page was changed, no email was sent, no migration was run, and no platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS settings live data server loader
 Files:
 - lib/saas/settings-live-data.ts

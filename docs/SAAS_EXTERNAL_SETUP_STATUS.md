@@ -198,6 +198,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Adds the local repository wrapper for future `create_organization_invite` RPC calls.
   - Adds `supabase/migrations/032_saas_invite_creation_rpc.sql` as an atomic invite creation RPC draft.
   - No live invite route was exposed, no Supabase client was created, no invite email was sent, and no migration was applied.
+- SaaS team invite API foundation was added:
+  - `lib/saas/team-invite-route.ts`
+  - `POST /api/saas/team/invites`
+  - Requires authenticated SaaS org context, owner/admin role, and writable subscription status.
+  - Counts active/non-disabled members plus pending invites before calling the invite creation service.
+  - No UI file was changed, no invite email was sent, no migration was applied, and no platform setting was changed.
 - SaaS return usage soft-limit policy was added:
   - `lib/saas/return-usage-policy.ts`
   - `buildUsageSettingsView()` now uses the centralized return soft-limit resolver for `returns_80` and `returns_100` warnings.
