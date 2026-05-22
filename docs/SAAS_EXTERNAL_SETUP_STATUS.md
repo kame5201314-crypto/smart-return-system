@@ -1,8 +1,18 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
+
+## Current Status Snapshot
+
+- Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
+- The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
+- Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
+- `npm run saas:migration-plan:strict` passes.
+- `npm run saas:schema-gate:strict` passes.
+- `npm run saas:doctor:strict` still has one blocker: `GEMINI_API_KEY` is missing or placeholder.
+- Billing, domain, logging/Sentry, and production deployment remain pending explicit approval.
 
 ## Completed
 
@@ -45,6 +55,24 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `npm run typecheck`: passed
   - `npm run test:all`: passed
   - `npm run build`: passed without live/internal env values
+
+## 2026-05-22 SaaS Readiness Update
+
+- SaaS migration readiness is now confirmed:
+  - `npm run saas:migration-plan:strict`: passed.
+  - Target project: `auyznbwtjvemyamujmgt`.
+  - Chain end: `032_saas_invite_creation_rpc.sql`.
+- SaaS schema readiness is now confirmed:
+  - `npm run saas:schema-gate:strict`: passed.
+  - Checked 22 tables and 81 columns.
+- SaaS doctor strict is still intentionally blocked by AI credential readiness:
+  - `npm run saas:doctor:strict`: 110 pass, 1 warn, 0 fail.
+  - The only warning is `GEMINI_API_KEY` missing or placeholder.
+- Invite acceptance UI was wired and pushed:
+  - Commit: `6ec9499 feat(saas/ui): wire invite acceptance page`
+  - `/invite/[token]` now uses `loadInviteAcceptanceView(token)`.
+  - `components/saas/invite-accept-panel.tsx` handles accept, login, email mismatch, already-member, expired, revoked, empty/gated/error paths.
+  - No invite email sending, billing provider, deployment, env/secret, or production project change was performed.
 
 ## 2026-05-19 SaaS Audit
 
@@ -316,20 +344,16 @@ This file tracks external SaaS setup work that must stay separate from the live 
 
 ## Not Completed Yet
 
-These are intentionally not completed because they require private credentials, DB migration authorization, billing setup, or deployment authorization.
+These are intentionally not completed because they require private credentials, billing setup, rollout approval, or deployment authorization.
 
-- SaaS Supabase migrations have not been applied.
-- SaaS tenant/org RLS has not been applied to any database.
-- SaaS Gemini API key has not been added to Vercel.
+- SaaS Gemini API key has not been added to Vercel or is still placeholder locally.
 - SaaS domain has not been configured.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
 - SaaS production deployment has not been run.
-- Platform admin pages are not wired to live SaaS DB data yet; the schema readiness gate plus `027`/`028` drafts now define the DB shape and manual Beta provisioning path required before live consumption is enabled.
 - Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
-- Public signup request persistence code and `026` migration draft exist, but the migration has not been applied.
 - Public signup org creation and subscription creation are not wired yet; `/api/saas/signup` records a request only after the flag and DB are ready.
 
 ## Required Values Before Deployment
@@ -401,27 +425,28 @@ Do not use the internal/live Supabase project for any SaaS values.
 
 ## Next Safe Execution Steps
 
-After the SaaS Supabase and secret values exist:
+After the remaining SaaS secret values and rollout approvals exist:
 
 1. Fill `.env.saas.local` in the SaaS checkout.
 2. Run `npm run saas:verify-checkout`.
 3. Run `npm run saas:doctor`.
 4. Run `npm run saas:verify-env`.
-5. Run `npm run saas:doctor:strict`.
-6. Run `npm run saas:migration-plan:strict`.
-7. Run `npm run saas:schema-gate:strict`.
-8. Run `npm run saas:predeploy`.
-9. Review and apply migrations to the SaaS Supabase Project only, using the full migration chain from `001_*` through `030_*`; do not apply only the SaaS tail migrations to a new empty DB.
-10. Deploy the SaaS Vercel Project.
-11. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+5. Add a real `GEMINI_API_KEY` to the SaaS environment only.
+6. Run `npm run saas:doctor:strict`.
+7. Run `npm run saas:migration-plan:strict`.
+8. Run `npm run saas:schema-gate:strict`.
+9. Run `npm run saas:predeploy`.
+10. Deploy the SaaS Vercel Project only after explicit approval.
+11. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
 
 If you need to run the individual checks:
 
 1. Run `node scripts/verify-env.mjs`.
-2. Apply migrations to the SaaS Supabase Project only.
-3. Run `npm run lint`.
-4. Run `npm run typecheck`.
-5. Run `npm run test:all`.
-6. Run `npm run build`.
-7. Deploy the SaaS Vercel Project.
-8. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, and export.
+2. Run `npm run saas:migration-plan:strict`.
+3. Run `npm run saas:schema-gate:strict`.
+4. Run `npm run lint`.
+5. Run `npm run typecheck`.
+6. Run `npm run test:all`.
+7. Run `npm run build`.
+8. Deploy the SaaS Vercel Project only after explicit approval.
+9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.

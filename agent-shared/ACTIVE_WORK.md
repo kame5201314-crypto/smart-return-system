@@ -33,6 +33,19 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Shared coordination and external setup status sync
+Files:
+- agent-shared/TASK_BOARD.md
+- agent-shared/CODEX_NON_UI_SCOPE.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Recorded Claude invite acceptance UI completion, confirmed migration-plan strict and schema-gate strict pass through chain 032, and narrowed the remaining strict blocker to missing/placeholder GEMINI_API_KEY. No runtime behavior, env/secret, migration, deployment, production Supabase, or master branch operation was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Invite acceptance live data loader and accept route
 Files:
 - lib/saas/invite-acceptance-live-data.ts

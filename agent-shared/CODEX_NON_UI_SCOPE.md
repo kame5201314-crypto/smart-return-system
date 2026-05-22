@@ -35,10 +35,11 @@ domain / billing / secret changes
 
 ## Current External Blockers
 
-- SaaS DB password is still needed for migration operations.
-- SaaS migrations have not been applied.
-- New empty SaaS DB must receive the full migration chain from `001_*` through `030_*`; do not apply only the SaaS tail migrations.
-- `GEMINI_API_KEY` may still be missing or placeholder.
+- SaaS migrations are applied on the dedicated SaaS project through the current chain ending at `032`.
+- `npm run saas:migration-plan:strict` passes against project `auyznbwtjvemyamujmgt`.
+- `npm run saas:schema-gate:strict` passes against project `auyznbwtjvemyamujmgt`.
+- Final `npm run saas:doctor:strict` remains blocked only by missing/placeholder `GEMINI_API_KEY`.
+- Billing credentials, SaaS domain, logging/Sentry, and production deployment remain separate future approvals.
 
 ## Routing Strategy
 

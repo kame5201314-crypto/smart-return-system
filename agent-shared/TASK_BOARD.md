@@ -15,6 +15,7 @@ Status values:
 | done | SaaS settings UI polish | Commit `f216cc8`; used existing `app/(admin)/settings/**` |
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
 | done | Shared SaaS page header + safe RWD audit | Commit `f0a937a` |
+| done | Invite acceptance UI live data wiring | Commit `6ec9499`; `/invite/[token]` uses the Codex loader and accept route |
 | todo | Customer portal SaaS polish | UI-only; do not alter portal APIs or tracking logic |
 | todo | Returns dashboard visual polish | Handoff first if touching large client components used by Codex backend work |
 | todo | Mobile responsive QA follow-up | Use existing breakpoints; record issues in `HANDOFF_LOG.md` |
@@ -46,7 +47,7 @@ Status values:
 | done | Invite creation service and RPC draft | This commit; added seat-checked invite creation service, token generation, `032` draft RPC, and repository wrapper without applying migrations |
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
-| blocked | SaaS predeploy strict gate | Schema readiness gate exists; final strict pass still needs Gemini key and SaaS migrations applied |
+| blocked | SaaS predeploy strict gate | `saas:migration-plan:strict` and `saas:schema-gate:strict` pass; final `saas:doctor:strict` is blocked only by missing/placeholder `GEMINI_API_KEY` |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | SaaS schema gate commercial v2 coverage | This commit; strict gate now checks organization billing/onboarding/upgrade suggestion fields, subscription period/provider fields, invoice fields, invite token fields, and audit metadata |
 | done | Platform admin API DTO wiring | This commit; internal APIs return UI contract DTOs behind the platform admin flag |
