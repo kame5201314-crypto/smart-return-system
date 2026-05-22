@@ -1,7 +1,6 @@
-import { MailPlus, ShieldCheck, UserRoundCog, UsersRound } from 'lucide-react';
+import { Inbox, ShieldCheck, UserRoundCog, UsersRound } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -11,7 +10,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DemoDataBanner } from '@/components/saas/demo-data-banner';
+import { SettingsStateCard } from '@/components/saas/settings-state-card';
+import { TeamInviteForm } from '@/components/saas/team-invite-form';
+import { loadTeamSettingsView } from '@/lib/saas/settings-live-data';
+import type { TeamSettingsView } from '@/lib/saas/ui-backend-contracts';
+
+const ROLE_LABEL: Record<TeamSettingsView['members'][number]['role'], string> = {
+  owner: '擁有者',
+  admin: '管理員',
+  staff: '作業成員',
+  viewer: '檢視者',
+};
+
+const MEMBER_STATUS_LABEL: Record<TeamSettingsView['members'][number]['status'], string> = {
+  active: '已加入',
+  invited: '邀請中',
+  disabled: '已停用',
+};
+
+const INVITE_STATUS_LABEL: Record<TeamSettingsView['invites'][number]['status'], string> = {
+  pending: '待接受',
+  accepted: '已接受',
+  expired: '已過期',
+  revoked: '已撤銷',
+};
 
 const roleRows = [
   ['Owner', '組織擁有者', '方案、帳務、成員、資料刪除與安全設定。'],
@@ -20,45 +42,87 @@ const roleRows = [
   ['Viewer', '檢視者', '查看退貨與報表，不可新增、修改或匯出。'],
 ] as const;
 
-const members = [
-  ['owner@brand.test', 'Owner', '已加入'],
-  ['ops@brand.test', 'Admin', '已加入'],
-  ['warehouse@brand.test', 'Staff', '已加入'],
-  ['finance@brand.test', 'Viewer', '待邀請'],
-] as const;
+function formatDate(value: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
 
-export default function TeamSettingsPage() {
+function TeamContent({ data }: { data: TeamSettingsView }) {
+  const activeSeats = data.members.filter((member) => member.status !== 'disabled').length;
+  const seatLabel = data.seatLimit === null ? '合約' : data.seatLimit.toLocaleString('zh-TW');
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950">團隊與角色</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Stage 1 先支援 Owner / Admin / Staff / Viewer。Beta 期邀請流程仍可由平台管理員協助。
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Button disabled title="Stage 2 邀請流程上線後開啟">
-            <MailPlus className="size-4" />
+    <>
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserRoundCog className="size-5 text-emerald-700" />
             邀請成員
-          </Button>
-          <p className="text-xs text-muted-foreground">Beta 期由平台管理員代為邀請。</p>
-        </div>
-      </div>
+          </CardTitle>
+          <CardDescription>
+            已使用席次 {activeSeats} / {seatLabel}。Email 寄送尚未接通，建立後以連結邀請。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TeamInviteForm canInvite={data.actions.canInvite} disabledReason={data.actions.disabledReason} />
+        </CardContent>
+      </Card>
 
-      <DemoDataBanner>
-        <span className="font-medium">示意成員清單</span>
-        ：正式資料將由 organization_members 與 organization_invites 提供。
-      </DemoDataBanner>
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersRound className="size-5 text-emerald-700" />
+            成員清單
+          </CardTitle>
+          <CardDescription>來自 organization_members。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.members.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+              <Inbox className="size-6" aria-hidden="true" />
+              尚無成員資料。
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>角色</TableHead>
+                  <TableHead>狀態</TableHead>
+                  <TableHead>加入時間</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">
+                      {member.displayName ? `${member.displayName}（${member.email}）` : member.email}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{ROLE_LABEL[member.role]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {MEMBER_STATUS_LABEL[member.status]}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(member.joinedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      {data.invites.length > 0 ? (
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UsersRound className="size-5 text-emerald-700" />
-              成員清單
+              <UserRoundCog className="size-5 text-cyan-700" />
+              邀請中
             </CardTitle>
-            <CardDescription>示意資料；正式資料會從 organization_members 與 invites 讀取。</CardDescription>
+            <CardDescription>來自 organization_invites。</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -67,39 +131,27 @@ export default function TeamSettingsPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>角色</TableHead>
                   <TableHead>狀態</TableHead>
+                  <TableHead>到期</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.map(([email, role, status]) => (
-                  <TableRow key={email}>
-                    <TableCell className="font-medium">{email}</TableCell>
+                {data.invites.map((invite) => (
+                  <TableRow key={invite.id}>
+                    <TableCell className="font-medium">{invite.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{role}</Badge>
+                      <Badge variant="outline">{ROLE_LABEL[invite.role]}</Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{status}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {INVITE_STATUS_LABEL[invite.status]}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(invite.expiresAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
-
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserRoundCog className="size-5 text-cyan-700" />
-              邀請限制
-            </CardTitle>
-            <CardDescription>先依方案席次限制，不開放無限制邀請。</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Basic：3 seats</p>
-            <p>Growth：10 seats</p>
-            <p>Pro：30 seats</p>
-            <p>Enterprise：依合約</p>
-          </CardContent>
-        </Card>
-      </div>
+      ) : null}
 
       <Card className="rounded-lg">
         <CardHeader>
@@ -132,6 +184,33 @@ export default function TeamSettingsPage() {
           </Table>
         </CardContent>
       </Card>
+    </>
+  );
+}
+
+export default async function TeamSettingsPage() {
+  const result = await loadTeamSettingsView();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-950">團隊與角色</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            管理 Owner / Admin / Staff / Viewer 與邀請流程；資料來自 organization_members 與 organization_invites。
+          </p>
+        </div>
+      </div>
+
+      {result.state === 'ready' ? (
+        <TeamContent data={result.data} />
+      ) : result.state === 'gated' ? (
+        <SettingsStateCard variant="gated" gated={result.gated} />
+      ) : result.state === 'empty' ? (
+        <SettingsStateCard variant="empty" message={result.message} />
+      ) : (
+        <SettingsStateCard variant="error" message={result.message} />
+      )}
     </div>
   );
 }
