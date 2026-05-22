@@ -213,6 +213,7 @@ function checkCommercialFoundation() {
     'app/api/billing/ecpay/webhook/route.ts',
     'scripts/saas/check-migration-plan.mjs',
     'scripts/saas/check-saas-schema-readiness.mjs',
+    'scripts/saas/check-rollout-readiness.mjs',
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
@@ -463,6 +464,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-032 migration chain before apply');
     } else {
       record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-032 migration chain without applying migrations');
+    }
+  }
+
+  const saasRolloutCheckPath = path.resolve(process.cwd(), 'scripts/saas/check-rollout-readiness.mjs');
+  if (fs.existsSync(saasRolloutCheckPath)) {
+    const source = fs.readFileSync(saasRolloutCheckPath, 'utf8');
+    if (
+      source.includes('GEMINI_API_KEY') &&
+      source.includes('NEXT_PUBLIC_APP_URL') &&
+      source.includes('BILLING_PROVIDER') &&
+      source.includes('ENABLE_AI_USAGE_LIMIT') &&
+      source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
+      source.includes('No external changes were made by this check')
+    ) {
+      record('pass', 'SaaS rollout readiness check', 'checks final Gemini, app URL, billing, AI safety, and SaaS project blockers without external changes');
+    } else {
+      record('fail', 'SaaS rollout readiness check', 'must validate final rollout blockers without mutating env, DB, deploy, or platform state');
     }
   }
 

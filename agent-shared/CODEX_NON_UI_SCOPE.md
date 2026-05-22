@@ -38,7 +38,8 @@ domain / billing / secret changes
 - SaaS migrations are applied on the dedicated SaaS project through the current chain ending at `032`.
 - `npm run saas:migration-plan:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:schema-gate:strict` passes against project `auyznbwtjvemyamujmgt`.
-- Final `npm run saas:doctor:strict` remains blocked only by missing/placeholder `GEMINI_API_KEY`.
+- `npm run saas:rollout-check` reports the remaining rollout blockers without changing external state.
+- Final strict rollout remains blocked by missing/placeholder `GEMINI_API_KEY`, placeholder/missing `NEXT_PUBLIC_APP_URL`, missing Sentry/logging DSN, and billing disabled for paid self-serve.
 - Billing credentials, SaaS domain, logging/Sentry, and production deployment remain separate future approvals.
 
 ## Routing Strategy

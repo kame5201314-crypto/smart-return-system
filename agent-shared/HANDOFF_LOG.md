@@ -2,6 +2,54 @@
 
 ## 2026-05-22 Codex -> Claude / Codex
 
+Added a read-only SaaS rollout readiness gate.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `package.json`
+- `scripts/saas/check-rollout-readiness.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/saas-rollout-readiness.test.ts`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/CODEX_NON_UI_SCOPE.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/TASK_BOARD.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Commands:
+
+- `npm run saas:rollout-check`
+- `npm run saas:rollout-check:strict`
+- `npm run saas:predeploy` now includes the non-strict rollout check.
+
+What it checks:
+
+- SaaS checkout branch and clean working tree.
+- SaaS Supabase ref safety; internal/live refs are rejected.
+- Gemini key and `gemini-2.5-flash-lite` model readiness.
+- `NEXT_PUBLIC_APP_URL` domain readiness; placeholder domains such as `your-saas-domain` are flagged.
+- AI safety flags: `ENABLE_IMAGE_AI=false` and `ENABLE_AI_USAGE_LIMIT=true`.
+- Billing credential readiness when `ENABLE_BILLING=true`; billing disabled is accepted for manual Beta but warned for paid self-serve.
+- Sentry/logging DSN presence for public rollout.
+
+Current local result:
+
+- Non-strict rollout check passes with warnings.
+- Current warnings are expected: dirty working tree during this commit, missing/placeholder `GEMINI_API_KEY`, placeholder/missing `NEXT_PUBLIC_APP_URL`, missing Sentry/logging DSN, and billing disabled.
+- Strict rollout remains intentionally blocked until owner-provided credentials/domain/rollout approval exist.
+
+Notes:
+
+- No env/secret, DB migration, Vercel deploy, Supabase production, billing provider, or `master` branch operation was performed.
+
+## 2026-05-22 Codex -> Claude / Codex
+
 Synchronized the shared handoff status after the invite acceptance UI and strict SaaS checks.
 
 Commit:

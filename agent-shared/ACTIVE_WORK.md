@@ -33,6 +33,23 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: SaaS rollout readiness check
+Files:
+- package.json
+- scripts/saas/check-rollout-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-rollout-readiness.test.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/CODEX_NON_UI_SCOPE.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added a read-only rollout gate and wired it into saas:predeploy in non-strict mode. The check validates SaaS project safety, Gemini key, NEXT_PUBLIC_APP_URL/domain readiness, AI safety flags, billing credential readiness, and Sentry/logging status. It does not change env, DB, Vercel, Supabase, billing, production, or master.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Shared coordination and external setup status sync
 Files:
 - agent-shared/TASK_BOARD.md

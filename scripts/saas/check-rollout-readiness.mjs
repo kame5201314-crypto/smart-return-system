@@ -1,0 +1,256 @@
+#!/usr/bin/env node
+
+import { execSync } from 'node:child_process';
+import process from 'node:process';
+
+const EXPECTED_BRANCH = 'develop-saas';
+const EXPECTED_TEXT_MODEL = 'gemini-2.5-flash-lite';
+const DEFAULT_FORBIDDEN_SUPABASE_REFS = [
+  'fdzfnenizyppxglypden',
+  'sntbrntwztkllwkutooi',
+];
+const BILLING_PROVIDER_KEYS = {
+  ecpay: ['ECPAY_MERCHANT_ID', 'ECPAY_HASH_KEY', 'ECPAY_HASH_IV', 'ECPAY_MODE'],
+  stripe: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_BASIC', 'STRIPE_PRICE_GROWTH', 'STRIPE_PRICE_PRO'],
+  tappay: ['TAPPAY_PARTNER_KEY', 'TAPPAY_MERCHANT_ID', 'TAPPAY_APP_ID', 'TAPPAY_APP_KEY', 'TAPPAY_MODE'],
+};
+
+const strict = process.argv.includes('--strict') || parseBool(process.env.SAAS_ROLLOUT_STRICT);
+const checks = [];
+
+function normalizeEnvValue(value) {
+  if (!value) return '';
+  return String(value).replace(/\\n/g, '').trim();
+}
+
+function parseBool(value) {
+  const normalized = normalizeEnvValue(value).toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
+function isPlaceholder(value) {
+  const normalized = normalizeEnvValue(value).toLowerCase();
+  return (
+    !normalized ||
+    normalized.includes('replace_with') ||
+    normalized.includes('your_') ||
+    normalized.includes('your-') ||
+    normalized.includes('placeholder') ||
+    normalized.includes('missing')
+  );
+}
+
+function record(status, label, detail = '') {
+  checks.push({ status, label, detail });
+}
+
+function warnOrFail(label, detail) {
+  record(strict ? 'fail' : 'warn', label, detail);
+}
+
+function gitOutput(command) {
+  return execSync(command, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function checkGitState() {
+  if (parseBool(process.env.SAAS_ROLLOUT_SKIP_GIT_CHECK)) {
+    record('warn', 'Git state', 'skipped by SAAS_ROLLOUT_SKIP_GIT_CHECK');
+    return;
+  }
+
+  const branch = gitOutput('git rev-parse --abbrev-ref HEAD');
+  if (branch === EXPECTED_BRANCH) {
+    record('pass', 'Git branch', branch);
+  } else {
+    record('fail', 'Git branch', `expected ${EXPECTED_BRANCH}, got ${branch || '(unknown)'}`);
+  }
+
+  const porcelain = gitOutput('git status --porcelain');
+  if (porcelain) {
+    warnOrFail('Working tree', 'has local changes; finish or commit before rollout');
+  } else {
+    record('pass', 'Working tree', 'clean');
+  }
+}
+
+function checkSaasProjectSafety() {
+  const appMode = normalizeEnvValue(process.env.APP_MODE).toLowerCase();
+  const saasRef = normalizeEnvValue(process.env.SAAS_SUPABASE_PROJECT_ID);
+  const expectedRef = normalizeEnvValue(process.env.SUPABASE_PROJECT_ID_EXPECTED) || saasRef;
+  const supabaseUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const internalRef = normalizeEnvValue(process.env.INTERNAL_SUPABASE_PROJECT_ID);
+  const forbiddenRefs = new Set(
+    [...DEFAULT_FORBIDDEN_SUPABASE_REFS, internalRef].filter(Boolean)
+  );
+
+  if (appMode === 'saas') {
+    record('pass', 'APP_MODE', appMode);
+  } else {
+    record('fail', 'APP_MODE', `expected saas, got ${appMode || '(missing)'}`);
+  }
+
+  if (!saasRef) {
+    record('fail', 'SAAS_SUPABASE_PROJECT_ID', 'missing');
+  } else {
+    record('pass', 'SAAS_SUPABASE_PROJECT_ID', saasRef);
+  }
+
+  if (!expectedRef) {
+    record('fail', 'SUPABASE_PROJECT_ID_EXPECTED', 'missing');
+  } else if (saasRef && expectedRef !== saasRef) {
+    record('fail', 'SUPABASE_PROJECT_ID_EXPECTED', `expected ${saasRef}, got ${expectedRef}`);
+  } else {
+    record('pass', 'SUPABASE_PROJECT_ID_EXPECTED', expectedRef);
+  }
+
+  for (const forbiddenRef of forbiddenRefs) {
+    if (saasRef === forbiddenRef || expectedRef === forbiddenRef || supabaseUrl.includes(forbiddenRef)) {
+      record('fail', 'Supabase project safety', `forbidden internal/live project ref: ${forbiddenRef}`);
+      return;
+    }
+  }
+  record('pass', 'Supabase project safety', 'not internal/live project refs');
+
+  if (!supabaseUrl) {
+    record('fail', 'NEXT_PUBLIC_SUPABASE_URL', 'missing');
+  } else if (expectedRef && !supabaseUrl.includes(expectedRef)) {
+    record('fail', 'NEXT_PUBLIC_SUPABASE_URL', `URL does not include expected SaaS ref ${expectedRef}`);
+  } else {
+    record('pass', 'NEXT_PUBLIC_SUPABASE_URL', 'matches expected SaaS ref');
+  }
+}
+
+function checkRequiredSecrets() {
+  const requiredSecrets = [
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'ADMIN_SESSION_SECRET',
+    'CRON_SECRET',
+    'SCHEMA_DRIFT_ALERT_TOKEN',
+  ];
+
+  for (const key of requiredSecrets) {
+    if (isPlaceholder(process.env[key])) {
+      warnOrFail(`env:${key}`, 'missing or placeholder');
+    } else {
+      record('pass', `env:${key}`, 'set');
+    }
+  }
+
+  if (isPlaceholder(process.env.GEMINI_API_KEY)) {
+    warnOrFail('env:GEMINI_API_KEY', 'missing or placeholder; return AI cannot pass strict rollout');
+  } else {
+    record('pass', 'env:GEMINI_API_KEY', 'set');
+  }
+}
+
+function checkAppUrlAndObservability() {
+  const appUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_APP_URL);
+  if (isPlaceholder(appUrl)) {
+    warnOrFail('NEXT_PUBLIC_APP_URL', 'missing; needed for invite links, callbacks, and smoke checks');
+  } else if (/^https:\/\/localhost(?::\d+)?/i.test(appUrl) || /^http:\/\/localhost(?::\d+)?/i.test(appUrl)) {
+    warnOrFail('NEXT_PUBLIC_APP_URL', `must not point to localhost for rollout: ${appUrl}`);
+  } else if (!appUrl.startsWith('https://')) {
+    warnOrFail('NEXT_PUBLIC_APP_URL', `expected https URL for rollout: ${appUrl}`);
+  } else {
+    record('pass', 'NEXT_PUBLIC_APP_URL', appUrl);
+  }
+
+  const sentryDsn =
+    normalizeEnvValue(process.env.SENTRY_DSN) ||
+    normalizeEnvValue(process.env.NEXT_PUBLIC_SENTRY_DSN);
+  if (sentryDsn) {
+    record('pass', 'Sentry/logging DSN', 'set');
+  } else {
+    record('warn', 'Sentry/logging DSN', 'missing; add before public rollout');
+  }
+}
+
+function checkAiSafety() {
+  const imageAi = normalizeEnvValue(process.env.ENABLE_IMAGE_AI).toLowerCase();
+  if (!imageAi || imageAi === 'false' || imageAi === '0') {
+    record('pass', 'ENABLE_IMAGE_AI', 'disabled');
+  } else {
+    record('fail', 'ENABLE_IMAGE_AI', 'must stay false for return AI');
+  }
+
+  const aiUsageLimit = normalizeEnvValue(process.env.ENABLE_AI_USAGE_LIMIT).toLowerCase();
+  if (aiUsageLimit === 'true' || aiUsageLimit === '1') {
+    record('pass', 'ENABLE_AI_USAGE_LIMIT', 'enabled');
+  } else {
+    warnOrFail('ENABLE_AI_USAGE_LIMIT', 'must be true before rollout to enforce plan quota');
+  }
+
+  const model = normalizeEnvValue(process.env.GEMINI_TEXT_MODEL).replace(/^models\//, '');
+  if (!model || model === EXPECTED_TEXT_MODEL) {
+    record('pass', 'GEMINI_TEXT_MODEL', model || `defaults to ${EXPECTED_TEXT_MODEL}`);
+  } else {
+    warnOrFail('GEMINI_TEXT_MODEL', `expected ${EXPECTED_TEXT_MODEL}, got ${model}`);
+  }
+}
+
+function checkControlledRolloutFlags() {
+  const publicSignup = normalizeEnvValue(process.env.ENABLE_PUBLIC_SIGNUP).toLowerCase();
+  const multiTenantAdmin = normalizeEnvValue(process.env.ENABLE_MULTI_TENANT_ADMIN).toLowerCase();
+  const subscriptionPlan = normalizeEnvValue(process.env.ENABLE_SUBSCRIPTION_PLAN).toLowerCase();
+  const advancedAnalytics = normalizeEnvValue(process.env.ENABLE_ADVANCED_ANALYTICS).toLowerCase();
+
+  record('pass', 'ENABLE_PUBLIC_SIGNUP', publicSignup === 'true' ? 'enabled intentionally' : 'closed for controlled rollout');
+  record('pass', 'ENABLE_MULTI_TENANT_ADMIN', multiTenantAdmin === 'true' ? 'enabled intentionally' : 'closed until platform admin rollout');
+  record('pass', 'ENABLE_SUBSCRIPTION_PLAN', subscriptionPlan === 'true' ? 'enabled intentionally' : 'closed until billing rollout');
+  record('pass', 'ENABLE_ADVANCED_ANALYTICS', advancedAnalytics === 'true' ? 'enabled intentionally' : 'closed unless plan rollout approves it');
+}
+
+function checkBillingReadiness() {
+  const billingEnabled = parseBool(process.env.ENABLE_BILLING);
+  const provider = normalizeEnvValue(process.env.BILLING_PROVIDER).toLowerCase();
+
+  if (!billingEnabled) {
+    record('warn', 'Billing rollout', 'ENABLE_BILLING=false; OK for manual Beta, not ready for paid self-serve');
+    return;
+  }
+
+  if (!provider || !BILLING_PROVIDER_KEYS[provider]) {
+    record('fail', 'BILLING_PROVIDER', `expected one of ${Object.keys(BILLING_PROVIDER_KEYS).join(', ')}`);
+    return;
+  }
+
+  record('pass', 'BILLING_PROVIDER', provider);
+  for (const key of BILLING_PROVIDER_KEYS[provider]) {
+    if (isPlaceholder(process.env[key])) {
+      record('fail', `billing:${key}`, 'missing or placeholder');
+    } else {
+      record('pass', `billing:${key}`, 'set');
+    }
+  }
+}
+
+function printSummary() {
+  for (const check of checks) {
+    const prefix = `[saas-rollout] ${check.status.toUpperCase()}: ${check.label}`;
+    console.log(check.detail ? `${prefix} - ${check.detail}` : prefix);
+  }
+
+  const failCount = checks.filter((check) => check.status === 'fail').length;
+  const warnCount = checks.filter((check) => check.status === 'warn').length;
+  const passCount = checks.filter((check) => check.status === 'pass').length;
+
+  console.log(`\n[saas-rollout] Summary: ${passCount} pass, ${warnCount} warn, ${failCount} fail`);
+  console.log('[saas-rollout] No external changes were made by this check.');
+
+  if (failCount > 0) {
+    process.exitCode = 1;
+  }
+}
+
+checkGitState();
+checkSaasProjectSafety();
+checkRequiredSecrets();
+checkAppUrlAndObservability();
+checkAiSafety();
+checkControlledRolloutFlags();
+checkBillingReadiness();
+printSummary();

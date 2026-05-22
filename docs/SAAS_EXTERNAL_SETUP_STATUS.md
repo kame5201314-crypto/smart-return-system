@@ -12,6 +12,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` still has one blocker: `GEMINI_API_KEY` is missing or placeholder.
+- `npm run saas:rollout-check` is available and reports remaining rollout blockers without changing external state.
 - Billing, domain, logging/Sentry, and production deployment remain pending explicit approval.
 
 ## Completed
@@ -43,6 +44,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `npm run saas:build`
   - `npm run saas:doctor`
   - `npm run saas:doctor:strict`
+  - `npm run saas:rollout-check`
+  - `npm run saas:rollout-check:strict`
   - `npm run saas:predeploy`
 - Hardened the Supabase project predeploy check so `APP_MODE=saas` uses `SAAS_SUPABASE_PROJECT_ID` before falling back to the internal project id.
 - Replaced the root `README.md` with SaaS commercial checkout guidance and explicitly documented that return AI analysis is text-only.
@@ -73,6 +76,13 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `/invite/[token]` now uses `loadInviteAcceptanceView(token)`.
   - `components/saas/invite-accept-panel.tsx` handles accept, login, email mismatch, already-member, expired, revoked, empty/gated/error paths.
   - No invite email sending, billing provider, deployment, env/secret, or production project change was performed.
+- SaaS rollout readiness gate was added:
+  - `scripts/saas/check-rollout-readiness.mjs`
+  - `npm run saas:rollout-check`
+  - `npm run saas:rollout-check:strict`
+  - `npm run saas:predeploy` now includes the non-strict rollout check.
+  - The check validates SaaS project safety, Gemini key readiness, `NEXT_PUBLIC_APP_URL` domain readiness, Sentry/logging status, AI safety flags, and billing credentials when billing is enabled.
+  - It is read-only and prints `No external changes were made by this check.`
 
 ## 2026-05-19 SaaS Audit
 
@@ -347,7 +357,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 These are intentionally not completed because they require private credentials, billing setup, rollout approval, or deployment authorization.
 
 - SaaS Gemini API key has not been added to Vercel or is still placeholder locally.
-- SaaS domain has not been configured.
+- SaaS `NEXT_PUBLIC_APP_URL` still points to a placeholder domain or needs final domain confirmation.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
@@ -435,18 +445,20 @@ After the remaining SaaS secret values and rollout approvals exist:
 6. Run `npm run saas:doctor:strict`.
 7. Run `npm run saas:migration-plan:strict`.
 8. Run `npm run saas:schema-gate:strict`.
-9. Run `npm run saas:predeploy`.
-10. Deploy the SaaS Vercel Project only after explicit approval.
-11. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
+9. Run `npm run saas:rollout-check:strict`.
+10. Run `npm run saas:predeploy`.
+11. Deploy the SaaS Vercel Project only after explicit approval.
+12. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
 
 If you need to run the individual checks:
 
 1. Run `node scripts/verify-env.mjs`.
 2. Run `npm run saas:migration-plan:strict`.
 3. Run `npm run saas:schema-gate:strict`.
-4. Run `npm run lint`.
-5. Run `npm run typecheck`.
-6. Run `npm run test:all`.
-7. Run `npm run build`.
-8. Deploy the SaaS Vercel Project only after explicit approval.
-9. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
+4. Run `npm run saas:rollout-check:strict`.
+5. Run `npm run lint`.
+6. Run `npm run typecheck`.
+7. Run `npm run test:all`.
+8. Run `npm run build`.
+9. Deploy the SaaS Vercel Project only after explicit approval.
+10. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
