@@ -291,6 +291,14 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Returns explicit `ready`, `empty`, `gated`, or `error` states for `/internal/orgs`, `/internal/orgs/[id]`, and `/internal/billing/events`.
   - UI pages should consume these loaders instead of calling API route handlers directly.
   - No UI file was changed, no migration was applied, no env/secret was changed, and no platform setting was changed.
+- SaaS invite acceptance live data and API route were added for Claude UI handoff:
+  - `lib/saas/invite-acceptance-live-data.ts`
+  - `lib/saas/invite-accept-route.ts`
+  - `app/api/saas/invite/accept/route.ts`
+  - Exposes `loadInviteAcceptanceView(token)` for `/invite/[token]`.
+  - Exposes `POST /api/saas/invite/accept` and reuses `acceptSaaSInvite()` plus the already-applied `accept_organization_invite` RPC wrapper.
+  - The loader returns `ready`, `empty`, `gated`, or `error` states and includes `viewer.state` values for can-accept, login-required, email-mismatch, and already-member UI paths.
+  - No UI file was changed, no email was sent, no migration was applied, no env/secret was changed, and no platform setting was changed.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
   - Tests include ECPay's published payment-notification checksum example.

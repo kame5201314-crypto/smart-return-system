@@ -465,6 +465,116 @@ Available helpers:
 
 This helper prepares the future invite acceptance flow behind repository interfaces. It validates the token, signed-in user email, invite role, and invite lifecycle state before calling the `accept_organization_invite` RPC wrapper. The RPC is only a migration draft in `supabase/migrations/031_saas_invite_acceptance_rpc.sql`. This does not expose a route, accept live invites, send email, run migrations, or change UI by itself.
 
+## Invite Acceptance Live Data And Route
+
+Codex has server-side invite acceptance live data and accept route helpers in:
+
+```text
+lib/saas/invite-acceptance-live-data.ts
+lib/saas/invite-accept-route.ts
+app/api/saas/invite/accept/route.ts
+```
+
+Available helpers:
+
+- `loadInviteAcceptanceView(token)`
+- `acceptSaaSInviteFromRequest(payload)`
+- `handleAcceptSaaSInviteRequest(request)`
+
+### `/invite/[token]`
+
+Server data function:
+
+```ts
+loadInviteAcceptanceView(token)
+```
+
+DTO shape:
+
+```ts
+type InviteAcceptanceLiveDataResult<T> =
+  | { state: 'ready'; data: T }
+  | { state: 'empty'; data: null; message: string }
+  | { state: 'gated'; data: null; gated: GatedState }
+  | { state: 'error'; data: null; message: string };
+
+interface InviteAcceptanceView {
+  invite: {
+    id: string;
+    token: string;
+    email: string;
+    role: 'admin' | 'staff' | 'viewer' | null;
+    inviteStatus: 'pending' | 'accepted' | 'expired' | 'revoked';
+    canAccept: boolean;
+    expiresAt: string | null;
+    acceptedAt: string | null;
+  };
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    status: string;
+  } | null;
+  viewer: {
+    state: 'can_accept' | 'needs_login' | 'email_mismatch' | 'already_member';
+    userId: string | null;
+    userEmail: string | null;
+  };
+}
+```
+
+State triggers:
+
+- `ready`: token exists and invite data validates; `viewer.state` decides whether the signed-in viewer can accept.
+- `empty`: missing token or token not found.
+- `error`: invite lookup, auth, membership lookup, or DTO preparation failure.
+
+Viewer state:
+
+- `can_accept`: signed-in user email matches the invite, invite is pending, and user is not already a member.
+- `needs_login`: viewer is not signed in, signed-in email is unavailable, or invite is not currently acceptable.
+- `email_mismatch`: signed-in user email does not match the invited email.
+- `already_member`: invite is accepted or the signed-in user is already a member of the organization.
+
+Accept route:
+
+```text
+POST /api/saas/invite/accept
+body: { "token": "..." }
+```
+
+Success:
+
+```ts
+{
+  success: true;
+  data: {
+    accepted: true;
+    inviteId: string;
+    orgId: string;
+    membershipId: string | null;
+    role: 'admin' | 'staff' | 'viewer';
+    acceptedAt: string;
+  };
+}
+```
+
+Failure:
+
+```ts
+{
+  success: false;
+  error: string;
+  code: string;
+}
+```
+
+The route requires a signed-in user with an email, reuses `acceptSaaSInvite()`,
+and calls the already-applied `accept_organization_invite` RPC through the
+repository wrapper. No email sending, UI wiring, migration, deployment, or
+platform setting change is included.
+
 ## Settings Live Data Server Loader
 
 Codex has server-side settings live data loaders in:

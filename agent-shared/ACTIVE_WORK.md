@@ -33,6 +33,27 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Invite acceptance live data loader and accept route
+Files:
+- lib/saas/invite-acceptance-live-data.ts
+- lib/saas/invite-accept-route.ts
+- app/api/saas/invite/accept/route.ts
+- tests/unit/saas-invite-acceptance-live-data.test.ts
+- tests/unit/saas-invite-accept-route.test.ts
+- lib/auth/route-auth.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added /invite/[token] page loader with viewer state plus POST /api/saas/invite/accept using the invite acceptance service and RPC wrapper. No UI page was changed, no email was sent, no migration was run, no env/secret was changed, and no deployment was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin page-level live data loaders
 Files:
 - lib/saas/platform-admin-live-data.ts

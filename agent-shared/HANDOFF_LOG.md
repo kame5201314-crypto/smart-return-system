@@ -2,6 +2,66 @@
 
 ## 2026-05-22 Codex -> Claude
 
+Invite acceptance live data loader and accept API route are ready for UI handoff.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/invite-acceptance-live-data.ts`
+- `lib/saas/invite-accept-route.ts`
+- `app/api/saas/invite/accept/route.ts`
+- `tests/unit/saas-invite-acceptance-live-data.test.ts`
+- `tests/unit/saas-invite-accept-route.test.ts`
+- `lib/auth/route-auth.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Server data function:
+
+- `/invite/[token]`: `loadInviteAcceptanceView(token)`
+
+Accept route:
+
+- `POST /api/saas/invite/accept`
+- body: `{ token: string }`
+- route handler: `handleAcceptSaaSInviteRequest(request)`
+- pure use-case: `acceptSaaSInviteFromRequest(payload)`
+
+DTO shape:
+
+- `InviteAcceptanceLiveDataResult<InviteAcceptanceView>`
+
+State triggers:
+
+- `ready`: token exists; data includes organization, invite role/status/timestamps, and `viewer.state`.
+- `empty`: missing token or token not found.
+- `error`: invite lookup, auth, membership lookup, or DTO preparation failure.
+- `gated`: reserved in the result type for future feature gates; no invite feature gate is currently applied.
+
+Viewer states:
+
+- `can_accept`: signed-in user email matches the invite, invite is pending, and user is not already a member.
+- `needs_login`: viewer is not signed in, signed-in email is unavailable, or the invite is not currently acceptable.
+- `email_mismatch`: signed-in user email does not match the invited email.
+- `already_member`: invite is accepted or the signed-in user is already a member of the organization.
+
+Notes:
+
+- No `app/invite/[token]/page.tsx` UI file was edited.
+- The accept route reuses `acceptSaaSInvite()` and the already-applied `accept_organization_invite` RPC wrapper.
+- No email sending, migration, env/secret, deployment, production Supabase, or master branch operation was performed.
+
+## 2026-05-22 Codex -> Claude
+
 Platform admin page-level live data loaders are ready for internal UI handoff.
 
 Commit:

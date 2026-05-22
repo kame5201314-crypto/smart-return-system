@@ -190,6 +190,8 @@ function checkCommercialFoundation() {
     'lib/saas/invite-policy.ts',
     'lib/saas/invite-token-data.ts',
     'lib/saas/invite-acceptance.ts',
+    'lib/saas/invite-acceptance-live-data.ts',
+    'lib/saas/invite-accept-route.ts',
     'lib/saas/invite-creation.ts',
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
@@ -206,6 +208,7 @@ function checkCommercialFoundation() {
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
     'app/api/saas/signup/route.ts',
+    'app/api/saas/invite/accept/route.ts',
     'app/api/saas/team/invites/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
     'scripts/saas/check-migration-plan.mjs',
@@ -568,6 +571,14 @@ function checkCommercialFoundation() {
   const invitePolicyPath = path.resolve(process.cwd(), 'lib/saas/invite-policy.ts');
   const inviteTokenDataPath = path.resolve(process.cwd(), 'lib/saas/invite-token-data.ts');
   const inviteAcceptancePath = path.resolve(process.cwd(), 'lib/saas/invite-acceptance.ts');
+  const inviteAcceptanceLiveDataPath = path.resolve(
+    process.cwd(),
+    'lib/saas/invite-acceptance-live-data.ts'
+  );
+  const inviteAcceptRouteServicePath = path.resolve(
+    process.cwd(),
+    'lib/saas/invite-accept-route.ts'
+  );
   const inviteCreationPath = path.resolve(process.cwd(), 'lib/saas/invite-creation.ts');
   const teamInviteRoutePath = path.resolve(process.cwd(), 'lib/saas/team-invite-route.ts');
   if (fs.existsSync(invitePolicyPath)) {
@@ -623,6 +634,29 @@ function checkCommercialFoundation() {
     }
   }
 
+  if (fs.existsSync(inviteAcceptanceLiveDataPath)) {
+    const source = fs.readFileSync(inviteAcceptanceLiveDataPath, 'utf8');
+    if (
+      source.includes('loadInviteAcceptanceView') &&
+      source.includes('InviteAcceptanceLiveDataResult') &&
+      source.includes('InviteAcceptanceViewerState') &&
+      source.includes('createInviteTokenDataRepository') &&
+      source.includes('createInviteAcceptanceMembershipRepository') &&
+      source.includes('requireRouteAuth') &&
+      source.includes('can_accept') &&
+      source.includes('needs_login') &&
+      source.includes('email_mismatch') &&
+      source.includes('already_member') &&
+      source.includes("state: 'ready'") &&
+      source.includes("state: 'empty'") &&
+      source.includes("state: 'error'")
+    ) {
+      record('pass', 'SaaS invite acceptance live data loader', 'invite page loader returns ready/empty/error states with viewer acceptance state and organization context');
+    } else {
+      record('fail', 'SaaS invite acceptance live data loader', 'invite page loader must use invite token data, auth context, membership check, and four-state UI results');
+    }
+  }
+
   if (fs.existsSync(inviteCreationPath)) {
     const source = fs.readFileSync(inviteCreationPath, 'utf8');
     if (
@@ -661,6 +695,28 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS team invite API foundation', 'team invite route is owner/admin gated and reuses seat-limited invite creation service');
     } else {
       record('fail', 'SaaS team invite API foundation', 'team invite route must require org context, owner/admin role, writable status, seat counts, and invite creation service');
+    }
+  }
+
+  if (fs.existsSync(inviteAcceptRouteServicePath)) {
+    const source = fs.readFileSync(inviteAcceptRouteServicePath, 'utf8');
+    const routePath = path.resolve(process.cwd(), 'app/api/saas/invite/accept/route.ts');
+    const routeSource = fs.existsSync(routePath) ? fs.readFileSync(routePath, 'utf8') : '';
+    if (
+      source.includes('acceptSaaSInviteFromRequest') &&
+      source.includes('requireRouteAuth') &&
+      source.includes('userEmail') &&
+      source.includes('createSaaSInviteAcceptanceRepository') &&
+      source.includes('createInviteTokenDataRepository') &&
+      source.includes('createUntypedAdminClient') &&
+      routeSource.includes('handleAcceptSaaSInviteRequest') &&
+      routeSource.includes('SaaSInviteAcceptRouteError') &&
+      routeSource.includes('SaaSInviteAcceptanceError') &&
+      routeSource.includes('export async function POST')
+    ) {
+      record('pass', 'SaaS invite accept API foundation', 'invite accept route requires auth email and reuses the invite acceptance service/RPC wrapper');
+    } else {
+      record('fail', 'SaaS invite accept API foundation', 'invite accept route must require signed-in email, reuse invite acceptance service, and expose stable JSON errors');
     }
   }
 

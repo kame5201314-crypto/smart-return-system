@@ -9,6 +9,7 @@ export interface RouteAuthResult {
   status: number;
   error?: string;
   userId?: string;
+  userEmail?: string;
   isAdmin: boolean;
 }
 
@@ -24,6 +25,7 @@ export async function requireRouteAuth(options?: { requireAdmin?: boolean }): Pr
       ok: true,
       status: 200,
       userId: ADMIN_UUID,
+      userEmail: undefined,
       isAdmin: true,
     };
   }
@@ -63,6 +65,7 @@ export async function requireRouteAuth(options?: { requireAdmin?: boolean }): Pr
       ok: true,
       status: 200,
       userId: userId ?? undefined,
+      userEmail: userEmail ?? undefined,
       isAdmin: false,
     };
   }
@@ -101,6 +104,7 @@ export async function requireRouteAuth(options?: { requireAdmin?: boolean }): Pr
         ok: true,
         status: 200,
         userId: userId ?? undefined,
+        userEmail: userEmail ?? undefined,
         isAdmin: true,
       };
     }
