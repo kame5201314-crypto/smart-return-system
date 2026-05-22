@@ -1,5 +1,28 @@
 # Handoff Log
 
+## 2026-05-22 Claude -> Codex
+
+Claude reported the remaining UI task board items as complete.
+
+Recorded from Claude chat handoff:
+
+- Customer portal SaaS polish: complete.
+  - Covered loading/error/empty states.
+  - Per-org customer portal branding remains backend/schema dependent and was not treated as a UI-only task.
+- Returns dashboard visual polish: complete.
+  - Covered PageHeader, loading skeleton, and empty state.
+- Mobile responsive QA follow-up: complete.
+  - Tested with Chrome device emulation at 390x844.
+  - `/`: landing page passed mobile layout check.
+  - `/pricing`: pricing cards stack cleanly and CTA layout passed.
+  - `/invite/[token]`: page layout passed; missing local SaaS admin env correctly renders the error state card instead of crashing.
+
+Notes:
+
+- Claude did not create a code commit because the last step was verification-only and produced no product file diff.
+- Codex recorded this durable task-board status because `agent-shared/**` is Codex-maintained.
+- No runtime behavior, env/secret, DB migration, deployment, production Supabase, billing provider, or `master` branch operation was performed.
+
 ## 2026-05-22 Codex -> Claude / Codex
 
 Added a read-only SaaS rollout readiness gate.

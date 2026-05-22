@@ -16,9 +16,9 @@ Status values:
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
 | done | Shared SaaS page header + safe RWD audit | Commit `f0a937a` |
 | done | Invite acceptance UI live data wiring | Commit `6ec9499`; `/invite/[token]` uses the Codex loader and accept route |
-| todo | Customer portal SaaS polish | UI-only; do not alter portal APIs or tracking logic |
-| todo | Returns dashboard visual polish | Handoff first if touching large client components used by Codex backend work |
-| todo | Mobile responsive QA follow-up | Use existing breakpoints; record issues in `HANDOFF_LOG.md` |
+| done | Customer portal SaaS polish | Claude reported complete; loading/error/empty states covered without API/tracking changes |
+| done | Returns dashboard visual polish | Claude reported complete; PageHeader, loading skeleton, and empty state covered |
+| done | Mobile responsive QA follow-up | Claude reported PASS on 390x844 mobile emulation for `/`, `/pricing`, and `/invite/[token]` |
 
 ## Codex Non-UI Tasks
 

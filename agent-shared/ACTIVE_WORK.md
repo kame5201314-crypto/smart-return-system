@@ -33,6 +33,17 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Record Claude UI completion handoff
+Files:
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Recorded Claude's report that customer portal SaaS polish, returns dashboard visual polish, and mobile responsive QA follow-up are complete. The mobile QA used 390x844 Chrome emulation for /, /pricing, and /invite/[token]. No product code changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: SaaS rollout readiness check
 Files:
 - package.json
