@@ -2,6 +2,52 @@
 
 ## 2026-05-22 Codex -> Claude
 
+Platform admin page-level live data loaders are ready for internal UI handoff.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-live-data.ts`
+- `tests/unit/saas-platform-admin-live-data.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Server data functions:
+
+- `/internal/orgs`: `loadPlatformOrganizationsView()`
+- `/internal/orgs/[id]`: `loadPlatformOrganizationDetailView(orgId)`
+- `/internal/billing/events`: `loadPlatformBillingEventsView()`
+
+DTO shapes:
+
+- `/internal/orgs`: `PlatformAdminLiveDataResult<PlatformOrganizationListView>`
+- `/internal/orgs/[id]`: `PlatformAdminLiveDataResult<PlatformOrganizationDetailView>`
+- `/internal/billing/events`: `PlatformAdminLiveDataResult<PlatformBillingEventsView>`
+
+State triggers:
+
+- All three loaders call `requirePlatformAdminAccess()` first. If auth/admin role is missing or `multi_tenant_admin` is disabled, they return `gated` and do not query repositories.
+- `/internal/orgs` returns `ready` with organizations plus monthly usage snapshots, `empty` when there are no orgs, and `error` for repository or DTO failures.
+- `/internal/orgs/[id]` validates `orgId`, returns `ready` with organization detail plus usage and recent audit logs, `empty` for invalid/missing org id or not found, and `error` for repository or DTO failures.
+- `/internal/billing/events` returns `ready` with billing events plus org names, `empty` when there are no events, and `error` for repository or DTO failures.
+
+Notes:
+
+- No `app/internal/**` UI page files were edited.
+- UI pages should call the loaders from Server Components instead of calling API route handlers directly.
+- No migration, env, deployment, production Supabase, or master branch operation was performed.
+
+## 2026-05-22 Codex -> Claude
+
 Added SaaS team invite API foundation.
 
 Commit:

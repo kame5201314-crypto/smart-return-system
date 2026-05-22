@@ -275,6 +275,99 @@ interface PlatformBillingEventsView {
 }
 ```
 
+## Platform Admin Live Data Server Loader
+
+Codex has server-side platform admin live data loaders in:
+
+```text
+lib/saas/platform-admin-live-data.ts
+```
+
+Available helpers:
+
+- `loadPlatformOrganizationsView()`
+- `loadPlatformOrganizationDetailView(orgId)`
+- `loadPlatformBillingEventsView()`
+
+These helpers are for Claude UI handoff on the internal platform admin pages.
+They call `requirePlatformAdminAccess()` before creating the service-role
+platform admin repository, then build DTOs through `lib/saas/ui-backend-contracts.ts`.
+UI pages should consume these loaders from Server Components instead of calling
+API route handlers directly.
+
+Each helper returns:
+
+```ts
+type PlatformAdminLiveDataResult<T> =
+  | { state: 'ready'; data: T; context: PlatformAdminLiveDataContext }
+  | { state: 'empty'; data: null; message: string; context: PlatformAdminLiveDataContext }
+  | { state: 'gated'; data: null; gated: GatedState }
+  | { state: 'error'; data: null; message: string };
+```
+
+### `/internal/orgs`
+
+Server data function:
+
+```ts
+loadPlatformOrganizationsView()
+```
+
+DTO shape:
+
+```ts
+PlatformOrganizationListView
+```
+
+State triggers:
+
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, organizations and monthly usage snapshots validate through `buildPlatformOrganizationListView()`.
+- `empty`: no organizations exist.
+- `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
+- `error`: repository query failure or DTO contract validation failure.
+
+### `/internal/orgs/[id]`
+
+Server data function:
+
+```ts
+loadPlatformOrganizationDetailView(orgId)
+```
+
+DTO shape:
+
+```ts
+PlatformOrganizationDetailView
+```
+
+State triggers:
+
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, `orgId` is valid, organization detail, usage, and audit logs validate through `buildPlatformOrganizationDetailView()`.
+- `empty`: invalid `orgId` or organization not found.
+- `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
+- `error`: repository query failure or DTO contract validation failure.
+
+### `/internal/billing/events`
+
+Server data function:
+
+```ts
+loadPlatformBillingEventsView()
+```
+
+DTO shape:
+
+```ts
+PlatformBillingEventsView
+```
+
+State triggers:
+
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, billing events and organization names validate through `buildPlatformBillingEventsView()`.
+- `empty`: no billing events exist.
+- `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
+- `error`: repository query failure or DTO contract validation failure.
+
 ## Implementation Rule
 
 Claude may use these contracts as mock UI data.

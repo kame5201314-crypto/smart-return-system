@@ -1,0 +1,312 @@
+/* @vitest-environment node */
+
+import { describe, expect, it, vi } from 'vitest';
+
+import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
+import {
+  PlatformAdminAccessError,
+  type PlatformAdminContext,
+} from '@/lib/saas/platform-admin';
+import type { PlatformAdminDataRepository } from '@/lib/saas/platform-admin-data';
+import {
+  loadPlatformBillingEventsView,
+  loadPlatformOrganizationDetailView,
+  loadPlatformOrganizationsView,
+} from '@/lib/saas/platform-admin-live-data';
+
+const platformAdminContext: PlatformAdminContext = {
+  userId: 'admin-1',
+  isPlatformAdmin: true,
+  featureFlags: resolveSaaSFeatureFlags({
+    env: {
+      ENABLE_MULTI_TENANT_ADMIN: 'true',
+    },
+    orgPlan: 'enterprise',
+  }),
+};
+
+function createRepository(): PlatformAdminDataRepository {
+  return {
+    listOrganizations: vi.fn(async () => [
+      {
+        id: 'org-1',
+        name: 'Demo Org',
+        slug: 'demo-org',
+        plan: 'growth',
+        status: 'active',
+        ownerEmail: 'owner@example.com',
+        memberCount: 3,
+        createdAt: '2026-05-20T00:00:00.000Z',
+      },
+    ]),
+    getOrganization: vi.fn(async () => ({
+      id: 'org-1',
+      name: 'Demo Org',
+      slug: 'demo-org',
+      plan: 'growth',
+      status: 'active',
+      ownerEmail: 'owner@example.com',
+      memberCount: 3,
+      createdAt: '2026-05-20T00:00:00.000Z',
+      featureFlags: {
+        billing: true,
+      },
+      billingEmail: 'billing@example.com',
+      taxId: '12345678',
+      members: [
+        {
+          id: 'member-1',
+          email: 'owner@example.com',
+          role: 'owner',
+          status: 'active',
+        },
+      ],
+    })),
+    listBillingEvents: vi.fn(async () => [
+      {
+        id: 'event-1',
+        orgId: 'org-1',
+        provider: 'ecpay',
+        eventType: 'period_paid',
+        status: 'processed',
+        providerEventId: 'trade-1',
+        createdAt: '2026-05-20T00:00:00.000Z',
+      },
+    ]),
+    listOrganizationUsage: vi.fn(async () => ({
+      'org-1': {
+        returnsThisMonth: 12,
+        aiUsedThisMonth: 4,
+      },
+    })),
+    listOrganizationNames: vi.fn(async () => ({
+      'org-1': 'Demo Org',
+    })),
+    listAuditLogs: vi.fn(async () => [
+      {
+        id: 'audit-1',
+        action: 'org.updated',
+        actorEmail: 'admin@example.com',
+        createdAt: '2026-05-21T00:00:00.000Z',
+      },
+    ]),
+  };
+}
+
+describe('SaaS platform admin live data loaders', () => {
+  it('loads platform organization list after admin access passes', async () => {
+    const repository = createRepository();
+    const now = new Date('2026-05-22T12:00:00.000Z');
+
+    const result = await loadPlatformOrganizationsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      limit: 999,
+      now,
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        organizations: [
+          {
+            id: 'org-1',
+            plan: 'growth',
+            usage: {
+              returnsThisMonth: 12,
+              aiUsedThisMonth: 4,
+            },
+          },
+        ],
+      },
+      context: {
+        userId: 'admin-1',
+        isPlatformAdmin: true,
+      },
+    });
+    expect(repository.listOrganizations).toHaveBeenCalledWith({ limit: 100 });
+    expect(repository.listOrganizationUsage).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+      periodStart: '2026-05-01T00:00:00.000Z',
+    });
+  });
+
+  it('returns gated state without querying when multi tenant admin is disabled', async () => {
+    const repository = createRepository();
+
+    const result = await loadPlatformOrganizationsView({
+      requireAccess: async () => {
+        throw new PlatformAdminAccessError(
+          'feature_disabled',
+          403,
+          'The multi-tenant admin feature flag is disabled.'
+        );
+      },
+      repository,
+    });
+
+    expect(result).toEqual({
+      state: 'gated',
+      data: null,
+      gated: {
+        reason: 'feature_disabled',
+        message: 'The multi-tenant admin feature flag is disabled.',
+      },
+    });
+    expect(repository.listOrganizations).not.toHaveBeenCalled();
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+  });
+
+  it('returns empty state for platform organization list when no orgs exist', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizations).mockResolvedValueOnce([]);
+
+    const result = await loadPlatformOrganizationsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'empty',
+      data: null,
+      message: 'No platform organizations were found.',
+      context: {
+        userId: 'admin-1',
+      },
+    });
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+  });
+
+  it('loads platform organization detail with usage and audit logs', async () => {
+    const repository = createRepository();
+
+    const result = await loadPlatformOrganizationDetailView(' org-1 ', {
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now: new Date('2026-05-22T12:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        organization: {
+          id: 'org-1',
+          billingEmail: 'billing@example.com',
+          usage: {
+            returnsThisMonth: 12,
+            aiUsedThisMonth: 4,
+          },
+        },
+        members: [
+          {
+            role: 'owner',
+          },
+        ],
+        recentAuditLogs: [
+          {
+            id: 'audit-1',
+            action: 'org.updated',
+          },
+        ],
+      },
+    });
+    expect(repository.getOrganization).toHaveBeenCalledWith({ orgId: 'org-1' });
+    expect(repository.listAuditLogs).toHaveBeenCalledWith({
+      orgId: 'org-1',
+      limit: 20,
+    });
+  });
+
+  it('returns empty state for invalid or missing organization detail ids', async () => {
+    const repository = createRepository();
+
+    const result = await loadPlatformOrganizationDetailView('  ', {
+      requireAccess: async () => platformAdminContext,
+      repository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'empty',
+      data: null,
+      message: 'A valid organization id is required.',
+    });
+    expect(repository.getOrganization).not.toHaveBeenCalled();
+  });
+
+  it('returns empty state when platform organization detail is not found', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.getOrganization).mockResolvedValueOnce(null);
+
+    const result = await loadPlatformOrganizationDetailView('missing-org', {
+      requireAccess: async () => platformAdminContext,
+      repository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'empty',
+      data: null,
+      message: 'Organization not found.',
+    });
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+    expect(repository.listAuditLogs).not.toHaveBeenCalled();
+  });
+
+  it('loads platform billing events with organization names', async () => {
+    const repository = createRepository();
+
+    const result = await loadPlatformBillingEventsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      limit: 10,
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        events: [
+          {
+            id: 'event-1',
+            orgName: 'Demo Org',
+            provider: 'ecpay',
+            status: 'processed',
+          },
+        ],
+      },
+    });
+    expect(repository.listBillingEvents).toHaveBeenCalledWith({ limit: 10 });
+    expect(repository.listOrganizationNames).toHaveBeenCalledWith({ orgIds: ['org-1'] });
+  });
+
+  it('returns empty state for platform billing events when no events exist', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listBillingEvents).mockResolvedValueOnce([]);
+
+    const result = await loadPlatformBillingEventsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'empty',
+      data: null,
+      message: 'No platform billing events were found.',
+    });
+    expect(repository.listOrganizationNames).not.toHaveBeenCalled();
+  });
+
+  it('returns error state for repository or DTO failures', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizationUsage).mockResolvedValueOnce({});
+
+    const result = await loadPlatformOrganizationsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+    });
+
+    expect(result).toEqual({
+      state: 'error',
+      data: null,
+      message: 'Missing usage snapshot for organization: org-1',
+    });
+  });
+});

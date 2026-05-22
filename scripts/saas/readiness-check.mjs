@@ -194,6 +194,7 @@ function checkCommercialFoundation() {
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-data.ts',
+    'lib/saas/platform-admin-live-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
@@ -717,6 +718,7 @@ function checkCommercialFoundation() {
   }
 
   const platformAdminDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-data.ts');
+  const platformAdminLiveDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-live-data.ts');
   const platformOrgRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/route.ts');
   const platformOrgDetailRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/[id]/route.ts');
   const platformBillingEventsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/events/route.ts');
@@ -745,6 +747,30 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated, including manual Beta provisioning');
     } else {
       record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, and gated manual Beta provisioning');
+    }
+  }
+
+  if (fs.existsSync(platformAdminLiveDataPath)) {
+    const source = fs.readFileSync(platformAdminLiveDataPath, 'utf8');
+    if (
+      source.includes('loadPlatformOrganizationsView') &&
+      source.includes('loadPlatformOrganizationDetailView') &&
+      source.includes('loadPlatformBillingEventsView') &&
+      source.includes('PlatformAdminLiveDataResult') &&
+      source.includes('requirePlatformAdminAccess') &&
+      source.includes('PlatformAdminAccessError') &&
+      source.includes('createPlatformAdminDataRepository') &&
+      source.includes('createUntypedAdminClient') &&
+      source.includes('buildPlatformOrganizationListView') &&
+      source.includes('buildPlatformOrganizationDetailView') &&
+      source.includes('buildPlatformBillingEventsView') &&
+      source.includes("state: 'gated'") &&
+      source.includes("state: 'empty'") &&
+      !source.includes("from '@/app/api/internal")
+    ) {
+      record('pass', 'SaaS platform admin live data loaders', 'internal page loaders are platform-admin gated and return DTO ready/empty/gated/error states without calling route handlers');
+    } else {
+      record('fail', 'SaaS platform admin live data loaders', 'platform admin page loaders must use the guard, repository layer, DTO builders, and four-state results without route-handler coupling');
     }
   }
 

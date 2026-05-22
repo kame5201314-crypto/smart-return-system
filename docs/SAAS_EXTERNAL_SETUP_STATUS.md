@@ -284,6 +284,13 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Composes `getOrgContext()`, the authenticated server Supabase client/RLS, settings repositories, and UI DTO builders.
   - Returns explicit `ready`, `empty`, `gated`, or `error` states and does not serve mock data.
   - No UI file was changed, no migration was applied, and no platform setting was changed.
+- SaaS platform admin page-level live data loaders were added for Claude UI handoff:
+  - `lib/saas/platform-admin-live-data.ts`
+  - Exposes `loadPlatformOrganizationsView()`, `loadPlatformOrganizationDetailView(orgId)`, and `loadPlatformBillingEventsView()`.
+  - Calls `requirePlatformAdminAccess()` before creating the service-role platform admin repository.
+  - Returns explicit `ready`, `empty`, `gated`, or `error` states for `/internal/orgs`, `/internal/orgs/[id]`, and `/internal/billing/events`.
+  - UI pages should consume these loaders instead of calling API route handlers directly.
+  - No UI file was changed, no migration was applied, no env/secret was changed, and no platform setting was changed.
 - ECPay webhook CheckMacValue verification was added locally:
   - Default `/api/billing/ecpay/webhook` processing now verifies the incoming `CheckMacValue` before recording a billing event.
   - Tests include ECPay's published payment-notification checksum example.
