@@ -1,96 +1,83 @@
-# Smart Return System - 部署檢查清單
+# Deployment Checklist
 
-## Supabase 專案資訊
+This checkout is the SaaS commercial version. It must not be used to deploy or
+modify the live internal return system unless the owner explicitly says the work
+is for live production.
 
-| 項目 | 值 |
-|------|-----|
-| Project ID | `fdzfnenizyppxglypden` |
-| Project Name | smart-return-system |
-| Region | Northeast Asia (Tokyo) |
-| Dashboard | https://supabase.com/dashboard/project/fdzfnenizyppxglypden |
+## Project Boundary
 
-## Vercel 專案資訊
+| Target | Expected value |
+| --- | --- |
+| Checkout | `D:\AI專案\AI退貨系統商業版_2026.5.16` |
+| Branch | `develop-saas` |
+| Remote | `origin` -> `https://github.com/kame5201314-crypto/smart-return-system.git` |
+| Vercel project | `smart-return-system-saas` |
+| Supabase project | `auyznbwtjvemyamujmgt` |
 
-| 項目 | 值 |
-|------|-----|
-| Project Name | smart-return-system |
-| Production URL | https://smart-return-system.vercel.app |
-| Dashboard | https://vercel.com/dashboard |
+The live/internal project is protected and tracked separately. Do not use the
+internal Supabase project refs `fdzfnenizyppxglypden` or `sntbrntwztkllwkutooi`
+for this SaaS checkout.
 
----
+## Required Preflight
 
-## 部署前檢查清單
+Run this before any deployment request:
 
-### 1. 環境變數確認
-
-- [ ] `NEXT_PUBLIC_SUPABASE_URL` 包含 `fdzfnenizyppxglypden`
-- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` 已設定
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` 已設定
-- [ ] `GEMINI_API_KEY` 已設定 (AI 分析功能需要)
-
-### 2. 資料庫遷移確認
-
-- [ ] `003_shopee_returns.sql` 已執行 (蝦皮退貨表)
-- [ ] `004_portal_and_ai_tables.sql` 已執行 (Portal 與 AI 分析表)
-
-### 3. Storage Bucket 確認
-
-- [ ] `return-images` bucket 已建立
-- [ ] `return-images` bucket 設為 Public
-
-### 4. 驗證指令
-
-```bash
-# 本地驗證環境變數
-npm run verify-env
-
-# 或使用簡易檢查
-npm run prebuild:check
+```powershell
+Get-Location
+git status -sb
+git remote -v
+git branch -vv
+npm run safety:agent-boundary
 ```
 
----
+If the path, branch, or remote does not match this file, stop and report the
+mismatch.
 
-## 環境變數範本
+## SaaS Readiness Checks
+
+Use the detailed checklist in `docs/SAAS_PRE_LAUNCH_CHECKLIST.md`. The short
+command sequence is:
+
+```powershell
+npm run verify-env
+npm run saas:doctor:strict
+npm run saas:migration-plan:strict
+npm run saas:schema-gate:strict
+npm run saas:rollout-check:strict
+npm run lint
+npm run typecheck
+npm run test:all
+npm run saas:build
+```
+
+Do not deploy if any command fails.
+
+## Manual Beta Defaults
+
+For a controlled manual Beta, keep these flags closed:
 
 ```env
-# Supabase - smart-return-system (fdzfnenizyppxglypden)
-NEXT_PUBLIC_SUPABASE_URL=https://fdzfnenizyppxglypden.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-
-# AI Analysis
-GEMINI_API_KEY=your_gemini_api_key_here
+ENABLE_PUBLIC_SIGNUP=false
+ENABLE_BILLING=false
+ENABLE_SUBSCRIPTION_PLAN=false
+ENABLE_MULTI_TENANT_ADMIN=false
+ENABLE_IMAGE_AI=false
 ```
 
----
+`ENABLE_AI_USAGE_LIMIT=true` should remain enabled.
 
-## 常見問題排除
+## External Changes Need Approval
 
-### Q: Portal 提交失敗 "送出失敗"
-**A:** 資料庫表格尚未建立，請執行 `004_portal_and_ai_tables.sql`
+The following require explicit owner approval before execution:
 
-### Q: AI 分析顯示 "退貨資料表尚未建立"
-**A:** 資料庫表格尚未建立，請執行 `004_portal_and_ai_tables.sql`
+- Vercel deployment, promotion, rollback, project linking, or domain changes.
+- Supabase migration apply, RLS changes, storage policy changes, or data writes.
+- Billing provider setup or webhook activation.
+- Secret/env changes in Vercel or Supabase.
+- GitHub branch protection or repository setting changes.
 
-### Q: 圖片上傳失敗
-**A:** 確認 `return-images` Storage bucket 已建立並設為 Public
+## Rollback Rule
 
-### Q: 資料寫入錯誤的資料庫
-**A:** 檢查 `NEXT_PUBLIC_SUPABASE_URL` 是否包含正確的 project ID `fdzfnenizyppxglypden`
-
----
-
-## SQL 遷移檔案位置
-
-```
-supabase/migrations/
-├── 003_shopee_returns.sql      # 蝦皮退貨管理
-└── 004_portal_and_ai_tables.sql # Portal + AI 分析
-```
-
-## 聯絡資訊
-
-如有問題請檢查：
-1. Supabase Dashboard Logs
-2. Vercel Function Logs
-3. Browser Console
+If production is broken, restore service first with Vercel rollback, then inspect
+logs and fix with a new commit. Do not use `git reset --hard` or force-push as
+the first response to an incident.
