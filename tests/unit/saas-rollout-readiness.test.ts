@@ -119,4 +119,26 @@ describe('SaaS rollout readiness check', () => {
     expect(result.output).toContain('billing:ECPAY_HASH_KEY');
     expect(result.output).toContain('billing:ECPAY_HASH_IV');
   });
+
+  it('requires logging when public signup is enabled', () => {
+    const result = runRolloutCheck({
+      ENABLE_PUBLIC_SIGNUP: 'true',
+      SENTRY_DSN: '',
+      NEXT_PUBLIC_SENTRY_DSN: '',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Sentry/logging DSN');
+    expect(result.output).toContain('required before public signup');
+  });
+
+  it('passes logging gate for public rollout when a logging DSN is set', () => {
+    const result = runRolloutCheck({
+      ENABLE_PUBLIC_SIGNUP: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('Sentry/logging DSN - set');
+  });
 });

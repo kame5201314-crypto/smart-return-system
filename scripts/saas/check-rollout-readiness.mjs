@@ -185,6 +185,15 @@ function checkAppUrlAndObservability() {
     normalizeEnvValue(process.env.NEXT_PUBLIC_SENTRY_DSN);
   if (sentryDsn) {
     record('pass', 'Sentry/logging DSN', 'set');
+  } else if (
+    parseBool(process.env.ENABLE_PUBLIC_SIGNUP) ||
+    parseBool(process.env.ENABLE_BILLING) ||
+    parseBool(process.env.ENABLE_SUBSCRIPTION_PLAN)
+  ) {
+    warnOrFail(
+      'Sentry/logging DSN',
+      'required before public signup, subscription, or paid billing rollout'
+    );
   } else {
     record('warn', 'Sentry/logging DSN', 'missing; add before public rollout');
   }

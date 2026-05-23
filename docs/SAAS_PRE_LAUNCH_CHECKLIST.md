@@ -21,11 +21,14 @@ The following read-only checks passed on 2026-05-23:
 - `ADMIN_USERNAME` must be set.
 - `ADMIN_PASSWORD` must be non-placeholder and at least 12 characters.
 
-After admin credential rotation, the expected non-blocking warnings are:
+After admin credential rotation, the expected manual-Beta non-blocking warnings are:
 
 - Sentry/logging DSN is missing.
 - Billing is disabled. This is acceptable for manual Beta, but not for paid
   self-serve launch.
+
+For public signup, subscription, or paid billing rollout, missing
+Sentry/logging DSN becomes a blocker.
 
 ## Launch Mode Decision
 
