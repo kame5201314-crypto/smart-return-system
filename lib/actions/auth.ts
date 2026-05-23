@@ -11,8 +11,8 @@ import {
   createAdminSessionToken,
   verifyAdminSessionToken,
 } from '@/lib/auth/admin-session';
+import { getConfiguredAdminUsername, isAdminLoginId } from '@/lib/auth/admin-login';
 
-const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'admin').trim().toLowerCase();
 // Defensive trim: Vercel env values can accidentally include trailing newlines.
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
 
@@ -26,7 +26,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
 
-    if (trimmedEmail === ADMIN_USERNAME) {
+    if (isAdminLoginId(trimmedEmail)) {
       if (!ADMIN_PASSWORD) {
         return {
           success: false,
@@ -42,7 +42,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       }
 
       const cookieStore = await cookies();
-      const sessionToken = await createAdminSessionToken(ADMIN_USERNAME);
+      const sessionToken = await createAdminSessionToken(getConfiguredAdminUsername());
       cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, ADMIN_SESSION_COOKIE_OPTIONS);
 
       revalidatePath('/', 'layout');
