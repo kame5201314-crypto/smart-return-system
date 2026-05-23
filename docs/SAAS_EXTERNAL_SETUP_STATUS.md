@@ -11,9 +11,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
-- `npm run saas:doctor:strict` still has one blocker: `GEMINI_API_KEY` is missing or placeholder.
-- `npm run saas:rollout-check` is available and reports remaining rollout blockers without changing external state.
-- Billing, domain, logging/Sentry, and production deployment remain pending explicit approval.
+- `npm run saas:doctor:strict` passes.
+- `npm run saas:rollout-check:strict` currently reports no failures and two rollout warnings:
+  - Sentry/logging DSN is not configured.
+  - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
+- Billing, final domain, logging/Sentry, and production deployment remain pending explicit approval.
 
 ## Completed
 
@@ -83,6 +85,24 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `npm run saas:predeploy` now includes the non-strict rollout check.
   - The check validates SaaS project safety, Gemini key readiness, `NEXT_PUBLIC_APP_URL` domain readiness, Sentry/logging status, AI safety flags, and billing credentials when billing is enabled.
   - It is read-only and prints `No external changes were made by this check.`
+
+## 2026-05-23 SaaS Pre-Launch Recheck
+
+- Preflight passed in the SaaS commercial checkout:
+  - Path: `D:\AI專案\AI退貨系統商業版_2026.5.16`
+  - Branch: `develop-saas`
+  - Remote: `origin` -> `https://github.com/kame5201314-crypto/smart-return-system.git`
+  - `npm run safety:agent-boundary`: passed.
+- Current strict readiness results:
+  - `npm run saas:doctor:strict`: 113 pass, 0 warn, 0 fail.
+  - `npm run saas:migration-plan:strict`: 12 pass, 0 warn, 0 fail.
+  - `npm run saas:schema-gate:strict`: passed, 22 tables and 81 columns checked.
+  - `npm run saas:rollout-check:strict`: 21 pass, 2 warn, 0 fail.
+- Remaining rollout decisions before public launch:
+  - Add Sentry/logging DSN or accept manual log-only monitoring for a closed Beta.
+  - Keep `ENABLE_BILLING=false` for manual Beta, or configure a billing provider before paid self-serve launch.
+  - Confirm the final public domain and update `NEXT_PUBLIC_APP_URL` before opening public signup or sending invites.
+  - Deploy the SaaS Vercel project only after explicit owner approval.
 
 ## 2026-05-19 SaaS Audit
 

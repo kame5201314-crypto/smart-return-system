@@ -1,0 +1,89 @@
+# SaaS Pre-Launch Checklist
+
+Last verified: 2026-05-23
+
+This checklist is for the SaaS commercial checkout on `develop-saas`.
+It does not authorize production deployment, Supabase migrations, or Vercel
+setting changes by itself. External changes still need explicit owner approval.
+
+## Current Gate Status
+
+The following read-only checks passed on 2026-05-23:
+
+- `npm run safety:agent-boundary`
+- `npm run verify-env`
+- `npm run saas:doctor:strict`
+- `npm run saas:migration-plan:strict`
+- `npm run saas:schema-gate:strict`
+
+`npm run saas:rollout-check:strict` passed with warnings only:
+
+- Sentry/logging DSN is missing.
+- Billing is disabled. This is acceptable for manual Beta, but not for paid
+  self-serve launch.
+
+## Launch Mode Decision
+
+Choose one launch mode before deployment:
+
+| Mode | Required state |
+| --- | --- |
+| Manual Beta | `ENABLE_PUBLIC_SIGNUP=false`, `ENABLE_BILLING=false`, `ENABLE_SUBSCRIPTION_PLAN=false`; owner manually provisions organizations. |
+| Paid self-serve | Billing provider credentials configured, webhook verified, public signup/subscription flags intentionally enabled, and payment smoke tests completed. |
+
+Current recommended mode: **Manual Beta**.
+
+## Must Confirm Before Manual Beta Deploy
+
+- SaaS Vercel project is `smart-return-system-saas`.
+- Branch is `develop-saas`.
+- Supabase project is `auyznbwtjvemyamujmgt`.
+- Internal/live project refs are not present in SaaS env values.
+- `NEXT_PUBLIC_APP_URL` points to the final HTTPS URL.
+- `ADMIN_SESSION_SECRET`, `CRON_SECRET`, and `SCHEMA_DRIFT_ALERT_TOKEN` are strong non-placeholder secrets.
+- `GEMINI_API_KEY` is set for the SaaS project only.
+- `ENABLE_IMAGE_AI=false`.
+- `ENABLE_AI_USAGE_LIMIT=true`.
+- `ENABLE_MULTI_TENANT_ADMIN=false` unless the platform admin rollout is explicitly approved.
+- `ENABLE_PUBLIC_SIGNUP=false` unless public signup is explicitly approved.
+- `ENABLE_BILLING=false` unless billing rollout is explicitly approved.
+
+## Recommended Verification Order
+
+Run these locally before requesting deployment approval:
+
+```powershell
+npm run safety:agent-boundary
+npm run verify-env
+npm run saas:doctor:strict
+npm run saas:migration-plan:strict
+npm run saas:schema-gate:strict
+npm run saas:rollout-check:strict
+npm run lint
+npm run typecheck
+npm run test:all
+npm run saas:build
+```
+
+If any command fails, do not deploy. Fix with a new commit and rerun the failed
+command plus any dependent checks.
+
+## Post-Deploy Smoke Tests
+
+After deployment approval and deploy completion, test:
+
+- Public marketing pages: `/`, `/pricing`, `/features/*`, `/contact`, `/legal/*`.
+- Login and protected app route access.
+- Return list, return detail, notes, inspection fields, and export routes.
+- Customer portal apply flow with image upload.
+- Shopee scan smoke route or maintenance script.
+- AI report generation and AI quota behavior.
+- Team settings and invite flow.
+- Invite acceptance link states: valid, expired, email mismatch, already member.
+- Billing/settings pages remain gated or ready according to the selected launch mode.
+- Cron endpoints reject unauthenticated calls when `CRON_SECRET` is required.
+
+## Rollback Rule
+
+For production incidents, restore service first using Vercel rollback. Do not
+use `git reset --hard` or force-push as the first response to an incident.
