@@ -19,6 +19,8 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       NEXT_PUBLIC_SUPABASE_URL: `https://${saasProjectRef}.supabase.co`,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
       SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+      ADMIN_USERNAME: 'admin',
+      ADMIN_PASSWORD: 'strong-admin-password',
       ADMIN_SESSION_SECRET: 'admin-secret',
       CRON_SECRET: 'cron-secret',
       SCHEMA_DRIFT_ALERT_TOKEN: 'schema-token',
@@ -59,6 +61,25 @@ describe('SaaS rollout readiness check', () => {
 
     expect(result.status).toBe(1);
     expect(result.output).toContain('env:GEMINI_API_KEY');
+    expect(result.output).toContain('missing or placeholder');
+  });
+
+  it('fails strict mode when the admin password is missing or placeholder', () => {
+    const missing = runRolloutCheck({ ADMIN_PASSWORD: '' });
+    const placeholder = runRolloutCheck({ ADMIN_PASSWORD: 'change_me_to_a_strong_password' });
+
+    expect(missing.status).toBe(1);
+    expect(missing.output).toContain('env:ADMIN_PASSWORD');
+    expect(missing.output).toContain('missing, placeholder, or shorter than 12 characters');
+    expect(placeholder.status).toBe(1);
+    expect(placeholder.output).toContain('env:ADMIN_PASSWORD');
+  });
+
+  it('fails strict mode when the admin username is missing', () => {
+    const result = runRolloutCheck({ ADMIN_USERNAME: '' });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('env:ADMIN_USERNAME');
     expect(result.output).toContain('missing or placeholder');
   });
 

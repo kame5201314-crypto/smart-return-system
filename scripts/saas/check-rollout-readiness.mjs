@@ -33,11 +33,20 @@ function isPlaceholder(value) {
   return (
     !normalized ||
     normalized.includes('replace_with') ||
+    normalized.includes('replace-with') ||
     normalized.includes('your_') ||
     normalized.includes('your-') ||
+    normalized.includes('change_me') ||
+    normalized.includes('change-me') ||
+    normalized.includes('changeme') ||
     normalized.includes('placeholder') ||
     normalized.includes('missing')
   );
+}
+
+function isWeakPassword(value) {
+  const normalized = normalizeEnvValue(value);
+  return isPlaceholder(normalized) || normalized.length < 12;
 }
 
 function record(status, label, detail = '') {
@@ -144,6 +153,18 @@ function checkRequiredSecrets() {
     warnOrFail('env:GEMINI_API_KEY', 'missing or placeholder; return AI cannot pass strict rollout');
   } else {
     record('pass', 'env:GEMINI_API_KEY', 'set');
+  }
+
+  if (isPlaceholder(process.env.ADMIN_USERNAME)) {
+    warnOrFail('env:ADMIN_USERNAME', 'missing or placeholder');
+  } else {
+    record('pass', 'env:ADMIN_USERNAME', 'set');
+  }
+
+  if (isWeakPassword(process.env.ADMIN_PASSWORD)) {
+    warnOrFail('env:ADMIN_PASSWORD', 'missing, placeholder, or shorter than 12 characters');
+  } else {
+    record('pass', 'env:ADMIN_PASSWORD', 'set');
   }
 }
 

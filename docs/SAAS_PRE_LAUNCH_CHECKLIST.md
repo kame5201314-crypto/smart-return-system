@@ -16,7 +16,12 @@ The following read-only checks passed on 2026-05-23:
 - `npm run saas:migration-plan:strict`
 - `npm run saas:schema-gate:strict`
 
-`npm run saas:rollout-check:strict` passed with warnings only:
+`npm run saas:rollout-check:strict` has an additional admin credential gate:
+
+- `ADMIN_USERNAME` must be set.
+- `ADMIN_PASSWORD` must be non-placeholder and at least 12 characters.
+
+After admin credential rotation, the expected non-blocking warnings are:
 
 - Sentry/logging DSN is missing.
 - Billing is disabled. This is acceptable for manual Beta, but not for paid
@@ -41,7 +46,9 @@ Current recommended mode: **Manual Beta**.
 - Internal/live project refs are not present in SaaS env values.
 - `NEXT_PUBLIC_APP_URL` points to the final HTTPS URL.
 - `ADMIN_SESSION_SECRET`, `CRON_SECRET`, and `SCHEMA_DRIFT_ALERT_TOKEN` are strong non-placeholder secrets.
+- `ADMIN_USERNAME` is set and `ADMIN_PASSWORD` is non-placeholder with at least 12 characters.
 - `GEMINI_API_KEY` is set for the SaaS project only.
+- `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN` is set before public rollout, or the owner explicitly accepts manual log-only monitoring for closed Beta.
 - `ENABLE_IMAGE_AI=false`.
 - `ENABLE_AI_USAGE_LIMIT=true`.
 - `ENABLE_MULTI_TENANT_ADMIN=false` unless the platform admin rollout is explicitly approved.

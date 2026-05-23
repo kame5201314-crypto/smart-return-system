@@ -12,7 +12,9 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes.
-- `npm run saas:rollout-check:strict` currently reports no failures and two rollout warnings:
+- `npm run saas:rollout-check:strict` now also checks admin login credential readiness.
+- The rollout check may fail until `ADMIN_PASSWORD` is changed to a non-placeholder value with at least 12 characters.
+- After admin credential rotation, the remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Billing, final domain, logging/Sentry, and production deployment remain pending explicit approval.
@@ -97,8 +99,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `npm run saas:doctor:strict`: 113 pass, 0 warn, 0 fail.
   - `npm run saas:migration-plan:strict`: 12 pass, 0 warn, 0 fail.
   - `npm run saas:schema-gate:strict`: passed, 22 tables and 81 columns checked.
-  - `npm run saas:rollout-check:strict`: 21 pass, 2 warn, 0 fail.
+  - `npm run saas:rollout-check:strict`: initially 21 pass, 2 warn, 0 fail before the admin password gate was added.
+- Follow-up security gate added:
+  - `npm run saas:rollout-check:strict` now requires `ADMIN_USERNAME` and a non-placeholder `ADMIN_PASSWORD` with at least 12 characters.
+  - Rotate `ADMIN_PASSWORD` in the SaaS Vercel project and local `.env.saas.local` before public rollout.
 - Remaining rollout decisions before public launch:
+  - Rotate admin login credentials if the rollout gate reports `env:ADMIN_PASSWORD`.
   - Add Sentry/logging DSN or accept manual log-only monitoring for a closed Beta.
   - Keep `ENABLE_BILLING=false` for manual Beta, or configure a billing provider before paid self-serve launch.
   - Confirm the final public domain and update `NEXT_PUBLIC_APP_URL` before opening public signup or sending invites.
