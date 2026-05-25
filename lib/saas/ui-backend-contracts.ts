@@ -165,7 +165,41 @@ export interface TeamSettingsViewInput {
 }
 
 export interface PlatformOrganizationListView {
+  summary: PlatformOrganizationSummary;
   organizations: PlatformOrganizationListItem[];
+}
+
+export interface PlatformOrganizationSummary {
+  totalOrganizations: number;
+  activeOrTrialingOrganizations: number;
+  pausedOrPastDueOrganizations: number;
+  trialingOrganizations: number;
+  estimatedActiveMrrTwd: number;
+  trialPipelineMrrTwd: number;
+  atRiskOrganizations: number;
+  aiLimitReachedOrganizations: number;
+}
+
+export type PlatformOrganizationRiskReason =
+  | 'past_due'
+  | 'suspended'
+  | 'cancelled'
+  | 'returns_high'
+  | 'returns_limit'
+  | 'ai_high'
+  | 'ai_limit'
+  | 'seats_full';
+
+export interface PlatformOrganizationHealth {
+  riskLevel: 'healthy' | 'watch' | 'at_risk';
+  riskReasons: PlatformOrganizationRiskReason[];
+  estimatedMrrTwd: number;
+  trialPipelineMrrTwd: number;
+  usagePercentages: {
+    seats: number | null;
+    returns: number | null;
+    ai: number | null;
+  };
 }
 
 export interface PlatformOrganizationListItem {
@@ -178,6 +212,7 @@ export interface PlatformOrganizationListItem {
   memberCount: number;
   createdAt: string;
   usage: PlatformOrganizationUsage;
+  health: PlatformOrganizationHealth;
 }
 
 export interface PlatformOrganizationUsage {
@@ -522,8 +557,11 @@ export function buildPlatformOrganizationListView(
   organizations: PlatformOrgSummary[],
   usageByOrgId: PlatformOrgUsageById
 ): PlatformOrganizationListView {
+  const items = organizations.map((org) => buildPlatformOrganizationListItem(org, usageByOrgId));
+
   return {
-    organizations: organizations.map((org) => buildPlatformOrganizationListItem(org, usageByOrgId)),
+    summary: buildPlatformOrganizationSummary(items),
+    organizations: items,
   };
 }
 
@@ -581,16 +619,149 @@ function buildPlatformOrganizationListItem(
   usageByOrgId: PlatformOrgUsageById
 ): PlatformOrganizationListItem {
   const id = requireString(org.id, 'organization.id');
+  const plan = getSaaSPlanDefinition(org.plan);
+  const planCode = normalizeSaaSPlanCode(org.plan);
+  const status = normalizeOrgStatus(org.status);
+  const memberCount = nonNegativeNumber(org.memberCount, 'organization.memberCount');
+  const usage = requireUsage(usageByOrgId, id);
 
   return {
     id,
     name: requireString(org.name, 'organization.name'),
     slug: requireString(org.slug, 'organization.slug'),
-    plan: normalizeSaaSPlanCode(org.plan),
-    status: normalizeOrgStatus(org.status),
+    plan: planCode,
+    status,
     ownerEmail: org.ownerEmail,
-    memberCount: nonNegativeNumber(org.memberCount, 'organization.memberCount'),
+    memberCount,
     createdAt: requireString(org.createdAt, 'organization.createdAt'),
-    usage: requireUsage(usageByOrgId, id),
+    usage,
+    health: buildPlatformOrganizationHealth({
+      plan,
+      status,
+      memberCount,
+      usage,
+    }),
+  };
+}
+
+function percentageOrNull(used: number, limit: number | null): number | null {
+  if (limit === null || limit <= 0) {
+    return null;
+  }
+
+  return Math.min(100, Math.round((used / limit) * 100));
+}
+
+function pushUsageRisk(
+  reasons: PlatformOrganizationRiskReason[],
+  used: number,
+  limit: number | null,
+  highReason: PlatformOrganizationRiskReason,
+  limitReason: PlatformOrganizationRiskReason
+): void {
+  if (limit === null || limit <= 0) {
+    return;
+  }
+
+  if (used >= limit) {
+    reasons.push(limitReason);
+    return;
+  }
+
+  if (used >= Math.ceil(limit * 0.8)) {
+    reasons.push(highReason);
+  }
+}
+
+function buildPlatformOrganizationHealth(input: {
+  plan: ReturnType<typeof getSaaSPlanDefinition>;
+  status: OrgSubscriptionStatus;
+  memberCount: number;
+  usage: PlatformOrganizationUsage;
+}): PlatformOrganizationHealth {
+  const riskReasons: PlatformOrganizationRiskReason[] = [];
+
+  if (input.status === 'past_due') {
+    riskReasons.push('past_due');
+  }
+
+  if (input.status === 'suspended') {
+    riskReasons.push('suspended');
+  }
+
+  if (input.status === 'cancelled') {
+    riskReasons.push('cancelled');
+  }
+
+  pushUsageRisk(
+    riskReasons,
+    input.usage.returnsThisMonth,
+    input.plan.monthlyReturnSoftLimit,
+    'returns_high',
+    'returns_limit'
+  );
+  pushUsageRisk(
+    riskReasons,
+    input.usage.aiUsedThisMonth,
+    input.plan.aiMonthlyLimit,
+    'ai_high',
+    'ai_limit'
+  );
+
+  if (input.plan.seatLimit !== null && input.memberCount >= input.plan.seatLimit) {
+    riskReasons.push('seats_full');
+  }
+
+  const isAtRisk = riskReasons.some((reason) =>
+    ['past_due', 'suspended', 'cancelled', 'returns_limit', 'ai_limit', 'seats_full'].includes(reason)
+  );
+
+  return {
+    riskLevel: isAtRisk ? 'at_risk' : riskReasons.length > 0 ? 'watch' : 'healthy',
+    riskReasons,
+    estimatedMrrTwd:
+      input.status === 'active' && input.plan.monthlyPriceTwd !== null
+        ? input.plan.monthlyPriceTwd
+        : 0,
+    trialPipelineMrrTwd:
+      input.status === 'trialing' && input.plan.monthlyPriceTwd !== null
+        ? input.plan.monthlyPriceTwd
+        : 0,
+    usagePercentages: {
+      seats: percentageOrNull(input.memberCount, input.plan.seatLimit),
+      returns: percentageOrNull(
+        input.usage.returnsThisMonth,
+        input.plan.monthlyReturnSoftLimit
+      ),
+      ai: percentageOrNull(input.usage.aiUsedThisMonth, input.plan.aiMonthlyLimit),
+    },
+  };
+}
+
+function buildPlatformOrganizationSummary(
+  organizations: PlatformOrganizationListItem[]
+): PlatformOrganizationSummary {
+  return {
+    totalOrganizations: organizations.length,
+    activeOrTrialingOrganizations: organizations.filter((org) =>
+      org.status === 'active' || org.status === 'trialing'
+    ).length,
+    pausedOrPastDueOrganizations: organizations.filter((org) =>
+      org.status === 'suspended' || org.status === 'past_due'
+    ).length,
+    trialingOrganizations: organizations.filter((org) => org.status === 'trialing').length,
+    estimatedActiveMrrTwd: organizations.reduce(
+      (sum, org) => sum + org.health.estimatedMrrTwd,
+      0
+    ),
+    trialPipelineMrrTwd: organizations.reduce(
+      (sum, org) => sum + org.health.trialPipelineMrrTwd,
+      0
+    ),
+    atRiskOrganizations: organizations.filter((org) => org.health.riskLevel === 'at_risk')
+      .length,
+    aiLimitReachedOrganizations: organizations.filter((org) =>
+      org.health.riskReasons.includes('ai_limit')
+    ).length,
   };
 }

@@ -353,11 +353,21 @@ describe('SaaS UI/backend contracts', () => {
     expect(
       buildPlatformOrganizationListView([orgSummary], {
         'org-1': {
-          returnsThisMonth: 42,
-          aiUsedThisMonth: 7,
+          returnsThisMonth: 1700,
+          aiUsedThisMonth: 30,
         },
       })
     ).toEqual({
+      summary: {
+        totalOrganizations: 1,
+        activeOrTrialingOrganizations: 1,
+        pausedOrPastDueOrganizations: 0,
+        trialingOrganizations: 0,
+        estimatedActiveMrrTwd: 2990,
+        trialPipelineMrrTwd: 0,
+        atRiskOrganizations: 1,
+        aiLimitReachedOrganizations: 1,
+      },
       organizations: [
         {
           id: 'org-1',
@@ -369,8 +379,19 @@ describe('SaaS UI/backend contracts', () => {
           memberCount: 3,
           createdAt: '2026-05-20T00:00:00.000Z',
           usage: {
-            returnsThisMonth: 42,
-            aiUsedThisMonth: 7,
+            returnsThisMonth: 1700,
+            aiUsedThisMonth: 30,
+          },
+          health: {
+            riskLevel: 'at_risk',
+            riskReasons: ['returns_high', 'ai_limit'],
+            estimatedMrrTwd: 2990,
+            trialPipelineMrrTwd: 0,
+            usagePercentages: {
+              seats: 30,
+              returns: 85,
+              ai: 100,
+            },
           },
         },
       ],
@@ -418,6 +439,10 @@ describe('SaaS UI/backend contracts', () => {
         id: 'org-1',
         featureFlags: {
           billing: true,
+        },
+        health: {
+          riskLevel: 'healthy',
+          estimatedMrrTwd: 2990,
         },
       },
       members: [

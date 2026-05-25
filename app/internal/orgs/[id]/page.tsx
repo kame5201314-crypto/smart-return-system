@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { ArrowLeft, FileClock, Flag, ReceiptText, UsersRound } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, FileClock, Flag, ReceiptText, UsersRound } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { UsageProgress } from '@/components/saas/usage-progress';
 import {
   Table,
   TableBody,
@@ -38,6 +39,22 @@ function formatDateTime(value: string | null): string {
   });
 }
 
+function formatTwd(value: number): string {
+  return `NT$${value.toLocaleString('zh-TW')}`;
+}
+
+function usagePercent(value: number | null): number {
+  return value ?? 0;
+}
+
+function riskVariant(
+  riskLevel: PlatformOrganizationDetailView['organization']['health']['riskLevel']
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (riskLevel === 'at_risk') return 'destructive';
+  if (riskLevel === 'watch') return 'secondary';
+  return 'outline';
+}
+
 function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const org = data.organization;
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
@@ -47,7 +64,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
     ['Plan', plan.name, 'organizations.plan'],
     ['Status', org.status, 'organizations.status'],
     ['Owner', org.ownerEmail ?? '—', 'organization_members.role=owner'],
-    ['Members', String(org.memberCount), 'organization_members'],
+    ['MRR', formatTwd(org.health.estimatedMrrTwd), 'active plan only'],
   ] as const;
 
   const billingRows = [
@@ -72,6 +89,66 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           </Card>
         ))}
       </div>
+
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="size-5 text-emerald-700" />
+            客戶健康度
+          </CardTitle>
+          <CardDescription>由訂閱狀態、席次、退貨量與 AI 額度即時計算，不讀取退貨明細。</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="rounded-md border p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Risk</span>
+              <Badge variant={riskVariant(org.health.riskLevel)}>{org.health.riskLevel}</Badge>
+            </div>
+            {org.health.riskReasons.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {org.health.riskReasons.map((reason) => (
+                  <Badge key={reason} variant="outline">
+                    <AlertTriangle className="size-3" />
+                    {reason}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">目前沒有逾期、滿額或 80% 用量警示。</p>
+            )}
+          </div>
+          <div className="grid gap-3 text-sm md:grid-cols-3">
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-xs text-muted-foreground">
+                Seats {org.memberCount} / {plan.seatLimit ?? '合約'}
+              </div>
+              <UsageProgress
+                value={usagePercent(org.health.usagePercentages.seats)}
+                aria-label={`${org.name} 席次使用率`}
+              />
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-xs text-muted-foreground">
+                Returns {org.usage.returnsThisMonth.toLocaleString('zh-TW')} /{' '}
+                {plan.monthlyReturnSoftLimit?.toLocaleString('zh-TW') ?? '合約'}
+              </div>
+              <UsageProgress
+                value={usagePercent(org.health.usagePercentages.returns)}
+                aria-label={`${org.name} 退貨量使用率`}
+              />
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-xs text-muted-foreground">
+                AI {org.usage.aiUsedThisMonth} / {plan.aiMonthlyLimit ?? '合約'}
+              </div>
+              <UsageProgress
+                value={usagePercent(org.health.usagePercentages.ai)}
+                aria-label={`${org.name} AI 額度使用率`}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="rounded-lg">

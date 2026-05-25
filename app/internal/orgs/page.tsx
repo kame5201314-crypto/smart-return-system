@@ -1,5 +1,12 @@
 import Link from 'next/link';
-import { ArrowRight, Building2, PauseCircle, PlayCircle, UsersRound } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Bot,
+  CreditCard,
+  PauseCircle,
+  PlayCircle,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +31,10 @@ function usagePercent(used: number, limit: number | null) {
   return Math.min(100, Math.round((used / limit) * 100));
 }
 
+function formatTwd(value: number): string {
+  return `NT$${value.toLocaleString('zh-TW')}`;
+}
+
 function statusVariant(
   status: PlatformOrganizationListView['organizations'][number]['status']
 ): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -33,17 +44,43 @@ function statusVariant(
   return 'outline';
 }
 
+function riskVariant(
+  riskLevel: PlatformOrganizationListView['organizations'][number]['health']['riskLevel']
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (riskLevel === 'at_risk') return 'destructive';
+  if (riskLevel === 'watch') return 'secondary';
+  return 'outline';
+}
+
 function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
   const orgs = data.organizations;
-  const activeCount = orgs.filter((org) => org.status === 'active' || org.status === 'trialing').length;
-  const pausedCount = orgs.filter((org) => org.status === 'suspended' || org.status === 'past_due').length;
-  const totalSeats = orgs.reduce((sum, org) => sum + org.memberCount, 0);
+  const summary = data.summary;
 
   const summaryItems = [
-    { label: '租戶總數', value: orgs.length, helper: '平台上的 SaaS 組織', icon: Building2 },
-    { label: '使用中 / 試用', value: activeCount, helper: 'active 或 trialing', icon: PlayCircle },
-    { label: '暫停 / 逾期', value: pausedCount, helper: 'suspended 或 past_due', icon: PauseCircle },
-    { label: '總席次使用', value: totalSeats, helper: '跨 org 成員數', icon: UsersRound },
+    {
+      label: '估算 MRR',
+      value: formatTwd(summary.estimatedActiveMrrTwd),
+      helper: `Trial pipeline ${formatTwd(summary.trialPipelineMrrTwd)}`,
+      icon: CreditCard,
+    },
+    {
+      label: '使用中 / 試用',
+      value: summary.activeOrTrialingOrganizations.toLocaleString('zh-TW'),
+      helper: `${summary.trialingOrganizations.toLocaleString('zh-TW')} 個 trialing`,
+      icon: PlayCircle,
+    },
+    {
+      label: 'At-risk 租戶',
+      value: summary.atRiskOrganizations.toLocaleString('zh-TW'),
+      helper: `${summary.pausedOrPastDueOrganizations.toLocaleString('zh-TW')} 個停用或逾期`,
+      icon: AlertTriangle,
+    },
+    {
+      label: 'AI 額度用完',
+      value: summary.aiLimitReachedOrganizations.toLocaleString('zh-TW'),
+      helper: '需客服或升級介入',
+      icon: Bot,
+    },
   ] as const;
 
   return (
@@ -58,7 +95,7 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                   <CardDescription>{item.label}</CardDescription>
                   <Icon className="size-4 text-emerald-700" />
                 </div>
-                <CardTitle className="text-2xl">{item.value.toLocaleString('zh-TW')}</CardTitle>
+                <CardTitle className="text-2xl">{item.value}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">{item.helper}</p>
@@ -83,6 +120,7 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                 <TableHead>Seats</TableHead>
                 <TableHead>Returns</TableHead>
                 <TableHead>AI</TableHead>
+                <TableHead>Risk</TableHead>
                 <TableHead className="text-right">Detail</TableHead>
               </TableRow>
             </TableHeader>
@@ -124,6 +162,16 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                         {org.usage.aiUsedThisMonth} / {plan.aiMonthlyLimit ?? '合約'}
                       </div>
                       <UsageProgress value={aiPercent} aria-label={`${org.name} AI 額度使用率 ${aiPercent}%`} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant={riskVariant(org.health.riskLevel)}>{org.health.riskLevel}</Badge>
+                        {org.health.riskReasons.length > 0 ? (
+                          <span className="max-w-36 text-xs text-muted-foreground">
+                            {org.health.riskReasons.join(', ')}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="ghost" size="sm">
