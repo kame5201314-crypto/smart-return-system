@@ -20,10 +20,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
-- `npm run saas:rollout-check:strict` now also checks admin login credential readiness.
+- `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - `GEMINI_API_KEY` is set for the SaaS environment.
-- Local Manual Beta login may use a short owner-requested shortcut password for inspection, but public rollout is blocked until `ADMIN_PASSWORD` is rotated to a non-placeholder value with at least 12 characters.
-- After admin credential rotation, the remaining expected rollout warnings are:
+- Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
+- Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
+- `npm run saas:predeploy` passes locally after the AI analytics consistency gate was hardened for optional legacy Shopee date columns.
+- The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Billing, final domain, logging/Sentry, and production deployment remain pending explicit approval.

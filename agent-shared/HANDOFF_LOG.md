@@ -2,6 +2,46 @@
 
 ## 2026-05-25 Codex -> Claude / Codex
 
+Completed local Manual Beta smoke coverage and hardened the AI analytics predeploy consistency gate.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `scripts/predeploy/check-ai-analytics-consistency.mjs`
+- `tests/unit/ai-analytics-consistency.test.mts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Smoke coverage:
+
+- Public and protected route behavior was checked locally on the SaaS dev server.
+- Beta owner Supabase Auth, active organization membership, and seeded org data were verified.
+- Authenticated pages returned successfully for returns, return detail, pickup scan, AI report, settings, and platform admin read views.
+- Export APIs returned workbook responses.
+- AI analyze returned success and saved a report.
+- Team invite creation and invitee acceptance were verified without exposing invite tokens or passwords.
+
+Gate hardening:
+
+- `check-ai-analytics-consistency.mjs` now falls back when SaaS `shopee_returns` lacks optional legacy date columns such as `dispute_deadline` or `processed_at`.
+- Non-schema query errors still fail the gate.
+- Unit coverage was added for date normalization, missing-column detection, fallback ordering, and non-schema error handling.
+
+Notes:
+
+- No migration, provider call, email send, production deploy, master change, env secret output, or production/internal Supabase action was performed.
+- Billing remains disabled for Manual Beta.
+- Public rollout still requires Sentry/logging, final domain/protection decision, billing credentials for paid self-serve, and explicit deployment authorization.
+
+## 2026-05-25 Codex -> Claude / Codex
+
 Added the email queue worker dry-run contract.
 
 Commit:

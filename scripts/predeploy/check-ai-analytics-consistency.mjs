@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { createClient } from '@supabase/supabase-js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function normalizeEnvValue(value) {
   if (!value) return '';
@@ -212,13 +214,27 @@ async function main() {
   return strict ? 1 : 0;
 }
 
-main()
-  .then((exitCode) => {
-    if (exitCode && exitCode !== 0) {
-      process.exitCode = exitCode;
-    }
-  })
-  .catch((error) => {
-    console.error('[consistency-check] Unexpected error:', error);
-    process.exitCode = 1;
-  });
+export {
+  getShopeeReturnReportPeriod,
+  isMissingColumnError,
+  loadShopeeReturnsWithCompatibleColumns,
+  main,
+  toYearMonth,
+};
+
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  main()
+    .then((exitCode) => {
+      if (exitCode && exitCode !== 0) {
+        process.exitCode = exitCode;
+      }
+    })
+    .catch((error) => {
+      console.error('[consistency-check] Unexpected error:', error);
+      process.exitCode = 1;
+    });
+}

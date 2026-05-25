@@ -38,6 +38,7 @@ Status values:
 | done | Notification backend foundation | This commit; added queue-only notification/email contracts, repository wrapper, tests, and draft `034`; no email provider is wired |
 | done | Email queue worker dry-run contract | This commit; added CRON_SECRET-gated dry-run inspection for `email_queue`, no provider call or DB mutation |
 | done | Onboarding backend foundation | This commit; added onboarding progress DTO, guarded completion service/RPC wrapper, tests, and draft `035`; no live route is exposed |
+| done | Manual Beta smoke and consistency gate hardening | This commit; verified local beta owner/invitee login paths, AI analyze, exports, invite acceptance, and hardened the AI analytics predeploy check for optional Shopee date columns |
 | done | SaaS migrations apply | SaaS project `auyznbwtjvemyamujmgt`; full local/remote migration chain aligned through `032`; schema-gate strict passed |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | done | Platform admin live data wiring | Internal platform admin APIs return UI contract DTOs from service-role repositories; UI page consumption remains Claude-owned |

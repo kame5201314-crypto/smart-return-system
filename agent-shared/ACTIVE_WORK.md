@@ -33,6 +33,21 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Manual Beta smoke and consistency gate hardening
+Files:
+- scripts/predeploy/check-ai-analytics-consistency.mjs
+- tests/unit/ai-analytics-consistency.test.mts
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Verified local Manual Beta auth/data smoke for beta owner and invitee paths, exports, AI analyze, invite acceptance, settings, returns, and platform admin read pages. Hardened the AI analytics predeploy consistency check so SaaS DBs without optional legacy Shopee date columns still pass while non-schema query errors remain fatal. No migration, provider call, deployment, env secret output, master, or production/internal Supabase change was made.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Email queue worker dry-run contract
 Files:
 - lib/saas/email-queue-worker.ts
