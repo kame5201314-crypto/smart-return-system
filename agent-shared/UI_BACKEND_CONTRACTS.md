@@ -730,6 +730,78 @@ State triggers:
 - `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
 - `error`: repository query failure or DTO contract validation failure.
 
+## Notification Queue Foundation
+
+Backend owner: Codex.
+
+Current helpers:
+
+```text
+lib/saas/notifications.ts
+supabase/migrations/034_saas_notification_email_queue.sql
+```
+
+Supported event types:
+
+```ts
+type SaaSNotificationEventType =
+  | 'billing_payment_failed'
+  | 'ai_quota_reached'
+  | 'trial_ending'
+  | 'platform_announcement';
+```
+
+Available builders:
+
+- `buildBillingPaymentFailedNotification()`
+- `buildAIQuotaReachedNotification()`
+- `buildTrialEndingNotification()`
+- `buildPlatformAnnouncementNotification()`
+- `buildSaaSNotificationDispatch()`
+- `createSaaSNotificationQueueRepository()`
+
+Dispatch shape:
+
+```ts
+interface SaaSNotificationDispatch {
+  eventType: SaaSNotificationEventType;
+  notifications: Array<{
+    org_id: string;
+    user_id: string;
+    notification_type: SaaSNotificationEventType;
+    title: string;
+    message: string;
+    action_url: string | null;
+    metadata: Record<string, unknown>;
+    idempotency_key: string | null;
+  }>;
+  emailQueue: Array<{
+    org_id: string;
+    recipient_user_id: string | null;
+    recipient_email: string;
+    template_key:
+      | 'billing.payment_failed'
+      | 'usage.ai_quota_reached'
+      | 'trial.ending'
+      | 'platform.announcement';
+    subject: string;
+    event_type: SaaSNotificationEventType;
+    payload: Record<string, unknown>;
+    status: 'queued';
+    send_after: string | null;
+    idempotency_key: string | null;
+  }>;
+}
+```
+
+Rules:
+
+- This is queue-only backend foundation. It does not send email, call an email provider, expose a route, apply migrations, deploy, or change external platform settings.
+- In-app notifications are inserted only for recipients with `userId` and `in_app` channel.
+- Email queue rows are inserted only for recipients with a valid email and `email` channel.
+- Draft migration `034_saas_notification_email_queue.sql` extends `notifications` with action URL, metadata, idempotency, and delivery status, and adds `email_queue` as a service-role-only queue.
+- Claude UI may render future notification status only after Codex wires a guarded read contract. UI must not call email providers or mutate queue status directly.
+
 ## Implementation Rule
 
 Claude may use these contracts as mock UI data.

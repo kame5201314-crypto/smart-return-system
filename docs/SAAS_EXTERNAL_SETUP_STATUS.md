@@ -10,7 +10,9 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - Draft migration `033_saas_platform_billing_operations.sql` exists for platform billing operations but has not been applied.
+- Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
+- Notification backend foundation is queue-only; no email provider is wired and no email is sent.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.

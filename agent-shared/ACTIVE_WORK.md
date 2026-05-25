@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Notification backend foundation
+Files:
+- lib/saas/notifications.ts
+- supabase/migrations/034_saas_notification_email_queue.sql
+- tests/unit/saas-notifications.test.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-migration-plan.test.ts
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added queue-only builders and repository wrapper for billing failure, AI quota reached, trial ending, and platform announcements. Draft migration 034 extends notifications and adds email_queue. No email provider, migration apply, DB write, deployment, env, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin role model
 Files:
 - lib/saas/platform-admin-roles.ts

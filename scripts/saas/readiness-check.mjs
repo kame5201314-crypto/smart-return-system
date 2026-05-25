@@ -201,6 +201,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-provisioning.ts',
     'lib/saas/platform-admin-billing-operations.ts',
     'lib/saas/billing-reconciliation.ts',
+    'lib/saas/notifications.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
@@ -234,6 +235,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/031_saas_invite_acceptance_rpc.sql',
     'supabase/migrations/032_saas_invite_creation_rpc.sql',
     'supabase/migrations/033_saas_platform_billing_operations.sql',
+    'supabase/migrations/034_saas_notification_email_queue.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -465,12 +467,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('033_saas_platform_billing_operations.sql') &&
+      source.includes('034_saas_notification_email_queue.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-033 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-034 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-033 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-034 migration chain without applying migrations');
     }
   }
 
@@ -933,6 +935,39 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS billing retry and reconciliation', 'dry-run retry eligibility and reconciliation SOP exist without enabling provider replay');
     } else {
       record('fail', 'SaaS billing retry and reconciliation', 'must keep retry dry-run only and document reconciliation before UI retry is enabled');
+    }
+  }
+
+  const notificationsPath = path.resolve(process.cwd(), 'lib/saas/notifications.ts');
+  const notificationMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/034_saas_notification_email_queue.sql'
+  );
+  if (fs.existsSync(notificationsPath) && fs.existsSync(notificationMigrationPath)) {
+    const notificationsSource = fs.readFileSync(notificationsPath, 'utf8');
+    const migrationSource = fs.readFileSync(notificationMigrationPath, 'utf8');
+    if (
+      notificationsSource.includes('buildBillingPaymentFailedNotification') &&
+      notificationsSource.includes('buildAIQuotaReachedNotification') &&
+      notificationsSource.includes('buildTrialEndingNotification') &&
+      notificationsSource.includes('buildPlatformAnnouncementNotification') &&
+      notificationsSource.includes('createSaaSNotificationQueueRepository') &&
+      notificationsSource.includes("'notifications'") &&
+      notificationsSource.includes("'email_queue'") &&
+      !notificationsSource.includes('nodemailer') &&
+      !notificationsSource.includes('sendgrid') &&
+      !notificationsSource.includes('resend') &&
+      migrationSource.includes('CREATE TABLE IF NOT EXISTS public.email_queue') &&
+      migrationSource.includes('ALTER TABLE public.notifications') &&
+      migrationSource.includes("'billing.payment_failed'") &&
+      migrationSource.includes("'usage.ai_quota_reached'") &&
+      migrationSource.includes("'trial.ending'") &&
+      migrationSource.includes("'platform.announcement'") &&
+      migrationSource.includes('service-role only')
+    ) {
+      record('pass', 'SaaS notification queue foundation', 'billing, AI quota, trial, and announcement events enqueue records without sending email');
+    } else {
+      record('fail', 'SaaS notification queue foundation', 'notification backend must create notifications/email_queue contracts without wiring an email provider');
     }
   }
 

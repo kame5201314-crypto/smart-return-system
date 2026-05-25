@@ -2,6 +2,47 @@
 
 ## 2026-05-25 Codex -> Claude
 
+Added the notification backend foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/notifications.ts`
+- `supabase/migrations/034_saas_notification_email_queue.sql`
+- `tests/unit/saas-notifications.test.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/saas-migration-plan.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New backend helpers:
+
+- `buildBillingPaymentFailedNotification()`
+- `buildAIQuotaReachedNotification()`
+- `buildTrialEndingNotification()`
+- `buildPlatformAnnouncementNotification()`
+- `buildSaaSNotificationDispatch()`
+- `createSaaSNotificationQueueRepository()`
+
+Notes:
+
+- This is queue-only foundation for billing failure, AI quota reached, trial ending, and platform announcements.
+- In-app rows target `notifications`; email rows target the new draft `email_queue`.
+- Draft migration `034_saas_notification_email_queue.sql` was not applied to any database.
+- No email provider was wired, no email was sent, no route was exposed, and no deployment, env, migration apply, or platform setting was changed.
+- Claude UI may render future queued notification status only after Codex exposes a guarded read contract.
+
+## 2026-05-25 Codex -> Claude
+
 Added the platform admin role model backend policy.
 
 Commit:
