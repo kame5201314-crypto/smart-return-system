@@ -194,6 +194,27 @@ describe('SaaS org context', () => {
     expect(repository.findMembership).not.toHaveBeenCalled();
   });
 
+  it('rejects local platform admin sessions before querying tenant membership', async () => {
+    const repository = createRepository();
+
+    await expect(
+      getOrgContext({
+        auth: async () => ({
+          ok: true,
+          status: 200,
+          userId: '00000000-0000-0000-0000-000000000001',
+          isAdmin: true,
+        }),
+        repository,
+      })
+    ).rejects.toMatchObject({
+      code: 'membership_required',
+      status: 403,
+      message: 'A SaaS organization account is required for workspace settings. Sign in with a tenant user to manage an organization.',
+    });
+    expect(repository.findMembership).not.toHaveBeenCalled();
+  });
+
   it('rejects users without an organization membership', async () => {
     await expect(
       getOrgContext({

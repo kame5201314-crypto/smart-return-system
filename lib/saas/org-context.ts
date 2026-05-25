@@ -1,4 +1,5 @@
 import { requireRouteAuth, type RouteAuthResult } from '@/lib/auth/route-auth';
+import { ADMIN_UUID } from '@/lib/auth/admin-session';
 import { resolveSaaSFeatureFlags, type SaaSFeatureFlag } from '@/lib/config/feature-flags';
 import {
   getSaaSPlanDefinition,
@@ -297,6 +298,14 @@ export async function getOrgContext(options: GetOrgContextOptions = {}): Promise
 
   if (!auth.ok || !auth.userId) {
     throw new SaaSOrgContextError('unauthenticated', auth.status || 401, 'Authentication required.');
+  }
+
+  if (auth.isAdmin === true && auth.userId === ADMIN_UUID) {
+    throw new SaaSOrgContextError(
+      'membership_required',
+      403,
+      'A SaaS organization account is required for workspace settings. Sign in with a tenant user to manage an organization.'
+    );
   }
 
   const repository = options.repository ?? createSupabaseOrgMembershipRepository();
