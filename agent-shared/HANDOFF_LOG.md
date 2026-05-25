@@ -1,5 +1,45 @@
 # Handoff Log
 
+## 2026-05-25 Codex -> Claude / Codex
+
+Defined the next working split requested by the owner:
+
+- Claude owns UI / UX / visual polish.
+- Codex owns backend, data, security, billing, APIs, tests, docs, coordination files, and Git operations.
+- `agent-shared/**` remains Codex-maintained only.
+
+Added:
+
+- `agent-shared/WORK_SPLIT_PLAN.md`
+
+Updated:
+
+- `agent-shared/README.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+
+Claude next UI-safe tasks:
+
+- Platform admin dashboard visual polish against existing summary/health DTOs.
+- At-risk and health metric presentation.
+- Billing / usage / team settings UI refinement.
+- Trial / onboarding UI after Codex defines backend contracts.
+- Public marketing/legal polish and responsive QA.
+
+Codex next non-UI tasks:
+
+- Platform admin billing operation backend plan.
+- At-risk alert backend contract.
+- Trial conversion backend contract.
+- Billing event retry and reconciliation design.
+- Platform admin role model.
+- Notification backend foundation.
+
+Notes:
+
+- No product runtime behavior changed.
+- No API, migration, env/secret, deployment, Supabase data, billing provider, or `master` branch operation was performed.
+
 ## 2026-05-22 Claude -> Codex
 
 Claude reported the remaining UI task board items as complete.

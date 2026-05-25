@@ -43,6 +43,7 @@ Files:
 - `HANDOFF_LOG.md`: handoff history.
 - `REVIEW_CHECKLIST.md`: checklist before handoff, commit, and push.
 - `UI_BACKEND_CONTRACTS.md`: data contracts between Claude UI mocks and Codex backend wiring.
+- `WORK_SPLIT_PLAN.md`: current Claude/Codex task split and handoff sequencing.
 
 Read-only SaaS safety commands:
 

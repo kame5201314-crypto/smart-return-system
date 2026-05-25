@@ -11,6 +11,12 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| todo | Platform admin dashboard visual polish | Render existing summary/health DTOs clearly; UI-only, no risk calculation changes |
+| todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
+| todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
+| todo | Trial / onboarding UI screens | Wait for Codex backend contracts before wiring writes |
+| todo | Public marketing and legal page polish | UI-only; do not change signup persistence or billing behavior |
+| todo | Responsive QA pass | Report findings in chat/commit message for Codex to record |
 | done | Empty / loading / error states | Commit `927bf1a` |
 | done | SaaS settings UI polish | Commit `f216cc8`; used existing `app/(admin)/settings/**` |
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
@@ -24,6 +30,12 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| todo | Platform admin billing operation backend plan | RPC/API contract for manual payment marking, suspend/resume, refund request, and audit logging |
+| todo | At-risk alert backend contract | Read-only DTO/data loader for past_due, suspended, AI 100%, return 100%, seat full, and trial expiry signals |
+| todo | Trial conversion backend contract | Read-only loader for trialing, converted active, expired trial, and onboarding incomplete counts |
+| todo | Billing event retry and reconciliation design | Safe retry contract, reconciliation SOP, and tests before UI retry is enabled |
+| todo | Platform admin role model | Backend policy for owner/support/billing platform roles before multi-admin UI |
+| todo | Notification backend foundation | Email/notification queue contracts for billing failure, AI 100%, trial ending, and platform announcements |
 | done | SaaS migrations apply | SaaS project `auyznbwtjvemyamujmgt`; full local/remote migration chain aligned through `032`; schema-gate strict passed |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | done | Platform admin live data wiring | Internal platform admin APIs return UI contract DTOs from service-role repositories; UI page consumption remains Claude-owned |

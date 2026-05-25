@@ -33,6 +33,20 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Claude/Codex work split plan
+Files:
+- agent-shared/WORK_SPLIT_PLAN.md
+- agent-shared/README.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added the owner-requested split: Claude owns UI/UX/page polish; Codex owns backend, data, security, billing, APIs, tests, docs, coordination, and Git. No runtime behavior changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Record Claude UI completion handoff
 Files:
 - agent-shared/TASK_BOARD.md
