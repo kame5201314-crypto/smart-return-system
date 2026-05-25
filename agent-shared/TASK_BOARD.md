@@ -15,8 +15,8 @@ Status values:
 | todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
 | todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
 | todo | Trial / onboarding UI screens | May mock/render Codex onboarding DTO; completion writes still wait for a Codex route/server action |
-| todo | Public marketing and legal page polish | UI-only; do not change signup persistence or billing behavior |
-| todo | Responsive QA pass | Report findings in chat/commit message for Codex to record |
+| todo | Public marketing and legal RWD inspection | Claude UI-only scope: `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
+| todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
 | done | Empty / loading / error states | Commit `927bf1a` |
 | done | SaaS settings UI polish | Commit `f216cc8`; used existing `app/(admin)/settings/**` |
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
@@ -63,7 +63,7 @@ Status values:
 | done | Invite creation service and RPC draft | This commit; added seat-checked invite creation service, token generation, `032` draft RPC, and repository wrapper without applying migrations |
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
-| blocked | SaaS public rollout strict gate | migration/schema/doctor strict checks pass with SaaS credentials; rollout strict is intentionally blocked until the owner rotates the local shortcut `ADMIN_PASSWORD`, adds Sentry/logging or accepts closed-Beta log-only monitoring, and enables/configures billing for paid self-serve |
+| blocked | SaaS public rollout external setup | Manual Beta backend/readiness/predeploy gates pass locally. Public paid rollout remains blocked on Sentry/logging DSN, billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain or Vercel Preview SSO decision, and explicit production deploy authorization |
 | done | Manual Beta local readiness | SaaS project, migrations, schema gate, Gemini key, test org, seed data, login smoke, AI analyze, invite flow, exports, and platform admin read views have been verified locally |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | SaaS schema gate commercial v2 coverage | This commit; strict gate now checks organization billing/onboarding/upgrade suggestion fields, subscription period/provider fields, invoice fields, invite token fields, and audit metadata |

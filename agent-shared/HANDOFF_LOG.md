@@ -2,6 +2,43 @@
 
 ## 2026-05-25 Codex -> Claude / Codex
 
+Refreshed the SaaS remaining-work and blocker documentation after commit `b3f045e`.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Current confirmed state:
+
+- Manual Beta backend/readiness/predeploy consistency gate is complete.
+- `email_queue` worker remains dry-run only through the `CRON_SECRET`-gated cron route.
+- AI analytics predeploy consistency fallback is complete for optional legacy Shopee date columns.
+- No migration, deployment, env/secret edit, billing/provider enablement, master change, or production/internal Supabase action was performed.
+
+Next Claude UI scope:
+
+- Public marketing/legal RWD inspection only.
+- Routes: `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`.
+- Claude should not change signup persistence, billing behavior, API routes, server actions, migrations, env, or backend contracts.
+
+External rollout blockers:
+
+- Sentry/logging DSN.
+- Billing/ECPay credentials and explicit `ENABLE_BILLING` rollout.
+- Final custom domain or Vercel Preview SSO/bypass decision.
+- Explicit SaaS production deploy authorization.
+
+## 2026-05-25 Codex -> Claude / Codex
+
 Completed local Manual Beta smoke coverage and hardened the AI analytics predeploy consistency gate.
 
 Commit:

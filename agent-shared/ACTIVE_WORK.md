@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Ready for the next agent to claim a task before editing.
+Notes: Ready for Claude to claim the public marketing/legal RWD inspection or for Codex to claim the next backend/doc task. Do not deploy, run migrations, edit env/secrets, enable billing/provider, touch master, or use production/internal Supabase.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: SaaS remaining-work and blocker documentation refresh
+Files:
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Reconciled the post-b3f045e state: Manual Beta backend/readiness/predeploy consistency gate is complete, email_queue remains dry-run/CRON_SECRET-gated, AI analytics consistency fallback is complete, Claude's next UI scope is public marketing/legal RWD inspection, and public rollout is blocked only by external setup/approval items. No migration, deployment, env/secret edit, billing/provider enablement, master change, or production/internal Supabase action was made.
+```
 
 ```text
 Owner: Codex

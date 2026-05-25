@@ -28,7 +28,27 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Billing, final domain, logging/Sentry, and production deployment remain pending explicit approval.
+- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain or Vercel Preview SSO/bypass decision, logging/Sentry, and production deployment remain pending explicit approval.
+- Current documentation refresh only: no deployment, no migration, no env/secret edit, no billing/provider enablement, no master change, and no production/internal Supabase action.
+
+## 2026-05-25 SaaS Coordination Snapshot
+
+- Latest known Codex commit before this documentation refresh:
+  - `b3f045e fix(saas): harden manual beta consistency gate`
+- Completed backend/readiness items:
+  - Manual Beta backend/readiness/predeploy consistency gate is complete locally.
+  - `email_queue` dry-run worker and `CRON_SECRET`-gated route are complete.
+  - AI analytics predeploy consistency fallback is complete for SaaS schemas without optional legacy Shopee date columns such as `dispute_deadline` or `processed_at`.
+- Next Claude UI scope:
+  - Public marketing/legal RWD inspection for `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, and `/signup`.
+  - UI-only: no signup persistence, billing behavior, API, server action, migration, env, or backend contract changes.
+- External blockers before public paid rollout:
+  - Sentry/logging DSN.
+  - Billing/ECPay credentials and explicit `ENABLE_BILLING` rollout.
+  - Final custom domain or Vercel Preview SSO/bypass decision.
+  - Explicit SaaS production deploy authorization.
+- Safety boundary for this refresh:
+  - No deployment, no migration, no env/secret edit, no billing/provider enablement, no master change, and no production/internal Supabase action.
 
 ## Completed
 
@@ -393,11 +413,13 @@ This file tracks external SaaS setup work that must stay separate from the live 
 
 These are intentionally not completed because they require private credentials, billing setup, rollout approval, or deployment authorization.
 
-- SaaS Gemini API key has not been added to Vercel or is still placeholder locally.
+- SaaS Gemini API key is set locally for Manual Beta; confirm/rotate the SaaS Vercel value before public rollout.
 - SaaS `NEXT_PUBLIC_APP_URL` currently points to the latest ready SaaS Vercel preview URL; replace it with the final custom domain before public rollout.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
+- Billing remains disabled until owner explicitly provides ECPay credentials and authorizes `ENABLE_BILLING=true`.
+- Vercel Preview SSO/protection still needs a bypass/access decision for external testers, or a final custom domain before public rollout.
 - SaaS production deployment has not been run.
 - Platform admin live views are closed by default with `ENABLE_MULTI_TENANT_ADMIN=false`; they can be opened locally for owner inspection by setting the ignored local SaaS env value to `true`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
