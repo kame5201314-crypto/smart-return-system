@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/saas/page-header';
-import { isPlatformAdminFeatureEnabled } from '@/lib/saas/platform-admin';
+import { resolvePlatformAdminFeatureFlags } from '@/lib/saas/platform-admin';
 
 const settingCards = [
   {
@@ -62,9 +62,19 @@ const guardRows = [
 ] as const;
 
 export default function SettingsPage() {
-  const visibleSettingCards = isPlatformAdminFeatureEnabled()
+  const featureFlags = resolvePlatformAdminFeatureFlags();
+  const visibleSettingCards = featureFlags.multi_tenant_admin
     ? [...settingCards, platformAdminSettingCard]
     : settingCards;
+  const flagRows = [
+    ['public_signup', featureFlags.public_signup],
+    ['billing', featureFlags.billing],
+    ['subscription_plan', featureFlags.subscription_plan],
+    ['ai_usage_limit', featureFlags.ai_usage_limit],
+    ['advanced_analytics', featureFlags.advanced_analytics],
+    ['multi_tenant_admin', featureFlags.multi_tenant_admin],
+    ['image_ai', featureFlags.image_ai],
+  ] as const;
 
   return (
     <div className="space-y-6">
@@ -141,18 +151,10 @@ export default function SettingsPage() {
             <CardDescription>新功能先關閉，依 Stage 開啟。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {[
-              ['public_signup', '關閉'],
-              ['billing', '關閉'],
-              ['subscription_plan', '關閉'],
-              ['ai_usage_limit', '開啟'],
-              ['advanced_analytics', '關閉'],
-              ['multi_tenant_admin', '關閉'],
-              ['image_ai', '關閉'],
-            ].map(([flag, state]) => (
+            {flagRows.map(([flag, enabled]) => (
               <div key={flag} className="flex items-center justify-between rounded-md border px-3 py-2">
                 <span className="font-mono text-xs">{flag}</span>
-                <Badge variant={state === '開啟' ? 'default' : 'secondary'}>{state}</Badge>
+                <Badge variant={enabled ? 'default' : 'secondary'}>{enabled ? '開啟' : '關閉'}</Badge>
               </div>
             ))}
           </CardContent>
