@@ -109,8 +109,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const userInitial = user?.name?.charAt(0).toUpperCase() || 'A';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <aside className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50">
+      <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-64 md:flex-col">
         <div className="flex flex-grow flex-col border-r bg-white">
           <BrandLink />
           <nav className="flex-1 space-y-1 px-4 py-4">
@@ -199,7 +199,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
 
-      <main className="min-h-screen w-full min-w-0 pt-16 md:pl-64 md:pt-0">
+      <main className="min-h-screen min-w-0 pt-16 md:ml-64 md:pt-0">
         <div className="w-full min-w-0 px-4 py-4 sm:p-6">{children}</div>
       </main>
     </div>
