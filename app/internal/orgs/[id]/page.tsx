@@ -76,6 +76,27 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
 
   return (
     <>
+      {org.health.riskLevel === 'at_risk' ? (
+        <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
+          <div className="flex-1">
+            <p className="font-medium">此租戶目前為 at-risk，建議優先跟進。</p>
+            {org.health.riskReasons.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {org.health.riskReasons.map((reason) => (
+                  <Badge key={reason} variant="destructive" className="text-xs">
+                    {reason}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
+            <p className="mt-2 text-xs text-amber-800">
+              停用 / 調整方案 / 補繳等寫入操作待 platform admin 接好後開放（見頁首按鈕）。
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-4">
         {summaryCards.map(([label, value, helper]) => (
           <Card key={label} className="rounded-lg">
