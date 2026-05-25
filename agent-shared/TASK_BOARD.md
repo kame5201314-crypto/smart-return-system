@@ -33,7 +33,7 @@ Status values:
 | done | Platform admin billing operation backend plan | This commit; added guarded `POST /api/internal/saas/billing/operations`, RPC wrapper, and draft `033` for manual payment marking, suspend/resume, refund request, and audit logging |
 | done | At-risk alert backend contract | This commit; added read-only `PlatformAtRiskAlertsView` and `loadPlatformAtRiskAlertsView()` for past_due, suspended, AI/return/seat quota, and trial expiry signals |
 | done | Trial conversion backend contract | This commit; added read-only `PlatformTrialConversionView` and `loadPlatformTrialConversionView()` for trialing, converted active, expired trial, and onboarding incomplete counts |
-| todo | Billing event retry and reconciliation design | Safe retry contract, reconciliation SOP, and tests before UI retry is enabled |
+| done | Billing event retry and reconciliation design | This commit; added dry-run retry eligibility contract, reconciliation view builder, SOP, and tests. Provider replay remains disabled |
 | todo | Platform admin role model | Backend policy for owner/support/billing platform roles before multi-admin UI |
 | todo | Notification backend foundation | Email/notification queue contracts for billing failure, AI 100%, trial ending, and platform announcements |
 | done | SaaS migrations apply | SaaS project `auyznbwtjvemyamujmgt`; full local/remote migration chain aligned through `032`; schema-gate strict passed |

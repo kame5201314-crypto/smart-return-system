@@ -488,6 +488,61 @@ Backend rules:
 - Every operation is designed to write `audit_logs` in the RPC. UI must not mutate status locally or bypass this route.
 - Migration `033_saas_platform_billing_operations.sql` is a draft only in this commit. No migration was applied.
 
+## Platform Billing Event Retry And Reconciliation
+
+UI path:
+
+```text
+future platform admin billing event detail/retry surface under app/internal/**
+```
+
+Backend owner: Codex.
+
+Dry-run route:
+
+```text
+POST /api/internal/saas/billing/events/[id]/retry
+body: { "dryRun": true }
+```
+
+Success response:
+
+```ts
+{
+  success: true;
+  data: {
+    eventId: string;
+    orgId: string;
+    provider: 'manual' | 'ecpay' | 'stripe' | 'tappay';
+    eventType: string;
+    status: 'received' | 'processed' | 'failed' | 'ignored';
+    providerEventId: string | null;
+    retryEnabled: boolean;
+    canRetry: boolean;
+    dryRunOnly: boolean;
+    blockedReason:
+      | 'already_processed'
+      | 'ignored_event'
+      | 'missing_provider_event_id'
+      | 'unsupported_provider'
+      | 'non_retryable_event_type'
+      | 'provider_replay_not_enabled'
+      | null;
+    operation: 'provider_webhook_replay' | 'no_op';
+    message: string;
+  };
+}
+```
+
+Rules:
+
+- Requires platform admin auth plus the existing `multi_tenant_admin` feature flag.
+- `{ "dryRun": false }` returns `retry_not_enabled`; provider replay is intentionally not enabled.
+- The route reads a single `billing_events` row only after the guard passes.
+- It does not call ECPay/Stripe/TapPay, update subscriptions, send email, write audit logs, apply migrations, or mutate provider state.
+- UI may display the dry-run result, but must keep retry actions disabled until Codex wires a provider adapter and audit-log write path.
+- SOP lives in `docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md`.
+
 ## Platform Admin Live Data Server Loader
 
 Codex has server-side platform admin live data loaders in:

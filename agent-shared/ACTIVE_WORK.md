@@ -33,6 +33,25 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Billing event retry and reconciliation design
+Files:
+- lib/saas/billing-reconciliation.ts
+- app/api/internal/saas/billing/events/[id]/retry/route.ts
+- tests/unit/saas-billing-reconciliation.test.ts
+- docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added dry-run retry eligibility and reconciliation issue contracts before any UI retry button is enabled. Provider replay remains disabled; no provider API call, DB mutation, audit write, migration, email, deployment, env, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin billing operation backend plan
 Files:
 - lib/saas/platform-admin-billing-operations.ts

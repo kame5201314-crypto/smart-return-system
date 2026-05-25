@@ -2,6 +2,45 @@
 
 ## 2026-05-25 Codex -> Claude
 
+Added the billing event retry and reconciliation backend design.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/billing-reconciliation.ts`
+- `app/api/internal/saas/billing/events/[id]/retry/route.ts`
+- `tests/unit/saas-billing-reconciliation.test.ts`
+- `docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New route:
+
+- `POST /api/internal/saas/billing/events/[id]/retry`
+
+New backend helpers:
+
+- `buildBillingEventRetryDecision()`
+- `buildBillingEventReconciliationView()`
+
+Notes:
+
+- The retry route is dry-run only. `{ "dryRun": false }` returns `retry_not_enabled`.
+- The route is platform-admin gated and reads `billing_events` only after `requirePlatformAdminAccess()` passes.
+- Provider replay remains disabled; no provider API call, subscription change, audit write, migration, email, deployment, env, or platform setting was changed.
+- Claude may display retry eligibility and reconciliation status later, but retry buttons must remain disabled until Codex wires a provider adapter and audit-log write path.
+
+## 2026-05-25 Codex -> Claude
+
 Added the platform admin billing operation backend contract.
 
 Commit:

@@ -199,6 +199,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-live-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
     'lib/saas/platform-admin-billing-operations.ts',
+    'lib/saas/billing-reconciliation.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
@@ -219,6 +220,8 @@ function checkCommercialFoundation() {
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
     'app/api/internal/saas/billing/operations/route.ts',
+    'app/api/internal/saas/billing/events/[id]/retry/route.ts',
+    'docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
@@ -859,7 +862,16 @@ function checkCommercialFoundation() {
   }
 
   const billingFoundationPath = path.resolve(process.cwd(), 'lib/saas/billing.ts');
+  const billingReconciliationPath = path.resolve(process.cwd(), 'lib/saas/billing-reconciliation.ts');
   const ecpayWebhookRoutePath = path.resolve(process.cwd(), 'app/api/billing/ecpay/webhook/route.ts');
+  const billingRetryRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/internal/saas/billing/events/[id]/retry/route.ts'
+  );
+  const billingRetrySopPath = path.resolve(
+    process.cwd(),
+    'docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md'
+  );
   if (fs.existsSync(billingFoundationPath) && fs.existsSync(ecpayWebhookRoutePath)) {
     const billingSource = fs.readFileSync(billingFoundationPath, 'utf8');
     const ecpayRouteSource = fs.readFileSync(ecpayWebhookRoutePath, 'utf8');
@@ -878,6 +890,31 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS billing webhook foundation', 'ECPay route is disabled by flag and verifies CheckMacValue before recording events');
     } else {
       record('fail', 'SaaS billing webhook foundation', 'billing webhook must be flag-gated, credential-gated, and CheckMacValue-gated');
+    }
+  }
+
+  if (
+    fs.existsSync(billingReconciliationPath) &&
+    fs.existsSync(billingRetryRoutePath) &&
+    fs.existsSync(billingRetrySopPath)
+  ) {
+    const reconciliationSource = fs.readFileSync(billingReconciliationPath, 'utf8');
+    const retryRouteSource = fs.readFileSync(billingRetryRoutePath, 'utf8');
+    const sopSource = fs.readFileSync(billingRetrySopPath, 'utf8');
+    if (
+      reconciliationSource.includes('buildBillingEventRetryDecision') &&
+      reconciliationSource.includes('buildBillingEventReconciliationView') &&
+      reconciliationSource.includes('provider_replay_not_enabled') &&
+      retryRouteSource.includes('handleDryRunPlatformBillingEventRetry') &&
+      retryRouteSource.includes('requirePlatformAdminAccess') &&
+      retryRouteSource.includes('retry_not_enabled') &&
+      retryRouteSource.includes('buildBillingEventRetryDecision') &&
+      sopSource.includes('Provider replay is disabled by default') &&
+      sopSource.includes('Go/No-Go For UI Retry')
+    ) {
+      record('pass', 'SaaS billing retry and reconciliation', 'dry-run retry eligibility and reconciliation SOP exist without enabling provider replay');
+    } else {
+      record('fail', 'SaaS billing retry and reconciliation', 'must keep retry dry-run only and document reconciliation before UI retry is enabled');
     }
   }
 
