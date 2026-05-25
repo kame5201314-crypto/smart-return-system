@@ -494,14 +494,14 @@ export default function AnalyticsPage() {
           ) : (
             <div className="space-y-4">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium w-12">排名</th>
-                      <th className="text-left py-3 px-4 font-medium">商品名稱</th>
-                      <th className="text-left py-3 px-4 font-medium">商品貨號</th>
-                      <th className="text-left py-3 px-4 font-medium">退貨平台</th>
-                      <th className="text-center py-3 px-4 font-medium">退貨數量</th>
+                      <th className="text-left py-3 px-4 font-medium w-12 whitespace-nowrap">排名</th>
+                      <th className="text-left py-3 px-4 font-medium whitespace-nowrap">商品名稱</th>
+                      <th className="text-left py-3 px-4 font-medium whitespace-nowrap">商品貨號</th>
+                      <th className="text-left py-3 px-4 font-medium whitespace-nowrap">退貨平台</th>
+                      <th className="text-center py-3 px-4 font-medium whitespace-nowrap">退貨數量</th>
                     </tr>
                   </thead>
                   <tbody>
