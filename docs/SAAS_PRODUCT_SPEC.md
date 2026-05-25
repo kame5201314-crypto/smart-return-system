@@ -193,6 +193,45 @@ App router group `(app)` 取代既有 `(admin)`，多租戶版本。
 
 舊 `(admin)` 路由保留為相容導向 30 天，之後移除。
 
+### 6.1 平台 Admin 營運能力地圖
+
+平台 admin 的定位是看「租戶營運狀況」，不是看客戶的退貨明細。這個邊界必須保留：平台方可以看 org、方案、狀態、用量、帳務事件與 audit log，但不得跨租戶讀取訂單、消費者個資、退貨原因原文或圖片。
+
+目前封閉 Beta 可接受的最小能力：
+
+| 能力 | 狀態 | 判斷 |
+|---|---|---|
+| 手動建立 Beta org | 已落地 | 適合 1-5 個 Beta 客戶手動開通 |
+| 租戶清單與方案狀態 | 已落地 | 可確認 plan / status / owner / seats |
+| 當月退貨與 AI 用量 | 已落地 | 可做基本額度與成本觀察 |
+| 單一租戶 detail | 已落地 | 可查成員、旗標、帳務欄位、audit log |
+| MRR / trial pipeline / at-risk summary | Stage 2 前必備 | 營運者需要快速知道收入、試用轉付費潛力與流失風險 |
+| billing 寫入工具 | Stage 2 前必備 | 付費後必須能手動補繳、停用、恢復、退費，且全數寫 audit log |
+| past_due / AI 100% / 長期無登入警示 | Stage 2 前必備 | 需要主動 surface，不應靠人工巡清單 |
+| trial → active 漏斗 | Stage 3 前必備 | 公開註冊後判斷產品與 onboarding 是否成立 |
+| 平台公告與 email 群發 | Stage 3 前必備 | 用於額度、政策、維護與事故通知 |
+| 多 platform admin 子角色 | Stage 3 前必備 | 客服、帳務、Owner 權限要分開，避免過度授權 |
+| cron / webhook / billing reconciliation | 100+ 客戶前必備 | 規模化後需要對帳、監控與失敗重試 |
+
+Stage 判斷：
+
+| 階段 | 客戶數 | 平台 admin 是否足夠 |
+|---|---:|---|
+| 封閉 Beta | 1-5 | 勉強足夠，允許人工補洞 |
+| 付費 Beta | 5-20 | 不足，必須先補 MRR、at-risk 與 billing 寫入 |
+| 公開上線 | 20-100 | 不足，必須補漏斗、通知、分權與客戶健康度 |
+| 規模化 | 100+ | 不足，必須補 cron/webhook 監控、計費對帳、客服 ticket 整合 |
+
+付費 Beta 前最低實作順序：
+
+1. Read-only 營運 summary：estimated active MRR、trial pipeline、at-risk org、AI 100% org。
+2. At-risk rules：`past_due`、`suspended`、AI 100%、退貨量 100%、席次滿額、80% 用量預警。
+3. Billing 寫入 RPC：手動標記補繳、停用、恢復、退款，所有變更需寫 `audit_logs`。
+4. Billing event detail 與 retry SOP：先保留人工重送，等 webhook idempotency 與 provider sandbox 全綠再開 UI。
+5. Trial conversion view：trial 即將到期、trial 已過期、已升級 active、未完成 onboarding。
+
+> 2026-05-25 已先落地 read-only 營運 summary 與客戶健康度；billing 寫入工具仍屬 Stage 2 工作，未在封閉 Beta 直接開啟。
+
 ---
 
 ## 7. 計費流程
