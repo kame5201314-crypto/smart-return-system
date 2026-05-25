@@ -110,7 +110,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+      <aside className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
         <div className="flex flex-grow flex-col border-r bg-white">
           <BrandLink />
           <nav className="flex-1 space-y-1 px-4 py-4">
@@ -142,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <div className="fixed inset-x-0 top-0 z-50 border-b bg-white lg:hidden">
+      <div className="fixed inset-x-0 top-0 z-50 border-b bg-white md:hidden">
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Package className="size-6 text-primary" />
@@ -199,8 +199,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
 
-      <main className="pt-16 lg:pl-64 lg:pt-0">
-        <div className="p-6">{children}</div>
+      <main className="min-h-screen w-full min-w-0 pt-16 md:pl-64 md:pt-0">
+        <div className="w-full min-w-0 px-4 py-4 sm:p-6">{children}</div>
       </main>
     </div>
   );

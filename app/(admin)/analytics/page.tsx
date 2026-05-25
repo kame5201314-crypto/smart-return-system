@@ -360,15 +360,15 @@ export default function AnalyticsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+            <div className="flex items-center gap-2 sm:mr-1">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">篩選條件：</span>
             </div>
 
             {/* Year filter */}
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className="w-full sm:w-[120px]">
                 <SelectValue placeholder="選擇年度" />
               </SelectTrigger>
               <SelectContent>
@@ -381,7 +381,7 @@ export default function AnalyticsPage() {
 
             {/* Month filter */}
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className="w-full sm:w-[120px]">
                 <SelectValue placeholder="選擇月份" />
               </SelectTrigger>
               <SelectContent>
@@ -394,7 +394,7 @@ export default function AnalyticsPage() {
 
             {/* Channel filter */}
             <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="選擇通路" />
               </SelectTrigger>
               <SelectContent>
@@ -410,6 +410,7 @@ export default function AnalyticsPage() {
               <Button
                 variant="ghost"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setSelectedYear('all');
                   setSelectedMonth('all');
@@ -426,8 +427,8 @@ export default function AnalyticsPage() {
       {/* Summary card */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">
                 {selectedYear !== 'all' || selectedMonth !== 'all' || selectedChannel !== 'all'
                   ? '篩選後退貨單數'
@@ -440,23 +441,23 @@ export default function AnalyticsPage() {
               )}
               {/* Channel breakdown */}
               {!loading && (
-                <div className="flex gap-4 mt-3 text-sm">
-                  <div className="flex items-center gap-1.5">
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                     <span className="text-muted-foreground">官網</span>
                     <span className="font-medium">{stats.officialCount}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
                     <div className="w-2 h-2 rounded-full bg-orange-500"></div>
                     <span className="text-muted-foreground">蝦皮</span>
                     <span className="font-medium">{stats.shopeeCount}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
                     <span className="text-muted-foreground">蝦皮商城</span>
                     <span className="font-medium">{stats.shopeeMallCount}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
                     <div className="w-2 h-2 rounded-full bg-slate-500"></div>
                     <span className="text-muted-foreground">其他</span>
                     <span className="font-medium">{stats.otherCount}</span>
@@ -464,7 +465,7 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </div>
-            <div className="p-4 bg-blue-50 rounded-full text-blue-600">
+            <div className="self-start rounded-full bg-blue-50 p-4 text-blue-600 sm:self-auto">
               <Package className="w-6 h-6" />
             </div>
           </div>
