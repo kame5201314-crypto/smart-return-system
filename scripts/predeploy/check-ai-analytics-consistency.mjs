@@ -61,6 +61,44 @@ function getShopeeReturnReportPeriod(row) {
   );
 }
 
+function isMissingColumnError(error, column) {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes(`'${column}' column`)
+    || message.includes(`column shopee_returns.${column} does not exist`)
+    || message.includes(`column ${column} does not exist`)
+  );
+}
+
+async function loadShopeeReturnsWithCompatibleColumns(supabase) {
+  const selectCandidates = [
+    'id, order_date, dispute_deadline, processed_at, created_at',
+    'id, order_date, processed_at, created_at',
+    'id, order_date, created_at',
+  ];
+
+  let lastError = null;
+  for (const columns of selectCandidates) {
+    const { data, error } = await supabase
+      .from('shopee_returns')
+      .select(columns);
+
+    if (!error) {
+      return { data, error: null };
+    }
+
+    lastError = error;
+    if (
+      !isMissingColumnError(error, 'dispute_deadline')
+      && !isMissingColumnError(error, 'processed_at')
+    ) {
+      break;
+    }
+  }
+
+  return { data: null, error: lastError };
+}
+
 function isStrictMode() {
   const explicit = normalizeEnvValue(process.env.CONSISTENCY_CHECK_STRICT);
   if (explicit === '1' || explicit.toLowerCase() === 'true') return true;
@@ -137,9 +175,8 @@ async function main() {
     return 1;
   }
 
-  const { data: shopeeReturns, error: shopeeError } = await supabase
-    .from('shopee_returns')
-    .select('id, order_date, dispute_deadline, processed_at, created_at');
+  const { data: shopeeReturns, error: shopeeError } =
+    await loadShopeeReturnsWithCompatibleColumns(supabase);
   if (shopeeError) {
     console.error(`[consistency-check] Failed to load shopee_returns: ${shopeeError.message}`);
     return 1;
