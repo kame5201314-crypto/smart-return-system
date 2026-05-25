@@ -11,9 +11,10 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
-- `npm run saas:doctor:strict` passes.
+- `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` now also checks admin login credential readiness.
-- The rollout check may fail until `ADMIN_PASSWORD` is changed to a non-placeholder value with at least 12 characters.
+- `GEMINI_API_KEY` is set for the SaaS environment.
+- Local Manual Beta login may use a short owner-requested shortcut password for inspection, but public rollout is blocked until `ADMIN_PASSWORD` is rotated to a non-placeholder value with at least 12 characters.
 - After admin credential rotation, the remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
@@ -383,12 +384,12 @@ This file tracks external SaaS setup work that must stay separate from the live 
 These are intentionally not completed because they require private credentials, billing setup, rollout approval, or deployment authorization.
 
 - SaaS Gemini API key has not been added to Vercel or is still placeholder locally.
-- SaaS `NEXT_PUBLIC_APP_URL` still points to a placeholder domain or needs final domain confirmation.
+- SaaS `NEXT_PUBLIC_APP_URL` currently points to the latest ready SaaS Vercel preview URL; replace it with the final custom domain before public rollout.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
 - SaaS production deployment has not been run.
-- Platform admin live operations are still gated closed by `ENABLE_MULTI_TENANT_ADMIN=false`.
+- Platform admin live views are closed by default with `ENABLE_MULTI_TENANT_ADMIN=false`; they can be opened locally for owner inspection by setting the ignored local SaaS env value to `true`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
 - Public signup org creation and subscription creation are not wired yet; `/api/saas/signup` records a request only after the flag and DB are ready.
 
@@ -444,7 +445,6 @@ Feature flags before controlled rollout:
 
 ## SaaS Values Still Needed From Owner
 
-- SaaS `GEMINI_API_KEY`
 - Billing credentials for the selected provider when Stage 2 starts.
 - SaaS domain, logging, and deployment settings when rollout is approved.
 

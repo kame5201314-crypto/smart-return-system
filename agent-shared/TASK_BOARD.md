@@ -48,7 +48,8 @@ Status values:
 | done | Invite creation service and RPC draft | This commit; added seat-checked invite creation service, token generation, `032` draft RPC, and repository wrapper without applying migrations |
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
-| blocked | SaaS predeploy strict gate | migration/schema strict pass; rollout strict is blocked by missing/placeholder `GEMINI_API_KEY`, placeholder `NEXT_PUBLIC_APP_URL`, missing Sentry/logging DSN, and billing disabled for paid self-serve |
+| blocked | SaaS public rollout strict gate | migration/schema/doctor strict checks pass with SaaS credentials; rollout strict is intentionally blocked until the owner rotates the local shortcut `ADMIN_PASSWORD`, adds Sentry/logging or accepts closed-Beta log-only monitoring, and enables/configures billing for paid self-serve |
+| done | Manual Beta local readiness | SaaS project, migrations, schema gate, Gemini key, test org, seed data, login smoke, AI analyze, invite flow, exports, and platform admin read views have been verified locally |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | SaaS schema gate commercial v2 coverage | This commit; strict gate now checks organization billing/onboarding/upgrade suggestion fields, subscription period/provider fields, invoice fields, invite token fields, and audit metadata |
 | done | Platform admin API DTO wiring | This commit; internal APIs return UI contract DTOs behind the platform admin flag |

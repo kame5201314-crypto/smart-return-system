@@ -41,6 +41,19 @@ Choose one launch mode before deployment:
 
 Current recommended mode: **Manual Beta**.
 
+## Local Inspection Mode
+
+For owner-only local review of the commercial management dashboard, the ignored
+local file `.env.saas.local` may temporarily set:
+
+```env
+ENABLE_MULTI_TENANT_ADMIN=true
+```
+
+Restart the local dev server after changing this flag. This is not a rollout
+setting and should remain `false` in shared examples and public environments
+unless platform admin rollout is explicitly approved.
+
 ## Must Confirm Before Manual Beta Deploy
 
 - SaaS Vercel project is `smart-return-system-saas`.
