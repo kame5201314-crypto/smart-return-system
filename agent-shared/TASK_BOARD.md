@@ -32,7 +32,7 @@ Status values:
 |---|---|---|
 | todo | Platform admin billing operation backend plan | RPC/API contract for manual payment marking, suspend/resume, refund request, and audit logging |
 | done | At-risk alert backend contract | This commit; added read-only `PlatformAtRiskAlertsView` and `loadPlatformAtRiskAlertsView()` for past_due, suspended, AI/return/seat quota, and trial expiry signals |
-| todo | Trial conversion backend contract | Read-only loader for trialing, converted active, expired trial, and onboarding incomplete counts |
+| done | Trial conversion backend contract | This commit; added read-only `PlatformTrialConversionView` and `loadPlatformTrialConversionView()` for trialing, converted active, expired trial, and onboarding incomplete counts |
 | todo | Billing event retry and reconciliation design | Safe retry contract, reconciliation SOP, and tests before UI retry is enabled |
 | todo | Platform admin role model | Backend policy for owner/support/billing platform roles before multi-admin UI |
 | todo | Notification backend foundation | Email/notification queue contracts for billing failure, AI 100%, trial ending, and platform announcements |

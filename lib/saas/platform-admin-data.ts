@@ -7,6 +7,7 @@ export interface PlatformOrgSummary {
   ownerEmail: string | null;
   memberCount: number;
   createdAt: string | null;
+  onboardingCompletedAt?: string | null;
 }
 
 export interface PlatformOrgDetail extends PlatformOrgSummary {
@@ -132,6 +133,7 @@ function normalizeOrgSummary(row: unknown): PlatformOrgSummary | null {
     ownerEmail: stringOrNull(row.owner_email),
     memberCount: numberOrZero(row.member_count),
     createdAt: stringOrNull(row.created_at),
+    onboardingCompletedAt: stringOrNull(row.onboarding_completed_at),
   };
 }
 
@@ -303,7 +305,7 @@ export function createPlatformAdminDataRepository(
       const limit = input.limit ?? 50;
       const { data, error } = await client
         .from('organizations')
-        .select('id, name, slug, plan, status, owner_email, member_count, created_at')
+        .select('id, name, slug, plan, status, owner_email, member_count, created_at, onboarding_completed_at')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -325,6 +327,7 @@ export function createPlatformAdminDataRepository(
           owner_email,
           member_count,
           created_at,
+          onboarding_completed_at,
           feature_flags,
           billing_email,
           tax_id,

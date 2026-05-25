@@ -298,6 +298,41 @@ export interface PlatformAtRiskAlert {
   daysUntilDue: number | null;
 }
 
+export type PlatformTrialConversionLifecycle =
+  | 'trialing'
+  | 'trial_ending'
+  | 'trial_expired'
+  | 'converted_active'
+  | 'not_trial';
+
+export interface PlatformTrialConversionView {
+  summary: {
+    totalOrganizations: number;
+    trialingOrganizations: number;
+    trialEndingSoonOrganizations: number;
+    convertedActiveOrganizations: number;
+    expiredTrialOrganizations: number;
+    onboardingIncompleteOrganizations: number;
+    conversionRatePercent: number;
+  };
+  organizations: PlatformTrialConversionOrganization[];
+}
+
+export interface PlatformTrialConversionOrganization {
+  orgId: string;
+  orgName: string;
+  ownerEmail: string | null;
+  plan: SaaSPlanCode;
+  status: OrgSubscriptionStatus;
+  lifecycleState: PlatformTrialConversionLifecycle;
+  createdAt: string;
+  trialEnd: string | null;
+  daysUntilTrialEnd: number | null;
+  onboardingCompleted: boolean;
+  onboardingCompletedAt: string | null;
+  needsFollowUp: boolean;
+}
+
 export type PlatformOrgUsageById = Record<string, PlatformOrganizationUsage>;
 export type PlatformOrgSubscriptionsById = Record<string, PlatformOrgSubscriptionSnapshot>;
 
@@ -688,6 +723,24 @@ export function buildPlatformAtRiskAlertsView(
   };
 }
 
+export function buildPlatformTrialConversionView(
+  organizations: PlatformOrgSummary[],
+  subscriptionsByOrgId: PlatformOrgSubscriptionsById = {},
+  options: { now?: Date } = {}
+): PlatformTrialConversionView {
+  const now = options.now ?? new Date();
+  const items = organizations.map((org) =>
+    buildPlatformTrialConversionOrganization(org, subscriptionsByOrgId[org.id], now)
+  );
+
+  items.sort(comparePlatformTrialConversionOrganizations);
+
+  return {
+    summary: buildPlatformTrialConversionSummary(items),
+    organizations: items,
+  };
+}
+
 function buildPlatformOrganizationListItem(
   org: PlatformOrgSummary,
   usageByOrgId: PlatformOrgUsageById
@@ -716,6 +769,128 @@ function buildPlatformOrganizationListItem(
       usage,
     }),
   };
+}
+
+const TRIAL_CONVERSION_ORDER: Record<PlatformTrialConversionLifecycle, number> = {
+  trial_expired: 0,
+  trial_ending: 1,
+  trialing: 2,
+  converted_active: 3,
+  not_trial: 4,
+};
+
+function comparePlatformTrialConversionOrganizations(
+  left: PlatformTrialConversionOrganization,
+  right: PlatformTrialConversionOrganization
+): number {
+  const lifecycleDiff =
+    TRIAL_CONVERSION_ORDER[left.lifecycleState] -
+    TRIAL_CONVERSION_ORDER[right.lifecycleState];
+  if (lifecycleDiff !== 0) {
+    return lifecycleDiff;
+  }
+
+  if (left.daysUntilTrialEnd !== null && right.daysUntilTrialEnd !== null) {
+    return left.daysUntilTrialEnd - right.daysUntilTrialEnd;
+  }
+
+  if (left.daysUntilTrialEnd !== null) {
+    return -1;
+  }
+
+  if (right.daysUntilTrialEnd !== null) {
+    return 1;
+  }
+
+  return left.orgName.localeCompare(right.orgName);
+}
+
+function buildPlatformTrialConversionSummary(
+  organizations: PlatformTrialConversionOrganization[]
+): PlatformTrialConversionView['summary'] {
+  const convertedActiveOrganizations = organizations.filter(
+    (org) => org.lifecycleState === 'converted_active'
+  ).length;
+  const trialingOrganizations = organizations.filter((org) =>
+    org.lifecycleState === 'trialing' || org.lifecycleState === 'trial_ending'
+  ).length;
+  const expiredTrialOrganizations = organizations.filter(
+    (org) => org.lifecycleState === 'trial_expired'
+  ).length;
+  const funnelOrganizations =
+    convertedActiveOrganizations + trialingOrganizations + expiredTrialOrganizations;
+
+  return {
+    totalOrganizations: organizations.length,
+    trialingOrganizations,
+    trialEndingSoonOrganizations: organizations.filter(
+      (org) => org.lifecycleState === 'trial_ending'
+    ).length,
+    convertedActiveOrganizations,
+    expiredTrialOrganizations,
+    onboardingIncompleteOrganizations: organizations.filter(
+      (org) => !org.onboardingCompleted
+    ).length,
+    conversionRatePercent:
+      funnelOrganizations > 0
+        ? Math.round((convertedActiveOrganizations / funnelOrganizations) * 100)
+        : 0,
+  };
+}
+
+function buildPlatformTrialConversionOrganization(
+  org: PlatformOrgSummary,
+  subscription: PlatformOrgSubscriptionSnapshot | undefined,
+  now: Date
+): PlatformTrialConversionOrganization {
+  const id = requireString(org.id, 'trialConversion.organization.id');
+  const status = normalizeOrgStatus(org.status);
+  const trialEnd = subscription?.trialEnd ?? null;
+  const daysUntilTrialEnd = daysUntil(now, trialEnd);
+  const lifecycleState = resolveTrialConversionLifecycle(status, daysUntilTrialEnd);
+  const onboardingCompletedAt = org.onboardingCompletedAt ?? null;
+  const onboardingCompleted = onboardingCompletedAt !== null;
+
+  return {
+    orgId: id,
+    orgName: requireString(org.name, 'trialConversion.organization.name'),
+    ownerEmail: org.ownerEmail,
+    plan: normalizeSaaSPlanCode(org.plan),
+    status,
+    lifecycleState,
+    createdAt: requireString(org.createdAt, 'trialConversion.organization.createdAt'),
+    trialEnd,
+    daysUntilTrialEnd,
+    onboardingCompleted,
+    onboardingCompletedAt,
+    needsFollowUp:
+      lifecycleState === 'trial_ending' ||
+      lifecycleState === 'trial_expired' ||
+      (status === 'trialing' && !onboardingCompleted),
+  };
+}
+
+function resolveTrialConversionLifecycle(
+  status: OrgSubscriptionStatus,
+  daysUntilTrialEnd: number | null
+): PlatformTrialConversionLifecycle {
+  if (status === 'active') {
+    return 'converted_active';
+  }
+
+  if (status !== 'trialing') {
+    return 'not_trial';
+  }
+
+  if (daysUntilTrialEnd !== null && daysUntilTrialEnd <= 0) {
+    return 'trial_expired';
+  }
+
+  if (daysUntilTrialEnd !== null && daysUntilTrialEnd <= 3) {
+    return 'trial_ending';
+  }
+
+  return 'trialing';
 }
 
 const ALERT_SEVERITY_ORDER: Record<PlatformAtRiskAlertSeverity, number> = {

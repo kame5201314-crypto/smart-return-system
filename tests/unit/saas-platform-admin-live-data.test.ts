@@ -13,6 +13,7 @@ import {
   loadPlatformBillingEventsView,
   loadPlatformOrganizationDetailView,
   loadPlatformOrganizationsView,
+  loadPlatformTrialConversionView,
 } from '@/lib/saas/platform-admin-live-data';
 
 const platformAdminContext: PlatformAdminContext = {
@@ -358,6 +359,84 @@ describe('SaaS platform admin live data loaders', () => {
     expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
       orgIds: ['org-1'],
     });
+  });
+
+  it('loads platform trial conversion with subscription snapshots only', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizations).mockResolvedValueOnce([
+      {
+        id: 'org-1',
+        name: 'Demo Org',
+        slug: 'demo-org',
+        plan: 'growth',
+        status: 'trialing',
+        ownerEmail: 'owner@example.com',
+        memberCount: 3,
+        createdAt: '2026-05-20T00:00:00.000Z',
+        onboardingCompletedAt: null,
+      },
+      {
+        id: 'org-2',
+        name: 'Active Org',
+        slug: 'active-org',
+        plan: 'pro',
+        status: 'active',
+        ownerEmail: 'active@example.com',
+        memberCount: 4,
+        createdAt: '2026-05-18T00:00:00.000Z',
+        onboardingCompletedAt: '2026-05-19T00:00:00.000Z',
+      },
+    ]);
+    vi.mocked(repository.listOrganizationSubscriptions).mockResolvedValueOnce({
+      'org-1': {
+        status: 'trialing',
+        currentPeriodEnd: '2026-05-28T00:00:00.000Z',
+        trialEnd: '2026-05-28T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+      'org-2': {
+        status: 'active',
+        currentPeriodEnd: '2026-06-01T00:00:00.000Z',
+        trialEnd: '2026-05-20T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+    });
+
+    const result = await loadPlatformTrialConversionView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now: new Date('2026-05-25T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        summary: {
+          trialingOrganizations: 1,
+          trialEndingSoonOrganizations: 1,
+          convertedActiveOrganizations: 1,
+          expiredTrialOrganizations: 0,
+          onboardingIncompleteOrganizations: 1,
+          conversionRatePercent: 50,
+        },
+        organizations: [
+          {
+            orgId: 'org-1',
+            lifecycleState: 'trial_ending',
+            needsFollowUp: true,
+          },
+          {
+            orgId: 'org-2',
+            lifecycleState: 'converted_active',
+            needsFollowUp: false,
+          },
+        ],
+      },
+    });
+    expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
+      orgIds: ['org-1', 'org-2'],
+    });
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
   });
 
   it('returns empty state for platform billing events when no events exist', async () => {

@@ -6,6 +6,7 @@ import {
   buildPlatformBillingEventsView,
   buildPlatformOrganizationDetailView,
   buildPlatformOrganizationListView,
+  buildPlatformTrialConversionView,
   buildTeamSettingsView,
   buildUsageSettingsView,
 } from '@/lib/saas/ui-backend-contracts';
@@ -505,6 +506,120 @@ describe('SaaS UI/backend contracts', () => {
           type: 'seats_full',
           severity: 'warning',
           category: 'team',
+        }),
+      ],
+    });
+  });
+
+  it('builds platform trial conversion view from organization and subscription snapshots', () => {
+    const activeOrg: PlatformOrgSummary = {
+      ...orgSummary,
+      status: 'active',
+      onboardingCompletedAt: '2026-05-21T00:00:00.000Z',
+    };
+    const trialEndingOrg: PlatformOrgSummary = {
+      id: 'org-2',
+      name: 'Trial Ending Store',
+      slug: 'trial-ending-store',
+      plan: 'basic',
+      status: 'trialing',
+      ownerEmail: 'trial@example.com',
+      memberCount: 1,
+      createdAt: '2026-05-20T00:00:00.000Z',
+      onboardingCompletedAt: null,
+    };
+    const expiredTrialOrg: PlatformOrgSummary = {
+      id: 'org-3',
+      name: 'Expired Trial Store',
+      slug: 'expired-trial-store',
+      plan: 'growth',
+      status: 'trialing',
+      ownerEmail: 'expired@example.com',
+      memberCount: 2,
+      createdAt: '2026-05-10T00:00:00.000Z',
+      onboardingCompletedAt: null,
+    };
+    const trialOrg: PlatformOrgSummary = {
+      id: 'org-4',
+      name: 'Fresh Trial Store',
+      slug: 'fresh-trial-store',
+      plan: 'pro',
+      status: 'trialing',
+      ownerEmail: 'fresh@example.com',
+      memberCount: 2,
+      createdAt: '2026-05-24T00:00:00.000Z',
+      onboardingCompletedAt: '2026-05-24T12:00:00.000Z',
+    };
+
+    expect(
+      buildPlatformTrialConversionView(
+        [activeOrg, trialEndingOrg, expiredTrialOrg, trialOrg],
+        {
+          'org-1': {
+            status: 'active',
+            currentPeriodEnd: '2026-06-01T00:00:00.000Z',
+            trialEnd: '2026-05-22T00:00:00.000Z',
+            cancelAtPeriodEnd: false,
+          },
+          'org-2': {
+            status: 'trialing',
+            currentPeriodEnd: '2026-05-28T00:00:00.000Z',
+            trialEnd: '2026-05-28T00:00:00.000Z',
+            cancelAtPeriodEnd: false,
+          },
+          'org-3': {
+            status: 'trialing',
+            currentPeriodEnd: '2026-05-20T00:00:00.000Z',
+            trialEnd: '2026-05-20T00:00:00.000Z',
+            cancelAtPeriodEnd: false,
+          },
+          'org-4': {
+            status: 'trialing',
+            currentPeriodEnd: '2026-06-05T00:00:00.000Z',
+            trialEnd: '2026-06-05T00:00:00.000Z',
+            cancelAtPeriodEnd: false,
+          },
+        },
+        {
+          now: new Date('2026-05-25T00:00:00.000Z'),
+        }
+      )
+    ).toEqual({
+      summary: {
+        totalOrganizations: 4,
+        trialingOrganizations: 2,
+        trialEndingSoonOrganizations: 1,
+        convertedActiveOrganizations: 1,
+        expiredTrialOrganizations: 1,
+        onboardingIncompleteOrganizations: 2,
+        conversionRatePercent: 25,
+      },
+      organizations: [
+        expect.objectContaining({
+          orgId: 'org-3',
+          lifecycleState: 'trial_expired',
+          daysUntilTrialEnd: -5,
+          needsFollowUp: true,
+        }),
+        expect.objectContaining({
+          orgId: 'org-2',
+          lifecycleState: 'trial_ending',
+          daysUntilTrialEnd: 3,
+          onboardingCompleted: false,
+          needsFollowUp: true,
+        }),
+        expect.objectContaining({
+          orgId: 'org-4',
+          lifecycleState: 'trialing',
+          daysUntilTrialEnd: 11,
+          onboardingCompleted: true,
+          needsFollowUp: false,
+        }),
+        expect.objectContaining({
+          orgId: 'org-1',
+          lifecycleState: 'converted_active',
+          onboardingCompleted: true,
+          needsFollowUp: false,
         }),
       ],
     });

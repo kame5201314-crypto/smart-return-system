@@ -315,6 +315,58 @@ Rules:
 - Return limit alerts are soft-limit signals; operations are not blocked by return count.
 - AI 100% alerts represent the hard AI quota and should be treated as critical.
 
+## Platform Trial Conversion
+
+UI path:
+
+```text
+future platform admin trial/conversion surface under app/internal/**
+```
+
+Backend owner: Codex.
+
+```ts
+interface PlatformTrialConversionView {
+  summary: {
+    totalOrganizations: number;
+    trialingOrganizations: number;
+    trialEndingSoonOrganizations: number;
+    convertedActiveOrganizations: number;
+    expiredTrialOrganizations: number;
+    onboardingIncompleteOrganizations: number;
+    conversionRatePercent: number;
+  };
+  organizations: Array<{
+    orgId: string;
+    orgName: string;
+    ownerEmail: string | null;
+    plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+    status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
+    lifecycleState:
+      | 'trialing'
+      | 'trial_ending'
+      | 'trial_expired'
+      | 'converted_active'
+      | 'not_trial';
+    createdAt: string;
+    trialEnd: string | null;
+    daysUntilTrialEnd: number | null;
+    onboardingCompleted: boolean;
+    onboardingCompletedAt: string | null;
+    needsFollowUp: boolean;
+  }>;
+}
+```
+
+Rules:
+
+- Derived from organizations plus subscription `trial_end`.
+- `trialingOrganizations` counts current unexpired trial rows, including `trial_ending`.
+- `convertedActiveOrganizations` counts active organizations.
+- `expiredTrialOrganizations` counts organizations still marked `trialing` after `trial_end`.
+- `onboardingIncompleteOrganizations` counts organizations with no `organizations.onboarding_completed_at`.
+- Read-only only. It does not convert accounts, suspend trials, send email, apply migrations, or change subscription status.
+
 ## Platform Organization Detail
 
 UI path:
@@ -381,6 +433,7 @@ Available helpers:
 - `loadPlatformOrganizationDetailView(orgId)`
 - `loadPlatformBillingEventsView()`
 - `loadPlatformAtRiskAlertsView()`
+- `loadPlatformTrialConversionView()`
 
 These helpers are for Claude UI handoff on the internal platform admin pages.
 They call `requirePlatformAdminAccess()` before creating the service-role
@@ -482,6 +535,27 @@ State triggers:
 - `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
 - `error`: repository query failure or DTO contract validation failure.
 
+### Platform trial conversion
+
+Server data function:
+
+```ts
+loadPlatformTrialConversionView()
+```
+
+DTO shape:
+
+```ts
+PlatformTrialConversionView
+```
+
+State triggers:
+
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, organizations and subscription snapshots validate through `buildPlatformTrialConversionView()`.
+- `empty`: no organizations exist.
+- `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
+- `error`: repository query failure or DTO contract validation failure.
+
 ## Implementation Rule
 
 Claude may use these contracts as mock UI data.
@@ -510,6 +584,7 @@ Available builders:
 - `buildPlatformOrganizationDetailView()`
 - `buildPlatformBillingEventsView()`
 - `buildPlatformAtRiskAlertsView()`
+- `buildPlatformTrialConversionView()`
 
 These helpers do not expose routes by themselves. They validate and normalize backend data before a future route or server action returns it to UI.
 

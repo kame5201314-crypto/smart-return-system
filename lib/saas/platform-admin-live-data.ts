@@ -13,11 +13,13 @@ import {
   buildPlatformBillingEventsView,
   buildPlatformOrganizationDetailView,
   buildPlatformOrganizationListView,
+  buildPlatformTrialConversionView,
   type GatedState,
   type PlatformAtRiskAlertsView,
   type PlatformBillingEventsView,
   type PlatformOrganizationDetailView,
   type PlatformOrganizationListView,
+  type PlatformTrialConversionView,
   type ViewState,
 } from '@/lib/saas/ui-backend-contracts';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
@@ -67,6 +69,10 @@ export interface LoadPlatformBillingEventsOptions extends PlatformAdminLiveDataD
 }
 
 export interface LoadPlatformAtRiskAlertsOptions extends PlatformAdminLiveDataDependencies {
+  limit?: number;
+}
+
+export interface LoadPlatformTrialConversionOptions extends PlatformAdminLiveDataDependencies {
   limit?: number;
 }
 
@@ -305,5 +311,41 @@ export async function loadPlatformAtRiskAlertsView(
     };
   } catch (error) {
     return mapLiveDataError(error, 'Failed to load platform at-risk alerts.');
+  }
+}
+
+export async function loadPlatformTrialConversionView(
+  options: LoadPlatformTrialConversionOptions = {}
+): Promise<PlatformAdminLiveDataResult<PlatformTrialConversionView>> {
+  try {
+    const access = await loadAccess(options);
+    const context = toLiveDataContext(access);
+    const repository = getRepository(options);
+    const organizations = await repository.listOrganizations({
+      limit: clampLimit(options.limit),
+    });
+
+    if (organizations.length === 0) {
+      return {
+        state: 'empty',
+        data: null,
+        message: 'No platform organizations were found.',
+        context,
+      };
+    }
+
+    const subscriptionsByOrgId = await repository.listOrganizationSubscriptions({
+      orgIds: organizations.map((org) => org.id),
+    });
+
+    return {
+      state: 'ready',
+      data: buildPlatformTrialConversionView(organizations, subscriptionsByOrgId, {
+        now: options.now,
+      }),
+      context,
+    };
+  } catch (error) {
+    return mapLiveDataError(error, 'Failed to load platform trial conversion.');
   }
 }

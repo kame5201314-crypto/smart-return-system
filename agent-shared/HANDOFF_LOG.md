@@ -2,6 +2,51 @@
 
 ## 2026-05-25 Codex -> Claude
 
+Added the read-only platform admin trial conversion backend contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-data.ts`
+- `lib/saas/platform-admin-live-data.ts`
+- `lib/saas/ui-backend-contracts.ts`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+- `tests/unit/saas-platform-admin-live-data.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New server data function:
+
+- `loadPlatformTrialConversionView()`
+
+New DTO:
+
+- `PlatformTrialConversionView`
+
+Summary signals:
+
+- current trialing organizations
+- trial ending soon organizations
+- converted active organizations
+- expired trial organizations
+- onboarding incomplete organizations
+- conversion rate percent
+
+Notes:
+
+- This is read-only. It does not convert accounts, suspend trials, send email, apply migrations, or change subscription status.
+- It reuses platform admin auth and the `multi_tenant_admin` feature flag gate.
+- Claude may render this DTO in future internal UI polish without changing trial lifecycle calculations.
+
+## 2026-05-25 Codex -> Claude
+
 Added the read-only platform admin at-risk alert backend contract.
 
 Commit:

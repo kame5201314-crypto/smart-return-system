@@ -33,6 +33,24 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin trial conversion backend contract
+Files:
+- lib/saas/platform-admin-data.ts
+- lib/saas/platform-admin-live-data.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- tests/unit/saas-platform-admin-live-data.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added read-only PlatformTrialConversionView and loadPlatformTrialConversionView for trialing, converted active, expired trial, and onboarding incomplete counts. No route, migration, DB write, email, deployment, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin at-risk alert backend contract
 Files:
 - lib/saas/platform-admin-data.ts
