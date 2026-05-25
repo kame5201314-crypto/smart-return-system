@@ -33,6 +33,25 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Email queue worker dry-run contract
+Files:
+- lib/saas/email-queue-worker.ts
+- app/api/cron/saas/email-queue/route.ts
+- tests/unit/saas-email-queue-worker.test.ts
+- scripts/maintenance/cron-drill.mjs
+- scripts/saas/readiness-check.mjs
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added CRON_SECRET-gated dry-run email_queue inspection for due queued records. The endpoint rejects dryRun=false and does not send email, mutate queue rows, call a provider, apply migrations, deploy, or change env/platform settings.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Onboarding backend foundation
 Files:
 - lib/saas/onboarding.ts

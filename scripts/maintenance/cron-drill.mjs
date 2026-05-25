@@ -65,6 +65,7 @@ async function main() {
     '/api/cron/shopee-scan-daily-report',
     '/api/cron/shopee-scan-smoke',
     '/api/cron/scan-retention',
+    '/api/cron/saas/email-queue?dryRun=true',
   ].filter((path) => !only || path.includes(only));
 
   if (targets.length === 0) {

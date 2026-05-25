@@ -202,6 +202,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-billing-operations.ts',
     'lib/saas/billing-reconciliation.ts',
     'lib/saas/notifications.ts',
+    'lib/saas/email-queue-worker.ts',
     'lib/saas/onboarding.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
@@ -224,6 +225,7 @@ function checkCommercialFoundation() {
     'app/api/internal/saas/billing/events/route.ts',
     'app/api/internal/saas/billing/operations/route.ts',
     'app/api/internal/saas/billing/events/[id]/retry/route.ts',
+    'app/api/cron/saas/email-queue/route.ts',
     'docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
@@ -970,6 +972,47 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS notification queue foundation', 'billing, AI quota, trial, and announcement events enqueue records without sending email');
     } else {
       record('fail', 'SaaS notification queue foundation', 'notification backend must create notifications/email_queue contracts without wiring an email provider');
+    }
+  }
+
+  const emailQueueWorkerPath = path.resolve(
+    process.cwd(),
+    'lib/saas/email-queue-worker.ts'
+  );
+  const emailQueueCronRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/cron/saas/email-queue/route.ts'
+  );
+  const cronDrillPath = path.resolve(process.cwd(), 'scripts/maintenance/cron-drill.mjs');
+  if (
+    fs.existsSync(emailQueueWorkerPath) &&
+    fs.existsSync(emailQueueCronRoutePath) &&
+    fs.existsSync(cronDrillPath)
+  ) {
+    const workerSource = fs.readFileSync(emailQueueWorkerPath, 'utf8');
+    const routeSource = fs.readFileSync(emailQueueCronRoutePath, 'utf8');
+    const cronDrillSource = fs.readFileSync(cronDrillPath, 'utf8');
+    if (
+      workerSource.includes('buildSaaSEmailQueueWorkerPreview') &&
+      workerSource.includes('createSaaSEmailQueueWorkerRepository') &&
+      workerSource.includes("from('email_queue')") &&
+      workerSource.includes('delivery_provider_not_configured') &&
+      workerSource.includes('dryRunOnly: true') &&
+      routeSource.includes('handleSaaSEmailQueueCron') &&
+      routeSource.includes('CRON_SECRET') &&
+      routeSource.includes('delivery_not_enabled') &&
+      routeSource.includes('dryRun=true') &&
+      cronDrillSource.includes('/api/cron/saas/email-queue?dryRun=true') &&
+      !workerSource.includes('nodemailer') &&
+      !workerSource.includes('sendgrid') &&
+      !workerSource.includes('resend') &&
+      !routeSource.includes('nodemailer') &&
+      !routeSource.includes('sendgrid') &&
+      !routeSource.includes('resend')
+    ) {
+      record('pass', 'SaaS email queue worker dry-run', 'cron-gated email_queue inspection exists without sending email or mutating provider state');
+    } else {
+      record('fail', 'SaaS email queue worker dry-run', 'email queue worker must stay cron-gated and dry-run only until a delivery provider is approved');
     }
   }
 

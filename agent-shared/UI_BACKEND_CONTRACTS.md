@@ -881,6 +881,73 @@ Rules:
 - Draft migration `034_saas_notification_email_queue.sql` extends `notifications` with action URL, metadata, idempotency, and delivery status, and adds `email_queue` as a service-role-only queue.
 - Claude UI may render future notification status only after Codex wires a guarded read contract. UI must not call email providers or mutate queue status directly.
 
+## Email Queue Worker Dry-Run
+
+Backend owner: Codex.
+
+Current helpers:
+
+```text
+lib/saas/email-queue-worker.ts
+app/api/cron/saas/email-queue/route.ts
+```
+
+Cron route:
+
+```text
+GET /api/cron/saas/email-queue?dryRun=true
+Authorization: Bearer <CRON_SECRET>
+```
+
+Response shape:
+
+```ts
+{
+  success: true;
+  data: {
+    checkedAt: string;
+    deliveryProviderEnabled: false;
+    dryRunOnly: true;
+    summary: {
+      scanned: number;
+      sendable: number;
+      blocked: number;
+      maxAttempts: number;
+    };
+    decisions: Array<{
+      emailQueueId: string;
+      orgId: string;
+      recipientEmail: string;
+      templateKey: string;
+      eventType:
+        | 'billing_payment_failed'
+        | 'ai_quota_reached'
+        | 'trial_ending'
+        | 'platform_announcement';
+      status: 'queued' | 'sent' | 'failed' | 'cancelled';
+      attemptCount: number;
+      canSend: false;
+      dryRunOnly: true;
+      blockedReason:
+        | 'not_queued'
+        | 'not_due'
+        | 'max_attempts_exceeded'
+        | 'delivery_provider_not_configured'
+        | 'delivery_disabled'
+        | null;
+    }>;
+  };
+}
+```
+
+Rules:
+
+- The route is `CRON_SECRET` gated.
+- `{ dryRun: false }` / `?dryRun=false` returns `delivery_not_enabled`.
+- It reads due `email_queue` rows with service-role access after cron auth passes.
+- It does not send email, call an email provider, update queue rows, apply migrations, deploy, or change platform settings.
+- Claude UI may not call this route. It is for backend cron readiness and future operator diagnostics only.
+
 ## Implementation Rule
 
 Claude may use these contracts as mock UI data.

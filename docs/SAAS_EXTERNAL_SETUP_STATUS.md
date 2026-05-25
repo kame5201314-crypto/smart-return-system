@@ -14,6 +14,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Draft migration `035_saas_onboarding_completion_rpc.sql` exists for onboarding completion audit writes but has not been applied.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
+- Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.
 - Onboarding backend foundation is contract-only; no live onboarding route is exposed.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
 - `npm run saas:migration-plan:strict` passes.

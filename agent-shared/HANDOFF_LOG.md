@@ -1,5 +1,45 @@
 # Handoff Log
 
+## 2026-05-25 Codex -> Claude / Codex
+
+Added the email queue worker dry-run contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/email-queue-worker.ts`
+- `app/api/cron/saas/email-queue/route.ts`
+- `tests/unit/saas-email-queue-worker.test.ts`
+- `scripts/maintenance/cron-drill.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New backend helpers:
+
+- `buildSaaSEmailQueueWorkerPreview()`
+- `createSaaSEmailQueueWorkerRepository()`
+- `handleSaaSEmailQueueCron()`
+
+New dry-run route:
+
+- `GET /api/cron/saas/email-queue?dryRun=true`
+
+Notes:
+
+- The route is `CRON_SECRET` gated.
+- `dryRun=false` returns `delivery_not_enabled`.
+- The route reads due queued `email_queue` rows only after cron auth passes.
+- No email provider was wired, no email was sent, no queue rows were mutated, no migration was applied, and no deployment/env/platform setting was changed.
+
 ## 2026-05-25 Codex -> Claude
 
 Added the onboarding backend foundation.
