@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { UsageProgress } from '@/components/saas/usage-progress';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
+import { ManualBetaOrgForm } from '@/components/internal/manual-beta-org-form';
 import { loadPlatformOrganizationsView } from '@/lib/saas/platform-admin-live-data';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { PlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
@@ -161,10 +162,7 @@ export default async function InternalOrgsPage() {
               <PauseCircle className="size-4" />
               停用租戶
             </Button>
-            <Button disabled title="租戶寫入操作待 platform admin 後端接好後開放">
-              <PlayCircle className="size-4" />
-              手動開通
-            </Button>
+            <ManualBetaOrgForm />
           </div>
           <p className="text-xs text-muted-foreground">目前為唯讀檢視；停用 / 開通需 audit log 寫入接好後啟用。</p>
         </div>
