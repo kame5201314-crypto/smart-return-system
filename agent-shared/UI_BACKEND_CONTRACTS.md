@@ -730,6 +730,85 @@ State triggers:
 - `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
 - `error`: repository query failure or DTO contract validation failure.
 
+## Onboarding Backend Foundation
+
+UI path:
+
+```text
+future /app/onboarding/[step] surfaces
+```
+
+Backend owner: Codex.
+
+Current helpers:
+
+```text
+lib/saas/onboarding.ts
+supabase/migrations/035_saas_onboarding_completion_rpc.sql
+```
+
+Progress DTO:
+
+```ts
+interface SaaSOnboardingView {
+  org: {
+    id: string;
+    name: string;
+    onboardingCompletedAt: string | null;
+  };
+  summary: {
+    totalSteps: number;
+    completedSteps: number;
+    percentComplete: number;
+    currentStepId:
+      | 'organization_profile'
+      | 'return_policy'
+      | 'team_setup'
+      | 'first_return'
+      | 'ai_review'
+      | 'complete'
+      | null;
+  };
+  steps: Array<{
+    id:
+      | 'organization_profile'
+      | 'return_policy'
+      | 'team_setup'
+      | 'first_return'
+      | 'ai_review'
+      | 'complete';
+    title: string;
+    description: string;
+    required: boolean;
+    complete: boolean;
+    status: 'complete' | 'current' | 'pending' | 'blocked';
+  }>;
+  actions: {
+    canComplete: boolean;
+    disabledReason?: string;
+  };
+}
+```
+
+Completion contract:
+
+```ts
+completeSaaSOnboarding(value, {
+  context,
+  repository,
+  now,
+})
+```
+
+Rules:
+
+- Completion requires tenant `owner` or `admin` role.
+- Completion requires a writable subscription state through `canWriteSaaSOrgData()`.
+- The repository calls draft RPC `complete_organization_onboarding`.
+- Draft migration `035_saas_onboarding_completion_rpc.sql` updates `organizations.onboarding_completed_at` and writes `audit_logs` action `org.onboarding_completed`.
+- This does not expose a route, change UI, apply migrations, send email, deploy, or change external settings.
+- Claude UI may render the progress DTO, but final completion writes must go through a future Codex-owned route/server action using this service.
+
 ## Notification Queue Foundation
 
 Backend owner: Codex.

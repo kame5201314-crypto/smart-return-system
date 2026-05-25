@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Onboarding backend foundation
+Files:
+- lib/saas/onboarding.ts
+- supabase/migrations/035_saas_onboarding_completion_rpc.sql
+- tests/unit/saas-onboarding.test.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-migration-plan.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added onboarding progress DTO builder plus owner/admin writable-org completion service and RPC wrapper. Draft migration 035 updates organizations.onboarding_completed_at and writes audit_logs. No route, UI change, migration apply, deployment, env, email, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Notification backend foundation
 Files:
 - lib/saas/notifications.ts

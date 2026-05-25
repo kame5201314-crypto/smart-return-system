@@ -14,7 +14,7 @@ Status values:
 | todo | Platform admin dashboard visual polish | Render existing summary/health DTOs clearly; UI-only, no risk calculation changes |
 | todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
 | todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
-| todo | Trial / onboarding UI screens | Wait for Codex backend contracts before wiring writes |
+| todo | Trial / onboarding UI screens | May mock/render Codex onboarding DTO; completion writes still wait for a Codex route/server action |
 | todo | Public marketing and legal page polish | UI-only; do not change signup persistence or billing behavior |
 | todo | Responsive QA pass | Report findings in chat/commit message for Codex to record |
 | done | Empty / loading / error states | Commit `927bf1a` |
@@ -36,6 +36,7 @@ Status values:
 | done | Billing event retry and reconciliation design | This commit; added dry-run retry eligibility contract, reconciliation view builder, SOP, and tests. Provider replay remains disabled |
 | done | Platform admin role model | This commit; added owner/support/billing permission matrix, optional `PLATFORM_ADMIN_ROLES` mapping, and route-level permission gates |
 | done | Notification backend foundation | This commit; added queue-only notification/email contracts, repository wrapper, tests, and draft `034`; no email provider is wired |
+| done | Onboarding backend foundation | This commit; added onboarding progress DTO, guarded completion service/RPC wrapper, tests, and draft `035`; no live route is exposed |
 | done | SaaS migrations apply | SaaS project `auyznbwtjvemyamujmgt`; full local/remote migration chain aligned through `032`; schema-gate strict passed |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
 | done | Platform admin live data wiring | Internal platform admin APIs return UI contract DTOs from service-role repositories; UI page consumption remains Claude-owned |

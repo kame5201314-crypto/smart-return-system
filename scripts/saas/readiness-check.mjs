@@ -202,6 +202,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-billing-operations.ts',
     'lib/saas/billing-reconciliation.ts',
     'lib/saas/notifications.ts',
+    'lib/saas/onboarding.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
@@ -236,6 +237,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/032_saas_invite_creation_rpc.sql',
     'supabase/migrations/033_saas_platform_billing_operations.sql',
     'supabase/migrations/034_saas_notification_email_queue.sql',
+    'supabase/migrations/035_saas_onboarding_completion_rpc.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -467,12 +469,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('034_saas_notification_email_queue.sql') &&
+      source.includes('035_saas_onboarding_completion_rpc.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-034 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-035 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-034 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-035 migration chain without applying migrations');
     }
   }
 
@@ -968,6 +970,35 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS notification queue foundation', 'billing, AI quota, trial, and announcement events enqueue records without sending email');
     } else {
       record('fail', 'SaaS notification queue foundation', 'notification backend must create notifications/email_queue contracts without wiring an email provider');
+    }
+  }
+
+  const onboardingPath = path.resolve(process.cwd(), 'lib/saas/onboarding.ts');
+  const onboardingMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/035_saas_onboarding_completion_rpc.sql'
+  );
+  if (fs.existsSync(onboardingPath) && fs.existsSync(onboardingMigrationPath)) {
+    const onboardingSource = fs.readFileSync(onboardingPath, 'utf8');
+    const migrationSource = fs.readFileSync(onboardingMigrationPath, 'utf8');
+    if (
+      onboardingSource.includes('buildSaaSOnboardingView') &&
+      onboardingSource.includes('completeSaaSOnboarding') &&
+      onboardingSource.includes('createSaaSOnboardingRepository') &&
+      onboardingSource.includes('buildCompleteSaaSOnboardingRpcArgs') &&
+      onboardingSource.includes('complete_organization_onboarding') &&
+      onboardingSource.includes('canWriteSaaSOrgData') &&
+      onboardingSource.includes("'organization_profile'") &&
+      onboardingSource.includes("'ai_review'") &&
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.complete_organization_onboarding') &&
+      migrationSource.includes('onboarding_completed_at') &&
+      migrationSource.includes('org.onboarding_completed') &&
+      migrationSource.includes('GRANT EXECUTE') &&
+      migrationSource.includes('service_role')
+    ) {
+      record('pass', 'SaaS onboarding backend foundation', 'onboarding progress and completion RPC contracts exist without exposing a live route');
+    } else {
+      record('fail', 'SaaS onboarding backend foundation', 'onboarding backend must provide progress DTOs and guarded completion RPC wrapper before UI writes');
     }
   }
 

@@ -2,6 +2,46 @@
 
 ## 2026-05-25 Codex -> Claude
 
+Added the onboarding backend foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/onboarding.ts`
+- `supabase/migrations/035_saas_onboarding_completion_rpc.sql`
+- `tests/unit/saas-onboarding.test.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/saas-migration-plan.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+New backend helpers:
+
+- `buildSaaSOnboardingView()`
+- `completeSaaSOnboarding()`
+- `normalizeSaaSOnboardingCompletionRequest()`
+- `buildCompleteSaaSOnboardingRpcArgs()`
+- `createSaaSOnboardingRepository()`
+
+Notes:
+
+- This is a backend contract for future `/app/onboarding/[step]` UI work.
+- Completion requires tenant `owner` or `admin` role plus a writable subscription status.
+- Draft migration `035_saas_onboarding_completion_rpc.sql` updates `organizations.onboarding_completed_at` and writes audit action `org.onboarding_completed`.
+- No live route was exposed, no UI page was changed, no migration was applied, no email was sent, and no deployment/env/platform setting was changed.
+- Claude may render the progress DTO; completion writes must wait for a future Codex-owned route/server action.
+
+## 2026-05-25 Codex -> Claude
+
 Added the notification backend foundation.
 
 Commit:
