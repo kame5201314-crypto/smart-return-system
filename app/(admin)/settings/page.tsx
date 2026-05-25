@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/saas/page-header';
+import { isPlatformAdminFeatureEnabled } from '@/lib/saas/platform-admin';
 
 const settingCards = [
   {
@@ -46,6 +47,14 @@ const settingCards = [
   },
 ] as const;
 
+const platformAdminSettingCard = {
+  href: '/internal/orgs',
+  title: '平台管理',
+  description: '檢視 SaaS 租戶、方案、用量與帳務事件；僅在平台管理旗標開啟時顯示。',
+  icon: ShieldCheck,
+  badge: 'Internal',
+} as const;
+
 const guardRows = [
   ['Plan', '限制從 organizations.plan 解析，不依 APP_MODE 寫死。'],
   ['Feature Flag', 'public signup、billing、AI usage limit 等功能分段開啟。'],
@@ -53,6 +62,10 @@ const guardRows = [
 ] as const;
 
 export default function SettingsPage() {
+  const visibleSettingCards = isPlatformAdminFeatureEnabled()
+    ? [...settingCards, platformAdminSettingCard]
+    : settingCards;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -69,7 +82,7 @@ export default function SettingsPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {settingCards.map((item) => {
+        {visibleSettingCards.map((item) => {
           const Icon = item.icon;
           return (
             <Card key={item.href} className="rounded-lg">
