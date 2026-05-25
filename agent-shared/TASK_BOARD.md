@@ -30,7 +30,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| todo | Platform admin billing operation backend plan | RPC/API contract for manual payment marking, suspend/resume, refund request, and audit logging |
+| done | Platform admin billing operation backend plan | This commit; added guarded `POST /api/internal/saas/billing/operations`, RPC wrapper, and draft `033` for manual payment marking, suspend/resume, refund request, and audit logging |
 | done | At-risk alert backend contract | This commit; added read-only `PlatformAtRiskAlertsView` and `loadPlatformAtRiskAlertsView()` for past_due, suspended, AI/return/seat quota, and trial expiry signals |
 | done | Trial conversion backend contract | This commit; added read-only `PlatformTrialConversionView` and `loadPlatformTrialConversionView()` for trialing, converted active, expired trial, and onboarding incomplete counts |
 | todo | Billing event retry and reconciliation design | Safe retry contract, reconciliation SOP, and tests before UI retry is enabled |
@@ -42,7 +42,7 @@ Status values:
 | done | Platform admin page-level live data loaders | This commit; added `/internal/orgs`, `/internal/orgs/[id]`, and `/internal/billing/events` loaders with platform-admin gates and four-state DTO results for Claude UI handoff |
 | done | Platform admin read model migration draft | This commit; added `027` for `owner_email` / `member_count` alignment with platform admin APIs |
 | done | Manual Beta org provisioning backend foundation | This commit; added gated `POST /api/internal/saas/orgs` and `028` RPC draft, no DB apply |
-| done | SaaS migration apply plan check | This commit; added read-only `saas:migration-plan` checks for SaaS project ref, DB password, and full 001-032 chain |
+| done | SaaS migration apply plan check | Read-only `saas:migration-plan` checks SaaS project ref, DB password, and the current local migration chain; local draft chain now extends through `033` |
 | done | SaaS rollout readiness check | This commit; added read-only `saas:rollout-check` gates for Gemini key, app URL/domain, Sentry/logging, billing credentials, AI safety flags, and SaaS project safety |
 | done | Billing foundation | ECPay webhook route is flag/credential/CheckMacValue gated and records idempotent billing_events only after verification |
 | done | ECPay webhook signature verification | This commit; default route path verifies CheckMacValue locally before recording events |

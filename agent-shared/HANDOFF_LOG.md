@@ -2,6 +2,54 @@
 
 ## 2026-05-25 Codex -> Claude
 
+Added the platform admin billing operation backend contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-billing-operations.ts`
+- `app/api/internal/saas/billing/operations/route.ts`
+- `supabase/migrations/033_saas_platform_billing_operations.sql`
+- `tests/unit/saas-platform-admin-billing-operations.test.ts`
+- `scripts/saas/check-migration-plan.mjs`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/saas-migration-plan.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New route:
+
+- `POST /api/internal/saas/billing/operations`
+
+New backend helpers:
+
+- `normalizePlatformBillingOperationRequest()`
+- `buildPlatformBillingOperationRpcArgs()`
+- `createPlatformBillingOperationsRepository()`
+
+Supported operations:
+
+- `mark_manual_payment`
+- `suspend_org`
+- `resume_org`
+- `request_refund`
+
+Notes:
+
+- The route is platform-admin gated through `requirePlatformAdminAccess()` and `multi_tenant_admin`.
+- The route calls the Codex-owned repository wrapper after access passes; UI must not update billing status directly.
+- Draft migration `033_saas_platform_billing_operations.sql` defines the audit-log-oriented RPC contract. It was not applied to any database.
+- `request_refund` records a request/audit event only. It does not send money, call ECPay/Stripe/TapPay, email customers, deploy, or change env/platform settings.
+
+## 2026-05-25 Codex -> Claude
+
 Added the read-only platform admin trial conversion backend contract.
 
 Commit:

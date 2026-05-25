@@ -198,6 +198,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-live-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
+    'lib/saas/platform-admin-billing-operations.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
@@ -217,6 +218,7 @@ function checkCommercialFoundation() {
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
+    'app/api/internal/saas/billing/operations/route.ts',
     'supabase/migrations/023_saas_commercial_foundation.sql',
     'supabase/migrations/024_saas_commercial_v2.sql',
     'supabase/migrations/025_attach_org_id_to_business_tables.sql',
@@ -227,6 +229,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/030_saas_invoice_status_alignment.sql',
     'supabase/migrations/031_saas_invite_acceptance_rpc.sql',
     'supabase/migrations/032_saas_invite_creation_rpc.sql',
+    'supabase/migrations/033_saas_platform_billing_operations.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -458,12 +461,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('032_saas_invite_creation_rpc.sql') &&
+      source.includes('033_saas_platform_billing_operations.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-032 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-033 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-032 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-033 migration chain without applying migrations');
     }
   }
 
@@ -796,17 +799,20 @@ function checkCommercialFoundation() {
   const platformOrgRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/route.ts');
   const platformOrgDetailRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/[id]/route.ts');
   const platformBillingEventsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/events/route.ts');
+  const platformBillingOperationsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/operations/route.ts');
   if (
     fs.existsSync(platformAdminDataPath) &&
     fs.existsSync(platformOrgRoutePath) &&
     fs.existsSync(platformOrgDetailRoutePath) &&
-    fs.existsSync(platformBillingEventsRoutePath)
+    fs.existsSync(platformBillingEventsRoutePath) &&
+    fs.existsSync(platformBillingOperationsRoutePath)
   ) {
     const dataSource = fs.readFileSync(platformAdminDataPath, 'utf8');
     const orgRouteSource = fs.readFileSync(platformOrgRoutePath, 'utf8');
     const orgDetailRouteSource = fs.readFileSync(platformOrgDetailRoutePath, 'utf8');
     const billingRouteSource = fs.readFileSync(platformBillingEventsRoutePath, 'utf8');
-    const routesUseGuard = [orgRouteSource, orgDetailRouteSource, billingRouteSource].every((source) =>
+    const billingOperationsRouteSource = fs.readFileSync(platformBillingOperationsRoutePath, 'utf8');
+    const routesUseGuard = [orgRouteSource, orgDetailRouteSource, billingRouteSource, billingOperationsRouteSource].every((source) =>
       source.includes('requirePlatformAdminAccess') &&
       source.includes('createUntypedAdminClient')
     );
@@ -817,10 +823,14 @@ function checkCommercialFoundation() {
       orgRouteSource.includes('handleCreateManualBetaOrganization') &&
       orgRouteSource.includes('createPlatformOrgProvisioningRepository') &&
       orgRouteSource.includes('export async function POST');
-    if (routesUseGuard && dataLayerHasRepository && orgRouteHasProvisioning) {
-      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated, including manual Beta provisioning');
+    const billingRouteHasOperations =
+      billingOperationsRouteSource.includes('handlePlatformBillingOperation') &&
+      billingOperationsRouteSource.includes('createPlatformBillingOperationsRepository') &&
+      billingOperationsRouteSource.includes('export async function POST');
+    if (routesUseGuard && dataLayerHasRepository && orgRouteHasProvisioning && billingRouteHasOperations) {
+      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated, including manual Beta provisioning and billing operations');
     } else {
-      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, and gated manual Beta provisioning');
+      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, gated manual Beta provisioning, and billing operation routing');
     }
   }
 
@@ -951,6 +961,14 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/032_saas_invite_creation_rpc.sql'
   );
+  const platformBillingOperationsPath = path.resolve(
+    process.cwd(),
+    'lib/saas/platform-admin-billing-operations.ts'
+  );
+  const platformBillingOperationsMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/033_saas_platform_billing_operations.sql'
+  );
   if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
     const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
@@ -996,6 +1014,30 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite creation RPC draft', 'invite creation RPC draft matches the repository wrapper');
     } else {
       record('fail', 'SaaS invite creation RPC draft', 'invite creation must have an atomic RPC draft and matching repository wrapper');
+    }
+  }
+
+  if (
+    fs.existsSync(platformBillingOperationsMigrationPath) &&
+    fs.existsSync(platformBillingOperationsPath)
+  ) {
+    const migrationSource = fs.readFileSync(platformBillingOperationsMigrationPath, 'utf8');
+    const billingOperationsSource = fs.readFileSync(platformBillingOperationsPath, 'utf8');
+    if (
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.perform_platform_billing_operation') &&
+      migrationSource.includes('platform.billing.manual_payment_marked') &&
+      migrationSource.includes('platform.billing.org_suspended') &&
+      migrationSource.includes('platform.billing.org_resumed') &&
+      migrationSource.includes('platform.billing.refund_requested') &&
+      migrationSource.includes('GRANT EXECUTE') &&
+      billingOperationsSource.includes('perform_platform_billing_operation') &&
+      billingOperationsSource.includes('buildPlatformBillingOperationRpcArgs') &&
+      billingOperationsSource.includes('mark_manual_payment') &&
+      billingOperationsSource.includes('request_refund')
+    ) {
+      record('pass', 'SaaS platform billing operations RPC draft', 'platform billing operations are RPC-backed and audit-log oriented');
+    } else {
+      record('fail', 'SaaS platform billing operations RPC draft', 'platform billing operations must cover manual payment, suspend, resume, refund request, and audit logging');
     }
   }
 }

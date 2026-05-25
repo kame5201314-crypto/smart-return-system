@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-22
+Last updated: 2026-05-25
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -9,6 +9,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
 - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
+- Draft migration `033_saas_platform_billing_operations.sql` exists for platform billing operations but has not been applied.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.

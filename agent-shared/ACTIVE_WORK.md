@@ -33,6 +33,26 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin billing operation backend plan
+Files:
+- lib/saas/platform-admin-billing-operations.ts
+- app/api/internal/saas/billing/operations/route.ts
+- supabase/migrations/033_saas_platform_billing_operations.sql
+- tests/unit/saas-platform-admin-billing-operations.test.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-migration-plan.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added a platform-admin-gated billing operations contract for manual payment marking, suspend/resume, and refund request audit logging. The RPC migration is a draft only; no migration, provider payment, email, deployment, env, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin trial conversion backend contract
 Files:
 - lib/saas/platform-admin-data.ts

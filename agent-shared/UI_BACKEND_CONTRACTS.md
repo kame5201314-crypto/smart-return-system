@@ -419,6 +419,75 @@ interface PlatformBillingEventsView {
 }
 ```
 
+## Platform Billing Operations
+
+UI path:
+
+```text
+future platform admin billing operation controls under app/internal/**
+```
+
+Backend owner: Codex.
+
+Route:
+
+```text
+POST /api/internal/saas/billing/operations
+```
+
+Request:
+
+```ts
+type PlatformBillingOperation =
+  | 'mark_manual_payment'
+  | 'suspend_org'
+  | 'resume_org'
+  | 'request_refund';
+
+interface PlatformBillingOperationRequest {
+  operation: PlatformBillingOperation;
+  orgId: string;
+  reason?: string;
+  amountTwd?: number;
+  periodStart?: string;
+  periodEnd?: string;
+  effectiveAt?: string;
+  paidAt?: string;
+  idempotencyKey?: string;
+  invoiceId?: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
+Success response:
+
+```ts
+{
+  success: true;
+  data: {
+    operation: PlatformBillingOperation;
+    orgId: string;
+    subscriptionId: string | null;
+    auditLogId: string | null;
+    billingEventId: string | null;
+    invoiceId: string | null;
+    nextStatus: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled' | null;
+  };
+}
+```
+
+Backend rules:
+
+- Requires platform admin auth plus the existing `multi_tenant_admin` feature flag.
+- Uses service-role access only after `requirePlatformAdminAccess()` passes.
+- Calls draft RPC `perform_platform_billing_operation` through `createPlatformBillingOperationsRepository()`.
+- `mark_manual_payment` requires `amountTwd` and `periodEnd`; it records a processed manual billing event and moves org/subscription to `active`.
+- `suspend_org` requires `reason`; it moves org/subscription to `suspended`.
+- `resume_org` requires `reason`; it moves org/subscription to `active`.
+- `request_refund` requires `amountTwd` and `reason`; it records a refund request event and audit log only. It does not call a payment provider or issue money.
+- Every operation is designed to write `audit_logs` in the RPC. UI must not mutate status locally or bypass this route.
+- Migration `033_saas_platform_billing_operations.sql` is a draft only in this commit. No migration was applied.
+
 ## Platform Admin Live Data Server Loader
 
 Codex has server-side platform admin live data loaders in:
