@@ -9,10 +9,12 @@ import {
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
 import {
+  buildPlatformAtRiskAlertsView,
   buildPlatformBillingEventsView,
   buildPlatformOrganizationDetailView,
   buildPlatformOrganizationListView,
   type GatedState,
+  type PlatformAtRiskAlertsView,
   type PlatformBillingEventsView,
   type PlatformOrganizationDetailView,
   type PlatformOrganizationListView,
@@ -61,6 +63,10 @@ export interface LoadPlatformOrganizationsOptions extends PlatformAdminLiveDataD
 }
 
 export interface LoadPlatformBillingEventsOptions extends PlatformAdminLiveDataDependencies {
+  limit?: number;
+}
+
+export interface LoadPlatformAtRiskAlertsOptions extends PlatformAdminLiveDataDependencies {
   limit?: number;
 }
 
@@ -253,5 +259,51 @@ export async function loadPlatformBillingEventsView(
     };
   } catch (error) {
     return mapLiveDataError(error, 'Failed to load platform billing events.');
+  }
+}
+
+export async function loadPlatformAtRiskAlertsView(
+  options: LoadPlatformAtRiskAlertsOptions = {}
+): Promise<PlatformAdminLiveDataResult<PlatformAtRiskAlertsView>> {
+  try {
+    const access = await loadAccess(options);
+    const context = toLiveDataContext(access);
+    const repository = getRepository(options);
+    const organizations = await repository.listOrganizations({
+      limit: clampLimit(options.limit),
+    });
+
+    if (organizations.length === 0) {
+      return {
+        state: 'empty',
+        data: null,
+        message: 'No platform organizations were found.',
+        context,
+      };
+    }
+
+    const orgIds = organizations.map((org) => org.id);
+    const [usageByOrgId, subscriptionsByOrgId] = await Promise.all([
+      repository.listOrganizationUsage({
+        orgIds,
+        periodStart: getCurrentMonthStartIso(options.now),
+      }),
+      repository.listOrganizationSubscriptions({
+        orgIds,
+      }),
+    ]);
+
+    return {
+      state: 'ready',
+      data: buildPlatformAtRiskAlertsView(
+        organizations,
+        usageByOrgId,
+        subscriptionsByOrgId,
+        { now: options.now }
+      ),
+      context,
+    };
+  } catch (error) {
+    return mapLiveDataError(error, 'Failed to load platform at-risk alerts.');
   }
 }

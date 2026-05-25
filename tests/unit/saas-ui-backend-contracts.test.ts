@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildBillingSettingsView,
+  buildPlatformAtRiskAlertsView,
   buildPlatformBillingEventsView,
   buildPlatformOrganizationDetailView,
   buildPlatformOrganizationListView,
@@ -394,6 +395,117 @@ describe('SaaS UI/backend contracts', () => {
             },
           },
         },
+      ],
+    });
+  });
+
+  it('builds platform at-risk alerts from usage, status, and trial deadlines', () => {
+    const trialOrg: PlatformOrgSummary = {
+      id: 'org-2',
+      name: 'Trial Store',
+      slug: 'trial-store',
+      plan: 'basic',
+      status: 'trialing',
+      ownerEmail: 'trial@example.com',
+      memberCount: 3,
+      createdAt: '2026-05-20T00:00:00.000Z',
+    };
+    const pastDueOrg: PlatformOrgSummary = {
+      id: 'org-3',
+      name: 'Past Due Store',
+      slug: 'past-due-store',
+      plan: 'pro',
+      status: 'past_due',
+      ownerEmail: 'billing@example.com',
+      memberCount: 2,
+      createdAt: '2026-05-18T00:00:00.000Z',
+    };
+
+    expect(
+      buildPlatformAtRiskAlertsView(
+        [orgSummary, trialOrg, pastDueOrg],
+        {
+          'org-1': {
+            returnsThisMonth: 1700,
+            aiUsedThisMonth: 30,
+          },
+          'org-2': {
+            returnsThisMonth: 10,
+            aiUsedThisMonth: 0,
+          },
+          'org-3': {
+            returnsThisMonth: 20,
+            aiUsedThisMonth: 2,
+          },
+        },
+        {
+          'org-2': {
+            status: 'trialing',
+            currentPeriodEnd: '2026-05-28T00:00:00.000Z',
+            trialEnd: '2026-05-28T00:00:00.000Z',
+            cancelAtPeriodEnd: false,
+          },
+          'org-3': {
+            status: 'past_due',
+            currentPeriodEnd: '2026-05-20T00:00:00.000Z',
+            trialEnd: null,
+            cancelAtPeriodEnd: false,
+          },
+        },
+        {
+          now: new Date('2026-05-25T00:00:00.000Z'),
+        }
+      )
+    ).toEqual({
+      summary: {
+        totalAlerts: 5,
+        criticalAlerts: 2,
+        warningAlerts: 3,
+        affectedOrganizations: 3,
+        billingAlerts: 1,
+        trialAlerts: 1,
+        quotaAlerts: 2,
+        teamAlerts: 1,
+      },
+      alerts: [
+        expect.objectContaining({
+          id: 'org-3:past_due',
+          type: 'past_due',
+          severity: 'critical',
+          category: 'billing',
+          dueAt: '2026-05-27T00:00:00.000Z',
+          daysUntilDue: 2,
+        }),
+        expect.objectContaining({
+          id: 'org-1:ai_100',
+          type: 'ai_100',
+          severity: 'critical',
+          category: 'quota',
+          metric: {
+            used: 30,
+            limit: 30,
+            percent: 100,
+          },
+        }),
+        expect.objectContaining({
+          id: 'org-2:trial_ending',
+          type: 'trial_ending',
+          severity: 'warning',
+          category: 'trial',
+          daysUntilDue: 3,
+        }),
+        expect.objectContaining({
+          id: 'org-1:returns_80',
+          type: 'returns_80',
+          severity: 'warning',
+          category: 'quota',
+        }),
+        expect.objectContaining({
+          id: 'org-2:seats_full',
+          type: 'seats_full',
+          severity: 'warning',
+          category: 'team',
+        }),
       ],
     });
   });

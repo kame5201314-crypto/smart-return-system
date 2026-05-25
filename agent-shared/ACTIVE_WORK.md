@@ -33,6 +33,25 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin at-risk alert backend contract
+Files:
+- lib/saas/platform-admin-data.ts
+- lib/saas/platform-admin-live-data.ts
+- lib/saas/ui-backend-contracts.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- tests/unit/saas-platform-admin-live-data.test.ts
+- tests/unit/saas-platform-admin-routes.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added read-only PlatformAtRiskAlertsView and loadPlatformAtRiskAlertsView for billing, quota, team-seat, and trial expiry signals. No route, migration, DB write, billing provider action, email, deployment, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Claude/Codex work split plan
 Files:
 - agent-shared/WORK_SPLIT_PLAN.md

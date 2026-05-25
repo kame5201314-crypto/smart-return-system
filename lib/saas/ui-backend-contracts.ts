@@ -7,6 +7,7 @@ import type {
   PlatformBillingEventSummary,
   PlatformOrgDetail,
   PlatformOrgSummary,
+  PlatformOrgSubscriptionSnapshot,
 } from '@/lib/saas/platform-admin-data';
 import { resolveSaaSReturnUsagePolicy } from '@/lib/saas/return-usage-policy';
 import { resolveSaaSTeamSeatUsage } from '@/lib/saas/team-limits';
@@ -248,7 +249,57 @@ export interface PlatformBillingEventsView {
   }>;
 }
 
+export type PlatformAtRiskAlertType =
+  | 'past_due'
+  | 'suspended'
+  | 'cancelled'
+  | 'trial_ending'
+  | 'trial_expired'
+  | 'returns_80'
+  | 'returns_100'
+  | 'ai_80'
+  | 'ai_100'
+  | 'seats_full';
+
+export type PlatformAtRiskAlertSeverity = 'info' | 'warning' | 'critical';
+export type PlatformAtRiskAlertCategory = 'billing' | 'trial' | 'quota' | 'team';
+
+export interface PlatformAtRiskAlertsView {
+  summary: {
+    totalAlerts: number;
+    criticalAlerts: number;
+    warningAlerts: number;
+    affectedOrganizations: number;
+    billingAlerts: number;
+    trialAlerts: number;
+    quotaAlerts: number;
+    teamAlerts: number;
+  };
+  alerts: PlatformAtRiskAlert[];
+}
+
+export interface PlatformAtRiskAlert {
+  id: string;
+  orgId: string;
+  orgName: string;
+  ownerEmail: string | null;
+  plan: SaaSPlanCode;
+  status: OrgSubscriptionStatus;
+  type: PlatformAtRiskAlertType;
+  severity: PlatformAtRiskAlertSeverity;
+  category: PlatformAtRiskAlertCategory;
+  message: string;
+  metric: {
+    used: number;
+    limit: number;
+    percent: number;
+  } | null;
+  dueAt: string | null;
+  daysUntilDue: number | null;
+}
+
 export type PlatformOrgUsageById = Record<string, PlatformOrganizationUsage>;
+export type PlatformOrgSubscriptionsById = Record<string, PlatformOrgSubscriptionSnapshot>;
 
 const ORG_STATUSES: readonly OrgSubscriptionStatus[] = [
   'trialing',
@@ -614,6 +665,29 @@ export function buildPlatformBillingEventsView(
   };
 }
 
+export function buildPlatformAtRiskAlertsView(
+  organizations: PlatformOrgSummary[],
+  usageByOrgId: PlatformOrgUsageById,
+  subscriptionsByOrgId: PlatformOrgSubscriptionsById = {},
+  options: { now?: Date } = {}
+): PlatformAtRiskAlertsView {
+  const organizationItems = buildPlatformOrganizationListView(
+    organizations,
+    usageByOrgId
+  ).organizations;
+  const now = options.now ?? new Date();
+  const alerts = organizationItems.flatMap((org) =>
+    buildPlatformAtRiskAlertsForOrganization(org, subscriptionsByOrgId[org.id], now)
+  );
+
+  alerts.sort(comparePlatformAtRiskAlerts);
+
+  return {
+    summary: buildPlatformAtRiskAlertSummary(alerts),
+    alerts,
+  };
+}
+
 function buildPlatformOrganizationListItem(
   org: PlatformOrgSummary,
   usageByOrgId: PlatformOrgUsageById
@@ -642,6 +716,279 @@ function buildPlatformOrganizationListItem(
       usage,
     }),
   };
+}
+
+const ALERT_SEVERITY_ORDER: Record<PlatformAtRiskAlertSeverity, number> = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+};
+
+function comparePlatformAtRiskAlerts(
+  left: PlatformAtRiskAlert,
+  right: PlatformAtRiskAlert
+): number {
+  const severityDiff = ALERT_SEVERITY_ORDER[left.severity] - ALERT_SEVERITY_ORDER[right.severity];
+  if (severityDiff !== 0) {
+    return severityDiff;
+  }
+
+  if (left.daysUntilDue !== null && right.daysUntilDue !== null) {
+    return left.daysUntilDue - right.daysUntilDue;
+  }
+
+  if (left.daysUntilDue !== null) {
+    return -1;
+  }
+
+  if (right.daysUntilDue !== null) {
+    return 1;
+  }
+
+  return left.orgName.localeCompare(right.orgName);
+}
+
+function buildPlatformAtRiskAlertSummary(
+  alerts: PlatformAtRiskAlert[]
+): PlatformAtRiskAlertsView['summary'] {
+  return {
+    totalAlerts: alerts.length,
+    criticalAlerts: alerts.filter((alert) => alert.severity === 'critical').length,
+    warningAlerts: alerts.filter((alert) => alert.severity === 'warning').length,
+    affectedOrganizations: new Set(alerts.map((alert) => alert.orgId)).size,
+    billingAlerts: alerts.filter((alert) => alert.category === 'billing').length,
+    trialAlerts: alerts.filter((alert) => alert.category === 'trial').length,
+    quotaAlerts: alerts.filter((alert) => alert.category === 'quota').length,
+    teamAlerts: alerts.filter((alert) => alert.category === 'team').length,
+  };
+}
+
+function buildPlatformAtRiskAlertsForOrganization(
+  org: PlatformOrganizationListItem,
+  subscription: PlatformOrgSubscriptionSnapshot | undefined,
+  now: Date
+): PlatformAtRiskAlert[] {
+  const alerts: PlatformAtRiskAlert[] = [];
+  const usageAlertMap: Partial<
+    Record<
+      PlatformOrganizationRiskReason,
+      Pick<
+        PlatformAtRiskAlert,
+        'type' | 'severity' | 'category' | 'message' | 'metric' | 'dueAt' | 'daysUntilDue'
+      >
+    >
+  > = {
+    past_due: {
+      type: 'past_due',
+      severity: 'critical',
+      category: 'billing',
+      message: 'Payment is past due. Writes, AI, and exports should remain restricted.',
+      metric: null,
+      dueAt: addDaysIso(subscription?.currentPeriodEnd ?? null, 7),
+      daysUntilDue: daysUntil(now, addDaysIso(subscription?.currentPeriodEnd ?? null, 7)),
+    },
+    suspended: {
+      type: 'suspended',
+      severity: 'critical',
+      category: 'billing',
+      message: 'Organization is suspended and should be handled before data-retention deadlines.',
+      metric: null,
+      dueAt: null,
+      daysUntilDue: null,
+    },
+    cancelled: {
+      type: 'cancelled',
+      severity: 'critical',
+      category: 'billing',
+      message: 'Organization is cancelled. Confirm retention and reactivation policy before support action.',
+      metric: null,
+      dueAt: null,
+      daysUntilDue: null,
+    },
+    returns_high: {
+      type: 'returns_80',
+      severity: 'warning',
+      category: 'quota',
+      message: 'Return volume has reached 80% of the plan soft limit.',
+      metric: buildUsageMetric(
+        org.usage.returnsThisMonth,
+        getSaaSPlanDefinition(org.plan).monthlyReturnSoftLimit,
+        org.health.usagePercentages.returns
+      ),
+      dueAt: null,
+      daysUntilDue: null,
+    },
+    returns_limit: {
+      type: 'returns_100',
+      severity: 'warning',
+      category: 'quota',
+      message: 'Return volume has reached the plan soft limit. Operations are not blocked.',
+      metric: buildUsageMetric(
+        org.usage.returnsThisMonth,
+        getSaaSPlanDefinition(org.plan).monthlyReturnSoftLimit,
+        org.health.usagePercentages.returns
+      ),
+      dueAt: null,
+      daysUntilDue: null,
+    },
+    ai_high: {
+      type: 'ai_80',
+      severity: 'warning',
+      category: 'quota',
+      message: 'AI usage has reached 80% of the plan hard limit.',
+      metric: buildUsageMetric(
+        org.usage.aiUsedThisMonth,
+        getSaaSPlanDefinition(org.plan).aiMonthlyLimit,
+        org.health.usagePercentages.ai
+      ),
+      dueAt: null,
+      daysUntilDue: null,
+    },
+    ai_limit: {
+      type: 'ai_100',
+      severity: 'critical',
+      category: 'quota',
+      message: 'AI usage has reached the plan hard limit. AI actions should stay blocked.',
+      metric: buildUsageMetric(
+        org.usage.aiUsedThisMonth,
+        getSaaSPlanDefinition(org.plan).aiMonthlyLimit,
+        org.health.usagePercentages.ai
+      ),
+      dueAt: null,
+      daysUntilDue: null,
+    },
+    seats_full: {
+      type: 'seats_full',
+      severity: 'warning',
+      category: 'team',
+      message: 'Seat usage has reached the plan limit.',
+      metric: buildUsageMetric(
+        org.memberCount,
+        getSaaSPlanDefinition(org.plan).seatLimit,
+        org.health.usagePercentages.seats
+      ),
+      dueAt: null,
+      daysUntilDue: null,
+    },
+  };
+
+  for (const reason of org.health.riskReasons) {
+    const alert = usageAlertMap[reason];
+    if (!alert) {
+      continue;
+    }
+
+    alerts.push(toPlatformAtRiskAlert(org, alert));
+  }
+
+  const trialAlert = buildTrialAlert(org, subscription, now);
+  if (trialAlert) {
+    alerts.push(trialAlert);
+  }
+
+  return alerts;
+}
+
+function toPlatformAtRiskAlert(
+  org: PlatformOrganizationListItem,
+  alert: Pick<
+    PlatformAtRiskAlert,
+    'type' | 'severity' | 'category' | 'message' | 'metric' | 'dueAt' | 'daysUntilDue'
+  >
+): PlatformAtRiskAlert {
+  return {
+    id: `${org.id}:${alert.type}`,
+    orgId: org.id,
+    orgName: org.name,
+    ownerEmail: org.ownerEmail,
+    plan: org.plan,
+    status: org.status,
+    ...alert,
+  };
+}
+
+function buildUsageMetric(
+  used: number,
+  limit: number | null,
+  percent: number | null
+): PlatformAtRiskAlert['metric'] {
+  if (limit === null || percent === null) {
+    return null;
+  }
+
+  return {
+    used,
+    limit,
+    percent,
+  };
+}
+
+function buildTrialAlert(
+  org: PlatformOrganizationListItem,
+  subscription: PlatformOrgSubscriptionSnapshot | undefined,
+  now: Date
+): PlatformAtRiskAlert | null {
+  if (org.status !== 'trialing' || !subscription?.trialEnd) {
+    return null;
+  }
+
+  const days = daysUntil(now, subscription.trialEnd);
+  if (days === null) {
+    return null;
+  }
+
+  if (days <= 0) {
+    return toPlatformAtRiskAlert(org, {
+      type: 'trial_expired',
+      severity: 'critical',
+      category: 'trial',
+      message: 'Trial has expired but the organization is still trialing.',
+      metric: null,
+      dueAt: subscription.trialEnd,
+      daysUntilDue: days,
+    });
+  }
+
+  if (days <= 3) {
+    return toPlatformAtRiskAlert(org, {
+      type: 'trial_ending',
+      severity: 'warning',
+      category: 'trial',
+      message: 'Trial ends within 3 days. Owner outreach may be needed.',
+      metric: null,
+      dueAt: subscription.trialEnd,
+      daysUntilDue: days,
+    });
+  }
+
+  return null;
+}
+
+function toValidDate(value: string | null): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addDaysIso(value: string | null, days: number): string | null {
+  const date = toValidDate(value);
+  if (!date) {
+    return null;
+  }
+
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function daysUntil(now: Date, value: string | null): number | null {
+  const date = toValidDate(value);
+  if (!date) {
+    return null;
+  }
+
+  return Math.ceil((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 function percentageOrNull(used: number, limit: number | null): number | null {

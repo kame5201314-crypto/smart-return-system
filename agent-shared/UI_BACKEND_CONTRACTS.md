@@ -206,6 +206,16 @@ Backend owner: Codex.
 
 ```ts
 interface PlatformOrganizationListView {
+  summary: {
+    totalOrganizations: number;
+    activeOrTrialingOrganizations: number;
+    pausedOrPastDueOrganizations: number;
+    trialingOrganizations: number;
+    estimatedActiveMrrTwd: number;
+    trialPipelineMrrTwd: number;
+    atRiskOrganizations: number;
+    aiLimitReachedOrganizations: number;
+  };
   organizations: Array<{
     id: string;
     name: string;
@@ -219,9 +229,91 @@ interface PlatformOrganizationListView {
       returnsThisMonth: number;
       aiUsedThisMonth: number;
     };
+    health: {
+      riskLevel: 'healthy' | 'watch' | 'at_risk';
+      riskReasons: Array<
+        | 'past_due'
+        | 'suspended'
+        | 'cancelled'
+        | 'returns_high'
+        | 'returns_limit'
+        | 'ai_high'
+        | 'ai_limit'
+        | 'seats_full'
+      >;
+      estimatedMrrTwd: number;
+      trialPipelineMrrTwd: number;
+      usagePercentages: {
+        seats: number | null;
+        returns: number | null;
+        ai: number | null;
+      };
+    };
   }>;
 }
 ```
+
+## Platform At-Risk Alerts
+
+UI path:
+
+```text
+future platform admin alert surface under app/internal/**
+```
+
+Backend owner: Codex.
+
+```ts
+interface PlatformAtRiskAlertsView {
+  summary: {
+    totalAlerts: number;
+    criticalAlerts: number;
+    warningAlerts: number;
+    affectedOrganizations: number;
+    billingAlerts: number;
+    trialAlerts: number;
+    quotaAlerts: number;
+    teamAlerts: number;
+  };
+  alerts: Array<{
+    id: string;
+    orgId: string;
+    orgName: string;
+    ownerEmail: string | null;
+    plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+    status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
+    type:
+      | 'past_due'
+      | 'suspended'
+      | 'cancelled'
+      | 'trial_ending'
+      | 'trial_expired'
+      | 'returns_80'
+      | 'returns_100'
+      | 'ai_80'
+      | 'ai_100'
+      | 'seats_full';
+    severity: 'info' | 'warning' | 'critical';
+    category: 'billing' | 'trial' | 'quota' | 'team';
+    message: string;
+    metric: {
+      used: number;
+      limit: number;
+      percent: number;
+    } | null;
+    dueAt: string | null;
+    daysUntilDue: number | null;
+  }>;
+}
+```
+
+Rules:
+
+- Derived from organizations, monthly return usage, monthly non-cached successful AI usage, seats, and subscription `trial_end` / `current_period_end`.
+- Uses the existing platform admin auth and `multi_tenant_admin` feature flag gate.
+- Read-only only. It does not suspend orgs, retry billing, send email, apply migrations, or change subscriptions.
+- Return limit alerts are soft-limit signals; operations are not blocked by return count.
+- AI 100% alerts represent the hard AI quota and should be treated as critical.
 
 ## Platform Organization Detail
 
@@ -288,6 +380,7 @@ Available helpers:
 - `loadPlatformOrganizationsView()`
 - `loadPlatformOrganizationDetailView(orgId)`
 - `loadPlatformBillingEventsView()`
+- `loadPlatformAtRiskAlertsView()`
 
 These helpers are for Claude UI handoff on the internal platform admin pages.
 They call `requirePlatformAdminAccess()` before creating the service-role
@@ -368,6 +461,27 @@ State triggers:
 - `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
 - `error`: repository query failure or DTO contract validation failure.
 
+### Platform at-risk alerts
+
+Server data function:
+
+```ts
+loadPlatformAtRiskAlertsView()
+```
+
+DTO shape:
+
+```ts
+PlatformAtRiskAlertsView
+```
+
+State triggers:
+
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, organizations, monthly usage snapshots, and subscription snapshots validate through `buildPlatformAtRiskAlertsView()`.
+- `empty`: no organizations exist.
+- `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
+- `error`: repository query failure or DTO contract validation failure.
+
 ## Implementation Rule
 
 Claude may use these contracts as mock UI data.
@@ -395,6 +509,7 @@ Available builders:
 - `buildPlatformOrganizationListView()`
 - `buildPlatformOrganizationDetailView()`
 - `buildPlatformBillingEventsView()`
+- `buildPlatformAtRiskAlertsView()`
 
 These helpers do not expose routes by themselves. They validate and normalize backend data before a future route or server action returns it to UI.
 

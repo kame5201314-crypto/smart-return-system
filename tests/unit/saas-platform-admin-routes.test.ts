@@ -99,6 +99,14 @@ function createRepository(): PlatformAdminDataRepository {
         aiUsedThisMonth: 4,
       },
     })),
+    listOrganizationSubscriptions: vi.fn(async () => ({
+      'org-1': {
+        status: 'active',
+        currentPeriodEnd: '2026-06-01T00:00:00.000Z',
+        trialEnd: null,
+        cancelAtPeriodEnd: false,
+      },
+    })),
     listOrganizationNames: vi.fn(async () => ({
       'org-1': 'Demo Org',
     })),

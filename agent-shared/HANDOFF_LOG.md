@@ -1,5 +1,55 @@
 # Handoff Log
 
+## 2026-05-25 Codex -> Claude
+
+Added the read-only platform admin at-risk alert backend contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-data.ts`
+- `lib/saas/platform-admin-live-data.ts`
+- `lib/saas/ui-backend-contracts.ts`
+- `tests/unit/saas-ui-backend-contracts.test.ts`
+- `tests/unit/saas-platform-admin-live-data.test.ts`
+- `tests/unit/saas-platform-admin-routes.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New server data function:
+
+- `loadPlatformAtRiskAlertsView()`
+
+New DTO:
+
+- `PlatformAtRiskAlertsView`
+
+Alert signals:
+
+- `past_due`
+- `suspended`
+- `cancelled`
+- `trial_ending`
+- `trial_expired`
+- `returns_80`
+- `returns_100`
+- `ai_80`
+- `ai_100`
+- `seats_full`
+
+Notes:
+
+- This is read-only. It does not suspend orgs, retry billing, send email, apply migrations, or change subscriptions.
+- It reuses platform admin auth and the `multi_tenant_admin` feature flag gate.
+- Claude may render this DTO in future internal UI polish without changing the alert calculation.
+
 ## 2026-05-25 Codex -> Claude / Codex
 
 Defined the next working split requested by the owner:

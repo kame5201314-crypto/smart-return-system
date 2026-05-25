@@ -9,6 +9,7 @@ import {
 } from '@/lib/saas/platform-admin';
 import type { PlatformAdminDataRepository } from '@/lib/saas/platform-admin-data';
 import {
+  loadPlatformAtRiskAlertsView,
   loadPlatformBillingEventsView,
   loadPlatformOrganizationDetailView,
   loadPlatformOrganizationsView,
@@ -77,6 +78,14 @@ function createRepository(): PlatformAdminDataRepository {
       'org-1': {
         returnsThisMonth: 12,
         aiUsedThisMonth: 4,
+      },
+    })),
+    listOrganizationSubscriptions: vi.fn(async () => ({
+      'org-1': {
+        status: 'active',
+        currentPeriodEnd: '2026-06-01T00:00:00.000Z',
+        trialEnd: null,
+        cancelAtPeriodEnd: false,
       },
     })),
     listOrganizationNames: vi.fn(async () => ({
@@ -275,6 +284,80 @@ describe('SaaS platform admin live data loaders', () => {
     });
     expect(repository.listBillingEvents).toHaveBeenCalledWith({ limit: 10 });
     expect(repository.listOrganizationNames).toHaveBeenCalledWith({ orgIds: ['org-1'] });
+  });
+
+  it('loads platform at-risk alerts with usage and subscription snapshots', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizations).mockResolvedValueOnce([
+      {
+        id: 'org-1',
+        name: 'Demo Org',
+        slug: 'demo-org',
+        plan: 'growth',
+        status: 'trialing',
+        ownerEmail: 'owner@example.com',
+        memberCount: 10,
+        createdAt: '2026-05-20T00:00:00.000Z',
+      },
+    ]);
+    vi.mocked(repository.listOrganizationUsage).mockResolvedValueOnce({
+      'org-1': {
+        returnsThisMonth: 2000,
+        aiUsedThisMonth: 30,
+      },
+    });
+    vi.mocked(repository.listOrganizationSubscriptions).mockResolvedValueOnce({
+      'org-1': {
+        status: 'trialing',
+        currentPeriodEnd: '2026-05-24T00:00:00.000Z',
+        trialEnd: '2026-05-24T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+    });
+
+    const result = await loadPlatformAtRiskAlertsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now: new Date('2026-05-25T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        summary: {
+          totalAlerts: 4,
+          criticalAlerts: 2,
+          affectedOrganizations: 1,
+        },
+        alerts: [
+          {
+            type: 'trial_expired',
+            severity: 'critical',
+            daysUntilDue: -1,
+          },
+          {
+            type: 'ai_100',
+            severity: 'critical',
+          },
+          {
+            type: 'returns_100',
+            severity: 'warning',
+          },
+          {
+            type: 'seats_full',
+            severity: 'warning',
+          },
+        ],
+      },
+    });
+    expect(repository.listOrganizations).toHaveBeenCalledWith({ limit: 50 });
+    expect(repository.listOrganizationUsage).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+      periodStart: '2026-05-01T00:00:00.000Z',
+    });
+    expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+    });
   });
 
   it('returns empty state for platform billing events when no events exist', async () => {

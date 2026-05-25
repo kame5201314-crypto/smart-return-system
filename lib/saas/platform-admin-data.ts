@@ -36,6 +36,13 @@ export interface PlatformOrgUsageSnapshot {
   aiUsedThisMonth: number;
 }
 
+export interface PlatformOrgSubscriptionSnapshot {
+  status: string;
+  currentPeriodEnd: string | null;
+  trialEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
 export interface PlatformAuditLogSummary {
   id: string;
   action: string;
@@ -51,6 +58,9 @@ export interface PlatformAdminDataRepository {
     orgIds: string[];
     periodStart: string;
   }): Promise<Record<string, PlatformOrgUsageSnapshot>>;
+  listOrganizationSubscriptions(input: {
+    orgIds: string[];
+  }): Promise<Record<string, PlatformOrgSubscriptionSnapshot>>;
   listOrganizationNames(input: { orgIds: string[] }): Promise<Record<string, string | null>>;
   listAuditLogs(input: { orgId: string; limit?: number }): Promise<PlatformAuditLogSummary[]>;
 }
@@ -93,6 +103,10 @@ function stringOrFallback(value: unknown, fallback: string): string {
 
 function numberOrZero(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function booleanOrFalse(value: unknown): boolean {
+  return typeof value === 'boolean' ? value : false;
 }
 
 function recordOrEmpty(value: unknown): Record<string, unknown> {
@@ -203,6 +217,29 @@ function normalizeUsageRow(row: unknown): { orgId: string } | null {
 
   const orgId = stringOrNull(row.org_id);
   return orgId ? { orgId } : null;
+}
+
+function normalizeSubscriptionRow(
+  row: unknown
+): { orgId: string; subscription: PlatformOrgSubscriptionSnapshot } | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const orgId = stringOrNull(row.org_id);
+  if (!orgId) {
+    return null;
+  }
+
+  return {
+    orgId,
+    subscription: {
+      status: stringOrFallback(row.status, 'trialing'),
+      currentPeriodEnd: stringOrNull(row.current_period_end),
+      trialEnd: stringOrNull(row.trial_end),
+      cancelAtPeriodEnd: booleanOrFalse(row.cancel_at_period_end),
+    },
+  };
 }
 
 function normalizeAuditLog(row: unknown): PlatformAuditLogSummary | null {
@@ -347,6 +384,32 @@ export function createPlatformAdminDataRepository(
       incrementUsage(usageByOrgId, aiRows, 'aiUsedThisMonth');
 
       return usageByOrgId;
+    },
+
+    async listOrganizationSubscriptions(input) {
+      if (input.orgIds.length === 0) {
+        return {};
+      }
+
+      const { data, error } = await client
+        .from('subscriptions')
+        .select('org_id, status, current_period_end, trial_end, cancel_at_period_end, created_at')
+        .in('org_id', input.orgIds)
+        .order('created_at', { ascending: false });
+
+      assertNoSupabaseError(error, 'Failed to load organization subscriptions.');
+
+      const subscriptionsByOrgId: Record<string, PlatformOrgSubscriptionSnapshot> = {};
+      for (const row of Array.isArray(data) ? data : []) {
+        const normalized = normalizeSubscriptionRow(row);
+        if (!normalized || subscriptionsByOrgId[normalized.orgId]) {
+          continue;
+        }
+
+        subscriptionsByOrgId[normalized.orgId] = normalized.subscription;
+      }
+
+      return subscriptionsByOrgId;
     },
 
     async listOrganizationNames(input) {
