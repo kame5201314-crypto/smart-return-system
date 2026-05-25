@@ -55,6 +55,7 @@ function riskVariant(
 function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
   const orgs = data.organizations;
   const summary = data.summary;
+  const atRiskOrgs = orgs.filter((org) => org.health.riskLevel === 'at_risk');
 
   const summaryItems = [
     {
@@ -62,24 +63,28 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
       value: formatTwd(summary.estimatedActiveMrrTwd),
       helper: `Trial pipeline ${formatTwd(summary.trialPipelineMrrTwd)}`,
       icon: CreditCard,
+      alert: false,
     },
     {
       label: '使用中 / 試用',
       value: summary.activeOrTrialingOrganizations.toLocaleString('zh-TW'),
       helper: `${summary.trialingOrganizations.toLocaleString('zh-TW')} 個 trialing`,
       icon: PlayCircle,
+      alert: false,
     },
     {
       label: 'At-risk 租戶',
       value: summary.atRiskOrganizations.toLocaleString('zh-TW'),
       helper: `${summary.pausedOrPastDueOrganizations.toLocaleString('zh-TW')} 個停用或逾期`,
       icon: AlertTriangle,
+      alert: summary.atRiskOrganizations > 0,
     },
     {
       label: 'AI 額度用完',
       value: summary.aiLimitReachedOrganizations.toLocaleString('zh-TW'),
       helper: '需客服或升級介入',
       icon: Bot,
+      alert: summary.aiLimitReachedOrganizations > 0,
     },
   ] as const;
 
@@ -89,21 +94,83 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
         {summaryItems.map((item) => {
           const Icon = item.icon;
           return (
-            <Card key={item.label} className="rounded-lg">
+            <Card
+              key={item.label}
+              className={`rounded-lg ${item.alert ? 'border-amber-300 bg-amber-50/60' : ''}`}
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-3">
                   <CardDescription>{item.label}</CardDescription>
-                  <Icon className="size-4 text-emerald-700" />
+                  <Icon className={`size-4 ${item.alert ? 'text-amber-600' : 'text-emerald-700'}`} />
                 </div>
-                <CardTitle className="text-2xl">{item.value}</CardTitle>
+                <CardTitle className={`text-2xl ${item.alert ? 'text-amber-900' : ''}`}>
+                  {item.value}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">{item.helper}</p>
+                <p className={`text-xs ${item.alert ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                  {item.helper}
+                </p>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {atRiskOrgs.length > 0 ? (
+        <Card className="rounded-lg border-amber-300 bg-amber-50/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-950">
+              <AlertTriangle className="size-5 text-amber-600" />
+              需關注的租戶（{atRiskOrgs.length}）
+            </CardTitle>
+            <CardDescription className="text-amber-900">
+              達 80% / 100% 額度、付款異常或暫停的 org，建議主動跟進。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {atRiskOrgs.map((org) => (
+                <li
+                  key={org.id}
+                  className="flex flex-col items-start justify-between gap-3 rounded-md border border-amber-200 bg-white p-3 sm:flex-row sm:items-center"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/internal/orgs/${org.id}`}
+                        className="font-medium text-emerald-700 hover:underline"
+                      >
+                        {org.name}
+                      </Link>
+                      <Badge variant="outline">{SAAS_PLAN_DEFINITIONS[org.plan].name}</Badge>
+                      <Badge variant={statusVariant(org.status)}>{org.status}</Badge>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {org.ownerEmail ?? '—'}
+                    </div>
+                    {org.health.riskReasons.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {org.health.riskReasons.map((reason) => (
+                          <Badge key={reason} variant="destructive" className="text-xs">
+                            {reason}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="shrink-0">
+                    <Link href={`/internal/orgs/${org.id}`}>
+                      跟進
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="rounded-lg">
         <CardHeader>
@@ -163,13 +230,17 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                       </div>
                       <UsageProgress value={aiPercent} aria-label={`${org.name} AI 額度使用率 ${aiPercent}%`} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="min-w-36">
                       <div className="flex flex-col gap-1">
                         <Badge variant={riskVariant(org.health.riskLevel)}>{org.health.riskLevel}</Badge>
                         {org.health.riskReasons.length > 0 ? (
-                          <span className="max-w-36 text-xs text-muted-foreground">
-                            {org.health.riskReasons.join(', ')}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {org.health.riskReasons.map((reason) => (
+                              <Badge key={reason} variant="outline" className="text-xs">
+                                {reason}
+                              </Badge>
+                            ))}
+                          </div>
                         ) : null}
                       </div>
                     </TableCell>
