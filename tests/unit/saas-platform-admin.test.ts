@@ -6,11 +6,18 @@ import {
   requirePlatformAdminAccess,
   resolvePlatformAdminFeatureFlags,
 } from '@/lib/saas/platform-admin';
+import {
+  getPlatformAdminPermissions,
+  hasPlatformAdminPermission,
+  parsePlatformAdminRoleMap,
+  resolvePlatformAdminRole,
+} from '@/lib/saas/platform-admin-roles';
 
 const adminAuth = async () => ({
   ok: true,
   status: 200,
   userId: 'admin-1',
+  userEmail: 'owner@example.com',
   isAdmin: true,
 });
 
@@ -38,6 +45,8 @@ describe('SaaS platform admin guard', () => {
     ).resolves.toMatchObject({
       userId: 'admin-1',
       isPlatformAdmin: true,
+      platformRole: 'owner',
+      permissions: getPlatformAdminPermissions('owner'),
       featureFlags: {
         multi_tenant_admin: true,
       },
@@ -78,7 +87,96 @@ describe('SaaS platform admin guard', () => {
     });
 
     expect(context.isPlatformAdmin).toBe(true);
+    expect(context.platformRole).toBe('owner');
     expect(context.featureFlags.multi_tenant_admin).toBe(false);
+  });
+
+  it('resolves explicit platform admin role mappings by email or user id', () => {
+    const env = {
+      PLATFORM_ADMIN_ROLES: 'billing@example.com=billing, support-user:support',
+    };
+
+    expect(
+      resolvePlatformAdminRole(
+        {
+          isAdmin: true,
+          userId: 'admin-1',
+          userEmail: 'billing@example.com',
+        },
+        env
+      )
+    ).toMatchObject({
+      role: 'billing',
+      source: 'mapping',
+    });
+    expect(
+      resolvePlatformAdminRole(
+        {
+          isAdmin: true,
+          userId: 'support-user',
+          userEmail: undefined,
+        },
+        env
+      )
+    ).toMatchObject({
+      role: 'support',
+      source: 'mapping',
+    });
+  });
+
+  it('parses platform admin role maps from JSON and blocks invalid matching roles', () => {
+    const roleMap = parsePlatformAdminRoleMap(JSON.stringify({
+      'owner@example.com': 'owner',
+      'bad@example.com': 'superuser',
+    }));
+
+    expect(roleMap.get('owner@example.com')).toBe('owner');
+    expect(roleMap.get('bad@example.com')).toBe('invalid');
+    expect(
+      resolvePlatformAdminRole(
+        {
+          isAdmin: true,
+          userId: 'bad-user',
+          userEmail: 'bad@example.com',
+        },
+        {
+          PLATFORM_ADMIN_ROLES: JSON.stringify({
+            'bad@example.com': 'superuser',
+          }),
+        }
+      )
+    ).toMatchObject({
+      role: null,
+      source: 'invalid_mapping',
+    });
+  });
+
+  it('enforces role permissions before platform routes create service-role clients', async () => {
+    await expect(
+      requirePlatformAdminAccess({
+        auth: adminAuth,
+        env: {
+          ENABLE_MULTI_TENANT_ADMIN: 'true',
+          PLATFORM_ADMIN_ROLES: 'owner@example.com=support',
+        },
+        requiredPermission: 'manage_billing_operations',
+      })
+    ).rejects.toMatchObject({
+      code: 'permission_denied',
+      status: 403,
+    });
+
+    const context = await requirePlatformAdminAccess({
+      auth: adminAuth,
+      env: {
+        ENABLE_MULTI_TENANT_ADMIN: 'true',
+        PLATFORM_ADMIN_ROLES: 'owner@example.com=billing',
+      },
+      requiredPermission: 'manage_billing_operations',
+    });
+
+    expect(context.platformRole).toBe('billing');
+    expect(hasPlatformAdminPermission(context.platformRole, 'manage_billing_operations')).toBe(true);
   });
 
   it('raises a typed unauthenticated error', async () => {

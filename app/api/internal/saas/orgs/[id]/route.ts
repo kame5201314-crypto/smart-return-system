@@ -34,7 +34,9 @@ export async function handleGetPlatformOrganization(
   deps: HandlerDependencies = {}
 ) {
   try {
-    await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    await (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+      requiredPermission: 'view_organizations',
+    })))();
 
     const { id } = await context.params;
     const repository = getRepository(deps);

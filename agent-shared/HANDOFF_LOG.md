@@ -2,6 +2,53 @@
 
 ## 2026-05-25 Codex -> Claude
 
+Added the platform admin role model backend policy.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-roles.ts`
+- `lib/saas/platform-admin.ts`
+- `lib/saas/platform-admin-live-data.ts`
+- `app/api/internal/saas/orgs/route.ts`
+- `app/api/internal/saas/orgs/[id]/route.ts`
+- `app/api/internal/saas/billing/events/route.ts`
+- `app/api/internal/saas/billing/events/[id]/retry/route.ts`
+- `app/api/internal/saas/billing/operations/route.ts`
+- `tests/unit/saas-platform-admin.test.ts`
+- `tests/unit/saas-platform-admin-routes.test.ts`
+- `tests/unit/saas-platform-admin-live-data.test.ts`
+- `tests/unit/saas-platform-admin-billing-operations.test.ts`
+- `tests/unit/saas-billing-reconciliation.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+New role model:
+
+- `owner`: all platform permissions.
+- `support`: platform dashboard and organization read views only.
+- `billing`: platform dashboard, organization read views, billing events, and billing operations.
+
+Notes:
+
+- Existing single-admin/manual owner sessions default to `owner` so closed Beta owner inspection keeps working.
+- Optional `PLATFORM_ADMIN_ROLES` can map platform admins by email or user id with CSV or JSON.
+- Invalid matching role mappings are rejected instead of silently upgrading to owner.
+- Platform routes now request explicit permissions before creating service-role repositories.
+- Claude may display `context.platformRole` and `context.permissions`, but must keep the permission matrix backend-owned.
+- No DB migration, env value, deployment, provider call, email, or platform setting was changed.
+
+## 2026-05-25 Codex -> Claude
+
 Added the billing event retry and reconciliation backend design.
 
 Commit:

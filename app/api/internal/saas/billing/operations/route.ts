@@ -41,7 +41,9 @@ export async function handlePlatformBillingOperation(
   deps: HandlerDependencies = {}
 ) {
   try {
-    const access = await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    const access = await (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+      requiredPermission: 'manage_billing_operations',
+    })))();
     const payload = await readJsonBody(request);
     const input = normalizePlatformBillingOperationRequest(payload, access.userId);
     const result = await getRepository(deps).performBillingOperation(input);

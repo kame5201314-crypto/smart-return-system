@@ -38,7 +38,9 @@ export async function handleListPlatformBillingEvents(
   deps: HandlerDependencies = {}
 ) {
   try {
-    await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    await (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+      requiredPermission: 'view_billing_events',
+    })))();
 
     const repository = getRepository(deps);
     const events = await repository.listBillingEvents({

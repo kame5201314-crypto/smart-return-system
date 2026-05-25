@@ -15,6 +15,7 @@ import {
   PlatformAdminAccessError,
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
+import { getPlatformAdminPermissions } from '@/lib/saas/platform-admin-roles';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 
 const eventId = '11111111-1111-4111-8111-111111111111';
@@ -23,6 +24,8 @@ const orgId = '22222222-2222-4222-8222-222222222222';
 const platformAdminContext: PlatformAdminContext = {
   userId: 'admin-1',
   isPlatformAdmin: true,
+  platformRole: 'owner',
+  permissions: getPlatformAdminPermissions('owner'),
   featureFlags: resolveSaaSFeatureFlags({
     env: {
       ENABLE_MULTI_TENANT_ADMIN: 'true',

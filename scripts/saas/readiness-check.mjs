@@ -195,6 +195,7 @@ function checkCommercialFoundation() {
     'lib/saas/invite-creation.ts',
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
+    'lib/saas/platform-admin-roles.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-live-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
@@ -782,18 +783,27 @@ function checkCommercialFoundation() {
   }
 
   const platformAdminPath = path.resolve(process.cwd(), 'lib/saas/platform-admin.ts');
-  if (fs.existsSync(platformAdminPath)) {
+  const platformAdminRolesPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-roles.ts');
+  if (fs.existsSync(platformAdminPath) && fs.existsSync(platformAdminRolesPath)) {
     const source = fs.readFileSync(platformAdminPath, 'utf8');
+    const rolesSource = fs.readFileSync(platformAdminRolesPath, 'utf8');
     if (
       source.includes('requirePlatformAdminAccess') &&
       source.includes('requireRouteAuth({ requireAdmin: true })') &&
+      source.includes('requiredPermission') &&
+      source.includes('resolvePlatformAdminRole') &&
+      source.includes('permission_denied') &&
       source.includes('multi_tenant_admin') &&
+      rolesSource.includes("export type PlatformAdminRole = 'owner' | 'support' | 'billing'") &&
+      rolesSource.includes('PLATFORM_ADMIN_ROLE_PERMISSIONS') &&
+      rolesSource.includes('manage_billing_operations') &&
+      rolesSource.includes('provision_organizations') &&
       !source.includes('createAdminClient') &&
       !source.includes('createUntypedAdminClient')
     ) {
-      record('pass', 'SaaS platform admin guard', 'admin auth + feature flag gate found');
+      record('pass', 'SaaS platform admin guard', 'admin auth, feature flag, and owner/support/billing role permission gate found');
     } else {
-      record('fail', 'SaaS platform admin guard', 'must require admin auth and multi_tenant_admin flag without direct service-role access');
+      record('fail', 'SaaS platform admin guard', 'must require admin auth, multi_tenant_admin flag, and platform role permissions without direct service-role access');
     }
   }
 
@@ -825,15 +835,21 @@ function checkCommercialFoundation() {
     const orgRouteHasProvisioning =
       orgRouteSource.includes('handleCreateManualBetaOrganization') &&
       orgRouteSource.includes('createPlatformOrgProvisioningRepository') &&
+      orgRouteSource.includes("requiredPermission: 'provision_organizations'") &&
       orgRouteSource.includes('export async function POST');
     const billingRouteHasOperations =
       billingOperationsRouteSource.includes('handlePlatformBillingOperation') &&
       billingOperationsRouteSource.includes('createPlatformBillingOperationsRepository') &&
+      billingOperationsRouteSource.includes("requiredPermission: 'manage_billing_operations'") &&
       billingOperationsRouteSource.includes('export async function POST');
-    if (routesUseGuard && dataLayerHasRepository && orgRouteHasProvisioning && billingRouteHasOperations) {
-      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated, including manual Beta provisioning and billing operations');
+    const readRoutesHavePermissions =
+      orgRouteSource.includes("requiredPermission: 'view_organizations'") &&
+      orgDetailRouteSource.includes("requiredPermission: 'view_organizations'") &&
+      billingRouteSource.includes("requiredPermission: 'view_billing_events'");
+    if (routesUseGuard && dataLayerHasRepository && orgRouteHasProvisioning && billingRouteHasOperations && readRoutesHavePermissions) {
+      record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated with platform role permissions');
     } else {
-      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, gated manual Beta provisioning, and billing operation routing');
+      record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, and owner/support/billing permission gates');
     }
   }
 
@@ -846,6 +862,8 @@ function checkCommercialFoundation() {
       source.includes('PlatformAdminLiveDataResult') &&
       source.includes('requirePlatformAdminAccess') &&
       source.includes('PlatformAdminAccessError') &&
+      source.includes("loadAccess(options, 'view_organizations')") &&
+      source.includes("loadAccess(options, 'view_billing_events')") &&
       source.includes('createPlatformAdminDataRepository') &&
       source.includes('createUntypedAdminClient') &&
       source.includes('buildPlatformOrganizationListView') &&

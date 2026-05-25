@@ -33,6 +33,34 @@ Notes: Ready for the next agent to claim a task before editing.
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin role model
+Files:
+- lib/saas/platform-admin-roles.ts
+- lib/saas/platform-admin.ts
+- lib/saas/platform-admin-live-data.ts
+- app/api/internal/saas/orgs/route.ts
+- app/api/internal/saas/orgs/[id]/route.ts
+- app/api/internal/saas/billing/events/route.ts
+- app/api/internal/saas/billing/events/[id]/retry/route.ts
+- app/api/internal/saas/billing/operations/route.ts
+- tests/unit/saas-platform-admin.test.ts
+- tests/unit/saas-platform-admin-routes.test.ts
+- tests/unit/saas-platform-admin-live-data.test.ts
+- tests/unit/saas-platform-admin-billing-operations.test.ts
+- tests/unit/saas-billing-reconciliation.test.ts
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added owner/support/billing platform admin role policy and route-level permission gates. Existing single-admin sessions default to owner; optional PLATFORM_ADMIN_ROLES can narrow specific admins by email or user id. No DB migration, env change, deployment, provider call, or platform setting was changed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Billing event retry and reconciliation design
 Files:
 - lib/saas/billing-reconciliation.ts

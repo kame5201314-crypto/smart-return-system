@@ -186,7 +186,9 @@ export async function handleDryRunPlatformBillingEventRetry(
   deps: HandlerDependencies = {}
 ) {
   try {
-    await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    await (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+      requiredPermission: 'view_billing_events',
+    })))();
     const { dryRun } = await readDryRunRequest(request);
     if (!dryRun) {
       return retryDisabledResponse();

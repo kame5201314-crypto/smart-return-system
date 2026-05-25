@@ -7,6 +7,7 @@ import {
   PlatformAdminAccessError,
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
+import { getPlatformAdminPermissions } from '@/lib/saas/platform-admin-roles';
 import type { PlatformAdminDataRepository } from '@/lib/saas/platform-admin-data';
 import {
   loadPlatformAtRiskAlertsView,
@@ -19,6 +20,8 @@ import {
 const platformAdminContext: PlatformAdminContext = {
   userId: 'admin-1',
   isPlatformAdmin: true,
+  platformRole: 'owner',
+  permissions: getPlatformAdminPermissions('owner'),
   featureFlags: resolveSaaSFeatureFlags({
     env: {
       ENABLE_MULTI_TENANT_ADMIN: 'true',

@@ -57,7 +57,9 @@ export async function handleListPlatformOrganizations(
   deps: HandlerDependencies = {}
 ) {
   try {
-    await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    await (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+      requiredPermission: 'view_organizations',
+    })))();
 
     const repository = getRepository(deps);
     const organizations = await repository.listOrganizations({
@@ -105,7 +107,9 @@ export async function handleCreateManualBetaOrganization(
   deps: HandlerDependencies = {}
 ) {
   try {
-    const access = await (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+    const access = await (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+      requiredPermission: 'provision_organizations',
+    })))();
     const payload = await readJsonBody(request);
     const input = normalizeManualBetaOrganizationInput(payload, access.userId);
     const result = await getProvisioningRepository(deps).createManualBetaOrganization(input);

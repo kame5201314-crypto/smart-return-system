@@ -543,6 +543,43 @@ Rules:
 - UI may display the dry-run result, but must keep retry actions disabled until Codex wires a provider adapter and audit-log write path.
 - SOP lives in `docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md`.
 
+## Platform Admin Role Model
+
+Backend owner: Codex.
+
+Roles:
+
+```ts
+type PlatformAdminRole = 'owner' | 'support' | 'billing';
+
+type PlatformAdminPermission =
+  | 'view_platform_dashboard'
+  | 'view_organizations'
+  | 'view_billing_events'
+  | 'manage_billing_operations'
+  | 'provision_organizations'
+  | 'manage_platform_roles';
+```
+
+Default permissions:
+
+| Role | Permissions |
+|---|---|
+| `owner` | all platform permissions |
+| `support` | `view_platform_dashboard`, `view_organizations` |
+| `billing` | `view_platform_dashboard`, `view_organizations`, `view_billing_events`, `manage_billing_operations` |
+
+Rules:
+
+- `requirePlatformAdminAccess()` now resolves a `platformRole` and `permissions`.
+- Existing single-admin/manual owner sessions default to `owner` for backward compatibility.
+- Optional env mapping `PLATFORM_ADMIN_ROLES` can assign roles by user email or user id:
+  - CSV: `support@example.com=support,billing@example.com=billing`
+  - JSON: `{ "support@example.com": "support" }`
+- Invalid matching role mappings are rejected instead of silently upgrading to owner.
+- Platform admin routes now request explicit permissions before creating service-role repositories.
+- Claude UI may render `context.platformRole` / `context.permissions`, but must not duplicate or override the permission matrix client-side.
+
 ## Platform Admin Live Data Server Loader
 
 Codex has server-side platform admin live data loaders in:
@@ -564,6 +601,19 @@ They call `requirePlatformAdminAccess()` before creating the service-role
 platform admin repository, then build DTOs through `lib/saas/ui-backend-contracts.ts`.
 UI pages should consume these loaders from Server Components instead of calling
 API route handlers directly.
+
+`PlatformAdminLiveDataContext` includes:
+
+```ts
+{
+  userId: string;
+  userEmail?: string;
+  isPlatformAdmin: true;
+  platformRole: PlatformAdminRole;
+  permissions: readonly PlatformAdminPermission[];
+  featureFlags: Record<string, boolean>;
+}
+```
 
 Each helper returns:
 

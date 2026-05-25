@@ -23,10 +23,14 @@ import {
   type ViewState,
 } from '@/lib/saas/ui-backend-contracts';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import type { PlatformAdminPermission } from '@/lib/saas/platform-admin-roles';
 
 export interface PlatformAdminLiveDataContext {
   userId: string;
+  userEmail?: string;
   isPlatformAdmin: true;
+  platformRole: PlatformAdminContext['platformRole'];
+  permissions: PlatformAdminContext['permissions'];
   featureFlags: PlatformAdminContext['featureFlags'];
 }
 
@@ -94,15 +98,21 @@ function getCurrentMonthStartIso(now = new Date()): string {
 function toLiveDataContext(context: PlatformAdminContext): PlatformAdminLiveDataContext {
   return {
     userId: context.userId,
+    userEmail: context.userEmail,
     isPlatformAdmin: true,
+    platformRole: context.platformRole,
+    permissions: context.permissions,
     featureFlags: context.featureFlags,
   };
 }
 
 async function loadAccess(
-  deps: PlatformAdminLiveDataDependencies
+  deps: PlatformAdminLiveDataDependencies,
+  requiredPermission?: PlatformAdminPermission
 ): Promise<PlatformAdminContext> {
-  return (deps.requireAccess ?? (() => requirePlatformAdminAccess()))();
+  return (deps.requireAccess ?? (() => requirePlatformAdminAccess({
+    requiredPermission,
+  })))();
 }
 
 function getRepository(deps: PlatformAdminLiveDataDependencies): PlatformAdminDataRepository {
@@ -147,7 +157,7 @@ export async function loadPlatformOrganizationsView(
   options: LoadPlatformOrganizationsOptions = {}
 ): Promise<PlatformAdminLiveDataResult<PlatformOrganizationListView>> {
   try {
-    const access = await loadAccess(options);
+    const access = await loadAccess(options, 'view_organizations');
     const context = toLiveDataContext(access);
     const repository = getRepository(options);
     const organizations = await repository.listOrganizations({
@@ -183,7 +193,7 @@ export async function loadPlatformOrganizationDetailView(
   deps: PlatformAdminLiveDataDependencies = {}
 ): Promise<PlatformAdminLiveDataResult<PlatformOrganizationDetailView>> {
   try {
-    const access = await loadAccess(deps);
+    const access = await loadAccess(deps, 'view_organizations');
     const context = toLiveDataContext(access);
     const normalizedOrgId = normalizeOrgId(orgId);
 
@@ -238,7 +248,7 @@ export async function loadPlatformBillingEventsView(
   options: LoadPlatformBillingEventsOptions = {}
 ): Promise<PlatformAdminLiveDataResult<PlatformBillingEventsView>> {
   try {
-    const access = await loadAccess(options);
+    const access = await loadAccess(options, 'view_billing_events');
     const context = toLiveDataContext(access);
     const repository = getRepository(options);
     const events = await repository.listBillingEvents({
@@ -272,7 +282,7 @@ export async function loadPlatformAtRiskAlertsView(
   options: LoadPlatformAtRiskAlertsOptions = {}
 ): Promise<PlatformAdminLiveDataResult<PlatformAtRiskAlertsView>> {
   try {
-    const access = await loadAccess(options);
+    const access = await loadAccess(options, 'view_organizations');
     const context = toLiveDataContext(access);
     const repository = getRepository(options);
     const organizations = await repository.listOrganizations({
@@ -318,7 +328,7 @@ export async function loadPlatformTrialConversionView(
   options: LoadPlatformTrialConversionOptions = {}
 ): Promise<PlatformAdminLiveDataResult<PlatformTrialConversionView>> {
   try {
-    const access = await loadAccess(options);
+    const access = await loadAccess(options, 'view_organizations');
     const context = toLiveDataContext(access);
     const repository = getRepository(options);
     const organizations = await repository.listOrganizations({
