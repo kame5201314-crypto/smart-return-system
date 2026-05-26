@@ -2,6 +2,50 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Refreshed the SaaS external rollout blocker status with read-only checks.
+
+Summary:
+
+- Preflight passed on `develop-saas`; latest observed HEAD was
+  `64e6345 feat(saas/ui): show trial countdown and cancellation banners on billing`.
+- `vercel inspect https://smart-return-system-saas.vercel.app` confirmed
+  deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` is still Ready.
+- Production URL remains `https://smart-return-system-saas.vercel.app`.
+- `vercel domains ls` reported zero custom domains under the account.
+- `vercel env ls` showed SaaS production env values for Supabase, Gemini,
+  admin, cron, feature flags, and `NEXT_PUBLIC_APP_URL`, but did not show:
+  - `SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_DSN`
+  - `ECPAY_MERCHANT_ID`
+  - `ECPAY_HASH_KEY`
+  - `ECPAY_HASH_IV`
+  - `ECPAY_MODE`
+- Email provider delivery remains dry-run only.
+- Billing remains disabled and ECPay belongs to Stage 2.
+- Draft migrations remain unapplied:
+  - `033_saas_platform_billing_operations.sql`
+  - `034_saas_notification_email_queue.sql`
+  - `035_saas_onboarding_completion_rpc.sql`
+  - `036_saas_platform_admin_roles.sql`
+
+Owner decisions still required:
+
+- Add SaaS-only Sentry DSN values in Vercel, or explicitly continue log-only
+  Closed Manual Beta monitoring.
+- Choose a beta/custom domain and complete DNS/Vercel domain verification.
+- Choose and authorize an email delivery provider before leaving dry-run.
+- Provide ECPay credentials and authorize `ENABLE_BILLING=true` only for Stage 2.
+- Explicitly authorize any migration apply, deploy, domain/DNS change, or Vercel
+  production setting change.
+
+Notes:
+
+- No deployment, migration, env/secret edit, domain/DNS change, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action was
+  performed by this refresh.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Refreshed the split queue after the tenant preview and onboarding UI handoffs.
 
 Summary:

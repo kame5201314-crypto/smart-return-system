@@ -82,7 +82,7 @@ Status values:
 | done | Invite creation service and RPC draft | This commit; added seat-checked invite creation service, token generation, `032` draft RPC, and repository wrapper without applying migrations |
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
-| blocked | SaaS public rollout external setup | Closed Manual Beta is deployed, but public paid rollout remains blocked on Sentry DSN activation, billing/ECPay credentials plus `ENABLE_BILLING`, beta/custom domain decision, email provider delivery, and post-Beta owner approval |
+| blocked | SaaS public rollout external setup | Read-only refresh confirmed Vercel env lacks `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`, no custom domain is configured, ECPay credentials are absent, email delivery remains dry-run, draft migrations `033`-`036` are not applied, and any new deploy/platform setting change still needs explicit owner approval |
 | done | Beta customer onboarding: 遇見未來 | Owner handoff reports org/account/login provisioned for `kawei88888@gmail.com`; keep billing disabled and email dry-run unless owner explicitly authorizes changes |
 | done | Manual Beta local readiness | SaaS project, migrations, schema gate, Gemini key, test org, seed data, login smoke, AI analyze, invite flow, exports, and platform admin read views have been verified locally |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
@@ -109,7 +109,7 @@ Codex owns the non-UI queue:
 
 - No unblocked backend/API/migration task is currently open after the role separation, onboarding, platform dashboard, tenant preview, and audit handoffs.
 - Codex should record future Claude handoffs here, update readiness/docs/tests, and implement backend contracts only when Claude needs a new contract or the owner explicitly authorizes an external/backend change.
-- External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain, email provider delivery, applying draft migrations `033`-`036`, and any production deploy or platform setting change.
+- External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain/DNS, email provider delivery, applying draft migrations `033`-`036`, and any production deploy or platform setting change. Latest read-only Vercel check confirmed no Sentry DSN, no custom domains, and no ECPay env values are configured.
 - Tenant preview is currently a signed, audited, read-only visual context for platform admins. It is not full impersonation and is not wired into `getOrgContext()` or tenant write permissions.
 
 ## Shared Rules

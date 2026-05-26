@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Current executable queue is Claude UI-only work: at-risk/health presentation, settings UI refinement, onboarding screens, and public/RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest read-only external blocker refresh confirmed Sentry DSN, beta/custom domain, email delivery provider, Billing/ECPay, draft migrations 033-036, and any future deploy remain owner-blocked. Current executable queue is Claude UI-only work: at-risk/health presentation, settings UI refinement, onboarding screens, and public/RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: External rollout blocker refresh
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Read-only Vercel check confirmed deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` remains Ready, production URL remains `https://smart-return-system-saas.vercel.app`, no custom domains are configured, `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` are absent, ECPay env values are absent, email delivery remains dry-run, draft migrations `033`-`036` remain unapplied, and no deploy/env/domain/billing/provider/migration/master/live/prod change was performed.
+```
 
 ```text
 Owner: Claude

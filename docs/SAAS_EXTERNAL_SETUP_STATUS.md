@@ -34,7 +34,72 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Closed Manual Beta has been deployed to the SaaS Vercel production project.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Current post-deploy review only: no deployment was triggered, no migration was run, no env/secret was edited, no billing/provider was enabled, no master change was made, and no production/internal Supabase action was performed by this review.
+- Latest external blocker refresh was read-only: no deployment was triggered, no migration was run, no env/secret was edited, no billing/provider was enabled, no domain/DNS change was made, no Vercel production setting was changed, no master change was made, and no production/internal Supabase action was performed by this review.
+
+## 2026-05-26 External Rollout Blocker Refresh
+
+- Scope:
+  - Read-only external rollout blocker check for SaaS project `smart-return-system-saas`.
+  - Branch: `develop-saas`
+  - Latest observed HEAD: `64e6345 feat(saas/ui): show trial countdown and cancellation banners on billing`
+- Vercel deployment:
+  - Production URL remains `https://smart-return-system-saas.vercel.app`.
+  - Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` remains Ready.
+  - No deployment was triggered.
+- Vercel environment variables:
+  - `vercel env ls` shows SaaS production values for Supabase, Gemini, admin, cron, feature flags, and `NEXT_PUBLIC_APP_URL`.
+  - `SENTRY_DSN` is not present.
+  - `NEXT_PUBLIC_SENTRY_DSN` is not present.
+  - ECPay credentials are not present:
+    - `ECPAY_MERCHANT_ID`
+    - `ECPAY_HASH_KEY`
+    - `ECPAY_HASH_IV`
+    - `ECPAY_MODE`
+  - No env values were changed or printed.
+- Sentry/logging owner action:
+  - Create or use the SaaS-only Sentry project, then add these to the SaaS Vercel project only:
+    - `SENTRY_DSN`
+    - `NEXT_PUBLIC_SENTRY_DSN` if browser-side events should be sent.
+  - Do not commit DSN values to git.
+- Beta/custom domain owner action:
+  - Vercel currently reports zero custom domains under the account.
+  - Choose the Beta domain, for example `beta.<owner-domain>`.
+  - In Vercel, add the domain to project `smart-return-system-saas`.
+  - At the DNS provider, add the record Vercel requests, usually a CNAME from `beta` to `cname.vercel-dns.com` for a subdomain.
+  - After Vercel verifies the domain, update SaaS-only `NEXT_PUBLIC_APP_URL` to the chosen HTTPS URL and rerun rollout/predeploy gates.
+  - No DNS or Vercel domain setting was changed in this review.
+- Email provider owner action:
+  - Current email queue worker remains dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`.
+  - No provider adapter is wired and no email is sent.
+  - Before enabling real delivery, choose a provider such as Resend, Postmark, SendGrid, or SMTP.
+  - Add SaaS-only provider env values, verify sender domain/SPF/DKIM/DMARC, run a sandbox delivery test, then explicitly authorize changing the worker from dry-run to delivery mode.
+- Billing/ECPay owner action:
+  - `ENABLE_BILLING=false` remains the correct Closed Manual Beta state.
+  - Stage 2 requires SaaS-only values:
+    - `BILLING_PROVIDER=ecpay`
+    - `ECPAY_MERCHANT_ID`
+    - `ECPAY_HASH_KEY`
+    - `ECPAY_HASH_IV`
+    - `ECPAY_MODE`
+  - Keep billing disabled until ECPay sandbox validation, webhook verification, reconciliation, and owner approval are complete.
+- Draft migrations:
+  - `033_saas_platform_billing_operations.sql`: platform billing operation RPC for manual payment, suspend/resume, refund request, and audit logging; not applied.
+  - `034_saas_notification_email_queue.sql`: notification delivery metadata and service-role-only `email_queue`; not applied.
+  - `035_saas_onboarding_completion_rpc.sql`: onboarding completion RPC and audit log write; not applied.
+  - `036_saas_platform_admin_roles.sql`: DB-backed platform admin role assignments and management RPC; not applied.
+  - No migration was run in this review.
+- Future deploy gate if owner explicitly authorizes another SaaS deploy:
+  - `npm run safety:agent-boundary`
+  - `npm run saas:verify-checkout`
+  - `npm run saas:doctor`
+  - `npm run saas:migration-plan:strict`
+  - `npm run saas:schema-gate:strict`
+  - `npm run saas:rollout-check:strict`
+  - `npm run saas:predeploy`
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run test:all`
+  - `npm run build`
 
 ## 2026-05-26 Closed Manual Beta Production Deployment
 
@@ -466,13 +531,13 @@ This file tracks external SaaS setup work that must stay separate from the live 
 These are intentionally not completed because they require private credentials, billing setup, rollout approval, or deployment authorization.
 
 - SaaS Gemini API key is set locally for Manual Beta; confirm/rotate the SaaS Vercel value before public rollout.
-- SaaS `NEXT_PUBLIC_APP_URL` currently points to the latest ready SaaS Vercel preview URL; replace it with the final custom domain before public rollout.
+- SaaS `NEXT_PUBLIC_APP_URL` currently points to `https://smart-return-system-saas.vercel.app`; replace it with the final custom domain before public rollout if a custom Beta domain is approved.
 - SaaS logging/Sentry DSN has not been added.
 - Billing credentials have not been added.
 - Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
 - Billing remains disabled until owner explicitly provides ECPay credentials and authorizes `ENABLE_BILLING=true`.
 - Vercel Preview SSO/protection still needs a bypass/access decision for external testers, or a final custom domain before public rollout.
-- SaaS production deployment has not been run.
+- SaaS production deployment has already been run for Closed Manual Beta; do not redeploy without explicit owner approval.
 - Platform admin live views are closed by default with `ENABLE_MULTI_TENANT_ADMIN=false`; they can be opened locally for owner inspection by setting the ignored local SaaS env value to `true`.
 - Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
 - Public signup org creation and subscription creation are not wired yet; `/api/saas/signup` records a request only after the flag and DB are ready.
