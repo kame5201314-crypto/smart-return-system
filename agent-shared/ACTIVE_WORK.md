@@ -31,6 +31,16 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ## Recent Completed
 
 ```text
+Owner: Claude
+Commit: f46c344
+Scope: Onboarding sidebar entry
+Files:
+- app/(admin)/layout.tsx
+Status: done
+Notes: Tenant sidebar now surfaces `/onboarding` as `設定指引` with a Compass icon. UI/navigation only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
+```
+
+```text
 Owner: Codex
 Commit: this commit
 Scope: Platform tenant preview audit trail

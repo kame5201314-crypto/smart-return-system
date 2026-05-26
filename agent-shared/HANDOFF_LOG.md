@@ -2,6 +2,32 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded Claude's onboarding sidebar entry UI handoff.
+
+Commit:
+
+```text
+f46c344 feat(saas/ui): surface onboarding in tenant sidebar
+```
+
+Files reported by commit:
+
+- `app/(admin)/layout.tsx`
+
+UI handoff summary:
+
+- The tenant sidebar now links to `/onboarding` as `設定指引`.
+- The item uses the Compass icon and sits between AI analysis and settings.
+- This gives customers a visible path into the setup guide after first login.
+
+Notes:
+
+- Claude commit reports UI/navigation only.
+- Codex did not edit that UI file in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added audit trail coverage to the platform tenant preview contract.
 
 Commit:

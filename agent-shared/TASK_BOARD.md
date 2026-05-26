@@ -15,6 +15,7 @@ Status values:
 | done | Platform admin mode floating indicator | Claude commit `9edf220`; `(admin)` tenant pages now render the Codex `loadPlatformAdminModeView()` contract as a persistent platform-admin indicator |
 | done | Platform admin org page copy polish | Claude commit `f5d8171`; `/internal/orgs` and `/internal/orgs/[id]` now use operator-facing wording without schema/table helper text |
 | done | Platform billing events copy polish | Claude commit `8a5a6dc`; `/internal/billing/events` now removes stage wording and schema-source copy while keeping operator-relevant guard requirements |
+| done | Onboarding sidebar entry | Claude commit `f46c344`; tenant sidebar now links to `/onboarding` as `設定指引` so customers no longer need to know the setup guide URL |
 | todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
 | todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
 | todo | Trial / onboarding UI screens | Use Codex `loadSaaSOnboardingView()` and `POST /api/saas/onboarding/complete`; do not enable the completion button in production until migration `035` is explicitly applied |
