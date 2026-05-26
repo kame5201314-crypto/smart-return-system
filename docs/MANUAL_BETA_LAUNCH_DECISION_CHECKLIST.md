@@ -129,6 +129,11 @@ owner before Codex or Claude acts on them:
 - Sentry/logging:
   - Decide whether Manual Beta can proceed with log-only monitoring.
   - Before public rollout, provide a SaaS-specific `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN`.
+  - Create a SaaS-only Sentry Next.js project named `smart-return-saas`.
+  - Add the DSN only in the SaaS Vercel project environment variables.
+  - Do not paste the DSN into chat, docs, git, or `.env.saas.example`.
+  - Runtime error capture is wired through `@sentry/nextjs`; source map upload
+    stays disabled unless owner separately provides `SENTRY_AUTH_TOKEN`.
 - Billing/ECPay:
   - Decide when Stage 2 paid Beta begins.
   - Provide SaaS-only ECPay credentials.
@@ -229,6 +234,7 @@ Pre-deploy owner confirmations:
 - Target is not master/live/internal.
 - Billing state is intentionally enabled or disabled for this rollout.
 - Sentry/logging decision is recorded.
+- If Sentry is enabled, SENTRY_DSN and optionally NEXT_PUBLIC_SENTRY_DSN are set in the SaaS Vercel project only.
 - Custom domain / Preview SSO decision is recorded.
 ```
 
