@@ -22,7 +22,7 @@ const guardRows = [
   ['signature verification', 'required', 'ECPay HashKey/HashIV、Stripe/TapPay webhook secret'],
   ['idempotency', 'required', 'billing_events.provider_event_id 唯一鍵'],
   ['replay window', 'required', '拒絕過期或重複 payload'],
-  ['manual retry', 'disabled', 'Stage 2 測試金鑰通過後再開啟'],
+  ['manual retry', 'disabled', 'ECPay 測試金鑰啟用後開放'],
 ] as const;
 
 function statusBadge(status: EventStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -170,15 +170,15 @@ export default async function InternalBillingEventsPage() {
         <div>
           <h2 className="text-2xl font-semibold">Billing Events</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            金流 webhook 與電子發票事件的營運檢查；資料來自 billing_events。
+            金流 webhook 與電子發票事件的接收、處理與失敗紀錄。
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Button disabled variant="outline" title="Stage 2 webhook 重送功能上線後開啟">
+          <Button disabled variant="outline" title="webhook 重送功能上線後開放">
             <RotateCw className="size-4" />
             重送事件
           </Button>
-          <p className="text-xs text-muted-foreground">需 ECPay 測試金鑰與 idempotency 通過後啟用。</p>
+          <p className="text-xs text-muted-foreground">webhook 重送上線後啟用。</p>
         </div>
       </div>
 
