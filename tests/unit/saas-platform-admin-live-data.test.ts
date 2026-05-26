@@ -164,10 +164,37 @@ describe('SaaS platform admin live data loaders', () => {
       gated: {
         reason: 'feature_disabled',
         message: 'The multi-tenant admin feature flag is disabled.',
+        accessCode: 'feature_disabled',
       },
     });
     expect(repository.listOrganizations).not.toHaveBeenCalled();
     expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+  });
+
+  it('marks unauthenticated platform admin access for page-level login redirects', async () => {
+    const repository = createRepository();
+
+    const result = await loadPlatformOrganizationsView({
+      requireAccess: async () => {
+        throw new PlatformAdminAccessError(
+          'unauthenticated',
+          401,
+          'Platform admin authentication is required.'
+        );
+      },
+      repository,
+    });
+
+    expect(result).toEqual({
+      state: 'gated',
+      data: null,
+      gated: {
+        reason: 'role_required',
+        message: 'Platform admin authentication is required.',
+        accessCode: 'unauthenticated',
+      },
+    });
+    expect(repository.listOrganizations).not.toHaveBeenCalled();
   });
 
   it('returns empty state for platform organization list when no orgs exist', async () => {

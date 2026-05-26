@@ -17,10 +17,40 @@ describe('post-login redirect policy', () => {
     expect(getPostLoginRedirect({ profileRole: ' ADMIN ' })).toBe(PLATFORM_ADMIN_POST_LOGIN_PATH);
   });
 
+  it('honors safe internal next paths for platform admins', () => {
+    expect(getPostLoginRedirect({
+      isAdmin: true,
+      requestedPath: '/internal/orgs',
+    })).toBe('/internal/orgs');
+  });
+
   it('routes merchant users to the merchant analytics workspace', () => {
     expect(getPostLoginRedirect()).toBe(CUSTOMER_POST_LOGIN_PATH);
     expect(getPostLoginRedirect({ isAdmin: false, profileRole: 'owner' })).toBe(CUSTOMER_POST_LOGIN_PATH);
     expect(getPostLoginRedirect({ profileRole: 'staff' })).toBe(CUSTOMER_POST_LOGIN_PATH);
+  });
+
+  it('rejects unsafe or unauthorized next paths', () => {
+    expect(getPostLoginRedirect({
+      isAdmin: true,
+      requestedPath: 'https://example.com/internal',
+    })).toBe(PLATFORM_ADMIN_POST_LOGIN_PATH);
+    expect(getPostLoginRedirect({
+      isAdmin: true,
+      requestedPath: '//example.com',
+    })).toBe(PLATFORM_ADMIN_POST_LOGIN_PATH);
+    expect(getPostLoginRedirect({
+      profileRole: 'owner',
+      requestedPath: '/internal/orgs',
+    })).toBe(CUSTOMER_POST_LOGIN_PATH);
+    expect(getPostLoginRedirect({
+      isAdmin: true,
+      requestedPath: '/internality',
+    })).toBe(PLATFORM_ADMIN_POST_LOGIN_PATH);
+    expect(getPostLoginRedirect({
+      profileRole: 'owner',
+      requestedPath: '/returns',
+    })).toBe('/returns');
   });
 
   it('keeps profile role matching narrow', () => {

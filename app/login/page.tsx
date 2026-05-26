@@ -37,7 +37,9 @@ export default function LoginPage() {
   async function onSubmit(data: LoginInput) {
     try {
       setIsLoading(true);
-      const result = await signIn(data.email, data.password);
+      const nextPath =
+        typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('next');
+      const result = await signIn(data.email, data.password, nextPath ?? undefined);
 
       if (!result.success) {
         toast.error(result.error || '登入失敗');

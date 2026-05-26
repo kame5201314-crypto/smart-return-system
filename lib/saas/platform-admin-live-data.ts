@@ -6,6 +6,7 @@ import {
 import {
   PlatformAdminAccessError,
   requirePlatformAdminAccess,
+  type PlatformAdminAccessErrorCode,
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
 import {
@@ -49,7 +50,9 @@ export type PlatformAdminLiveDataResult<T> =
   | {
       state: Extract<ViewState, 'gated'>;
       data: null;
-      gated: GatedState;
+      gated: GatedState & {
+        accessCode: PlatformAdminAccessErrorCode;
+      };
     }
   | {
       state: Extract<ViewState, 'error'>;
@@ -134,6 +137,7 @@ function mapAccessError(error: PlatformAdminAccessError): PlatformAdminLiveDataR
     gated: {
       reason: error.code === 'feature_disabled' ? 'feature_disabled' : 'role_required',
       message: error.message,
+      accessCode: error.code,
     },
   };
 }

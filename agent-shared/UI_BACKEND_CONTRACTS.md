@@ -35,7 +35,7 @@ app/login/page.tsx
 Server action:
 
 ```text
-signIn(email, password)
+signIn(email, password, requestedPath?)
 ```
 
 Success response:
@@ -51,10 +51,35 @@ Rules:
 
 - Platform admin sessions and Supabase users with `users.role = 'admin'`
   return `/internal`.
+- Platform admins may return to a safe `/internal/*` `requestedPath`.
 - Merchant/customer users return `/analytics`.
+- Merchant/customer users cannot use `/internal/*` as `requestedPath`.
+- External URLs, protocol-relative URLs, backslash paths, and `/login` are
+  rejected and fall back to the role default.
 - Login UI should consume `redirectTo` and should not hard-code role
   detection in the client.
 - `/internal/*` remains protected by Codex-owned platform admin guards.
+
+## Internal Admin Access Redirect
+
+Backend owner: Codex.
+
+UI paths:
+
+```text
+app/internal/orgs/page.tsx
+app/internal/orgs/[id]/page.tsx
+app/internal/billing/events/page.tsx
+```
+
+Rules:
+
+- Unauthenticated access to an internal page redirects to
+  `/login?next=<encoded internal path>`.
+- Authenticated users without platform admin permission stay on the internal
+  page with a gated state so Claude can render the forbidden UI.
+- Internal page loaders expose `gated.accessCode` for backend control flow.
+- Claude should not implement role checks in client components.
 
 ## Settings Billing
 

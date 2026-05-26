@@ -31,6 +31,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Internal admin unauthenticated redirect contract | This commit; `/internal/*` page loaders now redirect unauthenticated visitors to `/login?next=...` while preserving forbidden gated states for authenticated non-admin users |
 | done | Role-based post-login redirect contract | This commit; `signIn()` returns `redirectTo` so platform admins land on `/internal` while merchant users land on `/analytics`; UI only consumes the backend result |
 | done | Closed Manual Beta production smoke | Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` for `smart-return-system-saas` is Ready; public pages returned 200 and protected unauthenticated pages redirected to `/login` |
 | done | Platform admin billing operation backend plan | This commit; added guarded `POST /api/internal/saas/billing/operations`, RPC wrapper, and draft `033` for manual payment marking, suspend/resume, refund request, and audit logging |

@@ -23,6 +23,7 @@ import { UsageProgress } from '@/components/saas/usage-progress';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { ManualBetaOrgForm } from '@/components/internal/manual-beta-org-form';
 import { loadPlatformOrganizationsView } from '@/lib/saas/platform-admin-live-data';
+import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { PlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
 
@@ -265,6 +266,7 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
 
 export default async function InternalOrgsPage() {
   const result = await loadPlatformOrganizationsView();
+  redirectUnauthenticatedPlatformAdminResult(result, '/internal/orgs');
 
   return (
     <div className="space-y-6">

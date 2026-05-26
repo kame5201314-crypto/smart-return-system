@@ -2,6 +2,57 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added the non-UI internal admin redirect contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/auth/internal-login-redirect.ts`
+- `lib/auth/post-login-redirect.ts`
+- `lib/actions/auth.ts`
+- `app/login/page.tsx`
+- `app/internal/orgs/page.tsx`
+- `app/internal/orgs/[id]/page.tsx`
+- `app/internal/billing/events/page.tsx`
+- `lib/saas/platform-admin-live-data.ts`
+- `tests/unit/internal-login-redirect.test.ts`
+- `tests/unit/post-login-redirect.test.ts`
+- `tests/unit/saas-platform-admin-live-data.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+
+Contract:
+
+- Unauthenticated access to `/internal/orgs`, `/internal/orgs/[id]`, and
+  `/internal/billing/events` redirects to `/login?next=<encoded internal path>`.
+- `signIn()` accepts an optional safe `requestedPath`.
+- Platform admins may return to safe `/internal/*` paths after login.
+- Merchant/customer users cannot use `/internal/*` as a login redirect.
+- External URLs, protocol-relative URLs, `/login`, and backslash paths are
+  rejected and fall back to the role default.
+- Authenticated non-admin users remain gated for Claude-owned forbidden UI.
+
+Remaining split:
+
+- Claude owns the visual treatment of forbidden states, login page copy/layout,
+  and any admin mode indicator.
+- Codex owns future session, impersonation, platform role storage, and internal
+  dashboard data contracts.
+
+Notes:
+
+- No deployment, migration, env/secret edit, billing/provider enablement,
+  master/live/prod change, or production/internal Supabase action was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added the non-UI post-login redirect contract for the role separation work.
 
 Commit:

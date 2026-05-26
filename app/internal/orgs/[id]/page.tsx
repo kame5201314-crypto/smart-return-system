@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
+import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { PlatformOrganizationDetailView } from '@/lib/saas/ui-backend-contracts';
 
@@ -301,6 +302,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
 export default async function InternalOrgDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const result = await loadPlatformOrganizationDetailView(id);
+  redirectUnauthenticatedPlatformAdminResult(result, `/internal/orgs/${id}`);
   const title = result.state === 'ready' ? result.data.organization.name : '租戶詳情';
 
   return (

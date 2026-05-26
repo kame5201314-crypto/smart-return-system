@@ -33,6 +33,30 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Internal admin unauthenticated redirect contract
+Files:
+- lib/auth/internal-login-redirect.ts
+- lib/auth/post-login-redirect.ts
+- lib/actions/auth.ts
+- app/login/page.tsx
+- app/internal/orgs/page.tsx
+- app/internal/orgs/[id]/page.tsx
+- app/internal/billing/events/page.tsx
+- lib/saas/platform-admin-live-data.ts
+- tests/unit/internal-login-redirect.test.ts
+- tests/unit/post-login-redirect.test.ts
+- tests/unit/saas-platform-admin-live-data.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Unauthenticated /internal page access redirects to /login?next=<internal path>. Authenticated non-admin users still receive gated/forbidden state for Claude UI treatment. Login accepts a safe requestedPath but rejects external, protocol-relative, login, backslash, and unauthorized /internal redirects. No visual redesign, deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Role-based post-login redirect contract
 Files:
 - lib/auth/post-login-redirect.ts

@@ -62,7 +62,11 @@ async function loadUserProfileRoleForRedirect(userId: string | null, email: stri
   }
 }
 
-export async function signIn(email: string, password: string): Promise<AuthResult> {
+export async function signIn(
+  email: string,
+  password: string,
+  requestedPath?: string
+): Promise<AuthResult> {
   try {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
@@ -87,7 +91,13 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, ADMIN_SESSION_COOKIE_OPTIONS);
 
       revalidatePath('/', 'layout');
-      return { success: true, redirectTo: getPostLoginRedirect({ isAdmin: true }) };
+      return {
+        success: true,
+        redirectTo: getPostLoginRedirect({
+          isAdmin: true,
+          requestedPath,
+        }),
+      };
     }
 
     if (!trimmedEmail.includes('@')) {
@@ -115,7 +125,10 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     revalidatePath('/', 'layout');
     return {
       success: true,
-      redirectTo: getPostLoginRedirect({ profileRole }),
+      redirectTo: getPostLoginRedirect({
+        profileRole,
+        requestedPath,
+      }),
     };
   } catch (err) {
     console.error('Login error:', err);

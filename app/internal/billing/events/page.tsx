@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { loadPlatformBillingEventsView } from '@/lib/saas/platform-admin-live-data';
+import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import type { PlatformBillingEventsView } from '@/lib/saas/ui-backend-contracts';
 
 type EventStatus = PlatformBillingEventsView['events'][number]['status'];
@@ -161,6 +162,7 @@ function EventsContent({ data }: { data: PlatformBillingEventsView }) {
 
 export default async function InternalBillingEventsPage() {
   const result = await loadPlatformBillingEventsView();
+  redirectUnauthenticatedPlatformAdminResult(result, '/internal/billing/events');
 
   return (
     <div className="space-y-6">
