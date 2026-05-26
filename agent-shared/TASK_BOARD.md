@@ -96,6 +96,22 @@ Status values:
 | done | Settings live data server loader | This commit; added server-side billing/usage/team DTO loaders with org-context gates and ready/empty/error/gated states for Claude UI handoff |
 | done | Team seat limit policy | This commit; team DTOs now reserve seats for active members and pending invites before enabling invites |
 
+## Current Split Queue
+
+Claude owns the next executable UI-only work:
+
+- At-risk and health metric presentation using the existing platform dashboard DTOs.
+- Billing, usage, and team settings refinement using the existing settings loaders.
+- Trial and onboarding screens using `loadSaaSOnboardingView()` and the guarded completion route; do not enable completion writes in production until migration `035` is explicitly applied.
+- Public marketing/legal responsive QA and any UI-only polish on the listed public routes.
+
+Codex owns the non-UI queue:
+
+- No unblocked backend/API/migration task is currently open after the role separation, onboarding, platform dashboard, tenant preview, and audit handoffs.
+- Codex should record future Claude handoffs here, update readiness/docs/tests, and implement backend contracts only when Claude needs a new contract or the owner explicitly authorizes an external/backend change.
+- External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain, email provider delivery, applying draft migrations `033`-`036`, and any production deploy or platform setting change.
+- Tenant preview is currently a signed, audited, read-only visual context for platform admins. It is not full impersonation and is not wired into `getOrgContext()` or tenant write permissions.
+
 ## Shared Rules
 
 - `agent-shared/**` is Codex-maintained only.

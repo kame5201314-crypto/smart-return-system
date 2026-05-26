@@ -25,7 +25,7 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Continue serialized Claude UI / Codex non-UI work on `develop-saas`; do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Current executable queue is Claude UI-only work: at-risk/health presentation, settings UI refinement, onboarding screens, and public/RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed

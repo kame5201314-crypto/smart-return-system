@@ -2,6 +2,30 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Refreshed the split queue after the tenant preview and onboarding UI handoffs.
+
+Summary:
+
+- Claude owns the next executable UI-only queue: at-risk/health presentation,
+  settings UI refinement, onboarding screens, and public/RWD QA.
+- Codex has no unblocked backend/API/migration task open after the role
+  separation, onboarding, platform dashboard, tenant preview, and audit
+  contracts.
+- Codex remains responsible for recording Claude handoffs, updating
+  readiness/docs/tests, and adding backend contracts only when Claude needs a
+  new contract or the owner explicitly authorizes one.
+- External work remains owner-blocked: Sentry DSN activation, Billing/ECPay plus
+  `ENABLE_BILLING`, beta/custom domain, email provider delivery, applying draft
+  migrations `033`-`036`, and any production deploy or platform setting change.
+
+Notes:
+
+- No UI, backend, migration, deployment, env/secret, billing/provider,
+  master/live/prod, or production/internal Supabase change was performed by
+  this coordination refresh.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded Claude's tenant preview start button UI handoff.
 
 Commit:
