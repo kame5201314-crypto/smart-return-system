@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PageHeader } from '@/components/saas/page-header';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { TeamInviteForm } from '@/components/saas/team-invite-form';
 import { loadTeamSettingsView } from '@/lib/saas/settings-live-data';
@@ -189,14 +190,10 @@ export default async function TeamSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950">團隊與角色</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            管理成員角色與邀請新夥伴加入。
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="團隊與角色"
+        description="管理成員角色與邀請新夥伴加入。"
+      />
 
       {result.state === 'ready' ? (
         <TeamContent data={result.data} />

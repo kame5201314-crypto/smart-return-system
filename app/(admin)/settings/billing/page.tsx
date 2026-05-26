@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PageHeader } from '@/components/saas/page-header';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { loadBillingSettingsView } from '@/lib/saas/settings-live-data';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
@@ -209,20 +210,18 @@ export default async function BillingSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950">帳務與訂閱</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            查看目前方案、訂閱狀態與電子發票資訊。{BETA_SUPPORT_NOTE}
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/pricing" target="_blank">
-            查看方案
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="帳務與訂閱"
+        description={`查看目前方案、訂閱狀態與電子發票資訊。${BETA_SUPPORT_NOTE}`}
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/pricing" target="_blank">
+              查看方案
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        }
+      />
 
       {result.state === 'ready' ? (
         <BillingContent data={result.data} />

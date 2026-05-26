@@ -4,6 +4,7 @@ import { ArrowRight, BarChart3, PackageCheck, Sparkles, TrendingUp, TriangleAler
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/saas/page-header';
 import { UsageProgress } from '@/components/saas/usage-progress';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { loadUsageSettingsView } from '@/lib/saas/settings-live-data';
@@ -142,20 +143,18 @@ export default async function UsageSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950">用量與額度</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            查看本月退貨量、AI 分析額度與成員席次的使用情況。
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/settings/billing">
-            管理訂閱
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="用量與額度"
+        description="查看本月退貨量、AI 分析額度與成員席次的使用情況。"
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/settings/billing">
+              管理訂閱
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        }
+      />
 
       {result.state === 'ready' ? (
         <UsageContent data={result.data} />
