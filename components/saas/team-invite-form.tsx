@@ -147,7 +147,7 @@ export function TeamInviteForm({ canInvite, disabledReason }: TeamInviteFormProp
             {new Date(result.expiresAt).toLocaleDateString('zh-TW')}
           </p>
           <p className="mt-1 text-xs text-emerald-700">
-            Email 寄送尚未接通，請手動複製連結給對方：
+            請複製下方邀請連結傳送給對方：
           </p>
           <div className="mt-2 flex items-center gap-2">
             <code className="flex-1 truncate rounded bg-white px-3 py-2 text-xs">{result.link}</code>
