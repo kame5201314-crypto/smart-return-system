@@ -26,21 +26,21 @@ function UsageContent({ data }: { data: UsageSettingsView }) {
       label: '退貨量',
       used: data.usage.returnsThisMonth,
       limit: data.plan.monthlyReturnSoftLimit,
-      helper: '軟限制：超量提醒，不阻擋作業。',
+      helper: '本月已建立的退貨單數量；超量會顯示提醒，但不影響作業。',
       icon: PackageCheck,
     },
     {
       label: 'AI 文字分析',
       used: data.usage.aiUsedThisMonth,
       limit: data.plan.aiMonthlyLimit,
-      helper: '硬限制：100% 後停止新增 AI 分析。',
+      helper: '本月已使用的 AI 分析次數；額度用完後將暫停新的分析，下月重置。',
       icon: Sparkles,
     },
     {
       label: '成員席次',
       used: data.usage.seatsUsed,
       limit: data.plan.seatLimit,
-      helper: 'Owner / Admin 可管理邀請。',
+      helper: '已加入的成員數量；擁有者與管理員可邀請新成員。',
       icon: BarChart3,
     },
   ] as const;
@@ -99,14 +99,14 @@ function UsageContent({ data }: { data: UsageSettingsView }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="size-5 text-emerald-700" />
-              升級提示規則
+              超量提醒
             </CardTitle>
-            <CardDescription>避免退貨旺季直接阻擋作業。</CardDescription>
+            <CardDescription>幫助你掌握用量、避免影響營運。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>退貨量達 80%：顯示黃色提醒。</p>
-            <p>退貨量達 100%：顯示紅色提醒，但不阻擋新增退貨。</p>
-            <p>連續 2 個月超量：標記 organizations.upgrade_suggested_at。</p>
+            <p>退貨量達 100%：顯示紅色提醒，仍可繼續新增退貨。</p>
+            <p>連續 2 個月超量：建議升級至更合適的方案。</p>
           </CardContent>
         </Card>
 
@@ -114,16 +114,16 @@ function UsageContent({ data }: { data: UsageSettingsView }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="size-5 text-cyan-700" />
-              AI 額度規則
+              AI 額度說明
             </CardTitle>
-            <CardDescription>成本安全優先於流量成長。</CardDescription>
+            <CardDescription>了解 AI 分析額度如何計算與使用。</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             {[
-              ['計數來源', 'ai_usage_events 以 org_id + feature + report_period 統計。'],
-              ['快取命中', '相同 fingerprint 命中快取不扣額度。'],
-              ['圖片 AI', 'ENABLE_IMAGE_AI=false 時全域停用。'],
-              ['Enterprise', 'aiMonthlyLimit=null，依合約處理。'],
+              ['計算方式', '每次 AI 分析依方案內額度扣減，每月重置。'],
+              ['重複內容', '相同退貨內容的重複分析會直接命中快取，不重複扣額度。'],
+              ['圖片分析', '依方案是否包含圖片 AI 功能而定。'],
+              ['企業方案', '依合約客製化額度，不受月度上限限制。'],
             ].map(([label, detail]) => (
               <div key={label} className="rounded-md border p-3">
                 <div className="font-medium text-gray-950">{label}</div>
@@ -146,7 +146,7 @@ export default async function UsageSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-950">用量與額度</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            追蹤本月退貨量軟限制、AI 月額度與席次使用；資料來自 org.plan 與當月統計。
+            查看本月退貨量、AI 分析額度與成員席次的使用情況。
           </p>
         </div>
         <Button asChild variant="outline">

@@ -36,10 +36,10 @@ const INVITE_STATUS_LABEL: Record<TeamSettingsView['invites'][number]['status'],
 };
 
 const roleRows = [
-  ['Owner', '組織擁有者', '方案、帳務、成員、資料刪除與安全設定。'],
-  ['Admin', '管理員', '退貨流程、團隊邀請、用量檢視與一般設定。'],
-  ['Staff', '作業成員', '處理退貨、驗貨、掃描、備註與日常作業。'],
-  ['Viewer', '檢視者', '查看退貨與報表，不可新增、修改或匯出。'],
+  ['擁有者', '方案、帳務、成員管理與資料安全設定。'],
+  ['管理員', '退貨流程、團隊邀請、用量檢視與一般設定。'],
+  ['作業成員', '處理退貨、驗貨、掃描、備註與日常作業。'],
+  ['檢視者', '查看退貨與報表，不可新增、修改或匯出。'],
 ] as const;
 
 function formatDate(value: string | null): string {
@@ -62,7 +62,7 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
             邀請成員
           </CardTitle>
           <CardDescription>
-            已使用席次 {activeSeats} / {seatLabel}。Email 寄送尚未接通，建立後以連結邀請。
+            已使用席次 {activeSeats} / {seatLabel}。建立邀請後，可複製邀請連結傳送給對方。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,7 +76,7 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
             <UsersRound className="size-5 text-emerald-700" />
             成員清單
           </CardTitle>
-          <CardDescription>來自 organization_members。</CardDescription>
+          <CardDescription>組織內所有成員及其狀態。</CardDescription>
         </CardHeader>
         <CardContent>
           {data.members.length === 0 ? (
@@ -122,7 +122,7 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
               <UserRoundCog className="size-5 text-cyan-700" />
               邀請中
             </CardTitle>
-            <CardDescription>來自 organization_invites。</CardDescription>
+            <CardDescription>尚未接受的邀請會在此列出。</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -159,24 +159,20 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
             <ShieldCheck className="size-5 text-emerald-700" />
             角色權限
           </CardTitle>
-          <CardDescription>後端 guard 需以 role + feature flag + plan 同時判斷。</CardDescription>
+          <CardDescription>各角色可進行的操作範圍。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>角色</TableHead>
-                <TableHead>定位</TableHead>
-                <TableHead>權限摘要</TableHead>
+                <TableHead>可進行的操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {roleRows.map(([role, scope, detail]) => (
+              {roleRows.map(([role, detail]) => (
                 <TableRow key={role}>
-                  <TableCell>
-                    <Badge>{role}</Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{scope}</TableCell>
+                  <TableCell className="font-medium">{role}</TableCell>
                   <TableCell className="text-muted-foreground">{detail}</TableCell>
                 </TableRow>
               ))}
@@ -197,7 +193,7 @@ export default async function TeamSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-950">團隊與角色</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            管理 Owner / Admin / Staff / Viewer 與邀請流程；資料來自 organization_members 與 organization_invites。
+            管理成員角色與邀請新夥伴加入。
           </p>
         </div>
       </div>
