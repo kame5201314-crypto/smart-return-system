@@ -10,6 +10,7 @@ import {
 import { getPlatformAdminPermissions } from '@/lib/saas/platform-admin-roles';
 import type { PlatformAdminDataRepository } from '@/lib/saas/platform-admin-data';
 import {
+  loadPlatformAdminDashboardView,
   loadPlatformAtRiskAlertsView,
   loadPlatformBillingEventsView,
   loadPlatformOrganizationDetailView,
@@ -107,6 +108,91 @@ function createRepository(): PlatformAdminDataRepository {
 }
 
 describe('SaaS platform admin live data loaders', () => {
+  it('loads the platform admin dashboard contract in one guarded data pass', async () => {
+    const repository = createRepository();
+    const now = new Date('2026-05-25T00:00:00.000Z');
+
+    const result = await loadPlatformAdminDashboardView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now,
+      organizationLimit: 999,
+      billingEventLimit: 10,
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        generatedAt: now.toISOString(),
+        organizations: {
+          totalOrganizations: 1,
+          activeOrTrialingOrganizations: 1,
+          estimatedActiveMrrTwd: expect.any(Number),
+        },
+        atRisk: {
+          summary: {
+            totalAlerts: 0,
+            criticalAlerts: 0,
+          },
+          topAlerts: [],
+        },
+        trialConversion: {
+          summary: {
+            convertedActiveOrganizations: 1,
+            conversionRatePercent: 100,
+          },
+          followUpOrganizations: [],
+        },
+        billingEvents: {
+          summary: {
+            totalEvents: 1,
+            processedEvents: 1,
+          },
+          recentEvents: [
+            {
+              id: 'event-1',
+              orgName: 'Demo Org',
+              status: 'processed',
+            },
+          ],
+        },
+      },
+      context: {
+        userId: 'admin-1',
+        isPlatformAdmin: true,
+      },
+    });
+    expect(repository.listOrganizations).toHaveBeenCalledWith({ limit: 100 });
+    expect(repository.listOrganizationUsage).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+      periodStart: '2026-05-01T00:00:00.000Z',
+    });
+    expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+    });
+    expect(repository.listBillingEvents).toHaveBeenCalledWith({ limit: 10 });
+    expect(repository.listOrganizationNames).toHaveBeenCalledWith({ orgIds: ['org-1'] });
+  });
+
+  it('returns empty dashboard state before querying dependent snapshots', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizations).mockResolvedValueOnce([]);
+
+    const result = await loadPlatformAdminDashboardView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'empty',
+      data: null,
+      message: 'No platform organizations were found.',
+    });
+    expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+    expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
+    expect(repository.listBillingEvents).not.toHaveBeenCalled();
+  });
+
   it('loads platform organization list after admin access passes', async () => {
     const repository = createRepository();
     const now = new Date('2026-05-22T12:00:00.000Z');

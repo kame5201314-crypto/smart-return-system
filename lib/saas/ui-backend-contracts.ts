@@ -333,6 +333,29 @@ export interface PlatformTrialConversionOrganization {
   needsFollowUp: boolean;
 }
 
+export interface PlatformAdminDashboardView {
+  generatedAt: string;
+  organizations: PlatformOrganizationSummary;
+  atRisk: {
+    summary: PlatformAtRiskAlertsView['summary'];
+    topAlerts: PlatformAtRiskAlert[];
+  };
+  trialConversion: {
+    summary: PlatformTrialConversionView['summary'];
+    followUpOrganizations: PlatformTrialConversionOrganization[];
+  };
+  billingEvents: {
+    summary: {
+      totalEvents: number;
+      receivedEvents: number;
+      processedEvents: number;
+      failedEvents: number;
+      ignoredEvents: number;
+    };
+    recentEvents: PlatformBillingEventsView['events'];
+  };
+}
+
 export type PlatformOrgUsageById = Record<string, PlatformOrganizationUsage>;
 export type PlatformOrgSubscriptionsById = Record<string, PlatformOrgSubscriptionSnapshot>;
 
@@ -738,6 +761,78 @@ export function buildPlatformTrialConversionView(
   return {
     summary: buildPlatformTrialConversionSummary(items),
     organizations: items,
+  };
+}
+
+export function buildPlatformAdminDashboardView(input: {
+  organizations: PlatformOrgSummary[];
+  usageByOrgId: PlatformOrgUsageById;
+  subscriptionsByOrgId?: PlatformOrgSubscriptionsById;
+  billingEvents?: PlatformBillingEventSummary[];
+  billingEventOrgNamesById?: Record<string, string | null>;
+  now?: Date;
+  topAlertLimit?: number;
+  trialFollowUpLimit?: number;
+  billingEventLimit?: number;
+}): PlatformAdminDashboardView {
+  const now = input.now ?? new Date();
+  const organizationList = buildPlatformOrganizationListView(
+    input.organizations,
+    input.usageByOrgId
+  );
+  const atRisk = buildPlatformAtRiskAlertsView(
+    input.organizations,
+    input.usageByOrgId,
+    input.subscriptionsByOrgId,
+    { now }
+  );
+  const trialConversion = buildPlatformTrialConversionView(
+    input.organizations,
+    input.subscriptionsByOrgId,
+    { now }
+  );
+  const billingEvents = buildPlatformBillingEventsView(
+    input.billingEvents ?? [],
+    input.billingEventOrgNamesById
+  );
+
+  return {
+    generatedAt: now.toISOString(),
+    organizations: organizationList.summary,
+    atRisk: {
+      summary: atRisk.summary,
+      topAlerts: atRisk.alerts.slice(0, clampDashboardLimit(input.topAlertLimit, 5)),
+    },
+    trialConversion: {
+      summary: trialConversion.summary,
+      followUpOrganizations: trialConversion.organizations
+        .filter((organization) => organization.needsFollowUp)
+        .slice(0, clampDashboardLimit(input.trialFollowUpLimit, 5)),
+    },
+    billingEvents: {
+      summary: buildPlatformBillingEventDashboardSummary(billingEvents.events),
+      recentEvents: billingEvents.events.slice(0, clampDashboardLimit(input.billingEventLimit, 5)),
+    },
+  };
+}
+
+function clampDashboardLimit(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(Math.trunc(value), 1), 20);
+}
+
+function buildPlatformBillingEventDashboardSummary(
+  events: PlatformBillingEventsView['events']
+): PlatformAdminDashboardView['billingEvents']['summary'] {
+  return {
+    totalEvents: events.length,
+    receivedEvents: events.filter((event) => event.status === 'received').length,
+    processedEvents: events.filter((event) => event.status === 'processed').length,
+    failedEvents: events.filter((event) => event.status === 'failed').length,
+    ignoredEvents: events.filter((event) => event.status === 'ignored').length,
   };
 }
 

@@ -2,6 +2,50 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added the backend contract for a Claude-owned `/internal` platform dashboard.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/ui-backend-contracts.ts`
+- `lib/saas/platform-admin-live-data.ts`
+- `tests/unit/saas-platform-admin-live-data.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+
+Contract:
+
+- `loadPlatformAdminDashboardView()` is guarded by
+  `view_platform_dashboard`.
+- Ready state includes organization KPI, at-risk alert summary/top alerts,
+  trial conversion summary/follow-up organizations, and billing event summary
+  plus recent events.
+- The loader reads real platform organization, usage, subscription, and billing
+  event snapshots through the existing repository boundary.
+- It does not expose customer return details to platform admins.
+
+Remaining split:
+
+- Claude owns replacing the current `/internal` redirect with a dashboard UI
+  that consumes this loader.
+- Codex owns any additional backend data fields, query changes, or permission
+  rules.
+
+Notes:
+
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added the backend contract for a Claude-owned Platform Admin Mode indicator.
 
 Commit:

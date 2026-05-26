@@ -10,12 +10,14 @@ import {
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
 import {
+  buildPlatformAdminDashboardView,
   buildPlatformAtRiskAlertsView,
   buildPlatformBillingEventsView,
   buildPlatformOrganizationDetailView,
   buildPlatformOrganizationListView,
   buildPlatformTrialConversionView,
   type GatedState,
+  type PlatformAdminDashboardView,
   type PlatformAtRiskAlertsView,
   type PlatformBillingEventsView,
   type PlatformOrganizationDetailView,
@@ -69,6 +71,13 @@ export interface PlatformAdminLiveDataDependencies {
 
 export interface LoadPlatformOrganizationsOptions extends PlatformAdminLiveDataDependencies {
   limit?: number;
+}
+
+export interface LoadPlatformDashboardOptions extends PlatformAdminLiveDataDependencies {
+  organizationLimit?: number;
+  billingEventLimit?: number;
+  topAlertLimit?: number;
+  trialFollowUpLimit?: number;
 }
 
 export interface LoadPlatformBillingEventsOptions extends PlatformAdminLiveDataDependencies {
@@ -189,6 +198,66 @@ export async function loadPlatformOrganizationsView(
     };
   } catch (error) {
     return mapLiveDataError(error, 'Failed to load platform organizations.');
+  }
+}
+
+export async function loadPlatformAdminDashboardView(
+  options: LoadPlatformDashboardOptions = {}
+): Promise<PlatformAdminLiveDataResult<PlatformAdminDashboardView>> {
+  try {
+    const access = await loadAccess(options, 'view_platform_dashboard');
+    const context = toLiveDataContext(access);
+    const repository = getRepository(options);
+    const organizations = await repository.listOrganizations({
+      limit: clampLimit(options.organizationLimit),
+    });
+
+    if (organizations.length === 0) {
+      return {
+        state: 'empty',
+        data: null,
+        message: 'No platform organizations were found.',
+        context,
+      };
+    }
+
+    const orgIds = organizations.map((org) => org.id);
+    const [usageByOrgId, subscriptionsByOrgId, billingEvents] = await Promise.all([
+      repository.listOrganizationUsage({
+        orgIds,
+        periodStart: getCurrentMonthStartIso(options.now),
+      }),
+      repository.listOrganizationSubscriptions({
+        orgIds,
+      }),
+      repository.listBillingEvents({
+        limit: clampLimit(options.billingEventLimit),
+      }),
+    ]);
+
+    const billingEventOrgNamesById = billingEvents.length > 0
+      ? await repository.listOrganizationNames({
+          orgIds: Array.from(new Set(billingEvents.map((event) => event.orgId))),
+        })
+      : {};
+
+    return {
+      state: 'ready',
+      data: buildPlatformAdminDashboardView({
+        organizations,
+        usageByOrgId,
+        subscriptionsByOrgId,
+        billingEvents,
+        billingEventOrgNamesById,
+        now: options.now,
+        topAlertLimit: options.topAlertLimit,
+        trialFollowUpLimit: options.trialFollowUpLimit,
+        billingEventLimit: options.billingEventLimit,
+      }),
+      context,
+    };
+  } catch (error) {
+    return mapLiveDataError(error, 'Failed to load platform admin dashboard.');
   }
 }
 

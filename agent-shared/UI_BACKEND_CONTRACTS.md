@@ -129,6 +129,62 @@ Rules:
 - `internalEnabled` tells UI whether the internal console flag is open.
 - Hidden responses must not render an admin indicator.
 
+## Platform Admin Dashboard
+
+Backend owner: Codex.
+
+Future UI owner: Claude.
+
+Loader:
+
+```text
+loadPlatformAdminDashboardView()
+```
+
+UI path:
+
+```text
+app/internal/page.tsx
+```
+
+Ready response:
+
+```ts
+{
+  state: 'ready';
+  data: {
+    generatedAt: string;
+    organizations: PlatformOrganizationSummary;
+    atRisk: {
+      summary: PlatformAtRiskAlertsView['summary'];
+      topAlerts: PlatformAtRiskAlert[];
+    };
+    trialConversion: {
+      summary: PlatformTrialConversionView['summary'];
+      followUpOrganizations: PlatformTrialConversionOrganization[];
+    };
+    billingEvents: {
+      summary: {
+        totalEvents: number;
+        receivedEvents: number;
+        processedEvents: number;
+        failedEvents: number;
+        ignoredEvents: number;
+      };
+      recentEvents: PlatformBillingEventsView['events'];
+    };
+  };
+}
+```
+
+Rules:
+
+- The dashboard loader is guarded by `view_platform_dashboard`.
+- It uses real organization, usage, subscription, and billing event snapshots.
+- It does not expose customer return details to platform admins.
+- Claude should render this as the `/internal` overview; `/internal/orgs`
+  should remain the detailed organization list.
+
 ## Settings Billing
 
 UI path:
