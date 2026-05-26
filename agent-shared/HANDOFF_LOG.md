@@ -2,6 +2,54 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added audit trail coverage to the platform tenant preview contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-tenant-preview.ts`
+- `app/api/internal/saas/orgs/[id]/preview/route.ts`
+- `app/api/internal/saas/tenant-preview/route.ts`
+- `tests/unit/saas-platform-tenant-preview.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Contract update:
+
+- `POST /api/internal/saas/orgs/[id]/preview` now writes
+  `audit_logs.action = platform.tenant_preview_started` before it returns the
+  signed preview cookie.
+- The start response includes `auditLogId`.
+- `DELETE /api/internal/saas/tenant-preview` attempts to write
+  `platform.tenant_preview_cleared` with the preview target if the signed cookie
+  is still valid.
+- Clear uses best-effort audit logging: it still clears the cookie if audit
+  insert fails, and logs that failure server-side.
+
+Remaining split:
+
+- Claude owns the internal org-detail preview button and orange preview banner
+  UI.
+- Codex owns any future full impersonation or `getOrgContext()` wiring if owner
+  explicitly approves the risk model.
+
+Notes:
+
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added the platform tenant preview backend contract.
 
 Commit:

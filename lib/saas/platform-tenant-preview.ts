@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 
+import { ADMIN_UUID } from '@/lib/auth/admin-session';
 import {
   requirePlatformAdminAccess,
   type PlatformAdminContext,
@@ -50,6 +51,34 @@ export interface CreatePlatformTenantPreviewSessionInput {
   now?: Date;
 }
 
+export type PlatformTenantPreviewAuditAction =
+  | 'platform.tenant_preview_started'
+  | 'platform.tenant_preview_cleared';
+
+export interface PlatformTenantPreviewAuditTarget {
+  orgId: string | null;
+  orgName: string | null;
+  orgSlug: string | null;
+}
+
+export interface PlatformTenantPreviewAuditInput {
+  action: PlatformTenantPreviewAuditAction;
+  access: PlatformAdminContext;
+  target: PlatformTenantPreviewAuditTarget | null;
+  previewExpiresAt?: string | null;
+  reason?: string | null;
+}
+
+export interface PlatformTenantPreviewAuditResult {
+  auditLogId: string | null;
+}
+
+export interface PlatformTenantPreviewAuditRepository {
+  recordPreviewAudit(
+    input: PlatformTenantPreviewAuditInput
+  ): Promise<PlatformTenantPreviewAuditResult>;
+}
+
 export interface LoadPlatformTenantPreviewModeOptions {
   requireAccess?: () => Promise<PlatformAdminContext>;
   getToken?: (() => Promise<string | undefined | null>) | string | undefined | null;
@@ -63,6 +92,27 @@ export const PLATFORM_TENANT_PREVIEW_COOKIE_OPTIONS = {
   maxAge: PLATFORM_TENANT_PREVIEW_MAX_AGE_SECONDS,
   path: '/',
 };
+
+interface SupabasePreviewAuditError {
+  message?: string;
+}
+
+interface SupabasePreviewAuditInsertBuilder {
+  select(columns: string): {
+    maybeSingle(): Promise<{
+      data: unknown;
+      error: SupabasePreviewAuditError | null;
+    }>;
+  };
+}
+
+interface SupabasePreviewAuditTableBuilder {
+  insert(values: Record<string, unknown>): SupabasePreviewAuditInsertBuilder;
+}
+
+export interface PlatformTenantPreviewAuditQueryClient {
+  from(table: string): SupabasePreviewAuditTableBuilder;
+}
 
 function getSessionSecret(): string {
   const secret = (process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
@@ -147,6 +197,26 @@ function isValidPayload(value: PlatformTenantPreviewPayload | null): value is Pl
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function normalizeAuditLogId(data: unknown): string | null {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  return stringOrNull(data.id);
+}
+
+function resolveAuditActorUserId(access: PlatformAdminContext): string | null {
+  return access.userId === ADMIN_UUID ? null : access.userId;
+}
+
 export async function createPlatformTenantPreviewToken(
   input: CreatePlatformTenantPreviewSessionInput
 ): Promise<{ token: string; payload: PlatformTenantPreviewPayload }> {
@@ -169,6 +239,46 @@ export async function createPlatformTenantPreviewToken(
   return {
     token: `${encodedPayload}.${signature}`,
     payload,
+  };
+}
+
+export function createPlatformTenantPreviewAuditRepository(
+  client: PlatformTenantPreviewAuditQueryClient
+): PlatformTenantPreviewAuditRepository {
+  return {
+    async recordPreviewAudit(input) {
+      const metadata = {
+        actor_user_id: input.access.userId,
+        actor_email: input.access.userEmail ?? null,
+        platform_role: input.access.platformRole,
+        org_id: input.target?.orgId ?? null,
+        org_name: input.target?.orgName ?? null,
+        org_slug: input.target?.orgSlug ?? null,
+        preview_expires_at: input.previewExpiresAt ?? null,
+        reason: input.reason ?? null,
+      };
+
+      const { data, error } = await client
+        .from('audit_logs')
+        .insert({
+          org_id: input.target?.orgId ?? null,
+          actor_user_id: resolveAuditActorUserId(input.access),
+          action: input.action,
+          target_type: 'organization',
+          target_id: input.target?.orgId ?? null,
+          metadata,
+        })
+        .select('id')
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message || 'Failed to write platform tenant preview audit log.');
+      }
+
+      return {
+        auditLogId: normalizeAuditLogId(data),
+      };
+    },
   };
 }
 

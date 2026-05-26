@@ -12,14 +12,18 @@ import {
   type PlatformAdminContext,
 } from '@/lib/saas/platform-admin';
 import {
+  createPlatformTenantPreviewAuditRepository,
   createPlatformTenantPreviewToken,
   PLATFORM_TENANT_PREVIEW_COOKIE,
   PLATFORM_TENANT_PREVIEW_COOKIE_OPTIONS,
+  type PlatformTenantPreviewAuditQueryClient,
+  type PlatformTenantPreviewAuditRepository,
 } from '@/lib/saas/platform-tenant-preview';
 
 interface HandlerDependencies {
   requireAccess?: () => Promise<PlatformAdminContext>;
   repository?: PlatformAdminDataRepository;
+  auditRepository?: PlatformTenantPreviewAuditRepository;
 }
 
 interface RouteContext {
@@ -29,6 +33,12 @@ interface RouteContext {
 function getRepository(deps: HandlerDependencies): PlatformAdminDataRepository {
   return deps.repository ?? createPlatformAdminDataRepository(
     createUntypedAdminClient() as unknown as PlatformAdminQueryClient
+  );
+}
+
+function getAuditRepository(deps: HandlerDependencies): PlatformTenantPreviewAuditRepository {
+  return deps.auditRepository ?? createPlatformTenantPreviewAuditRepository(
+    createUntypedAdminClient() as unknown as PlatformTenantPreviewAuditQueryClient
   );
 }
 
@@ -80,6 +90,18 @@ export async function handleStartPlatformTenantPreview(
       access,
       organization,
     });
+    const expiresAt = new Date(payload.exp * 1000).toISOString();
+    const auditResult = await getAuditRepository(deps).recordPreviewAudit({
+      action: 'platform.tenant_preview_started',
+      access,
+      target: {
+        orgId: payload.orgId,
+        orgName: payload.orgName,
+        orgSlug: payload.orgSlug,
+      },
+      previewExpiresAt: expiresAt,
+      reason: 'started',
+    });
     const response = NextResponse.json({
       success: true,
       data: {
@@ -89,7 +111,8 @@ export async function handleStartPlatformTenantPreview(
         adminUserId: payload.adminUserId,
         platformRole: payload.platformRole,
         previewPath: '/analytics',
-        expiresAt: new Date(payload.exp * 1000).toISOString(),
+        expiresAt,
+        auditLogId: auditResult.auditLogId,
       },
     });
 

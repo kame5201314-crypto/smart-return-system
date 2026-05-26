@@ -276,6 +276,21 @@ Service:
 lib/saas/platform-tenant-preview.ts
 ```
 
+Start response data:
+
+```ts
+{
+  orgId: string;
+  orgName: string;
+  orgSlug: string | null;
+  adminUserId: string;
+  platformRole: 'owner' | 'support' | 'billing';
+  previewPath: '/analytics';
+  expiresAt: string;
+  auditLogId: string | null;
+}
+```
+
 Ready state:
 
 ```ts
@@ -299,7 +314,11 @@ Rules:
 - Starting preview requires platform admin access and
   `requiredPermission: 'view_organizations'`.
 - The preview cookie is signed and expires after one hour.
-- `DELETE /api/internal/saas/tenant-preview` clears the cookie.
+- Starting preview writes `audit_logs` action
+  `platform.tenant_preview_started` before the cookie is returned.
+- `DELETE /api/internal/saas/tenant-preview` clears the cookie and attempts to
+  write `platform.tenant_preview_cleared`; clear still succeeds if that audit
+  write fails so admins are not trapped in preview mode.
 - This is not full impersonation yet: Codex intentionally did not wire the
   cookie into `getOrgContext()` or tenant write permissions.
 - Claude may use this contract for a future orange "viewing tenant" banner and

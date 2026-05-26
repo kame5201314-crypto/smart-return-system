@@ -961,20 +961,27 @@ function checkCommercialFoundation() {
     if (
       previewSource.includes('PLATFORM_TENANT_PREVIEW_COOKIE') &&
       previewSource.includes('createPlatformTenantPreviewToken') &&
+      previewSource.includes('createPlatformTenantPreviewAuditRepository') &&
       previewSource.includes('verifyPlatformTenantPreviewToken') &&
       previewSource.includes('loadPlatformTenantPreviewMode') &&
+      previewSource.includes("from('audit_logs')") &&
+      previewSource.includes('platform.tenant_preview_started') &&
+      previewSource.includes('platform.tenant_preview_cleared') &&
       previewSource.includes("requiredPermission: 'view_organizations'") &&
       orgPreviewRouteSource.includes('handleStartPlatformTenantPreview') &&
       orgPreviewRouteSource.includes('createPlatformAdminDataRepository') &&
       orgPreviewRouteSource.includes('createPlatformTenantPreviewToken') &&
+      orgPreviewRouteSource.includes('recordPreviewAudit') &&
+      orgPreviewRouteSource.includes('auditLogId') &&
       orgPreviewRouteSource.includes("requiredPermission: 'view_organizations'") &&
       previewRouteSource.includes('handleGetPlatformTenantPreview') &&
       previewRouteSource.includes('handleClearPlatformTenantPreview') &&
+      previewRouteSource.includes('recordPreviewAudit') &&
       !previewSource.includes('getOrgContext(')
     ) {
-      record('pass', 'SaaS platform tenant preview contract', 'platform admin tenant preview is signed, guarded, and not wired into tenant write context');
+      record('pass', 'SaaS platform tenant preview contract', 'platform admin tenant preview is signed, guarded, audit-logged, and not wired into tenant write context');
     } else {
-      record('fail', 'SaaS platform tenant preview contract', 'tenant preview must be signed, platform-admin guarded, clearable, and separated from tenant org write context');
+      record('fail', 'SaaS platform tenant preview contract', 'tenant preview must be signed, platform-admin guarded, audit-logged, clearable, and separated from tenant org write context');
     }
   }
 

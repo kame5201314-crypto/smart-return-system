@@ -33,6 +33,25 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform tenant preview audit trail
+Files:
+- lib/saas/platform-tenant-preview.ts
+- app/api/internal/saas/orgs/[id]/preview/route.ts
+- app/api/internal/saas/tenant-preview/route.ts
+- tests/unit/saas-platform-tenant-preview.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added audit_logs coverage for platform tenant preview start/clear events. Start requires the audit write before returning the signed cookie. Clear deletes the cookie even if the audit insert fails, with the failure logged server-side, so admins are not trapped in preview mode. No UI, deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform tenant preview backend contract
 Files:
 - lib/saas/platform-tenant-preview.ts
