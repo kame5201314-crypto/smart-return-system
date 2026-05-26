@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, FileClock } from 'lucide-react';
+import { Building2, FileClock, LayoutDashboard } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 
-type InternalIconName = 'building' | 'fileClock';
+type InternalIconName = 'building' | 'fileClock' | 'layoutDashboard';
 
 const ICON_MAP: Record<InternalIconName, ComponentType<SVGProps<SVGSVGElement>>> = {
   building: Building2,
   fileClock: FileClock,
+  layoutDashboard: LayoutDashboard,
 };
 
 interface InternalNavLinkProps {
@@ -17,11 +18,14 @@ interface InternalNavLinkProps {
   label: string;
   description: string;
   iconName: InternalIconName;
+  exact?: boolean;
 }
 
-export function InternalNavLink({ href, label, description, iconName }: InternalNavLinkProps) {
+export function InternalNavLink({ href, label, description, iconName, exact }: InternalNavLinkProps) {
   const pathname = usePathname() ?? '';
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = exact
+    ? pathname === href
+    : pathname === href || pathname.startsWith(`${href}/`);
   const Icon = ICON_MAP[iconName];
 
   return (

@@ -8,6 +8,13 @@ import { InternalNavLink } from '@/components/internal/nav-link';
 
 const internalNav = [
   {
+    href: '/internal',
+    label: 'Dashboard',
+    description: 'MRR、試用追蹤、需關注事項',
+    iconName: 'layoutDashboard',
+    exact: true,
+  },
+  {
     href: '/internal/orgs',
     label: 'Organizations',
     description: '租戶、方案與狀態',
@@ -63,6 +70,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
                 label={item.label}
                 description={item.description}
                 iconName={item.iconName}
+                exact={'exact' in item ? item.exact : undefined}
               />
             ))}
           </nav>
