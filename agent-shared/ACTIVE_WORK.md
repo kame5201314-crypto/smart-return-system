@@ -25,10 +25,27 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta production smoke has passed. Ready for owner-guided Beta onboarding for `遇見未來` or rollback/watch follow-up. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Continue serialized Claude UI / Codex non-UI work on `develop-saas`; do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Role-based post-login redirect contract
+Files:
+- lib/auth/post-login-redirect.ts
+- lib/actions/auth.ts
+- app/login/page.tsx
+- tests/unit/post-login-redirect.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: signIn() now returns redirectTo so platform admins land on /internal and merchant users land on /analytics. The login page only consumes this backend result; no visual UI redesign, deployment, migration, env/secret edit, billing/provider enablement, master change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Codex

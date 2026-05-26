@@ -17,6 +17,7 @@ Status values:
 | todo | Trial / onboarding UI screens | May mock/render Codex onboarding DTO; completion writes still wait for a Codex route/server action |
 | todo | Public marketing and legal RWD inspection | Claude UI-only scope: `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
 | todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
+| done | Customer settings page declutter and copy polish | Commits `1316b02`, `fb561fa`, and `14dad06`; UI-only cleanup kept backend/auth contracts unchanged |
 | done | Empty / loading / error states | Commit `927bf1a` |
 | done | SaaS settings UI polish | Commit `f216cc8`; used existing `app/(admin)/settings/**` |
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
@@ -30,6 +31,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Role-based post-login redirect contract | This commit; `signIn()` returns `redirectTo` so platform admins land on `/internal` while merchant users land on `/analytics`; UI only consumes the backend result |
 | done | Closed Manual Beta production smoke | Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` for `smart-return-system-saas` is Ready; public pages returned 200 and protected unauthenticated pages redirected to `/login` |
 | done | Platform admin billing operation backend plan | This commit; added guarded `POST /api/internal/saas/billing/operations`, RPC wrapper, and draft `033` for manual payment marking, suspend/resume, refund request, and audit logging |
 | done | At-risk alert backend contract | This commit; added read-only `PlatformAtRiskAlertsView` and `loadPlatformAtRiskAlertsView()` for past_due, suspended, AI/return/seat quota, and trial expiry signals |

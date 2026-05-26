@@ -2,6 +2,44 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added the non-UI post-login redirect contract for the role separation work.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/auth/post-login-redirect.ts`
+- `lib/actions/auth.ts`
+- `app/login/page.tsx`
+- `tests/unit/post-login-redirect.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+
+Contract:
+
+- `signIn()` now returns `redirectTo`.
+- Platform admin sessions and Supabase profiles with `users.role = 'admin'` resolve to `/internal`.
+- Merchant/customer users resolve to `/analytics`.
+- Login UI only consumes the backend result and should not duplicate role detection.
+- `/internal/*` remains protected by Codex-owned platform admin guards.
+
+Remaining split:
+
+- Claude owns visual polish for login, forbidden states, admin mode indicators, and customer-facing settings pages.
+- Codex owns any further auth/session work such as `next` handling, impersonation, platform admin role storage, and internal dashboard data contracts.
+
+Notes:
+
+- No deployment, migration, env/secret edit, billing/provider enablement, master change, or production/internal Supabase action was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded the Closed Manual Beta production deployment smoke test.
 
 Commit:

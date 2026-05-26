@@ -45,7 +45,7 @@ export default function LoginPage() {
       }
 
       toast.success('登入成功！');
-      router.push('/analytics');
+      router.push(result.redirectTo ?? '/analytics');
       router.refresh();
     } catch {
       toast.error('登入失敗，請稍後再試');

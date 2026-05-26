@@ -22,6 +22,40 @@ interface GatedState {
 }
 ```
 
+## Auth Redirect
+
+Backend owner: Codex.
+
+UI path:
+
+```text
+app/login/page.tsx
+```
+
+Server action:
+
+```text
+signIn(email, password)
+```
+
+Success response:
+
+```ts
+{
+  success: true;
+  redirectTo: '/internal' | '/analytics';
+}
+```
+
+Rules:
+
+- Platform admin sessions and Supabase users with `users.role = 'admin'`
+  return `/internal`.
+- Merchant/customer users return `/analytics`.
+- Login UI should consume `redirectTo` and should not hard-code role
+  detection in the client.
+- `/internal/*` remains protected by Codex-owned platform admin guards.
+
 ## Settings Billing
 
 UI path:

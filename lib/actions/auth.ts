@@ -12,6 +12,8 @@ import {
   verifyAdminSessionToken,
 } from '@/lib/auth/admin-session';
 import { getConfiguredAdminUsername, isAdminLoginId } from '@/lib/auth/admin-login';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
 
 // Defensive trim: Vercel env values can accidentally include trailing newlines.
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
@@ -19,6 +21,45 @@ const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
 export interface AuthResult {
   success: boolean;
   error?: string;
+  redirectTo?: PostLoginRedirectPath;
+}
+
+async function loadUserProfileRoleForRedirect(userId: string | null, email: string): Promise<string | null> {
+  try {
+    const adminClient = createAdminClient();
+
+    if (userId) {
+      const { data, error } = await adminClient
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Post-login role check by id failed:', error);
+      }
+
+      const role = (data as { role?: string } | null)?.role ?? null;
+      if (role) {
+        return role;
+      }
+    }
+
+    const { data, error } = await adminClient
+      .from('users')
+      .select('role')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Post-login role check by email failed:', error);
+    }
+
+    return (data as { role?: string } | null)?.role ?? null;
+  } catch (error) {
+    console.error('Post-login role check failed:', error);
+    return null;
+  }
 }
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {
@@ -46,7 +87,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, ADMIN_SESSION_COOKIE_OPTIONS);
 
       revalidatePath('/', 'layout');
-      return { success: true };
+      return { success: true, redirectTo: getPostLoginRedirect({ isAdmin: true }) };
     }
 
     if (!trimmedEmail.includes('@')) {
@@ -57,7 +98,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     }
 
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
       password: trimmedPassword,
     });
@@ -69,8 +110,13 @@ export async function signIn(email: string, password: string): Promise<AuthResul
       };
     }
 
+    const profileRole = await loadUserProfileRoleForRedirect(signInData.user?.id ?? null, trimmedEmail);
+
     revalidatePath('/', 'layout');
-    return { success: true };
+    return {
+      success: true,
+      redirectTo: getPostLoginRedirect({ profileRole }),
+    };
   } catch (err) {
     console.error('Login error:', err);
     return {
