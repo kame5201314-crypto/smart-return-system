@@ -30,7 +30,7 @@ const navItems = [
   { href: '/pickup', label: '取件紀錄', icon: ClipboardList },
   { href: '/logistics', label: '物流管理', icon: Truck },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
-  { href: '/settings', label: 'SaaS 設定', icon: Settings },
+  { href: '/settings', label: '設定', icon: Settings },
   { href: '/settings/backup', label: '資料備份', icon: Database },
 ];
 
