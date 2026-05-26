@@ -182,6 +182,8 @@ function checkCommercialFoundation() {
   const requiredFiles = [
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
+    'lib/auth/post-login-redirect.ts',
+    'lib/auth/internal-login-redirect.ts',
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
     'lib/saas/subscription-access.ts',
@@ -196,6 +198,7 @@ function checkCommercialFoundation() {
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-roles.ts',
+    'lib/saas/platform-admin-mode.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-live-data.ts',
     'lib/saas/platform-admin-provisioning.ts',
@@ -308,6 +311,9 @@ function checkCommercialFoundation() {
   }
 
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
+  const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
+  const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
+  const loginPagePath = path.resolve(process.cwd(), 'app/login/page.tsx');
   const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
   if (fs.existsSync(publicRoutesPath) && fs.existsSync(proxyPath)) {
     const publicRoutesSource = fs.readFileSync(publicRoutesPath, 'utf8');
@@ -330,6 +336,33 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public routes', 'commercial website and portal routes stay public before login');
     } else {
       record('fail', 'SaaS public routes', `missing allowlist or proxy wiring: ${missing.join(', ')}`);
+    }
+  }
+
+  if (
+    fs.existsSync(postLoginRedirectPath) &&
+    fs.existsSync(internalLoginRedirectPath) &&
+    fs.existsSync(loginPagePath)
+  ) {
+    const postLoginSource = fs.readFileSync(postLoginRedirectPath, 'utf8');
+    const internalRedirectSource = fs.readFileSync(internalLoginRedirectPath, 'utf8');
+    const loginPageSource = fs.readFileSync(loginPagePath, 'utf8');
+    if (
+      postLoginSource.includes('getPostLoginRedirect') &&
+      postLoginSource.includes("PLATFORM_ADMIN_POST_LOGIN_PATH = '/internal'") &&
+      postLoginSource.includes("CUSTOMER_POST_LOGIN_PATH = '/analytics'") &&
+      postLoginSource.includes("trimmed.startsWith('//')") &&
+      postLoginSource.includes("trimmed.includes('\\\\')") &&
+      postLoginSource.includes("trimmed.startsWith('/login')") &&
+      internalRedirectSource.includes('buildInternalLoginRedirect') &&
+      internalRedirectSource.includes('redirectUnauthenticatedPlatformAdminResult') &&
+      internalRedirectSource.includes("accessCode === 'unauthenticated'") &&
+      loginPageSource.includes('new URLSearchParams(window.location.search).get') &&
+      loginPageSource.includes('result.redirectTo')
+    ) {
+      record('pass', 'SaaS auth redirect contract', 'post-login redirects are role-aware and internal next paths are sanitized');
+    } else {
+      record('fail', 'SaaS auth redirect contract', 'login must use server-provided redirectTo and sanitize internal next paths');
     }
   }
 
@@ -513,7 +546,11 @@ function checkCommercialFoundation() {
       source.includes('TeamSettingsViewInput') &&
       source.includes('buildPlatformOrganizationListView') &&
       source.includes('buildPlatformOrganizationDetailView') &&
-      source.includes('buildPlatformBillingEventsView')
+      source.includes('buildPlatformBillingEventsView') &&
+      source.includes('buildPlatformAtRiskAlertsView') &&
+      source.includes('buildPlatformTrialConversionView') &&
+      source.includes('buildPlatformAdminDashboardView') &&
+      source.includes('PlatformAdminDashboardView')
     ) {
       record('pass', 'SaaS UI/backend DTO builders', 'settings and platform admin contracts have validated DTO builders');
     } else {
@@ -815,6 +852,7 @@ function checkCommercialFoundation() {
 
   const platformAdminDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-data.ts');
   const platformAdminLiveDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-live-data.ts');
+  const platformAdminModePath = path.resolve(process.cwd(), 'lib/saas/platform-admin-mode.ts');
   const platformOrgRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/route.ts');
   const platformOrgDetailRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/[id]/route.ts');
   const platformBillingEventsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/events/route.ts');
@@ -859,29 +897,55 @@ function checkCommercialFoundation() {
     }
   }
 
+  if (fs.existsSync(platformAdminModePath)) {
+    const source = fs.readFileSync(platformAdminModePath, 'utf8');
+    if (
+      source.includes('loadPlatformAdminModeView') &&
+      source.includes('requirePlatformAdminAccess') &&
+      source.includes('requireFeatureFlag: false') &&
+      source.includes("state: 'ready'") &&
+      source.includes("state: 'hidden'") &&
+      source.includes('internalEnabled') &&
+      source.includes("dashboard: '/internal'") &&
+      source.includes("organizations: '/internal/orgs'") &&
+      source.includes("billingEvents: '/internal/billing/events'")
+    ) {
+      record('pass', 'SaaS platform admin mode contract', 'admin mode identity and links are server-resolved for Claude UI');
+    } else {
+      record('fail', 'SaaS platform admin mode contract', 'platform admin mode must expose server-resolved identity, role, permissions, internal links, and hidden states');
+    }
+  }
+
   if (fs.existsSync(platformAdminLiveDataPath)) {
     const source = fs.readFileSync(platformAdminLiveDataPath, 'utf8');
     if (
+      source.includes('loadPlatformAdminDashboardView') &&
       source.includes('loadPlatformOrganizationsView') &&
       source.includes('loadPlatformOrganizationDetailView') &&
       source.includes('loadPlatformBillingEventsView') &&
+      source.includes('loadPlatformAtRiskAlertsView') &&
+      source.includes('loadPlatformTrialConversionView') &&
       source.includes('PlatformAdminLiveDataResult') &&
       source.includes('requirePlatformAdminAccess') &&
       source.includes('PlatformAdminAccessError') &&
+      source.includes("loadAccess(options, 'view_platform_dashboard')") &&
       source.includes("loadAccess(options, 'view_organizations')") &&
       source.includes("loadAccess(options, 'view_billing_events')") &&
       source.includes('createPlatformAdminDataRepository') &&
       source.includes('createUntypedAdminClient') &&
+      source.includes('buildPlatformAdminDashboardView') &&
       source.includes('buildPlatformOrganizationListView') &&
       source.includes('buildPlatformOrganizationDetailView') &&
       source.includes('buildPlatformBillingEventsView') &&
+      source.includes('buildPlatformAtRiskAlertsView') &&
+      source.includes('buildPlatformTrialConversionView') &&
       source.includes("state: 'gated'") &&
       source.includes("state: 'empty'") &&
       !source.includes("from '@/app/api/internal")
     ) {
-      record('pass', 'SaaS platform admin live data loaders', 'internal page loaders are platform-admin gated and return DTO ready/empty/gated/error states without calling route handlers');
+      record('pass', 'SaaS platform admin live data loaders', 'internal dashboard/list/detail loaders are platform-admin gated and return DTO ready/empty/gated/error states without calling route handlers');
     } else {
-      record('fail', 'SaaS platform admin live data loaders', 'platform admin page loaders must use the guard, repository layer, DTO builders, and four-state results without route-handler coupling');
+      record('fail', 'SaaS platform admin live data loaders', 'platform admin page loaders must use the guard, repository layer, dashboard/list/detail DTO builders, and four-state results without route-handler coupling');
     }
   }
 

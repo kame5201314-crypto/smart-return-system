@@ -2,6 +2,43 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Extended `saas:doctor` coverage for the role separation and platform dashboard
+contracts.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+
+Gate additions:
+
+- Auth redirect contract: `signIn()` consumes sanitized `next` paths and
+  returns role-aware `redirectTo`.
+- Internal admin redirect helper: unauthenticated `/internal/*` access returns
+  `/login?next=...`.
+- Platform admin mode contract: server-resolved identity, role, permissions,
+  links, and hidden states.
+- Platform admin dashboard live-data contract: dashboard/list/detail loaders
+  are checked for guard, repository, and DTO builder wiring.
+
+Notes:
+
+- `npm run saas:doctor` now reports `135 pass, 1 warn, 0 fail` in this local
+  SaaS setup.
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added the backend contract for a Claude-owned `/internal` platform dashboard.
 
 Commit:
