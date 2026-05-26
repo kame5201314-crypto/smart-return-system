@@ -2,6 +2,61 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded Claude's latest UI handoffs after the external blocker refresh.
+
+Commits:
+
+```text
+e8fa91f feat(saas/ui): localize at-risk and health metric labels
+0dc1fcb refactor(saas/ui): unify settings sub-pages on PageHeader component
+64e6345 feat(saas/ui): show trial countdown and cancellation banners on billing
+60e702d feat(saas/ui): add next-step focus card on onboarding guide
+615ce7c fix(saas/ui): add mobile nav drawer on marketing shell
+```
+
+Files reported by commits:
+
+- `app/internal/page.tsx`
+- `app/internal/orgs/page.tsx`
+- `app/internal/orgs/[id]/page.tsx`
+- `components/internal/platform-labels.ts`
+- `app/(admin)/settings/billing/page.tsx`
+- `app/(admin)/settings/team/page.tsx`
+- `app/(admin)/settings/usage/page.tsx`
+- `app/(admin)/onboarding/page.tsx`
+- `components/marketing/mobile-nav.tsx`
+- `components/marketing/site-shell.tsx`
+
+UI handoff summary:
+
+- Platform at-risk, health, org status, risk reason, and alert severity labels
+  are now localized for operators without changing the dashboard DTO contract.
+- Settings billing/team/usage headers now share `PageHeader`.
+- Billing now surfaces trial countdown and cancel-at-period-end banners from
+  existing billing DTO fields.
+- `/onboarding` now highlights the current next step above the progress card
+  using existing `loadSaaSOnboardingView()` data.
+- Marketing pages now have a mobile drawer for public links, legal links, and
+  login below `md`, while preserving the existing desktop nav and sticky CTA.
+
+Remaining split:
+
+- Claude still owns final public marketing/legal desktop and mobile RWD QA.
+- Codex has no unblocked backend/API/migration task open after these handoffs.
+- Onboarding completion writes still require explicit owner approval and
+  migration `035` apply before production enablement.
+
+Notes:
+
+- Claude commits report UI-only or UI-refactor-only scope.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+- No deployment, migration, env/secret edit, domain/DNS change,
+  billing/provider enablement, master/live/prod change, or production/internal
+  Supabase action was performed by this coordination refresh.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Refreshed the SaaS external rollout blocker status with read-only checks.
 
 Summary:

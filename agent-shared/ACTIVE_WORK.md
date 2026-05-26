@@ -25,10 +25,66 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest read-only external blocker refresh confirmed Sentry DSN, beta/custom domain, email delivery provider, Billing/ECPay, draft migrations 033-036, and any future deploy remain owner-blocked. Current executable queue is Claude UI-only work: at-risk/health presentation, settings UI refinement, onboarding screens, and public/RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest read-only external blocker refresh confirmed Sentry DSN, beta/custom domain, email delivery provider, Billing/ECPay, draft migrations 033-036, and any future deploy remain owner-blocked. Latest Claude UI handoffs through `615ce7c` are recorded: at-risk labels, settings headers, billing trial/cancel banners, onboarding next-step card, and marketing mobile navigation. Current executable queue is Claude UI-only public marketing/legal RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record future Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Claude
+Commit: 615ce7c
+Scope: Marketing mobile navigation drawer
+Files:
+- components/marketing/mobile-nav.tsx
+- components/marketing/site-shell.tsx
+Status: done
+Notes: MarketingShell now exposes a mobile drawer below md for public links, legal links, and login while keeping the existing desktop nav and sticky conversion CTA. UI-only; no backend, route, persistence, billing, migration, env, or deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: 60e702d
+Scope: Onboarding next-step focus card
+Files:
+- app/(admin)/onboarding/page.tsx
+Status: done
+Notes: /onboarding now surfaces the current setup step above the progress card from loadSaaSOnboardingView(), reusing existing step metadata and the existing completion button path. UI-only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported. Completion writes still depend on explicit migration 035 apply before production enablement.
+```
+
+```text
+Owner: Claude
+Commit: 64e6345
+Scope: Billing trial countdown and cancellation banners
+Files:
+- app/(admin)/settings/billing/page.tsx
+Status: done
+Notes: /settings/billing now shows prominent trial countdown and cancel-at-period-end banners from existing BillingSettingsView fields. UI-only; no loader/contract/backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: 0dc1fcb
+Scope: Settings sub-page PageHeader consistency
+Files:
+- app/(admin)/settings/billing/page.tsx
+- app/(admin)/settings/team/page.tsx
+- app/(admin)/settings/usage/page.tsx
+Status: done
+Notes: Settings billing, team, and usage pages now share the PageHeader component for consistent title/description/action layout. UI refactor only; no copy, backend, contract, auth, API, migration, env, or deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: e8fa91f
+Scope: Platform at-risk and health label localization
+Files:
+- app/internal/page.tsx
+- app/internal/orgs/page.tsx
+- app/internal/orgs/[id]/page.tsx
+- components/internal/platform-labels.ts
+Status: done
+Notes: Platform dashboard and org views now localize org status, risk level, risk reasons, and alert severity labels while using existing DTO fields. UI/label-only; no backend, contract, route, migration, env, billing, or deployment changes were reported.
+```
 
 ```text
 Owner: Codex

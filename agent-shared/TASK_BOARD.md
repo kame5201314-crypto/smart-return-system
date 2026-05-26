@@ -19,10 +19,11 @@ Status values:
 | done | Tenant preview banner UI | Claude commit `da23eff`; `(admin)` tenant pages now show a read-only orange tenant-preview banner and exit button when Codex preview cookie is active |
 | done | Onboarding progress banner | Claude commit `1924065`; `(admin)` tenant pages now show a slim setup-progress banner from `loadSaaSOnboardingView()` until onboarding is complete |
 | done | Onboarding sidebar entry | Claude commit `f46c344`; tenant sidebar now links to `/onboarding` as `設定指引` so customers no longer need to know the setup guide URL |
-| todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
-| todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
-| todo | Trial / onboarding UI screens | Use Codex `loadSaaSOnboardingView()` and `POST /api/saas/onboarding/complete`; do not enable the completion button in production until migration `035` is explicitly applied |
-| todo | Public marketing and legal RWD inspection | Claude UI-only scope: `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
+| done | At-risk and health metric presentation | Claude commit `e8fa91f`; platform risk/status/reason labels are localized across `/internal`, `/internal/orgs`, and `/internal/orgs/[id]` using existing DTO fields |
+| done | Billing / usage / team settings UI refinement | Claude commits `0dc1fcb` and `64e6345`; settings sub-pages now share `PageHeader`, and billing shows trial countdown plus cancel-at-period-end banners from existing billing DTO data |
+| done | Trial / onboarding UI screens | Claude commit `60e702d`; `/onboarding` now highlights the next setup step using `loadSaaSOnboardingView()` without backend/API/migration changes; completion writes still require explicit migration `035` apply before production enablement |
+| done | Public marketing mobile navigation | Claude commit `615ce7c`; marketing shell now has a mobile drawer for public and legal links below `md`, using existing shared navigation data |
+| todo | Public marketing and legal RWD inspection | Claude UI-only scope: final route-by-route desktop/mobile QA for `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
 | todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
 | done | Customer settings page declutter and copy polish | Commits `1316b02`, `fb561fa`, and `14dad06`; UI-only cleanup kept backend/auth contracts unchanged |
 | done | Empty / loading / error states | Commit `927bf1a` |
@@ -100,14 +101,12 @@ Status values:
 
 Claude owns the next executable UI-only work:
 
-- At-risk and health metric presentation using the existing platform dashboard DTOs.
-- Billing, usage, and team settings refinement using the existing settings loaders.
-- Trial and onboarding screens using `loadSaaSOnboardingView()` and the guarded completion route; do not enable completion writes in production until migration `035` is explicitly applied.
 - Public marketing/legal responsive QA and any UI-only polish on the listed public routes.
+- Any follow-up from the RWD pass should stay UI-only unless Claude explicitly needs a new backend contract.
 
 Codex owns the non-UI queue:
 
-- No unblocked backend/API/migration task is currently open after the role separation, onboarding, platform dashboard, tenant preview, and audit handoffs.
+- No unblocked backend/API/migration task is currently open after the role separation, onboarding, platform dashboard, tenant preview, audit, external blocker refresh, and latest UI handoffs.
 - Codex should record future Claude handoffs here, update readiness/docs/tests, and implement backend contracts only when Claude needs a new contract or the owner explicitly authorizes an external/backend change.
 - External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain/DNS, email provider delivery, applying draft migrations `033`-`036`, and any production deploy or platform setting change. Latest read-only Vercel check confirmed no Sentry DSN, no custom domains, and no ECPay env values are configured.
 - Tenant preview is currently a signed, audited, read-only visual context for platform admins. It is not full impersonation and is not wired into `getOrgContext()` or tenant write permissions.
