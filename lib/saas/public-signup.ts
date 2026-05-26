@@ -24,11 +24,11 @@ export function resolveSaaSPublicSignupState(
     return {
       mode: 'public_signup',
       isPublicSignupEnabled: true,
-      statusLabel: '公開註冊開放',
-      headline: '開始 14 天免卡試用',
+      statusLabel: '開放試用',
+      headline: '立即開始 14 天免費試用',
       description:
-        '公開註冊開放後，系統會先建立 Basic 試用申請；正式建立 org、Owner 與 trial 仍需通過 SaaS DB guard。',
-      primaryCtaLabel: '開始試用',
+        '不需信用卡。註冊後即可建立你的品牌帳號、邀請團隊、匯入第一批退貨資料。',
+      primaryCtaLabel: '立即開始試用',
       secondaryCtaLabel: '查看價格',
     };
   }
@@ -36,11 +36,11 @@ export function resolveSaaSPublicSignupState(
   return {
     mode: 'closed_beta',
     isPublicSignupEnabled: false,
-    statusLabel: '封閉 Beta',
-    headline: '目前採邀請制開通',
+    statusLabel: 'Beta 期 · 限額導入',
+    headline: '申請 Beta，14 天免費試用 + 免費協助導入',
     description:
-      '公開註冊預設關閉。Beta 期間先由平台管理員確認需求、建立 org、指定 Owner，並開通 14 天試用。',
-    primaryCtaLabel: '聯絡 Beta 導入',
+      'Beta 期間我們手動為每家品牌開通帳號並協助匯入第一批退貨資料，確保你第一週就用得起來。前 5 家品牌享免費導入。',
+    primaryCtaLabel: '申請 Beta 試用',
     secondaryCtaLabel: '查看價格',
   };
 }

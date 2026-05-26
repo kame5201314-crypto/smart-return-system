@@ -14,7 +14,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
             <span className="flex size-9 items-center justify-center rounded-md bg-neutral-950 text-white">
               <PackageCheck className="size-5" />
             </span>
-            <span>Smart Return SaaS</span>
+            <span>Smart Return</span>
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="主要導覽">
@@ -35,7 +35,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
             </Button>
             <Button asChild size="sm">
               <Link href="/signup">
-                申請試用
+                免費試用 14 天
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -43,7 +43,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main>{children}</main>
+      <main className="pb-16 md:pb-0">{children}</main>
 
       <footer className="border-t border-neutral-200 bg-neutral-950 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_1fr_1fr] lg:px-8">
@@ -52,10 +52,11 @@ export function MarketingShell({ children }: { children: ReactNode }) {
               <span className="flex size-8 items-center justify-center rounded-md bg-white text-neutral-950">
                 <PackageCheck className="size-4" />
               </span>
-              Smart Return SaaS
+              Smart Return
             </div>
             <p className="mt-4 max-w-md text-sm leading-6 text-neutral-300">
-              面向台灣電商品牌的退貨管理 SaaS，協助客服、倉庫與營運團隊集中處理退貨、AI 分析與帳務控管。
+              專為台灣電商品牌設計的退貨管理系統。把蝦皮、官網、momo
+              的退貨集中處理，客服、倉庫、營運看同一份資料。
             </p>
           </div>
 
@@ -82,9 +83,24 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-neutral-400">
-          Copyright 2026 Smart Return System. All rights reserved.
+          Copyright 2026 Smart Return. All rights reserved.
         </div>
       </footer>
+
+      {/* Sticky mobile CTA bar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-7xl items-center gap-2">
+          <Button asChild className="flex-1">
+            <Link href="/signup">
+              免費試用 14 天
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="default">
+            <Link href="/contact">Demo</Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

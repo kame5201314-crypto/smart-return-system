@@ -1,63 +1,106 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, BarChart3, FileText, Gauge, ImageOff, Sparkles } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Brain,
+  Gauge,
+  Sparkles,
+  TrendingDown,
+} from 'lucide-react';
 
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: 'AI 成本控管 | Smart Return SaaS',
-  description: '使用 gemini-2.5-flash-lite 做文字退貨分析，搭配月額度、快取與圖片 AI 關閉策略控制成本。',
+  title: 'AI 退貨原因分析｜找出地雷 SKU | Smart Return',
+  description:
+    'AI 自動分析退貨原因、找出高退貨 SKU、提示客服該優先處理誰。專為台灣電商品牌做的退貨洞察工具，不取代你做決定，只幫你看得更清楚。',
 };
 
-const controls = [
-  [Sparkles, '文字退貨分析', '退貨 AI 分析訂單、商品、原因與備註文字，協助整理退貨原因與處理建議。'],
-  [ImageOff, '圖片 AI 預設關閉', 'ENABLE_IMAGE_AI=false 是 SaaS 預設，退貨 AI 不會呼叫圖片分析路徑。'],
-  [Gauge, '月額度硬上限', 'Basic 5 次、Growth 30 次、Pro 100 次；Enterprise 依合約設定。'],
-  [FileText, '快取命中不扣額度', '相同 fingerprint 的分析結果可重用，避免重複分析造成不必要成本。'],
+const insights = [
+  [
+    TrendingDown,
+    '退貨原因排名',
+    '每月自動整理退貨原因 Top 10：尺寸不合、瑕疵、客戶不喜歡、寄錯⋯⋯讓你知道下個月該調整商品說明、進貨還是物流。',
+  ],
+  [
+    AlertTriangle,
+    '找出地雷 SKU',
+    '哪幾個商品退貨率特別高？是同一個 SKU 還是同一個品類？AI 自動排名，避免你月底才靠 Excel pivot 找。',
+  ],
+  [
+    Brain,
+    '客服該優先處理誰',
+    '從退貨原因與客戶留言判斷情緒與優先順序，提示哪幾單可能升級成客訴或負評。',
+  ],
+] as const;
+
+const costControls = [
+  ['AI 額度依方案設定', 'Basic 5 次 / Growth 30 次 / Pro 100 次每月，到期自動重置。'],
+  ['相同資料命中快取不重複扣', '同一筆退貨重複分析、相同 fingerprint 命中快取時不會扣額度。'],
+  ['80% / 100% 提醒', '額度用到 80% 與 100% 會通知 Owner，不會在你不知道的情況下產生意外費用。'],
+  ['不會自動加購', '額度用完只是當月停用 AI 分析，退貨日常作業完全不受影響。'],
 ] as const;
 
 export default function AiFeaturePage() {
   return (
     <MarketingShell>
       <PageHeader
-        eyebrow="AI Cost Control"
-        title="AI 只做該做的事，成本與額度都能被控制。"
-        description="商業版退貨 AI 聚焦文字分析，不處理圖片；用量依 org.plan 控制，並保留快取與月度重置機制。"
+        eyebrow="AI 退貨洞察"
+        title="AI 幫你看出 3 件事：退貨原因、地雷 SKU、優先處理誰。"
+        description="AI 不是噱頭，也不是要取代客服或老闆做決定。它只做一件事：把每月幾百上千筆退貨整理成你 30 秒就能看懂的洞察。"
       />
 
       <section className="bg-white py-14">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {controls.map(([Icon, title, body]) => (
-              <div key={title} className="rounded-lg border border-neutral-200 p-5">
-                <Icon className="size-5 text-emerald-700" />
-                <h2 className="mt-4 text-base font-semibold text-neutral-950">{title}</h2>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            {insights.map(([Icon, title, body]) => (
+              <div key={title} className="rounded-lg border border-neutral-200 p-6">
+                <Icon className="size-6 text-emerald-700" />
+                <h2 className="mt-4 text-lg font-semibold text-neutral-950">{title}</h2>
                 <p className="mt-2 text-sm leading-6 text-neutral-600">{body}</p>
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          <div className="rounded-lg border border-neutral-200 bg-neutral-950 p-5 text-white">
+      <section className="bg-neutral-50 py-14">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
+          <div>
+            <p className="text-sm font-semibold text-emerald-700">不擔心 AI 費用爆掉</p>
+            <h2 className="mt-3 text-3xl font-semibold leading-tight text-neutral-950">
+              AI 成本有明確上限，不會在你不知道的情況下扣款。
+            </h2>
+            <p className="mt-4 text-base leading-7 text-neutral-600">
+              很多老闆怕用 AI 是因為「不知道會花多少錢」。Smart Return 把 AI 額度設計成月度硬上限，
+              超過就停止，不會自動加購、不會在月底嚇你一跳。
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-200 bg-neutral-950 p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-neutral-400">AI 使用量</div>
-                <div className="mt-1 text-2xl font-semibold">21 / 30</div>
+                <div className="text-sm text-neutral-400">本月 AI 使用量</div>
+                <div className="mt-1 text-3xl font-semibold">21 / 30</div>
+                <div className="mt-1 text-xs text-emerald-300">Growth 方案</div>
               </div>
-              <BarChart3 className="size-6 text-emerald-300" />
+              <BarChart3 className="size-7 text-emerald-300" />
             </div>
             <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10">
               <div className="h-full w-[70%] rounded-full bg-emerald-300" />
             </div>
-            <div className="mt-5 grid gap-3 text-sm">
-              {[
-                ['80% 提醒', '寄送站內與 Email 提醒 Owner / Admin。'],
-                ['100% 阻擋', '本月 AI 分析停止新增，既有資料與退貨作業仍可使用。'],
-                ['月度重置', '依 Asia/Taipei 月份結算，下一期自動恢復方案額度。'],
-              ].map(([title, body]) => (
+            <div className="mt-6 grid gap-3 text-sm">
+              {costControls.map(([title, body]) => (
                 <div key={title} className="rounded-md border border-white/10 bg-white/8 p-3">
-                  <div className="font-medium">{title}</div>
-                  <div className="mt-1 text-neutral-300">{body}</div>
+                  <div className="flex items-start gap-2">
+                    <Gauge className="mt-0.5 size-4 shrink-0 text-emerald-300" />
+                    <div>
+                      <div className="font-medium">{title}</div>
+                      <div className="mt-1 text-neutral-300">{body}</div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -65,20 +108,22 @@ export default function AiFeaturePage() {
         </div>
       </section>
 
-      <section className="bg-neutral-50 py-14">
+      <section className="bg-white py-14">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-5 px-4 sm:px-6 md:flex-row md:items-center lg:px-8">
-          <div>
-            <p className="text-sm font-semibold text-emerald-700">MVP 節奏</p>
-            <h2 className="mt-2 text-2xl font-semibold text-neutral-950">
-              先守住文字分析與成本上限，再開放加購方案。
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-600">
-              AI Pack、圖片分析與更細的用量計費會延後到 Stage 4+，避免 MVP 早期帳務複雜度過高。
-            </p>
+          <div className="flex items-start gap-4">
+            <Sparkles className="mt-1 size-6 text-emerald-700" />
+            <div>
+              <h2 className="text-2xl font-semibold text-neutral-950">
+                想看看你的退貨資料能跑出什麼洞察？
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-neutral-600">
+                30 分鐘 Demo 可用你自己的退貨資料當場跑 AI 分析，看是否真的能解決問題。
+              </p>
+            </div>
           </div>
           <Button asChild>
-            <Link href="/pricing">
-              查看 AI 額度
+            <Link href="/contact">
+              預約 30 分鐘 Demo
               <ArrowRight className="size-4" />
             </Link>
           </Button>

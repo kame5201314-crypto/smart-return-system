@@ -7,8 +7,8 @@ describe('SaaS public signup state', () => {
     expect(resolveSaaSPublicSignupState({})).toMatchObject({
       mode: 'closed_beta',
       isPublicSignupEnabled: false,
-      statusLabel: '封閉 Beta',
-      primaryCtaLabel: '聯絡 Beta 導入',
+      statusLabel: 'Beta 期 · 限額導入',
+      primaryCtaLabel: '申請 Beta 試用',
     });
   });
 
@@ -20,8 +20,8 @@ describe('SaaS public signup state', () => {
     ).toMatchObject({
       mode: 'public_signup',
       isPublicSignupEnabled: true,
-      statusLabel: '公開註冊開放',
-      primaryCtaLabel: '開始試用',
+      statusLabel: '開放試用',
+      primaryCtaLabel: '立即開始試用',
     });
   });
 

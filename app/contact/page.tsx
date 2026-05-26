@@ -1,51 +1,98 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, Building2, Clock3, Mail, MessageSquareText } from 'lucide-react';
+import {
+  ArrowRight,
+  Building2,
+  CalendarClock,
+  Clock3,
+  Mail,
+  MessageSquareText,
+} from 'lucide-react';
 
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: '聯絡我們 | Smart Return SaaS',
-  description: '聯絡 Smart Return SaaS，申請封閉 Beta、Enterprise 洽談或導入評估。',
+  title: '預約 Demo / 聯絡我們 | Smart Return',
+  description:
+    '預約 30 分鐘 Demo、申請 Beta 試用、洽談企業方案。我們會在 1 個工作天內回覆。',
 };
 
 const contactReasons = [
-  [Building2, '封閉 Beta', '適合已經有退貨處理痛點，希望先用手動開通方式導入的電商品牌。'],
-  [MessageSquareText, '導入評估', '可討論每月退貨量、客服與倉庫流程、AI 使用頻率與資料隔離需求。'],
-  [Clock3, 'Enterprise', '可洽談 SLA、客製權限、資料保留政策、多倉流程與合約條件。'],
+  [
+    CalendarClock,
+    '預約 30 分鐘 Demo',
+    '用你自己的退貨資料當場跑一遍，看 Smart Return 是否真的能解決你的問題。',
+  ],
+  [
+    Building2,
+    '申請 Beta 試用',
+    '14 天免費試用、不需信用卡。前 5 家品牌享免費協助導入第一批退貨資料。',
+  ],
+  [
+    MessageSquareText,
+    '導入評估',
+    '討論你目前的退貨流程、客服與倉庫分工、平台與每月退貨量，確認合不合適。',
+  ],
+  [
+    Clock3,
+    '企業方案 / SLA',
+    '集團、多品牌、多倉、客製權限或需要 SLA 與合約條件，請直接洽談。',
+  ],
 ] as const;
 
 export default function ContactPage() {
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
-  const mailHref = `mailto:${contactEmail}?subject=Smart%20Return%20SaaS%20Beta`;
+  const subject = encodeURIComponent('Smart Return 諮詢');
+  const body = encodeURIComponent(
+    [
+      '您好，',
+      '',
+      '・品牌名稱：',
+      '・聯絡人：',
+      '・想詢問的事項：（Demo / Beta 試用 / 企業方案 / 其他）',
+      '・每月退貨筆數（如適用）：',
+      '',
+      '謝謝！',
+    ].join('\n')
+  );
+  const mailHref = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
 
   return (
     <MarketingShell>
       <PageHeader
-        eyebrow="Contact"
-        title="聯絡我們，安排商業版 Beta 導入。"
-        description="請提供品牌規模、每月退貨量、目前平台與想改善的流程，我們會依 Stage 1 手動開通節奏安排後續。"
+        eyebrow="聯絡我們"
+        title="預約 30 分鐘 Demo，用你的退貨資料當場跑。"
+        description="留下品牌名稱、聯絡方式與每月退貨量，我們會在 1 個工作天內回覆。Beta 期間人工確認導入順序與資料匯入方式。"
       />
 
       <section className="bg-white py-14">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-6">
+          <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-6">
             <Mail className="size-6 text-emerald-700" />
-            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">申請 Beta 或 Enterprise 洽談</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-600">
-              目前公開註冊預設關閉，請先透過 Email 聯絡。正式公開註冊會在 SaaS DB、計費、通知與發票流程完成後開放。
+            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">寫信給我們</h2>
+            <p className="mt-3 text-sm leading-6 text-neutral-700">
+              點下方按鈕會幫你帶好 Email 範本，補上你的資訊送出就好。1 個工作天內回覆。
             </p>
-            <Button asChild className="mt-6">
+            <Button asChild className="mt-6 bg-emerald-700 hover:bg-emerald-800">
               <Link href={mailHref}>
+                <Mail className="size-4" />
                 寄信聯絡
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <p className="mt-3 text-xs text-neutral-500">{contactEmail}</p>
+            <p className="mt-3 text-xs text-neutral-600">寄到：{contactEmail}</p>
+            <div className="mt-6 border-t border-emerald-200 pt-5 text-sm text-neutral-700">
+              <p className="font-semibold">想直接申請試用？</p>
+              <p className="mt-2 text-neutral-600">
+                <Link href="/signup" className="text-emerald-700 underline underline-offset-2">
+                  申請 Beta 試用 →
+                </Link>
+              </p>
+            </div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             {contactReasons.map(([Icon, title, body]) => (
               <div key={title} className="rounded-lg border border-neutral-200 p-5">
                 <Icon className="size-5 text-cyan-700" />
