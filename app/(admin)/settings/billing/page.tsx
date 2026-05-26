@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarClock, CreditCard, FileText, ReceiptText } from 'lucide-react';
+import { ArrowRight, CalendarClock, CreditCard, FileText, Headphones, ReceiptText } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,9 @@ import { loadBillingSettingsView } from '@/lib/saas/settings-live-data';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
-const STATUS_LABEL: Record<BillingSettingsView['org']['status'], string> = {
+type BillingStatus = BillingSettingsView['org']['status'];
+
+const STATUS_LABEL: Record<BillingStatus, string> = {
   trialing: '試用中',
   active: '使用中',
   past_due: '待補款',
@@ -26,7 +28,7 @@ const STATUS_LABEL: Record<BillingSettingsView['org']['status'], string> = {
 };
 
 const PROVIDER_LABEL: Record<NonNullable<NonNullable<BillingSettingsView['subscription']>['provider']>, string> = {
-  manual: '手動',
+  manual: '專人協助',
   ecpay: '綠界 ECPay',
   stripe: 'Stripe',
   tappay: 'TapPay',
@@ -40,13 +42,15 @@ const INVOICE_LABEL: Record<NonNullable<BillingSettingsView['invoiceSummary']['l
   void: '作廢',
 };
 
-const billingTimeline = [
-  ['trialing', '14 天試用，未付款到期後進入 suspended。'],
-  ['active', '付款成功後可完整使用方案內功能。'],
-  ['past_due', '續扣失敗後保留 7 天寬限，可登入與付款。'],
-  ['suspended', '可看資料與帳單，不可新增資料、AI 或匯出。'],
-  ['cancelled', '30 天未補繳或主動取消後進入取消狀態。'],
-] as const;
+const billingTimeline: ReadonlyArray<readonly [BillingStatus, string]> = [
+  ['trialing', '提供 14 天試用，期間享有方案完整功能。'],
+  ['active', '訂閱已生效，可使用方案內所有功能。'],
+  ['past_due', '扣款失敗，提供 7 天寬限期可補繳。'],
+  ['suspended', '可查看歷史資料與帳單，暫無法新增或匯出資料。'],
+  ['cancelled', '訂閱已結束，可隨時重新訂閱。'],
+];
+
+const BETA_SUPPORT_NOTE = 'Beta 期間，方案升級與付款設定由專人協助，請聯絡客服。';
 
 function formatDate(value: string | null): string {
   if (!value) return '—';
@@ -62,22 +66,22 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
     : '—';
   const providerLabel = data.subscription?.provider
     ? PROVIDER_LABEL[data.subscription.provider]
-    : '—';
+    : '專人協助';
   const invoiceLabel = data.invoiceSummary.latestInvoiceStatus
     ? INVOICE_LABEL[data.invoiceSummary.latestInvoiceStatus]
     : '尚無';
 
   const summaryRows = [
-    ['方案', planName, 'organizations.plan'],
-    ['狀態', STATUS_LABEL[data.org.status], 'organizations.status'],
-    ['本期', periodLabel, 'subscriptions.current_period_end'],
+    ['方案', planName],
+    ['狀態', STATUS_LABEL[data.org.status]],
+    ['本期', periodLabel],
   ] as const;
 
   const invoiceRows = [
     ['帳務 Email', data.invoiceSummary.billingEmail || '—'],
     ['統一編號', data.invoiceSummary.taxId || '—'],
     ['最新發票', invoiceLabel],
-    ['金流商', providerLabel],
+    ['付款方式', providerLabel],
   ] as const;
 
   return (
@@ -93,26 +97,33 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
-              {summaryRows.map(([label, value, hint]) => (
+              {summaryRows.map(([label, value]) => (
                 <div key={label} className="rounded-md border p-4">
                   <div className="text-xs text-muted-foreground">{label}</div>
                   <div className="mt-2 text-xl font-semibold text-gray-950">{value}</div>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">{hint}</div>
                 </div>
               ))}
             </div>
-            <div className="flex flex-col items-start gap-1">
-              <div className="flex flex-wrap gap-2">
-                <Button disabled title="Stage 2 接 ECPay 定期定額後開放">更新付款資訊</Button>
-                <Button
-                  variant="outline"
-                  disabled
-                  title="Stage 2 接 ECPay 定期定額後開放"
-                >
-                  取消續訂
-                </Button>
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <Headphones className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
+                <div className="space-y-2 text-sm text-amber-900">
+                  <p className="font-medium">{BETA_SUPPORT_NOTE}</p>
+                  <p className="text-amber-800">
+                    需要升級方案、調整付款資訊或取消續訂，請聯絡客服協助處理。
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button asChild size="sm" variant="outline" className="bg-white">
+                      <Link href="/contact">聯絡客服</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="ghost">
+                      <Link href="/pricing" target="_blank">
+                        查看方案
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">付款與續訂操作於 Stage 2 接 ECPay 後開放。</p>
             </div>
           </CardContent>
         </Card>
@@ -121,15 +132,15 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarClock className="size-5 text-cyan-700" />
-              付款節奏
+              付款與週期
             </CardTitle>
-            <CardDescription>MVP 不做 proration，升降級下期生效。</CardDescription>
+            <CardDescription>升降級於下個帳單週期生效。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>付款成功：active</p>
-            <p>扣款失敗：past_due</p>
-            <p>7 天未補繳：suspended</p>
-            <p>30 天未補繳：cancelled</p>
+            <p>付款成功：訂閱進入「使用中」。</p>
+            <p>扣款失敗：進入「待補款」。</p>
+            <p>連續 7 天未補繳：暫停服務。</p>
+            <p>連續 30 天未補繳：訂閱取消。</p>
           </CardContent>
         </Card>
       </div>
@@ -141,7 +152,7 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
               <ReceiptText className="size-5 text-emerald-700" />
               發票資料
             </CardTitle>
-            <CardDescription>電子發票欄位來自 organizations 與 invoices。</CardDescription>
+            <CardDescription>用於開立電子發票的相關資訊。</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -161,16 +172,16 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="size-5 text-cyan-700" />
-              訂閱狀態機
+              訂閱狀態說明
             </CardTitle>
-            <CardDescription>UI 與 webhook 後續要共同遵守這套狀態。</CardDescription>
+            <CardDescription>各訂閱狀態下可使用的功能範圍。</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>狀態</TableHead>
-                  <TableHead>可用範圍</TableHead>
+                  <TableHead>說明</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -178,7 +189,7 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
                   <TableRow key={status}>
                     <TableCell>
                       <Badge variant={status === data.org.status ? 'default' : 'outline'}>
-                        {status}
+                        {STATUS_LABEL[status]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{detail}</TableCell>
@@ -202,12 +213,12 @@ export default async function BillingSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-950">帳務與訂閱</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            檢視目前方案、訂閱狀態與電子發票欄位；付款流程於 Stage 2 接 ECPay 後開放。
+            查看目前方案、訂閱狀態與電子發票資訊。{BETA_SUPPORT_NOTE}
           </p>
         </div>
         <Button asChild variant="outline">
           <Link href="/pricing" target="_blank">
-            公開方案
+            查看方案
             <ArrowRight className="size-4" />
           </Link>
         </Button>
