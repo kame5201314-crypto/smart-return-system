@@ -2,6 +2,76 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded Claude's platform admin dashboard UI handoff.
+
+Commit:
+
+```text
+ee474ed feat(saas/ui): add platform admin dashboard at /internal
+```
+
+Files reported by commit:
+
+- `app/internal/page.tsx`
+- `app/internal/layout.tsx`
+- `components/internal/nav-link.tsx`
+
+UI handoff summary:
+
+- `/internal` now consumes `loadPlatformAdminDashboardView()`.
+- Renders KPI cards, at-risk alerts, trial follow-up, billing summary, recent
+  billing events, and gated/empty/error states.
+- Adds a Dashboard item to the internal nav with exact-match active state.
+
+Notes:
+
+- Claude commit reports UI/nav only.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
+Added the onboarding completion API route contract for Claude-owned onboarding UI.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/onboarding-route.ts`
+- `app/api/saas/onboarding/complete/route.ts`
+- `tests/unit/saas-onboarding-route.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Contract:
+
+- `POST /api/saas/onboarding/complete` is available for future onboarding UI.
+- The route requires signed-in tenant `owner` or `admin` plus writable org status through `getOrgContext()`.
+- It reuses `completeSaaSOnboarding()` and the draft RPC repository wrapper.
+- JSON errors are mapped through `SaaSOrgContextError` and `SaaSOnboardingError`.
+
+Remaining split:
+
+- Claude owns the onboarding page/wizard UI and when to show/enable the completion action.
+- Codex owns migration `035` apply, if owner explicitly authorizes it later.
+
+Notes:
+
+- Migration `035_saas_onboarding_completion_rpc.sql` is still not applied by this commit.
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Extended `saas:doctor` coverage for the role separation and platform dashboard
 contracts.
 

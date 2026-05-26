@@ -907,6 +907,8 @@ Current helpers:
 
 ```text
 lib/saas/onboarding.ts
+lib/saas/onboarding-route.ts
+app/api/saas/onboarding/complete/route.ts
 supabase/migrations/035_saas_onboarding_completion_rpc.sql
 ```
 
@@ -963,14 +965,45 @@ completeSaaSOnboarding(value, {
 })
 ```
 
+HTTP completion route:
+
+```text
+POST /api/saas/onboarding/complete
+```
+
+Request body:
+
+```ts
+{
+  completedAt?: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
+Successful response:
+
+```ts
+{
+  success: true;
+  data: {
+    orgId: string;
+    onboardingCompletedAt: string;
+    auditLogId: string | null;
+  };
+}
+```
+
 Rules:
 
 - Completion requires tenant `owner` or `admin` role.
 - Completion requires a writable subscription state through `canWriteSaaSOrgData()`.
 - The repository calls draft RPC `complete_organization_onboarding`.
+- The route reuses `getOrgContext({ requirements: { roles: ['owner', 'admin'], writable: true } })` before calling the service.
+- Stable JSON errors use `SaaSOrgContextError` and `SaaSOnboardingError` codes.
 - Draft migration `035_saas_onboarding_completion_rpc.sql` updates `organizations.onboarding_completed_at` and writes `audit_logs` action `org.onboarding_completed`.
-- This does not expose a route, change UI, apply migrations, send email, deploy, or change external settings.
-- Claude UI may render the progress DTO, but final completion writes must go through a future Codex-owned route/server action using this service.
+- This does not change UI, apply migrations, send email, deploy, or change external settings.
+- Claude UI may render the progress DTO and may call the completion route after its onboarding checklist UX is ready.
+- Production completion writes still require migration `035` to be applied to the SaaS project before the UI action is enabled.
 
 ## Notification Queue Foundation
 

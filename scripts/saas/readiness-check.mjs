@@ -207,6 +207,7 @@ function checkCommercialFoundation() {
     'lib/saas/notifications.ts',
     'lib/saas/email-queue-worker.ts',
     'lib/saas/onboarding.ts',
+    'lib/saas/onboarding-route.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
@@ -218,6 +219,7 @@ function checkCommercialFoundation() {
     'lib/saas/signup-request-repository.ts',
     'app/api/saas/signup/route.ts',
     'app/api/saas/invite/accept/route.ts',
+    'app/api/saas/onboarding/complete/route.ts',
     'app/api/saas/team/invites/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
     'scripts/saas/check-migration-plan.mjs',
@@ -1081,12 +1083,27 @@ function checkCommercialFoundation() {
   }
 
   const onboardingPath = path.resolve(process.cwd(), 'lib/saas/onboarding.ts');
+  const onboardingRouteServicePath = path.resolve(
+    process.cwd(),
+    'lib/saas/onboarding-route.ts'
+  );
+  const onboardingCompleteRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/saas/onboarding/complete/route.ts'
+  );
   const onboardingMigrationPath = path.resolve(
     process.cwd(),
     'supabase/migrations/035_saas_onboarding_completion_rpc.sql'
   );
-  if (fs.existsSync(onboardingPath) && fs.existsSync(onboardingMigrationPath)) {
+  if (
+    fs.existsSync(onboardingPath) &&
+    fs.existsSync(onboardingRouteServicePath) &&
+    fs.existsSync(onboardingCompleteRoutePath) &&
+    fs.existsSync(onboardingMigrationPath)
+  ) {
     const onboardingSource = fs.readFileSync(onboardingPath, 'utf8');
+    const routeServiceSource = fs.readFileSync(onboardingRouteServicePath, 'utf8');
+    const routeSource = fs.readFileSync(onboardingCompleteRoutePath, 'utf8');
     const migrationSource = fs.readFileSync(onboardingMigrationPath, 'utf8');
     if (
       onboardingSource.includes('buildSaaSOnboardingView') &&
@@ -1097,15 +1114,25 @@ function checkCommercialFoundation() {
       onboardingSource.includes('canWriteSaaSOrgData') &&
       onboardingSource.includes("'organization_profile'") &&
       onboardingSource.includes("'ai_review'") &&
+      routeServiceSource.includes('completeSaaSOnboardingFromRequest') &&
+      routeServiceSource.includes('getOrgContext') &&
+      routeServiceSource.includes("roles: ['owner', 'admin']") &&
+      routeServiceSource.includes('writable: true') &&
+      routeServiceSource.includes('createSaaSOnboardingRepository') &&
+      routeServiceSource.includes('createUntypedAdminClient') &&
+      routeSource.includes('handleCompleteSaaSOnboardingRequest') &&
+      routeSource.includes('SaaSOrgContextError') &&
+      routeSource.includes('SaaSOnboardingError') &&
+      routeSource.includes('export async function POST') &&
       migrationSource.includes('CREATE OR REPLACE FUNCTION public.complete_organization_onboarding') &&
       migrationSource.includes('onboarding_completed_at') &&
       migrationSource.includes('org.onboarding_completed') &&
       migrationSource.includes('GRANT EXECUTE') &&
       migrationSource.includes('service_role')
     ) {
-      record('pass', 'SaaS onboarding backend foundation', 'onboarding progress and completion RPC contracts exist without exposing a live route');
+      record('pass', 'SaaS onboarding backend foundation', 'onboarding progress and owner/admin completion route contracts exist without UI wiring');
     } else {
-      record('fail', 'SaaS onboarding backend foundation', 'onboarding backend must provide progress DTOs and guarded completion RPC wrapper before UI writes');
+      record('fail', 'SaaS onboarding backend foundation', 'onboarding backend must provide progress DTOs and a guarded owner/admin completion route before UI writes');
     }
   }
 

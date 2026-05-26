@@ -11,10 +11,10 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| todo | Platform admin dashboard visual polish | Render existing summary/health DTOs clearly; UI-only, no risk calculation changes |
+| done | Platform admin dashboard visual polish | Claude commit `ee474ed`; `/internal` now renders the Codex dashboard DTO with KPI cards, at-risk alerts, trial follow-up, billing summary, and gated/empty/error states |
 | todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
 | todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
-| todo | Trial / onboarding UI screens | May mock/render Codex onboarding DTO; completion writes still wait for a Codex route/server action |
+| todo | Trial / onboarding UI screens | Use Codex onboarding DTO and `POST /api/saas/onboarding/complete`; do not enable the completion button in production until migration `035` is explicitly applied |
 | todo | Public marketing and legal RWD inspection | Claude UI-only scope: `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
 | todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
 | done | Customer settings page declutter and copy polish | Commits `1316b02`, `fb561fa`, and `14dad06`; UI-only cleanup kept backend/auth contracts unchanged |
@@ -31,6 +31,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Onboarding completion API route contract | This commit; added owner/admin writable-org `POST /api/saas/onboarding/complete` wrapper for Claude onboarding UI handoff; migration `035` still requires explicit apply before UI writes are enabled |
 | done | SaaS doctor coverage for role separation contracts | This commit; readiness check now verifies auth redirects, internal admin redirects, platform admin mode, and platform dashboard contracts |
 | done | Platform admin dashboard backend contract | This commit; added `loadPlatformAdminDashboardView()` with organization KPI, at-risk, trial conversion, and billing event summaries for Claude's `/internal` dashboard UI |
 | done | Platform admin mode backend contract | This commit; added `loadPlatformAdminModeView()` so Claude can render an admin mode indicator without client-side role checks |
@@ -44,7 +45,7 @@ Status values:
 | done | Platform admin role model | This commit; added owner/support/billing permission matrix, optional `PLATFORM_ADMIN_ROLES` mapping, and route-level permission gates |
 | done | Notification backend foundation | This commit; added queue-only notification/email contracts, repository wrapper, tests, and draft `034`; no email provider is wired |
 | done | Email queue worker dry-run contract | This commit; added CRON_SECRET-gated dry-run inspection for `email_queue`, no provider call or DB mutation |
-| done | Onboarding backend foundation | This commit; added onboarding progress DTO, guarded completion service/RPC wrapper, tests, and draft `035`; no live route is exposed |
+| done | Onboarding backend foundation | This commit; added onboarding progress DTO, guarded completion service/RPC wrapper, tests, and draft `035`; completion route contract is now available for Claude UI handoff |
 | done | Manual Beta smoke and consistency gate hardening | This commit; verified local beta owner/invitee login paths, AI analyze, exports, invite acceptance, and hardened the AI analytics predeploy check for optional Shopee date columns |
 | done | SaaS migrations apply | SaaS project `auyznbwtjvemyamujmgt`; full local/remote migration chain aligned through `032`; schema-gate strict passed |
 | done | Signup persistence backend | This commit; API is wired to `signup_requests` behind `ENABLE_PUBLIC_SIGNUP=false`, and `026` is a draft migration only |
@@ -71,7 +72,7 @@ Status values:
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
 | blocked | SaaS public rollout external setup | Closed Manual Beta is deployed, but public paid rollout remains blocked on Sentry DSN activation, billing/ECPay credentials plus `ENABLE_BILLING`, beta/custom domain decision, email provider delivery, and post-Beta owner approval |
-| todo | Beta customer onboarding: 遇見未來 | Create or confirm org, owner account, invite link, or login credentials for the first Beta customer; keep billing disabled and email dry-run unless owner explicitly authorizes changes |
+| done | Beta customer onboarding: 遇見未來 | Owner handoff reports org/account/login provisioned for `kawei88888@gmail.com`; keep billing disabled and email dry-run unless owner explicitly authorizes changes |
 | done | Manual Beta local readiness | SaaS project, migrations, schema gate, Gemini key, test org, seed data, login smoke, AI analyze, invite flow, exports, and platform admin read views have been verified locally |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | SaaS schema gate commercial v2 coverage | This commit; strict gate now checks organization billing/onboarding/upgrade suggestion fields, subscription period/provider fields, invoice fields, invite token fields, and audit metadata |

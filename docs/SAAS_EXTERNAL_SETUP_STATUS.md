@@ -15,7 +15,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
 - Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.
-- Onboarding backend foundation is contract-only; no live onboarding route is exposed.
+- Onboarding backend foundation now includes guarded `POST /api/saas/onboarding/complete` for future Claude UI wiring; migration `035` is still not applied, so production UI must not enable completion writes yet.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
@@ -73,8 +73,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - No beta custom domain is configured.
   - Sentry SDK is wired, but Sentry DSN is not configured, so monitoring is not enabled.
   - No migration was run for this deployment.
-- Next Beta onboarding item:
-  - Create or confirm the organization, account, invite link, or login credentials for the Beta customer `遇見未來`.
+- Beta customer onboarding item:
+  - Owner handoff reports the first Beta customer `遇見未來` was provisioned with org/account/login for `kawei88888@gmail.com`.
 - Rollback posture:
   - Keep Vercel rollback readiness for at least 24 hours after launch.
   - Use Vercel rollback first for production incidents; do not use `git reset --hard` or force push as incident response.

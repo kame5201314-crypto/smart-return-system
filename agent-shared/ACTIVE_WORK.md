@@ -31,6 +31,36 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ## Recent Completed
 
 ```text
+Owner: Claude
+Commit: ee474ed
+Scope: Platform admin dashboard visual polish
+Files:
+- app/internal/page.tsx
+- app/internal/layout.tsx
+- components/internal/nav-link.tsx
+Status: done
+Notes: /internal now renders the Codex loadPlatformAdminDashboardView() contract with KPI cards, at-risk alerts, trial follow-up, billing summary, recent billing events, and gated/empty/error states. UI/nav only; no backend/auth/RLS/billing/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Onboarding completion API route contract
+Files:
+- lib/saas/onboarding-route.ts
+- app/api/saas/onboarding/complete/route.ts
+- tests/unit/saas-onboarding-route.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added a guarded owner/admin writable-org onboarding completion API wrapper for Claude onboarding UI handoff. The route reuses completeSaaSOnboarding() and stable JSON error mapping. No UI page, deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed. Migration 035 still needs explicit approval/apply before production UI enables completion writes.
+```
+
+```text
 Owner: Codex
 Commit: this commit
 Scope: SaaS doctor coverage for role separation contracts
