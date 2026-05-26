@@ -2,6 +2,37 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded Claude's Platform Admin Mode floating indicator UI handoff.
+
+Commit:
+
+```text
+9edf220 feat(saas/ui): add Platform Admin Mode floating indicator
+```
+
+Files reported by commit:
+
+- `app/(admin)/template.tsx`
+- `components/saas/platform-admin-mode-indicator.tsx`
+
+UI handoff summary:
+
+- Tenant `(admin)` pages now wrap with a server template that renders the
+  Platform Admin Mode indicator.
+- The indicator consumes `loadPlatformAdminModeView()` and stays hidden for
+  non-admin viewers.
+- Ready state shows platform role, admin email on wider screens, and links to
+  `/internal`, `/internal/orgs`, and `/internal/billing/events` when the
+  internal console is enabled.
+
+Notes:
+
+- Claude commit reports UI/composition only.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded Claude's platform admin dashboard UI handoff.
 
 Commit:

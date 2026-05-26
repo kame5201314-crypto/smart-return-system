@@ -32,6 +32,17 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 
 ```text
 Owner: Claude
+Commit: 9edf220
+Scope: Platform Admin Mode floating indicator
+Files:
+- app/(admin)/template.tsx
+- components/saas/platform-admin-mode-indicator.tsx
+Status: done
+Notes: Tenant admin pages now render a server-fetched Platform Admin Mode indicator from loadPlatformAdminModeView(). UI/composition only; no backend/auth/contract/test/deploy changes were reported.
+```
+
+```text
+Owner: Claude
 Commit: ee474ed
 Scope: Platform admin dashboard visual polish
 Files:

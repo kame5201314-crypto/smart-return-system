@@ -12,6 +12,7 @@ Status values:
 | Status | Task | Notes |
 |---|---|---|
 | done | Platform admin dashboard visual polish | Claude commit `ee474ed`; `/internal` now renders the Codex dashboard DTO with KPI cards, at-risk alerts, trial follow-up, billing summary, and gated/empty/error states |
+| done | Platform admin mode floating indicator | Claude commit `9edf220`; `(admin)` tenant pages now render the Codex `loadPlatformAdminModeView()` contract as a persistent platform-admin indicator |
 | todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
 | todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
 | todo | Trial / onboarding UI screens | Use Codex onboarding DTO and `POST /api/saas/onboarding/complete`; do not enable the completion button in production until migration `035` is explicitly applied |
