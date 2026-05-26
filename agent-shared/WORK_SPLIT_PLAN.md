@@ -26,6 +26,7 @@ Claude can work after Codex has committed and pushed the current backend/coordin
 | C4 | Trial / onboarding UI screens | `app/signup/**`, future onboarding page files, `components/saas/**` | Use Codex `loadSaaSOnboardingView()` and `POST /api/saas/onboarding/complete`; do not enable completion writes in production until migration `035` is explicitly applied. |
 | C5 | Public marketing and legal page polish | `/`, `/pricing`, `/features/**`, `/legal/**`, `/contact` page files | UI-only; do not change signup persistence or billing behavior. |
 | C6 | Responsive QA pass | UI page files only | Record findings in chat/commit message; Codex records durable status. |
+| C7 | Platform admin team UI | `app/internal/**`, `components/internal/**` | Use Codex `GET/POST /api/internal/saas/platform-admins`; do not expose production role editing until migration `036` is explicitly applied. |
 
 Claude must not edit `app/api/**`, `lib/saas/**`, `lib/actions/**`, `lib/config/**`, `lib/supabase/**`, `scripts/**`, `supabase/**`, `.env*`, root config files, or `agent-shared/**`.
 
@@ -39,7 +40,7 @@ Codex owns the remaining Stage 2/3 foundation and should keep feature flags clos
 | X2 | At-risk alert backend contract | DTO/data loader for `past_due`, `suspended`, AI 100%, return 100%, seat full, and trial expiry signals. |
 | X3 | Trial conversion backend contract | Read-only loader for trialing, converted active, expired trial, and onboarding incomplete counts. |
 | X4 | Billing event retry and reconciliation design | Safe retry contract, reconciliation SOP, and tests before any UI retry button is enabled. |
-| X5 | Platform admin role model | Backend policy for owner/support/billing platform roles before multi-admin UI is exposed. |
+| X5 | Platform admin role model | Backend policy plus owner-gated role assignment API/RPC draft for owner/support/billing platform roles before multi-admin UI is exposed. |
 | X6 | Notification backend foundation | Email/notification queue contracts for billing failure, AI 100%, trial ending, and platform announcements. |
 | X7 | Migration and schema gates | Draft migrations and strict checks; apply only after explicit approval and target confirmation. |
 | X8 | CI/readiness hardening | Unit tests, doctor checks, typecheck, lint, and safe predeploy gates. |

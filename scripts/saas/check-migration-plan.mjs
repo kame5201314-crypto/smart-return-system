@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const EXPECTED_BRANCH = 'develop-saas';
-const EXPECTED_LAST_MIGRATION = '035_saas_onboarding_completion_rpc.sql';
+const EXPECTED_LAST_MIGRATION = '036_saas_platform_admin_roles.sql';
 const REQUIRED_BASE_MIGRATIONS = [
   '001_return_system_schema.sql',
   '002_rls_and_init_data.sql',
@@ -26,6 +26,7 @@ const REQUIRED_SAAS_MIGRATIONS = [
   '033_saas_platform_billing_operations.sql',
   '034_saas_notification_email_queue.sql',
   '035_saas_onboarding_completion_rpc.sql',
+  '036_saas_platform_admin_roles.sql',
 ];
 const DEFAULT_FORBIDDEN_SUPABASE_REFS = [
   'fdzfnenizyppxglypden',

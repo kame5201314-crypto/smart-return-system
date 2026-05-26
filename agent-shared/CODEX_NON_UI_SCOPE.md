@@ -35,7 +35,7 @@ domain / billing / secret changes
 
 ## Current External Blockers
 
-- SaaS migrations are applied on the dedicated SaaS project through the current chain ending at `032`.
+- SaaS migrations are applied on the dedicated SaaS project through `032`; newer local drafts extend the chain beyond that and still require explicit owner approval before apply.
 - `npm run saas:migration-plan:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:schema-gate:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:rollout-check` reports the remaining rollout blockers without changing external state.

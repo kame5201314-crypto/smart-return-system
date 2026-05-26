@@ -34,6 +34,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Platform admin role management backend foundation | This commit; added owner-gated `GET/POST /api/internal/saas/platform-admins`, repository/RPC contract, tests, and draft `036`; migration not applied and guard still uses current env/profile role source until owner approves DB role rollout |
 | done | Onboarding live data loader contract | This commit; added `loadSaaSOnboardingView()` and org-scoped onboarding signal repository for Claude onboarding UI handoff; no UI or DB writes |
 | done | Onboarding completion API route contract | This commit; added owner/admin writable-org `POST /api/saas/onboarding/complete` wrapper for Claude onboarding UI handoff; migration `035` still requires explicit apply before UI writes are enabled |
 | done | SaaS doctor coverage for role separation contracts | This commit; readiness check now verifies auth redirects, internal admin redirects, platform admin mode, and platform dashboard contracts |

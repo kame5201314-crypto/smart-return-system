@@ -198,6 +198,7 @@ function checkCommercialFoundation() {
     'lib/saas/return-usage-policy.ts',
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-roles.ts',
+    'lib/saas/platform-admin-role-management.ts',
     'lib/saas/platform-admin-mode.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-live-data.ts',
@@ -230,6 +231,7 @@ function checkCommercialFoundation() {
     'app/api/internal/saas/orgs/[id]/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
     'app/api/internal/saas/billing/operations/route.ts',
+    'app/api/internal/saas/platform-admins/route.ts',
     'app/api/internal/saas/billing/events/[id]/retry/route.ts',
     'app/api/cron/saas/email-queue/route.ts',
     'docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md',
@@ -246,6 +248,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/033_saas_platform_billing_operations.sql',
     'supabase/migrations/034_saas_notification_email_queue.sql',
     'supabase/migrations/035_saas_onboarding_completion_rpc.sql',
+    'supabase/migrations/036_saas_platform_admin_roles.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -507,12 +510,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('035_saas_onboarding_completion_rpc.sql') &&
+      source.includes('036_saas_platform_admin_roles.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-035 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-036 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-035 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-036 migration chain without applying migrations');
     }
   }
 
@@ -856,10 +859,18 @@ function checkCommercialFoundation() {
   const platformAdminDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-data.ts');
   const platformAdminLiveDataPath = path.resolve(process.cwd(), 'lib/saas/platform-admin-live-data.ts');
   const platformAdminModePath = path.resolve(process.cwd(), 'lib/saas/platform-admin-mode.ts');
+  const platformAdminRoleManagementContractPath = path.resolve(
+    process.cwd(),
+    'lib/saas/platform-admin-role-management.ts'
+  );
   const platformOrgRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/route.ts');
   const platformOrgDetailRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/[id]/route.ts');
   const platformBillingEventsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/events/route.ts');
   const platformBillingOperationsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/operations/route.ts');
+  const platformAdminRoleRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/internal/saas/platform-admins/route.ts'
+  );
   if (
     fs.existsSync(platformAdminDataPath) &&
     fs.existsSync(platformOrgRoutePath) &&
@@ -897,6 +908,30 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform admin API routes', 'internal org and billing routes are guard-gated with platform role permissions');
     } else {
       record('fail', 'SaaS platform admin API routes', 'internal SaaS API routes must use platform admin guard, repository layer, and owner/support/billing permission gates');
+    }
+  }
+
+  if (
+    fs.existsSync(platformAdminRoleManagementContractPath) &&
+    fs.existsSync(platformAdminRoleRoutePath)
+  ) {
+    const roleManagementSource = fs.readFileSync(platformAdminRoleManagementContractPath, 'utf8');
+    const roleRouteSource = fs.readFileSync(platformAdminRoleRoutePath, 'utf8');
+    if (
+      roleManagementSource.includes('PlatformAdminRoleManagementRepository') &&
+      roleManagementSource.includes('normalizePlatformAdminRoleManagementRequest') &&
+      roleManagementSource.includes('buildPlatformAdminRoleManagementRpcArgs') &&
+      roleManagementSource.includes('manage_platform_admin_role') &&
+      roleManagementSource.includes("from('platform_admin_roles')") &&
+      roleRouteSource.includes('handleListPlatformAdminRoles') &&
+      roleRouteSource.includes('handleManagePlatformAdminRole') &&
+      roleRouteSource.includes('requirePlatformAdminAccess') &&
+      roleRouteSource.includes("requiredPermission: 'manage_platform_roles'") &&
+      roleRouteSource.includes('createPlatformAdminRoleManagementRepository')
+    ) {
+      record('pass', 'SaaS platform admin role management', 'owner-gated role assignment contract exists without UI wiring');
+    } else {
+      record('fail', 'SaaS platform admin role management', 'platform admin roles must use owner-gated repository and RPC contracts before UI wiring');
     }
   }
 
@@ -1243,6 +1278,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/033_saas_platform_billing_operations.sql'
   );
+  const platformAdminRoleManagementMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/036_saas_platform_admin_roles.sql'
+  );
   if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
     const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
@@ -1312,6 +1351,29 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform billing operations RPC draft', 'platform billing operations are RPC-backed and audit-log oriented');
     } else {
       record('fail', 'SaaS platform billing operations RPC draft', 'platform billing operations must cover manual payment, suspend, resume, refund request, and audit logging');
+    }
+  }
+
+  if (
+    fs.existsSync(platformAdminRoleManagementMigrationPath) &&
+    fs.existsSync(platformAdminRoleManagementContractPath)
+  ) {
+    const migrationSource = fs.readFileSync(platformAdminRoleManagementMigrationPath, 'utf8');
+    const roleManagementSource = fs.readFileSync(platformAdminRoleManagementContractPath, 'utf8');
+    if (
+      migrationSource.includes('CREATE TABLE IF NOT EXISTS public.platform_admin_roles') &&
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.manage_platform_admin_role') &&
+      migrationSource.includes('platform.admin_role_upserted') &&
+      migrationSource.includes('platform.admin_role_disabled') &&
+      migrationSource.includes('GRANT EXECUTE') &&
+      roleManagementSource.includes('manage_platform_admin_role') &&
+      roleManagementSource.includes('buildPlatformAdminRoleManagementRpcArgs') &&
+      roleManagementSource.includes("'upsert'") &&
+      roleManagementSource.includes("'disable'")
+    ) {
+      record('pass', 'SaaS platform admin role RPC draft', 'platform admin role assignments are RPC-backed and audit-log oriented');
+    } else {
+      record('fail', 'SaaS platform admin role RPC draft', 'platform admin roles must have a service-role-only table, RPC draft, and audit logging');
     }
   }
 }

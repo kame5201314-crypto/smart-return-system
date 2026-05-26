@@ -12,11 +12,13 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Draft migration `033_saas_platform_billing_operations.sql` exists for platform billing operations but has not been applied.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
 - Draft migration `035_saas_onboarding_completion_rpc.sql` exists for onboarding completion audit writes but has not been applied.
+- Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
 - Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.
 - Onboarding backend foundation now includes read-only `loadSaaSOnboardingView()` plus guarded `POST /api/saas/onboarding/complete` for future Claude UI wiring; migration `035` is still not applied, so production UI must not enable completion writes yet.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
+- Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. Live role resolution still uses the current admin/profile/env source until migration `036` is explicitly applied and guard wiring is approved.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
@@ -381,7 +383,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `scripts/saas/check-migration-plan.mjs`
   - `npm run saas:migration-plan`
   - `npm run saas:migration-plan:strict`
-  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full migration chain ending at `032`.
+  - The check validates `APP_MODE=saas`, the expected SaaS Supabase project ref, forbidden internal/live project refs, `SUPABASE_DB_PASSWORD` readiness, and the full local migration chain ending at `036`.
   - Strict mode should remain blocked until `SUPABASE_DB_PASSWORD` is available.
   - No Supabase data was changed.
 - Platform admin read model migration draft was added without applying migrations:

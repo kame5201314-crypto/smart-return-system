@@ -2,6 +2,55 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added the platform admin role management backend foundation.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-role-management.ts`
+- `app/api/internal/saas/platform-admins/route.ts`
+- `tests/unit/saas-platform-admin-role-management.test.ts`
+- `supabase/migrations/036_saas_platform_admin_roles.sql`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/WORK_SPLIT_PLAN.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Contract:
+
+- `GET /api/internal/saas/platform-admins` lists role assignments.
+- `POST /api/internal/saas/platform-admins` upserts or disables assignments by
+  email or user id.
+- Both handlers require platform admin access plus
+  `manage_platform_roles`.
+- `036_saas_platform_admin_roles.sql` drafts the service-role-only table and
+  `manage_platform_admin_role()` RPC with audit-log entries.
+
+Remaining split:
+
+- Claude may build `/internal/team` or a role-management panel against this
+  contract after Codex confirms migration rollout timing.
+- Codex must apply migration `036` and wire the guard to DB-backed role
+  resolution only after explicit owner approval.
+
+Notes:
+
+- Existing `users.role='admin'` plus optional `PLATFORM_ADMIN_ROLES` remains
+  the live role source.
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded Claude platform admin copy polish handoffs.
 
 Commits:

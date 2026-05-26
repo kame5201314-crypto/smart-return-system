@@ -185,6 +185,77 @@ Rules:
 - Claude should render this as the `/internal` overview; `/internal/orgs`
   should remain the detailed organization list.
 
+## Platform Admin Role Management
+
+Backend owner: Codex.
+
+Future UI owner: Claude.
+
+Route:
+
+```text
+GET /api/internal/saas/platform-admins
+POST /api/internal/saas/platform-admins
+```
+
+Service:
+
+```text
+lib/saas/platform-admin-role-management.ts
+```
+
+Draft migration:
+
+```text
+supabase/migrations/036_saas_platform_admin_roles.sql
+```
+
+List response:
+
+```ts
+{
+  success: true;
+  data: {
+    assignments: Array<{
+      id: string;
+      principalType: 'email' | 'user_id';
+      principal: string;
+      role: 'owner' | 'support' | 'billing';
+      status: 'active' | 'disabled';
+      note: string | null;
+      createdBy: string | null;
+      updatedBy: string | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }>;
+  };
+}
+```
+
+Mutation request:
+
+```ts
+{
+  operation: 'upsert' | 'disable';
+  principalType: 'email' | 'user_id';
+  principal: string;
+  role?: 'owner' | 'support' | 'billing';
+  note?: string;
+}
+```
+
+Rules:
+
+- The route is guarded by `requirePlatformAdminAccess()` and
+  `requiredPermission: 'manage_platform_roles'`.
+- Only platform owner role currently has `manage_platform_roles`.
+- The route uses service-role repository/RPC wrappers only after access passes.
+- Migration `036` is a draft and has not been applied; do not build UI that
+  depends on DB-backed role editing in production until owner explicitly
+  approves migration apply.
+- Existing `PLATFORM_ADMIN_ROLES` env mapping remains the live role source until
+  Codex wires the guard to the DB-backed role store after migration approval.
+
 ## Settings Billing
 
 UI path:

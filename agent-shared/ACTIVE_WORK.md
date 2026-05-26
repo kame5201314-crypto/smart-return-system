@@ -33,6 +33,26 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin role management backend foundation
+Files:
+- lib/saas/platform-admin-role-management.ts
+- app/api/internal/saas/platform-admins/route.ts
+- tests/unit/saas-platform-admin-role-management.test.ts
+- supabase/migrations/036_saas_platform_admin_roles.sql
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/WORK_SPLIT_PLAN.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added an owner-gated platform admin role management contract for future internal admin UI. It lists/upserts/disables platform admin role assignments through a service-role repository and draft RPC, with audit-log metadata. Migration 036 was not applied, the live guard remains on the existing admin/profile/env role source, and no UI, deployment, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Onboarding live data loader contract
 Files:
 - lib/saas/onboarding-live-data.ts
