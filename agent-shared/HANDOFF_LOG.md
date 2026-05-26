@@ -2,6 +2,100 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded Claude's tenant preview start button UI handoff.
+
+Commit:
+
+```text
+85f65bd feat(saas/ui): add "以此租戶身分查看" entry on org detail
+```
+
+Files reported by commit:
+
+- `app/internal/orgs/[id]/page.tsx`
+- `components/internal/start-tenant-preview-button.tsx`
+
+UI handoff summary:
+
+- `/internal/orgs/[id]` now shows an `以此租戶身分查看` action when org
+  detail data is ready.
+- The client button calls `POST /api/internal/saas/orgs/[id]/preview`, shows
+  backend errors through toast, and routes to the returned preview path.
+- Page helper copy now explains that tenant preview is read-only and lasts one
+  hour.
+
+Notes:
+
+- Claude commit reports UI/route-consumption only.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
+Recorded Claude's tenant preview banner UI handoff.
+
+Commit:
+
+```text
+da23eff feat(saas/ui): add tenant preview banner across (admin) pages
+```
+
+Files reported by commit:
+
+- `app/(admin)/template.tsx`
+- `components/saas/tenant-preview-banner.tsx`
+- `components/saas/tenant-preview-exit-button.tsx`
+
+UI handoff summary:
+
+- `(admin)` tenant pages now show an orange read-only tenant preview banner
+  when `loadPlatformTenantPreviewMode()` returns `state: 'ready'`.
+- The banner makes the preview target visible before tenant content.
+- The exit button calls `DELETE /api/internal/saas/tenant-preview`, then returns
+  to the backend-provided `exitPath` and refreshes the route.
+
+Remaining split:
+
+- Claude still owns any `/internal/orgs/[id]` start-preview button or visual
+  placement.
+- Codex owns any backend permission, audit, or tenant-context changes.
+
+Notes:
+
+- Claude commit reports UI/composition only.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
+Recorded Claude's onboarding progress banner UI handoff.
+
+Commit:
+
+```text
+1924065 feat(saas/ui): show onboarding progress banner across tenant pages
+```
+
+Files reported by commit:
+
+- `app/(admin)/template.tsx`
+- `components/saas/onboarding-progress-banner.tsx`
+
+UI handoff summary:
+
+- `(admin)` tenant pages now show a setup-progress banner from
+  `loadSaaSOnboardingView()` while onboarding is incomplete.
+- The banner links to `/onboarding`, shows percentage complete and remaining
+  steps, and stays silent for gated/empty/error states.
+
+Notes:
+
+- Claude commit reports UI/composition only.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded Claude's onboarding sidebar entry UI handoff.
 
 Commit:

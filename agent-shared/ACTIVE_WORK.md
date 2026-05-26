@@ -32,6 +32,40 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 
 ```text
 Owner: Claude
+Commit: 85f65bd
+Scope: Tenant preview start button UI
+Files:
+- app/internal/orgs/[id]/page.tsx
+- components/internal/start-tenant-preview-button.tsx
+Status: done
+Notes: Platform org detail now exposes a client action button that POSTs /api/internal/saas/orgs/[id]/preview, then routes to the returned previewPath so the tenant preview banner can render. UI/route-consumption only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: da23eff
+Scope: Tenant preview banner UI
+Files:
+- app/(admin)/template.tsx
+- components/saas/tenant-preview-banner.tsx
+- components/saas/tenant-preview-exit-button.tsx
+Status: done
+Notes: Tenant pages now render a read-only orange preview banner from loadPlatformTenantPreviewMode() and expose a client exit button wired to DELETE /api/internal/saas/tenant-preview. UI/composition only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: 1924065
+Scope: Onboarding progress banner
+Files:
+- app/(admin)/template.tsx
+- components/saas/onboarding-progress-banner.tsx
+Status: done
+Notes: Tenant pages now show a slim onboarding progress banner from loadSaaSOnboardingView() until onboarding is complete. UI/composition only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Claude
 Commit: f46c344
 Scope: Onboarding sidebar entry
 Files:
