@@ -132,12 +132,63 @@ function formatDate(value: string | null): string {
   });
 }
 
+function NextStepCard({ data }: { data: SaaSOnboardingView }) {
+  if (data.org.onboardingCompletedAt !== null) return null;
+
+  const currentStepId = data.summary.currentStepId;
+  if (!currentStepId) return null;
+
+  const meta = STEP_META[currentStepId];
+  if (!meta) return null;
+
+  const Icon = meta.icon;
+  const isFinalCompleteStep = currentStepId === 'complete';
+
+  return (
+    <Card className="rounded-lg border-cyan-300 bg-gradient-to-r from-cyan-50 to-white">
+      <CardContent className="p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white">
+              <Icon className="size-6" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                下一步
+              </p>
+              <h2 className="mt-1 text-xl font-bold text-cyan-950">{meta.title}</h2>
+              <p className="mt-1 text-sm text-cyan-900">{meta.description}</p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            {isFinalCompleteStep ? (
+              <OnboardingCompleteButton
+                disabled={!data.actions.canComplete}
+                disabledReason={data.actions.disabledReason}
+              />
+            ) : meta.cta ? (
+              <Button asChild size="lg">
+                <Link href={meta.cta.href}>
+                  {meta.cta.label}
+                  <ChevronRight className="size-5" />
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function OnboardingContent({ data }: { data: SaaSOnboardingView }) {
   const isComplete = data.org.onboardingCompletedAt !== null;
   const progressPercent = Math.max(0, Math.min(100, data.summary.percentComplete));
 
   return (
     <>
+      <NextStepCard data={data} />
+
       <Card
         className={`rounded-lg ${isComplete ? 'border-emerald-300 bg-emerald-50/40' : ''}`}
       >
