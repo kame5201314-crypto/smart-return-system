@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -28,8 +28,56 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain or Vercel Preview SSO/bypass decision, logging/Sentry, and production deployment remain pending explicit approval.
-- Current documentation refresh only: no deployment, no migration, no env/secret edit, no billing/provider enablement, no master change, and no production/internal Supabase action.
+- Closed Manual Beta has been deployed to the SaaS Vercel production project.
+- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
+- Current post-deploy review only: no deployment was triggered, no migration was run, no env/secret was edited, no billing/provider was enabled, no master change was made, and no production/internal Supabase action was performed by this review.
+
+## 2026-05-26 Closed Manual Beta Production Deployment
+
+- Production URL:
+  - `https://smart-return-system-saas.vercel.app`
+- Vercel project:
+  - `smart-return-system-saas`
+- Branch:
+  - `develop-saas`
+- Commit:
+  - `99c4046 feat(saas): add Sentry runtime configuration`
+- Deployment ID:
+  - `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS`
+- Vercel deployment status:
+  - Ready
+- Deployment aliases:
+  - `https://smart-return-system-saas.vercel.app`
+  - `https://smart-return-system-saas-kaweis-projects.vercel.app`
+  - `https://smart-return-system-saas-kame5201314-crypto-kaweis-projects.vercel.app`
+- Production URL smoke test:
+  - `/`: 200
+  - `/pricing`: 200
+  - `/features/returns`: 200
+  - `/features/ai`: 200
+  - `/features/security`: 200
+  - `/contact`: 200
+  - `/signup`: 200
+  - `/login`: 200
+- Unauthenticated route protection smoke test:
+  - `/returns`: 307 -> `/login`
+  - `/pickup/scan`: 307 -> `/login`
+  - `/analytics/ai-report`: 307 -> `/login`
+  - `/settings/usage`: 307 -> `/login`
+- Deployed state:
+  - `NEXT_PUBLIC_APP_URL=https://smart-return-system-saas.vercel.app`
+  - `SCHEMA_DRIFT_ALERT_WEBHOOK_URL` uses internal log-only alert handling.
+  - `ENABLE_BILLING=false`
+  - `ENABLE_PUBLIC_SIGNUP=false`
+  - Email provider remains dry-run only.
+  - No beta custom domain is configured.
+  - Sentry SDK is wired, but Sentry DSN is not configured, so monitoring is not enabled.
+  - No migration was run for this deployment.
+- Next Beta onboarding item:
+  - Create or confirm the organization, account, invite link, or login credentials for the Beta customer `遇見未來`.
+- Rollback posture:
+  - Keep Vercel rollback readiness for at least 24 hours after launch.
+  - Use Vercel rollback first for production incidents; do not use `git reset --hard` or force push as incident response.
 
 ## 2026-05-25 SaaS Coordination Snapshot
 

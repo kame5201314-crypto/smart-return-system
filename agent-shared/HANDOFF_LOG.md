@@ -1,5 +1,63 @@
 # Handoff Log
 
+## 2026-05-26 Codex -> Claude / Codex
+
+Recorded the Closed Manual Beta production deployment smoke test.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `docs/MANUAL_BETA_LAUNCH_DECISION_CHECKLIST.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/TASK_BOARD.md`
+
+Deployment inspected:
+
+- Production URL: `https://smart-return-system-saas.vercel.app`
+- Vercel project: `smart-return-system-saas`
+- Branch: `develop-saas`
+- Commit: `99c4046 feat(saas): add Sentry runtime configuration`
+- Deployment ID: `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS`
+- Vercel status: Ready
+
+Smoke test result:
+
+- Public pages returned 200:
+  - `/`
+  - `/pricing`
+  - `/features/returns`
+  - `/features/ai`
+  - `/features/security`
+  - `/contact`
+  - `/signup`
+  - `/login`
+- Unauthenticated protected pages returned 307 to `/login`:
+  - `/returns`
+  - `/pickup/scan`
+  - `/analytics/ai-report`
+  - `/settings/usage`
+
+Remaining items:
+
+- Sentry SDK is wired but Sentry DSN is not configured, so monitoring is not active.
+- Beta custom domain is not configured.
+- Billing/ECPay remains disabled and should wait for Stage 2.
+- Email provider remains dry-run only.
+- Next Beta onboarding step is to create or confirm organization/account/invite/login credentials for `遇見未來`.
+- Keep Vercel rollback readiness for at least 24 hours after launch.
+
+Notes:
+
+- This was a read-only post-deploy check plus documentation update.
+- No deployment, migration, env/secret edit, billing/provider enablement, master change, or production/internal Supabase action was performed by this review.
+
 ## 2026-05-25 Codex -> Claude / Codex
 
 Refreshed the SaaS remaining-work and blocker documentation after commit `b3f045e`.

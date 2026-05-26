@@ -25,10 +25,24 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Ready for Claude to claim the public marketing/legal RWD inspection or for Codex to claim the next backend/doc task. Do not deploy, run migrations, edit env/secrets, enable billing/provider, touch master, or use production/internal Supabase.
+Notes: Closed Manual Beta production smoke has passed. Ready for owner-guided Beta onboarding for `遇見未來` or rollback/watch follow-up. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Closed Manual Beta post-deploy smoke documentation
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/MANUAL_BETA_LAUNCH_DECISION_CHECKLIST.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/TASK_BOARD.md
+Status: done
+Notes: Verified production URL `https://smart-return-system-saas.vercel.app` public routes return 200, protected unauthenticated routes redirect to `/login`, and Vercel deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` remains Ready. No deployment, migration, env/secret edit, billing/provider enablement, master change, or production/internal Supabase action was performed by this review.
+```
 
 ```text
 Owner: Codex

@@ -30,6 +30,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Closed Manual Beta production smoke | Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` for `smart-return-system-saas` is Ready; public pages returned 200 and protected unauthenticated pages redirected to `/login` |
 | done | Platform admin billing operation backend plan | This commit; added guarded `POST /api/internal/saas/billing/operations`, RPC wrapper, and draft `033` for manual payment marking, suspend/resume, refund request, and audit logging |
 | done | At-risk alert backend contract | This commit; added read-only `PlatformAtRiskAlertsView` and `loadPlatformAtRiskAlertsView()` for past_due, suspended, AI/return/seat quota, and trial expiry signals |
 | done | Trial conversion backend contract | This commit; added read-only `PlatformTrialConversionView` and `loadPlatformTrialConversionView()` for trialing, converted active, expired trial, and onboarding incomplete counts |
@@ -63,7 +64,8 @@ Status values:
 | done | Invite creation service and RPC draft | This commit; added seat-checked invite creation service, token generation, `032` draft RPC, and repository wrapper without applying migrations |
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
-| blocked | SaaS public rollout external setup | Manual Beta backend/readiness/predeploy gates pass locally. Public paid rollout remains blocked on Sentry/logging DSN, billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain or Vercel Preview SSO decision, and explicit production deploy authorization |
+| blocked | SaaS public rollout external setup | Closed Manual Beta is deployed, but public paid rollout remains blocked on Sentry DSN activation, billing/ECPay credentials plus `ENABLE_BILLING`, beta/custom domain decision, email provider delivery, and post-Beta owner approval |
+| todo | Beta customer onboarding: 遇見未來 | Create or confirm org, owner account, invite link, or login credentials for the first Beta customer; keep billing disabled and email dry-run unless owner explicitly authorizes changes |
 | done | Manual Beta local readiness | SaaS project, migrations, schema gate, Gemini key, test org, seed data, login smoke, AI analyze, invite flow, exports, and platform admin read views have been verified locally |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
 | done | SaaS schema gate commercial v2 coverage | This commit; strict gate now checks organization billing/onboarding/upgrade suggestion fields, subscription period/provider fields, invoice fields, invite token fields, and audit metadata |

@@ -11,7 +11,7 @@ operations.
 - Original Manual Beta freeze baseline:
   - `b88384a docs(saas): add manual beta launch decision checklist`
 - Current observed `develop-saas` HEAD during this review:
-  - `8e27c29 feat(saas/ui): rewrite marketing pages for cold-traffic conversion`
+  - `99c4046 feat(saas): add Sentry runtime configuration`
 - No rollback was performed by this checklist.
 - No new product feature should be added before the owner makes the Manual Beta
   launch decision.
@@ -28,7 +28,7 @@ operations.
 - Workspace: SaaS commercial checkout root on the owner's local machine.
 - Branch: `develop-saas`
 - Latest confirmed commit before this checklist:
-  - `8e27c29 feat(saas/ui): rewrite marketing pages for cold-traffic conversion`
+  - `99c4046 feat(saas): add Sentry runtime configuration`
 - Safety boundary:
   - Do not touch `master`.
   - Do not touch the live/internal checkout.
@@ -36,6 +36,40 @@ operations.
   - Do not run migrations without explicit owner authorization.
   - Do not edit env/secrets from this checklist.
   - Do not enable billing/provider from this checklist.
+
+## Closed Manual Beta Deployment Status
+
+- Production URL:
+  - `https://smart-return-system-saas.vercel.app`
+- Vercel project:
+  - `smart-return-system-saas`
+- Deployment ID:
+  - `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS`
+- Status:
+  - Ready
+- Production smoke test:
+  - Public pages are reachable with HTTP 200:
+    - `/`
+    - `/pricing`
+    - `/features/returns`
+    - `/features/ai`
+    - `/features/security`
+    - `/contact`
+    - `/signup`
+    - `/login`
+  - Unauthenticated protected pages redirect to `/login` with HTTP 307:
+    - `/returns`
+    - `/pickup/scan`
+    - `/analytics/ai-report`
+    - `/settings/usage`
+- Deployed guardrails:
+  - `ENABLE_BILLING=false`
+  - `ENABLE_PUBLIC_SIGNUP=false`
+  - Email provider remains dry-run only.
+  - No migration was run for this deployment.
+  - No beta custom domain is configured.
+  - Sentry SDK is installed and wired, but Sentry DSN is not configured, so monitoring is not active.
+  - Keep rollback readiness for the first 24 hours after launch.
 
 ## Completed For Manual Beta
 
@@ -293,5 +327,8 @@ Manual Beta can remain in a closed/manual testing state with:
 - Owner still needs to decide Sentry/logging, Beta access/domain strategy,
   1-3 Beta customers, onboarding method, first-week success definition, and
   whether to authorize deployment to `smart-return-system-saas`.
+- Current post-deploy next step:
+  - Create or confirm the organization, account, invite link, or login
+    credentials for the Beta customer `遇見未來`.
 
 Public paid SaaS launch is not approved by this checklist.
