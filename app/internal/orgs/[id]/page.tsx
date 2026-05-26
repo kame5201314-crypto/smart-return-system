@@ -62,10 +62,10 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const featureFlags = Object.entries(org.featureFlags);
 
   const summaryCards = [
-    ['Plan', plan.name, 'organizations.plan'],
-    ['Status', org.status, 'organizations.status'],
-    ['Owner', org.ownerEmail ?? '—', 'organization_members.role=owner'],
-    ['MRR', formatTwd(org.health.estimatedMrrTwd), 'active plan only'],
+    ['Plan', plan.name],
+    ['Status', org.status],
+    ['Owner', org.ownerEmail ?? '—'],
+    ['MRR', formatTwd(org.health.estimatedMrrTwd)],
   ] as const;
 
   const billingRows = [
@@ -99,15 +99,12 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-4">
-        {summaryCards.map(([label, value, helper]) => (
+        {summaryCards.map(([label, value]) => (
           <Card key={label} className="rounded-lg">
             <CardHeader className="pb-2">
               <CardDescription>{label}</CardDescription>
               <CardTitle className="text-lg">{value}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">{helper}</p>
-            </CardContent>
           </Card>
         ))}
       </div>
@@ -179,7 +176,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <UsersRound className="size-5 text-emerald-700" />
               成員與權限
             </CardTitle>
-            <CardDescription>來自 organization_members。</CardDescription>
+            <CardDescription>組織內所有成員與其角色。</CardDescription>
           </CardHeader>
           <CardContent>
             {data.members.length === 0 ? (
@@ -237,7 +234,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <Flag className="size-5 text-emerald-700" />
               旗標狀態
             </CardTitle>
-            <CardDescription>三層 guard：plan、feature flag、role。</CardDescription>
+            <CardDescription>此租戶目前的 feature flag 設定。</CardDescription>
           </CardHeader>
           <CardContent>
             {featureFlags.length === 0 ? (
@@ -265,7 +262,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <FileClock className="size-5 text-cyan-700" />
               Audit Log
             </CardTitle>
-            <CardDescription>最近的平台操作紀錄（audit_logs）。</CardDescription>
+            <CardDescription>最近的平台操作紀錄。</CardDescription>
           </CardHeader>
           <CardContent>
             {data.recentAuditLogs.length === 0 ? (

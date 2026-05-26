@@ -176,7 +176,7 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>租戶清單</CardTitle>
-          <CardDescription>來自 organizations、organization_members 與當月用量。</CardDescription>
+          <CardDescription>所有租戶及其當月用量與健康度。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -274,18 +274,18 @@ export default async function InternalOrgsPage() {
         <div>
           <h2 className="text-2xl font-semibold">Organizations</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            平台租戶總覽，資料來自 organizations、organization_members 與 subscriptions。
+            平台所有租戶的方案、狀態、用量與健康度。
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="flex flex-wrap gap-2">
-            <Button disabled variant="outline" title="租戶寫入操作待 platform admin 後端接好後開放">
+            <Button disabled variant="outline" title="租戶啟用 / 停用功能上線後開放">
               <PauseCircle className="size-4" />
               停用租戶
             </Button>
             <ManualBetaOrgForm />
           </div>
-          <p className="text-xs text-muted-foreground">目前為唯讀檢視；停用 / 開通需 audit log 寫入接好後啟用。</p>
+          <p className="text-xs text-muted-foreground">目前為唯讀檢視，租戶啟用 / 停用功能上線後開放。</p>
         </div>
       </div>
 
