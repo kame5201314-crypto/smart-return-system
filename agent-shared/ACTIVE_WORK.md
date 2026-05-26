@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest read-only external blocker refresh confirmed Sentry DSN, beta/custom domain, email delivery provider, Billing/ECPay, draft migrations 033-036, and any future deploy remain owner-blocked. Latest Claude UI handoffs through `615ce7c` are recorded: at-risk labels, settings headers, billing trial/cancel banners, onboarding next-step card, and marketing mobile navigation. Current executable queue is Claude UI-only public marketing/legal RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record future Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest read-only deploy readiness refresh confirmed `develop-saas` is synced with `origin/develop-saas` at `4a1d7f8 docs(saas): record latest ui handoffs`, but production remains on the earlier Ready Closed Manual Beta deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` until owner explicitly authorizes deploying latest HEAD. Sentry DSN, beta/custom domain, email delivery provider, Billing/ECPay, draft migrations 033-036, and any future deploy remain owner-blocked. Latest Claude UI handoffs through `615ce7c` are recorded: at-risk labels, settings headers, billing trial/cancel banners, onboarding next-step card, and marketing mobile navigation. Current executable queue is Claude UI-only public marketing/legal RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record future Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Latest deploy readiness status refresh
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Read-only refresh recorded that `develop-saas` is synced at `4a1d7f8`, latest HEAD includes Claude UI improvements through `615ce7c`, and production still remains on Ready deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` until owner authorizes deploying latest HEAD. Sentry DSN, beta/custom domain, email provider delivery, Billing/ECPay, and draft migrations `033`-`036` remain owner-blocked. No deploy, migration, env/secret edit, domain/DNS change, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Claude

@@ -2,6 +2,57 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded the latest SaaS deploy readiness state after the UI handoff docs.
+
+Summary:
+
+- Preflight and read-only git checks confirmed `develop-saas` is synchronized
+  with `origin/develop-saas` at
+  `4a1d7f8 docs(saas): record latest ui handoffs`.
+- Latest HEAD includes Claude UI improvements through
+  `615ce7c fix(saas/ui): add mobile nav drawer on marketing shell`.
+- `vercel inspect https://smart-return-system-saas.vercel.app` confirmed
+  deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` is still Ready.
+- Production URL remains `https://smart-return-system-saas.vercel.app`.
+- Production still points at the earlier Closed Manual Beta deployment recorded
+  as `99c4046 feat(saas): add Sentry runtime configuration`; deploying latest
+  HEAD still requires explicit owner authorization.
+- Recent Vercel deployments observed are Preview deployments only.
+
+Future latest-HEAD deploy gate if owner explicitly authorizes it:
+
+```text
+npm run safety:agent-boundary
+npm run saas:doctor
+npm run saas:rollout-check:strict
+npm run lint
+npm run typecheck
+npm run test:all
+npm run build
+npm run saas:predeploy
+```
+
+Owner decisions still required:
+
+- Add SaaS-only `SENTRY_DSN` and optionally `NEXT_PUBLIC_SENTRY_DSN` in Vercel;
+  never write DSN values to repo files.
+- Choose and configure beta/custom domain strategy; no domain/DNS setting is
+  currently configured.
+- Choose and authorize email provider delivery before leaving dry-run mode.
+- Provide and authorize Billing/ECPay Stage 2 credentials before enabling
+  billing/provider behavior.
+- Explicitly authorize any migration apply for drafts `033`-`036`.
+- Explicitly authorize production deploy of latest HEAD if the latest UI
+  improvements should go live.
+
+Notes:
+
+- No deployment, migration, env/secret edit, domain/DNS change,
+  billing/provider enablement, master/live/prod change, or production/internal
+  Supabase action was performed by this deploy readiness refresh.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded Claude's latest UI handoffs after the external blocker refresh.
 
 Commits:

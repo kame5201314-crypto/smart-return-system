@@ -35,7 +35,40 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Closed Manual Beta has been deployed to the SaaS Vercel production project.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest external blocker refresh was read-only: no deployment was triggered, no migration was run, no env/secret was edited, no billing/provider was enabled, no domain/DNS change was made, no Vercel production setting was changed, no master change was made, and no production/internal Supabase action was performed by this review.
+- Latest deploy readiness refresh was read-only: `develop-saas` is synced at `4a1d7f8 docs(saas): record latest ui handoffs`, production remains on the existing Closed Manual Beta deployment, and no deployment was triggered, no migration was run, no env/secret was edited, no billing/provider was enabled, no domain/DNS change was made, no Vercel production setting was changed, no master change was made, and no production/internal Supabase action was performed by this review.
+
+## 2026-05-26 Latest Deploy Readiness Status
+
+- Scope:
+  - Read-only deploy readiness status refresh for SaaS project `smart-return-system-saas`.
+  - Branch: `develop-saas`
+  - Latest observed HEAD: `4a1d7f8 docs(saas): record latest ui handoffs`
+  - `develop-saas` is synchronized with `origin/develop-saas`.
+- Latest HEAD contents:
+  - Includes the latest Claude UI improvements recorded through `615ce7c fix(saas/ui): add mobile nav drawer on marketing shell`.
+  - Also includes recent UI readiness commits for onboarding focus, billing trial/cancellation banners, and settings header consistency.
+  - Production deployment of this latest HEAD still requires explicit owner authorization.
+- Vercel production status:
+  - Production URL remains `https://smart-return-system-saas.vercel.app`.
+  - Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` remains Ready.
+  - This is the earlier Closed Manual Beta production deployment recorded as `99c4046 feat(saas): add Sentry runtime configuration`.
+  - Recent deployments observed from Vercel are Preview deployments only.
+  - No production deployment was triggered in this review.
+- Owner-blocked external setup:
+  - Sentry DSN is still missing. Add SaaS-only `SENTRY_DSN` and optionally `NEXT_PUBLIC_SENTRY_DSN` in Vercel before broader Beta/public use. Do not commit DSN values to git.
+  - Beta/custom domain is still not configured; Vercel currently reports no custom domains for this project/account.
+  - Email provider delivery remains dry-run only; no provider adapter is enabled.
+  - Billing/ECPay remains disabled and belongs to Stage 2 only.
+  - Draft migrations `033`-`036` remain unapplied and must not be touched without explicit owner approval.
+- Future deploy gate if owner explicitly authorizes deploying latest HEAD:
+  - `npm run safety:agent-boundary`
+  - `npm run saas:doctor`
+  - `npm run saas:rollout-check:strict`
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run test:all`
+  - `npm run build`
+  - `npm run saas:predeploy`
 
 ## 2026-05-26 External Rollout Blocker Refresh
 
