@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Smart Return SaaS',
-    template: '%s | Smart Return SaaS',
+    default: 'Smart Return｜台灣電商退貨管理系統',
+    template: '%s',
   },
-  description: '給台灣電商品牌的訂閱制退貨管理系統。',
+  description: '把蝦皮、官網、momo 的退貨集中在同一個工作台。專為台灣電商品牌設計的退貨管理系統。',
 };
 
 export default function RootLayout({
