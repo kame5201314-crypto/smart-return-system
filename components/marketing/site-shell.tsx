@@ -4,18 +4,25 @@ import { ArrowRight, PackageCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { legalNavItems, publicNavItems } from '@/components/marketing/commercial-data';
+import { MarketingMobileNav } from '@/components/marketing/mobile-nav';
 
 export function MarketingShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-white text-neutral-950">
       <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
-            <span className="flex size-9 items-center justify-center rounded-md bg-neutral-950 text-white">
-              <PackageCheck className="size-5" />
-            </span>
-            <span>Smart Return</span>
-          </Link>
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-1">
+            <MarketingMobileNav
+              publicNavItems={publicNavItems}
+              legalNavItems={legalNavItems}
+            />
+            <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
+              <span className="flex size-9 items-center justify-center rounded-md bg-neutral-950 text-white">
+                <PackageCheck className="size-5" />
+              </span>
+              <span>Smart Return</span>
+            </Link>
+          </div>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="主要導覽">
             {publicNavItems.map((item) => (
