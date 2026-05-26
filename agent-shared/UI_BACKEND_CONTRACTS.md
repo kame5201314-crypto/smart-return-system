@@ -907,6 +907,7 @@ Current helpers:
 
 ```text
 lib/saas/onboarding.ts
+lib/saas/onboarding-live-data.ts
 lib/saas/onboarding-route.ts
 app/api/saas/onboarding/complete/route.ts
 supabase/migrations/035_saas_onboarding_completion_rpc.sql
@@ -954,6 +955,33 @@ interface SaaSOnboardingView {
   };
 }
 ```
+
+Live loader:
+
+```ts
+loadSaaSOnboardingView()
+```
+
+Result states:
+
+- `ready`: signed-in tenant member exists and all onboarding signals are loaded
+  from org-scoped repositories.
+- `empty`: no organization row is found for the current tenant context.
+- `gated`: missing auth or organization membership.
+- `error`: repository query failure or DTO validation failure.
+
+Signal sources:
+
+- Organization profile and completion state: `organizations`.
+- Return policy: `system_settings` row with `setting_key = 'return_policy'`.
+- Team setup: active `organization_members` plus pending
+  `organization_invites`.
+- First return: current-month `return_requests`.
+- AI review: current-month successful, non-cached `ai_usage_events` for the
+  return AI analysis feature.
+
+The live loader does not use mock data and does not expose customer return
+details outside the tenant context.
 
 Completion contract:
 

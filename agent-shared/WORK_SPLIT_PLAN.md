@@ -23,7 +23,7 @@ Claude can work after Codex has committed and pushed the current backend/coordin
 | C1 | Platform admin dashboard visual polish | `app/internal/**`, `components/internal/**`, `components/saas/**` | Use existing `PlatformOrganizationListView`, `PlatformOrganizationDetailView`, and billing event DTOs. |
 | C2 | At-risk and health metric presentation | `app/internal/orgs/**`, `components/saas/**` | Do not change risk calculation; only render `health`, `summary`, and existing usage fields. |
 | C3 | Billing / usage / team settings UI refinement | `app/(admin)/settings/**`, `components/saas/**` | Use existing settings loaders and DTOs. |
-| C4 | Trial / onboarding UI screens | `app/signup/**`, future onboarding page files, `components/saas/**` | Use Codex onboarding DTO and `POST /api/saas/onboarding/complete`; do not enable completion writes in production until migration `035` is explicitly applied. |
+| C4 | Trial / onboarding UI screens | `app/signup/**`, future onboarding page files, `components/saas/**` | Use Codex `loadSaaSOnboardingView()` and `POST /api/saas/onboarding/complete`; do not enable completion writes in production until migration `035` is explicitly applied. |
 | C5 | Public marketing and legal page polish | `/`, `/pricing`, `/features/**`, `/legal/**`, `/contact` page files | UI-only; do not change signup persistence or billing behavior. |
 | C6 | Responsive QA pass | UI page files only | Record findings in chat/commit message; Codex records durable status. |
 

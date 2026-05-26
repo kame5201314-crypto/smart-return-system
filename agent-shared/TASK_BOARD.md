@@ -13,9 +13,11 @@ Status values:
 |---|---|---|
 | done | Platform admin dashboard visual polish | Claude commit `ee474ed`; `/internal` now renders the Codex dashboard DTO with KPI cards, at-risk alerts, trial follow-up, billing summary, and gated/empty/error states |
 | done | Platform admin mode floating indicator | Claude commit `9edf220`; `(admin)` tenant pages now render the Codex `loadPlatformAdminModeView()` contract as a persistent platform-admin indicator |
+| done | Platform admin org page copy polish | Claude commit `f5d8171`; `/internal/orgs` and `/internal/orgs/[id]` now use operator-facing wording without schema/table helper text |
+| done | Platform billing events copy polish | Claude commit `8a5a6dc`; `/internal/billing/events` now removes stage wording and schema-source copy while keeping operator-relevant guard requirements |
 | todo | At-risk and health metric presentation | Use existing `health`, `summary`, and usage fields; no backend or API edits |
 | todo | Billing / usage / team settings UI refinement | Use existing settings loaders and DTOs; no mutation changes |
-| todo | Trial / onboarding UI screens | Use Codex onboarding DTO and `POST /api/saas/onboarding/complete`; do not enable the completion button in production until migration `035` is explicitly applied |
+| todo | Trial / onboarding UI screens | Use Codex `loadSaaSOnboardingView()` and `POST /api/saas/onboarding/complete`; do not enable the completion button in production until migration `035` is explicitly applied |
 | todo | Public marketing and legal RWD inspection | Claude UI-only scope: `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
 | todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
 | done | Customer settings page declutter and copy polish | Commits `1316b02`, `fb561fa`, and `14dad06`; UI-only cleanup kept backend/auth contracts unchanged |
@@ -32,6 +34,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Onboarding live data loader contract | This commit; added `loadSaaSOnboardingView()` and org-scoped onboarding signal repository for Claude onboarding UI handoff; no UI or DB writes |
 | done | Onboarding completion API route contract | This commit; added owner/admin writable-org `POST /api/saas/onboarding/complete` wrapper for Claude onboarding UI handoff; migration `035` still requires explicit apply before UI writes are enabled |
 | done | SaaS doctor coverage for role separation contracts | This commit; readiness check now verifies auth redirects, internal admin redirects, platform admin mode, and platform dashboard contracts |
 | done | Platform admin dashboard backend contract | This commit; added `loadPlatformAdminDashboardView()` with organization KPI, at-risk, trial conversion, and billing event summaries for Claude's `/internal` dashboard UI |

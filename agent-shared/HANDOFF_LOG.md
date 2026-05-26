@@ -2,6 +2,82 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Recorded Claude platform admin copy polish handoffs.
+
+Commits:
+
+```text
+f5d8171 fix(saas/ui): polish platform admin org pages copy
+8a5a6dc fix(saas/ui): polish platform billing events page copy
+```
+
+Files reported by commits:
+
+- `app/internal/orgs/page.tsx`
+- `app/internal/orgs/[id]/page.tsx`
+- `app/internal/billing/events/page.tsx`
+
+UI handoff summary:
+
+- `/internal/orgs` and `/internal/orgs/[id]` now use operator-facing copy and
+  avoid schema/table helper wording.
+- `/internal/billing/events` removes stage wording and schema-source copy while
+  keeping operator-relevant guard requirements.
+
+Notes:
+
+- Claude commits report UI/copy only.
+- Codex did not edit those UI files in this follow-up; this entry records the
+  handoff in Codex-owned `agent-shared/**`.
+
+## 2026-05-26 Codex -> Claude / Codex
+
+Added the onboarding live data loader contract for Claude-owned onboarding UI.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/onboarding-live-data.ts`
+- `tests/unit/saas-onboarding-live-data.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/WORK_SPLIT_PLAN.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Contract:
+
+- `loadSaaSOnboardingView()` returns ready/empty/gated/error states for future
+  onboarding UI.
+- Ready state is built from org-scoped repository signals:
+  `organizations`, `system_settings`, `organization_members`,
+  `organization_invites`, `return_requests`, and `ai_usage_events`.
+- The loader reuses `buildSaaSOnboardingView()` so UI receives the same step
+  DTO as the completion service expects.
+- Completion actions are enabled only for tenant owner/admin contexts with
+  writable org status.
+
+Remaining split:
+
+- Claude owns the onboarding wizard/page UI and visual states.
+- Codex owns migration `035` apply and any future schema/route changes if owner
+  explicitly authorizes them.
+
+Notes:
+
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Recorded Claude's Platform Admin Mode floating indicator UI handoff.
 
 Commit:

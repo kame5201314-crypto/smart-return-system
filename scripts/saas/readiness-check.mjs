@@ -207,6 +207,7 @@ function checkCommercialFoundation() {
     'lib/saas/notifications.ts',
     'lib/saas/email-queue-worker.ts',
     'lib/saas/onboarding.ts',
+    'lib/saas/onboarding-live-data.ts',
     'lib/saas/onboarding-route.ts',
     'lib/saas/billing.ts',
     'lib/saas/settings-billing-data.ts',
@@ -1083,6 +1084,10 @@ function checkCommercialFoundation() {
   }
 
   const onboardingPath = path.resolve(process.cwd(), 'lib/saas/onboarding.ts');
+  const onboardingLiveDataPath = path.resolve(
+    process.cwd(),
+    'lib/saas/onboarding-live-data.ts'
+  );
   const onboardingRouteServicePath = path.resolve(
     process.cwd(),
     'lib/saas/onboarding-route.ts'
@@ -1097,11 +1102,13 @@ function checkCommercialFoundation() {
   );
   if (
     fs.existsSync(onboardingPath) &&
+    fs.existsSync(onboardingLiveDataPath) &&
     fs.existsSync(onboardingRouteServicePath) &&
     fs.existsSync(onboardingCompleteRoutePath) &&
     fs.existsSync(onboardingMigrationPath)
   ) {
     const onboardingSource = fs.readFileSync(onboardingPath, 'utf8');
+    const liveDataSource = fs.readFileSync(onboardingLiveDataPath, 'utf8');
     const routeServiceSource = fs.readFileSync(onboardingRouteServicePath, 'utf8');
     const routeSource = fs.readFileSync(onboardingCompleteRoutePath, 'utf8');
     const migrationSource = fs.readFileSync(onboardingMigrationPath, 'utf8');
@@ -1114,6 +1121,18 @@ function checkCommercialFoundation() {
       onboardingSource.includes('canWriteSaaSOrgData') &&
       onboardingSource.includes("'organization_profile'") &&
       onboardingSource.includes("'ai_review'") &&
+      liveDataSource.includes('loadSaaSOnboardingView') &&
+      liveDataSource.includes('buildSaaSOnboardingViewInputFromRepository') &&
+      liveDataSource.includes('createOnboardingDataRepository') &&
+      liveDataSource.includes('getOrgContext') &&
+      liveDataSource.includes("from('organizations')") &&
+      liveDataSource.includes("from('system_settings')") &&
+      liveDataSource.includes("from('return_requests')") &&
+      liveDataSource.includes("from('ai_usage_events')") &&
+      liveDataSource.includes('buildSaaSOnboardingView(input)') &&
+      liveDataSource.includes("state: 'gated'") &&
+      liveDataSource.includes("state: 'empty'") &&
+      liveDataSource.includes("state: 'ready'") &&
       routeServiceSource.includes('completeSaaSOnboardingFromRequest') &&
       routeServiceSource.includes('getOrgContext') &&
       routeServiceSource.includes("roles: ['owner', 'admin']") &&
@@ -1130,9 +1149,9 @@ function checkCommercialFoundation() {
       migrationSource.includes('GRANT EXECUTE') &&
       migrationSource.includes('service_role')
     ) {
-      record('pass', 'SaaS onboarding backend foundation', 'onboarding progress and owner/admin completion route contracts exist without UI wiring');
+      record('pass', 'SaaS onboarding backend foundation', 'onboarding live progress and owner/admin completion route contracts exist without UI wiring');
     } else {
-      record('fail', 'SaaS onboarding backend foundation', 'onboarding backend must provide progress DTOs and a guarded owner/admin completion route before UI writes');
+      record('fail', 'SaaS onboarding backend foundation', 'onboarding backend must provide live progress DTOs and a guarded owner/admin completion route before UI writes');
     }
   }
 

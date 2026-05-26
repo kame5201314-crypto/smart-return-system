@@ -31,6 +31,45 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ## Recent Completed
 
 ```text
+Owner: Codex
+Commit: this commit
+Scope: Onboarding live data loader contract
+Files:
+- lib/saas/onboarding-live-data.ts
+- tests/unit/saas-onboarding-live-data.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/WORK_SPLIT_PLAN.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added loadSaaSOnboardingView() and an org-scoped onboarding signal repository for future Claude onboarding UI. It reads organization profile, return policy, team setup, first return, and AI review signals without serving mock data. No UI page, deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Claude
+Commit: 8a5a6dc
+Scope: Platform billing events copy polish
+Files:
+- app/internal/billing/events/page.tsx
+Status: done
+Notes: /internal/billing/events copy no longer uses Stage 2 or schema-source wording, while keeping operator-relevant guard requirements. UI/copy only; no backend/auth/contract/test/deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: f5d8171
+Scope: Platform admin org pages copy polish
+Files:
+- app/internal/orgs/page.tsx
+- app/internal/orgs/[id]/page.tsx
+Status: done
+Notes: /internal/orgs and org detail copy now use operator-facing wording and remove schema/table helper text. UI/copy only; no backend/auth/contract/test/deploy changes were reported.
+```
+
+```text
 Owner: Claude
 Commit: 9edf220
 Scope: Platform Admin Mode floating indicator
