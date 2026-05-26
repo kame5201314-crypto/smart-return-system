@@ -29,6 +29,7 @@ import type {
   PlatformAtRiskAlertSeverity,
   PlatformTrialConversionLifecycle,
 } from '@/lib/saas/ui-backend-contracts';
+import { PLATFORM_ALERT_SEVERITY_LABEL } from '@/components/internal/platform-labels';
 
 const ALERT_CATEGORY_LABEL: Record<PlatformAtRiskAlertCategory, string> = {
   billing: '帳務',
@@ -201,6 +202,9 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
                         {alert.orgName}
                       </Link>
                       <Badge variant={severityVariant(alert.severity)} className="text-xs">
+                        {PLATFORM_ALERT_SEVERITY_LABEL[alert.severity]}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
                         {ALERT_CATEGORY_LABEL[alert.category]}
                       </Badge>
                     </div>

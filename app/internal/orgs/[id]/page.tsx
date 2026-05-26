@@ -15,6 +15,11 @@ import {
 } from '@/components/ui/table';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
+import {
+  PLATFORM_ORG_STATUS_LABEL,
+  PLATFORM_RISK_LEVEL_LABEL,
+  PLATFORM_RISK_REASON_LABEL,
+} from '@/components/internal/platform-labels';
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
@@ -64,7 +69,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
 
   const summaryCards = [
     ['Plan', plan.name],
-    ['Status', org.status],
+    ['Status', PLATFORM_ORG_STATUS_LABEL[org.status]],
     ['Owner', org.ownerEmail ?? '—'],
     ['MRR', formatTwd(org.health.estimatedMrrTwd)],
   ] as const;
@@ -82,18 +87,18 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
           <div className="flex-1">
-            <p className="font-medium">此租戶目前為 at-risk，建議優先跟進。</p>
+            <p className="font-medium">此租戶目前需關注，建議優先跟進。</p>
             {org.health.riskReasons.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {org.health.riskReasons.map((reason) => (
                   <Badge key={reason} variant="destructive" className="text-xs">
-                    {reason}
+                    {PLATFORM_RISK_REASON_LABEL[reason]}
                   </Badge>
                 ))}
               </div>
             ) : null}
             <p className="mt-2 text-xs text-amber-800">
-              停用 / 調整方案 / 補繳等寫入操作待 platform admin 接好後開放（見頁首按鈕）。
+              「以此租戶身分查看」可立即進入唯讀預覽；停用 / 調整方案等寫入操作上線後開放。
             </p>
           </div>
         </div>
@@ -122,14 +127,16 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           <div className="rounded-md border p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="text-sm font-medium">Risk</span>
-              <Badge variant={riskVariant(org.health.riskLevel)}>{org.health.riskLevel}</Badge>
+              <Badge variant={riskVariant(org.health.riskLevel)}>
+                {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
+              </Badge>
             </div>
             {org.health.riskReasons.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {org.health.riskReasons.map((reason) => (
                   <Badge key={reason} variant="outline">
                     <AlertTriangle className="size-3" />
-                    {reason}
+                    {PLATFORM_RISK_REASON_LABEL[reason]}
                   </Badge>
                 ))}
               </div>

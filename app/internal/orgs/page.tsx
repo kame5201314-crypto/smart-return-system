@@ -26,6 +26,11 @@ import { loadPlatformOrganizationsView } from '@/lib/saas/platform-admin-live-da
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { PlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
+import {
+  PLATFORM_ORG_STATUS_LABEL,
+  PLATFORM_RISK_LEVEL_LABEL,
+  PLATFORM_RISK_REASON_LABEL,
+} from '@/components/internal/platform-labels';
 
 function usagePercent(used: number, limit: number | null) {
   if (!limit || limit <= 0) return 0;
@@ -145,7 +150,9 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                         {org.name}
                       </Link>
                       <Badge variant="outline">{SAAS_PLAN_DEFINITIONS[org.plan].name}</Badge>
-                      <Badge variant={statusVariant(org.status)}>{org.status}</Badge>
+                      <Badge variant={statusVariant(org.status)}>
+                        {PLATFORM_ORG_STATUS_LABEL[org.status]}
+                      </Badge>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {org.ownerEmail ?? '—'}
@@ -154,7 +161,7 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                       <div className="mt-2 flex flex-wrap gap-1">
                         {org.health.riskReasons.map((reason) => (
                           <Badge key={reason} variant="destructive" className="text-xs">
-                            {reason}
+                            {PLATFORM_RISK_REASON_LABEL[reason]}
                           </Badge>
                         ))}
                       </div>
@@ -210,7 +217,9 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                       <Badge variant="outline">{plan.name}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(org.status)}>{org.status}</Badge>
+                      <Badge variant={statusVariant(org.status)}>
+                        {PLATFORM_ORG_STATUS_LABEL[org.status]}
+                      </Badge>
                     </TableCell>
                     <TableCell className="min-w-28">
                       <div className="mb-1 text-xs text-muted-foreground">
@@ -233,12 +242,14 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                     </TableCell>
                     <TableCell className="min-w-36">
                       <div className="flex flex-col gap-1">
-                        <Badge variant={riskVariant(org.health.riskLevel)}>{org.health.riskLevel}</Badge>
+                        <Badge variant={riskVariant(org.health.riskLevel)}>
+                          {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
+                        </Badge>
                         {org.health.riskReasons.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {org.health.riskReasons.map((reason) => (
                               <Badge key={reason} variant="outline" className="text-xs">
-                                {reason}
+                                {PLATFORM_RISK_REASON_LABEL[reason]}
                               </Badge>
                             ))}
                           </div>
