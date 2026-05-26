@@ -1,5 +1,14 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarClock, CreditCard, FileText, Headphones, ReceiptText } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  CreditCard,
+  FileText,
+  Headphones,
+  ReceiptText,
+  Sparkles,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -60,14 +69,33 @@ function formatDate(value: string | null): string {
   return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
+function daysUntil(value: string | null): number | null {
+  if (!value) return null;
+  const target = new Date(value).getTime();
+  if (Number.isNaN(target)) return null;
+  const diffMs = target - Date.now();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+function describeDaysUntil(days: number | null): string {
+  if (days === null) return '';
+  if (days === 0) return '今天到期';
+  if (days === 1) return '明天到期';
+  return `還剩 ${days} 天`;
+}
+
 function BillingContent({ data }: { data: BillingSettingsView }) {
   const planName = SAAS_PLAN_DEFINITIONS[data.org.plan].name;
-  const periodLabel = data.subscription?.currentPeriodEnd
-    ? `至 ${formatDate(data.subscription.currentPeriodEnd)}${data.subscription.cancelAtPeriodEnd ? '（到期後取消）' : ''}`
+  const periodEnd = data.subscription?.currentPeriodEnd ?? null;
+  const periodLabel = periodEnd
+    ? `至 ${formatDate(periodEnd)}${data.subscription?.cancelAtPeriodEnd ? '（到期後取消）' : ''}`
     : '—';
   const providerLabel = data.subscription?.provider
     ? PROVIDER_LABEL[data.subscription.provider]
     : '專人協助';
+  const isTrialing = data.org.status === 'trialing';
+  const cancelAtPeriodEnd = data.subscription?.cancelAtPeriodEnd ?? false;
+  const trialDaysLeft = isTrialing ? daysUntil(periodEnd) : null;
   const invoiceLabel = data.invoiceSummary.latestInvoiceStatus
     ? INVOICE_LABEL[data.invoiceSummary.latestInvoiceStatus]
     : '尚無';
@@ -87,6 +115,57 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
 
   return (
     <>
+      {isTrialing && trialDaysLeft !== null ? (
+        <div className="rounded-lg border border-cyan-200 bg-cyan-50/60 p-4 text-cyan-950">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white">
+                <Sparkles className="size-4" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="font-semibold">
+                  試用中 · {describeDaysUntil(trialDaysLeft)}
+                </p>
+                <p className="mt-1 text-sm text-cyan-900">
+                  試用至 {formatDate(periodEnd)}；到期前可聯絡客服升級正式方案。
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:shrink-0">
+              <Button asChild size="sm" variant="outline" className="bg-white">
+                <Link href="/contact">聯絡客服</Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/pricing" target="_blank">查看方案</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {cancelAtPeriodEnd ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white">
+                <AlertTriangle className="size-4" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="font-semibold">訂閱已設定為到期後取消</p>
+                <p className="mt-1 text-sm text-amber-900">
+                  將於 {formatDate(periodEnd)} 結束服務。若需保留服務，請聯絡客服。
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0">
+              <Button asChild size="sm" variant="outline" className="bg-white">
+                <Link href="/contact">聯絡客服</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="rounded-lg lg:col-span-2">
           <CardHeader>
