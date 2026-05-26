@@ -19,6 +19,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Onboarding backend foundation now includes read-only `loadSaaSOnboardingView()` plus guarded `POST /api/saas/onboarding/complete` for future Claude UI wiring; migration `035` is still not applied, so production UI must not enable completion writes yet.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
 - Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. Live role resolution still uses the current admin/profile/env source until migration `036` is explicitly applied and guard wiring is approved.
+- Platform tenant preview backend foundation now includes guarded start/get/clear preview routes and a signed one-hour cookie for future UI banners. It is not wired into tenant org context or write permissions.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.

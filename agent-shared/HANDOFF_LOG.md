@@ -2,6 +2,53 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added the platform tenant preview backend contract.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-tenant-preview.ts`
+- `app/api/internal/saas/orgs/[id]/preview/route.ts`
+- `app/api/internal/saas/tenant-preview/route.ts`
+- `tests/unit/saas-platform-tenant-preview.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/WORK_SPLIT_PLAN.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Contract:
+
+- `POST /api/internal/saas/orgs/[id]/preview` starts a signed one-hour tenant
+  preview cookie after platform admin `view_organizations` access and org
+  lookup pass.
+- `GET /api/internal/saas/tenant-preview` returns ready/hidden preview state.
+- `DELETE /api/internal/saas/tenant-preview` clears the preview cookie.
+- `loadPlatformTenantPreviewMode()` gives Claude a server-side banner contract.
+
+Remaining split:
+
+- Claude owns the internal org-detail button and preview-mode banner UI.
+- Codex owns any future full impersonation or `getOrgContext()` wiring if
+  owner explicitly approves the risk model.
+
+Notes:
+
+- This is not full impersonation. The preview cookie is not consumed by
+  tenant data loaders or write actions.
+- No UI page, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added the platform admin role management backend foundation.
 
 Commit:

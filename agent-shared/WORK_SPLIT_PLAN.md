@@ -27,6 +27,7 @@ Claude can work after Codex has committed and pushed the current backend/coordin
 | C5 | Public marketing and legal page polish | `/`, `/pricing`, `/features/**`, `/legal/**`, `/contact` page files | UI-only; do not change signup persistence or billing behavior. |
 | C6 | Responsive QA pass | UI page files only | Record findings in chat/commit message; Codex records durable status. |
 | C7 | Platform admin team UI | `app/internal/**`, `components/internal/**` | Use Codex `GET/POST /api/internal/saas/platform-admins`; do not expose production role editing until migration `036` is explicitly applied. |
+| C8 | Platform tenant preview UI | `app/internal/**`, `components/internal/**`, `components/saas/**` | Use Codex `POST /api/internal/saas/orgs/[id]/preview`, `GET/DELETE /api/internal/saas/tenant-preview`, and `loadPlatformTenantPreviewMode()`; this is preview-mode UI only, not tenant write impersonation. |
 
 Claude must not edit `app/api/**`, `lib/saas/**`, `lib/actions/**`, `lib/config/**`, `lib/supabase/**`, `scripts/**`, `supabase/**`, `.env*`, root config files, or `agent-shared/**`.
 
@@ -44,6 +45,7 @@ Codex owns the remaining Stage 2/3 foundation and should keep feature flags clos
 | X6 | Notification backend foundation | Email/notification queue contracts for billing failure, AI 100%, trial ending, and platform announcements. |
 | X7 | Migration and schema gates | Draft migrations and strict checks; apply only after explicit approval and target confirmation. |
 | X8 | CI/readiness hardening | Unit tests, doctor checks, typecheck, lint, and safe predeploy gates. |
+| X9 | Full tenant impersonation risk model | Optional future work; do not wire preview cookies into `getOrgContext()` or tenant writes without explicit owner approval. |
 
 ## Handoff Protocol
 

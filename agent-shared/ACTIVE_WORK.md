@@ -33,6 +33,26 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform tenant preview backend contract
+Files:
+- lib/saas/platform-tenant-preview.ts
+- app/api/internal/saas/orgs/[id]/preview/route.ts
+- app/api/internal/saas/tenant-preview/route.ts
+- tests/unit/saas-platform-tenant-preview.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/WORK_SPLIT_PLAN.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Added a signed, one-hour platform tenant preview cookie and guarded internal start/get/clear routes for future Claude UI. It requires platform admin view_organizations permission and organization lookup before issuing the cookie. The preview session is intentionally not wired into getOrgContext() or tenant write permissions. No UI, deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Platform admin role management backend foundation
 Files:
 - lib/saas/platform-admin-role-management.ts

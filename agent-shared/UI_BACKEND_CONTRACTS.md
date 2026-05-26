@@ -256,6 +256,55 @@ Rules:
 - Existing `PLATFORM_ADMIN_ROLES` env mapping remains the live role source until
   Codex wires the guard to the DB-backed role store after migration approval.
 
+## Platform Tenant Preview
+
+Backend owner: Codex.
+
+Future UI owner: Claude.
+
+Routes:
+
+```text
+POST /api/internal/saas/orgs/[id]/preview
+GET /api/internal/saas/tenant-preview
+DELETE /api/internal/saas/tenant-preview
+```
+
+Service:
+
+```text
+lib/saas/platform-tenant-preview.ts
+```
+
+Ready state:
+
+```ts
+{
+  state: 'ready';
+  preview: {
+    orgId: string;
+    orgName: string;
+    orgSlug: string | null;
+    adminUserId: string;
+    adminEmail: string | null;
+    platformRole: 'owner' | 'support' | 'billing';
+    expiresAt: string;
+    exitPath: '/internal/orgs';
+  };
+}
+```
+
+Rules:
+
+- Starting preview requires platform admin access and
+  `requiredPermission: 'view_organizations'`.
+- The preview cookie is signed and expires after one hour.
+- `DELETE /api/internal/saas/tenant-preview` clears the cookie.
+- This is not full impersonation yet: Codex intentionally did not wire the
+  cookie into `getOrgContext()` or tenant write permissions.
+- Claude may use this contract for a future orange "viewing tenant" banner and
+  internal org-detail action, but should not assume tenant writes are allowed.
+
 ## Settings Billing
 
 UI path:

@@ -199,6 +199,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin.ts',
     'lib/saas/platform-admin-roles.ts',
     'lib/saas/platform-admin-role-management.ts',
+    'lib/saas/platform-tenant-preview.ts',
     'lib/saas/platform-admin-mode.ts',
     'lib/saas/platform-admin-data.ts',
     'lib/saas/platform-admin-live-data.ts',
@@ -229,9 +230,11 @@ function checkCommercialFoundation() {
     'scripts/saas/check-rollout-readiness.mjs',
     'app/api/internal/saas/orgs/route.ts',
     'app/api/internal/saas/orgs/[id]/route.ts',
+    'app/api/internal/saas/orgs/[id]/preview/route.ts',
     'app/api/internal/saas/billing/events/route.ts',
     'app/api/internal/saas/billing/operations/route.ts',
     'app/api/internal/saas/platform-admins/route.ts',
+    'app/api/internal/saas/tenant-preview/route.ts',
     'app/api/internal/saas/billing/events/[id]/retry/route.ts',
     'app/api/cron/saas/email-queue/route.ts',
     'docs/SAAS_BILLING_RETRY_RECONCILIATION_SOP.md',
@@ -863,13 +866,25 @@ function checkCommercialFoundation() {
     process.cwd(),
     'lib/saas/platform-admin-role-management.ts'
   );
+  const platformTenantPreviewPath = path.resolve(
+    process.cwd(),
+    'lib/saas/platform-tenant-preview.ts'
+  );
   const platformOrgRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/route.ts');
   const platformOrgDetailRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/orgs/[id]/route.ts');
+  const platformOrgPreviewRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/internal/saas/orgs/[id]/preview/route.ts'
+  );
   const platformBillingEventsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/events/route.ts');
   const platformBillingOperationsRoutePath = path.resolve(process.cwd(), 'app/api/internal/saas/billing/operations/route.ts');
   const platformAdminRoleRoutePath = path.resolve(
     process.cwd(),
     'app/api/internal/saas/platform-admins/route.ts'
+  );
+  const platformTenantPreviewRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/internal/saas/tenant-preview/route.ts'
   );
   if (
     fs.existsSync(platformAdminDataPath) &&
@@ -932,6 +947,34 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS platform admin role management', 'owner-gated role assignment contract exists without UI wiring');
     } else {
       record('fail', 'SaaS platform admin role management', 'platform admin roles must use owner-gated repository and RPC contracts before UI wiring');
+    }
+  }
+
+  if (
+    fs.existsSync(platformTenantPreviewPath) &&
+    fs.existsSync(platformOrgPreviewRoutePath) &&
+    fs.existsSync(platformTenantPreviewRoutePath)
+  ) {
+    const previewSource = fs.readFileSync(platformTenantPreviewPath, 'utf8');
+    const orgPreviewRouteSource = fs.readFileSync(platformOrgPreviewRoutePath, 'utf8');
+    const previewRouteSource = fs.readFileSync(platformTenantPreviewRoutePath, 'utf8');
+    if (
+      previewSource.includes('PLATFORM_TENANT_PREVIEW_COOKIE') &&
+      previewSource.includes('createPlatformTenantPreviewToken') &&
+      previewSource.includes('verifyPlatformTenantPreviewToken') &&
+      previewSource.includes('loadPlatformTenantPreviewMode') &&
+      previewSource.includes("requiredPermission: 'view_organizations'") &&
+      orgPreviewRouteSource.includes('handleStartPlatformTenantPreview') &&
+      orgPreviewRouteSource.includes('createPlatformAdminDataRepository') &&
+      orgPreviewRouteSource.includes('createPlatformTenantPreviewToken') &&
+      orgPreviewRouteSource.includes("requiredPermission: 'view_organizations'") &&
+      previewRouteSource.includes('handleGetPlatformTenantPreview') &&
+      previewRouteSource.includes('handleClearPlatformTenantPreview') &&
+      !previewSource.includes('getOrgContext(')
+    ) {
+      record('pass', 'SaaS platform tenant preview contract', 'platform admin tenant preview is signed, guarded, and not wired into tenant write context');
+    } else {
+      record('fail', 'SaaS platform tenant preview contract', 'tenant preview must be signed, platform-admin guarded, clearable, and separated from tenant org write context');
     }
   }
 
