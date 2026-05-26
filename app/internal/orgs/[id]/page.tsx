@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
+import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
@@ -314,19 +315,25 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
           </Button>
           <h2 className="text-2xl font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            以 organization id 查詢 SaaS Supabase，不跨 org 讀取資料。
+            此租戶的方案、訂閱、用量與健康度概況。
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="flex flex-wrap gap-2">
-            <Button disabled variant="outline" title="租戶寫入操作待 platform admin 後端接好後開放">
+            {result.state === 'ready' ? (
+              <StartTenantPreviewButton
+                orgId={result.data.organization.id}
+                orgName={result.data.organization.name}
+              />
+            ) : null}
+            <Button disabled variant="outline" title="租戶啟用 / 停用功能上線後開放">
               調整方案
             </Button>
-            <Button disabled variant="outline" title="租戶寫入操作待 platform admin 後端接好後開放">
+            <Button disabled variant="outline" title="租戶啟用 / 停用功能上線後開放">
               停用 / 恢復
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">目前為唯讀檢視；寫入需 audit log 接好後啟用。</p>
+          <p className="text-xs text-muted-foreground">「以此租戶身分查看」進入唯讀預覽 (1 小時)；其他寫入操作上線後開放。</p>
         </div>
       </div>
 
