@@ -7,6 +7,7 @@ import {
   BarChart3,
   Brain,
   ClipboardList,
+  Compass,
   Database,
   Loader2,
   LogOut,
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/pickup', label: '取件紀錄', icon: ClipboardList },
   { href: '/logistics', label: '物流管理', icon: Truck },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: Brain },
+  { href: '/onboarding', label: '設定指引', icon: Compass },
   { href: '/settings', label: '設定', icon: Settings },
   { href: '/settings/backup', label: '資料備份', icon: Database },
 ];
