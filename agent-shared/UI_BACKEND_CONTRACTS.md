@@ -81,6 +81,54 @@ Rules:
 - Internal page loaders expose `gated.accessCode` for backend control flow.
 - Claude should not implement role checks in client components.
 
+## Platform Admin Mode Indicator
+
+Backend owner: Codex.
+
+Future UI owner: Claude.
+
+Loader:
+
+```text
+loadPlatformAdminModeView()
+```
+
+Ready response:
+
+```ts
+{
+  state: 'ready';
+  isPlatformAdmin: true;
+  userId: string;
+  userEmail: string | null;
+  platformRole: 'owner' | 'support' | 'billing';
+  permissions: PlatformAdminPermission[];
+  internalEnabled: boolean;
+  links: {
+    dashboard: '/internal';
+    organizations: '/internal/orgs';
+    billingEvents: '/internal/billing/events';
+  };
+}
+```
+
+Hidden response:
+
+```ts
+{
+  state: 'hidden';
+  isPlatformAdmin: false;
+  reason: 'unauthenticated' | 'not_platform_admin' | 'feature_disabled' | 'error';
+}
+```
+
+Rules:
+
+- Claude may use this for a top bar or floating "Platform Admin Mode" indicator.
+- Claude should not query roles or read admin cookies directly.
+- `internalEnabled` tells UI whether the internal console flag is open.
+- Hidden responses must not render an admin indicator.
+
 ## Settings Billing
 
 UI path:

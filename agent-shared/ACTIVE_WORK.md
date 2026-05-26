@@ -33,6 +33,21 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin mode backend contract
+Files:
+- lib/saas/platform-admin-mode.ts
+- tests/unit/saas-platform-admin-mode.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added loadPlatformAdminModeView() for Claude-owned admin mode indicator UI. The contract reports ready platform admin identity, role, permissions, internal links, and whether the internal console flag is enabled; unauthenticated or non-admin users get hidden state. No UI component, deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Internal admin unauthenticated redirect contract
 Files:
 - lib/auth/internal-login-redirect.ts

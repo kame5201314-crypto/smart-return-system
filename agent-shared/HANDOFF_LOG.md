@@ -2,6 +2,42 @@
 
 ## 2026-05-26 Codex -> Claude / Codex
 
+Added the backend contract for a Claude-owned Platform Admin Mode indicator.
+
+Commit:
+
+```text
+this commit
+```
+
+Files:
+
+- `lib/saas/platform-admin-mode.ts`
+- `tests/unit/saas-platform-admin-mode.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/ACTIVE_WORK.md`
+
+Contract:
+
+- `loadPlatformAdminModeView()` returns `state: 'ready'` only for platform
+  admins.
+- Ready state includes `userId`, `userEmail`, `platformRole`,
+  `permissions`, `internalEnabled`, and stable internal links.
+- Unauthenticated visitors, non-admin users, and unexpected failures return
+  `state: 'hidden'`.
+- Claude should use this loader for any top bar or floating "Platform Admin
+  Mode" indicator and should not inspect cookies or duplicate role checks.
+
+Notes:
+
+- No UI component, deployment, migration, env/secret edit, billing/provider
+  enablement, master/live/prod change, or production/internal Supabase action
+  was performed.
+
+## 2026-05-26 Codex -> Claude / Codex
+
 Added the non-UI internal admin redirect contract.
 
 Commit:
