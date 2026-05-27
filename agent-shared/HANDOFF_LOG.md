@@ -1,5 +1,83 @@
 # Handoff Log
 
+## 2026-05-27 Codex -> Claude / Codex
+
+Recorded the owner-authorized latest HEAD production deployment.
+
+Deployment summary:
+
+- Deployed latest `develop-saas` HEAD:
+  - `c699e70 docs(saas): record latest deploy readiness status`
+- Vercel project:
+  - `smart-return-system-saas`
+- New production deployment:
+  - `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H`
+- Production URL:
+  - `https://smart-return-system-saas.vercel.app`
+- Deployment status:
+  - Ready
+
+Predeploy gates:
+
+```text
+npm run safety:agent-boundary
+npm run saas:doctor
+npm run saas:rollout-check:strict
+npm run lint
+npm run typecheck
+npm run test:all
+npm run build
+npm run saas:predeploy
+```
+
+Results:
+
+- All gates passed.
+- `saas:doctor`: 147 pass, 1 warn, 0 fail. The warning was local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `saas:rollout-check:strict`: 23 pass, 2 warn, 0 fail. Warnings were missing
+  Sentry DSN and `ENABLE_BILLING=false`, expected for Manual Beta.
+- `lint`: 0 errors, existing 44 warnings.
+- `test:all`: passed.
+- `saas:predeploy`: passed.
+
+Production smoke:
+
+- Public routes returned 200:
+  - `/`
+  - `/pricing`
+  - `/features/returns`
+  - `/features/ai`
+  - `/features/security`
+  - `/contact`
+  - `/signup`
+  - `/login`
+  - `/legal/terms`
+  - `/legal/privacy`
+  - `/legal/refund`
+- Protected unauthenticated routes returned 307 to `/login`:
+  - `/returns`
+  - `/pickup/scan`
+  - `/analytics/ai-report`
+  - `/settings/usage`
+  - `/internal/orgs`
+
+Sentry status:
+
+- Sentry SDK is wired in code.
+- No usable `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN` exists locally or in
+  Vercel production env, so monitoring is not active.
+- No DSN value was written to the repo.
+
+Not performed:
+
+- No migration was run.
+- No env/secret was edited.
+- No domain/DNS change was made.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
 ## 2026-05-26 Codex -> Claude / Codex
 
 Recorded the latest SaaS deploy readiness state after the UI handoff docs.

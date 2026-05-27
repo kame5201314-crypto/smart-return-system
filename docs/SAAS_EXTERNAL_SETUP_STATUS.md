@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -33,9 +33,66 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Closed Manual Beta has been deployed to the SaaS Vercel production project.
+- Latest `develop-saas` HEAD has been deployed to the SaaS Vercel production project.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest deploy readiness refresh was read-only: `develop-saas` is synced at `4a1d7f8 docs(saas): record latest ui handoffs`, production remains on the existing Closed Manual Beta deployment, and no deployment was triggered, no migration was run, no env/secret was edited, no billing/provider was enabled, no domain/DNS change was made, no Vercel production setting was changed, no master change was made, and no production/internal Supabase action was performed by this review.
+- Latest owner-authorized production deployment: `c699e70 docs(saas): record latest deploy readiness status` -> Vercel deployment `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H` (Ready). Public route smoke returned 200 and protected unauthenticated routes redirect to `/login`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-27 Latest HEAD Production Deployment
+
+- Scope:
+  - Owner-authorized deployment of latest `develop-saas` HEAD to SaaS Vercel project `smart-return-system-saas`.
+  - Branch: `develop-saas`
+  - Deployed commit: `c699e70 docs(saas): record latest deploy readiness status`
+- Sentry DSN status:
+  - Local ignored env files do not contain a usable `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN`.
+  - Vercel production env does not list `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN`.
+  - Sentry runtime support remains in code, but monitoring is not active until the owner provides a real SaaS-only DSN and adds it to Vercel env.
+  - No DSN value was written to repo files.
+- Predeploy gates run before deploy:
+  - `npm run safety:agent-boundary`: passed.
+  - `npm run saas:doctor`: 147 pass, 1 warn, 0 fail. The warning was local `ENABLE_MULTI_TENANT_ADMIN=true`.
+  - `npm run saas:rollout-check:strict`: 23 pass, 2 warn, 0 fail. Warnings were missing Sentry DSN and `ENABLE_BILLING=false`, expected for Manual Beta.
+  - `npm run lint`: passed, 0 errors and existing 44 warnings.
+  - `npm run typecheck`: passed.
+  - `npm run test:all`: passed.
+  - `npm run build`: passed.
+  - `npm run saas:predeploy`: passed, including SaaS env, schema gate, lint, typecheck, tests, and SaaS build.
+- Vercel deployment:
+  - Deployment ID: `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H`
+  - Inspect URL: `https://vercel.com/kaweis-projects/smart-return-system-saas/9KFNXG1Cw6k54uvSJNuruJchDb5H`
+  - Production URL: `https://smart-return-system-saas.vercel.app`
+  - Deployment URL: `https://smart-return-system-saas-1f7j7bxqd-kaweis-projects.vercel.app`
+  - Status: Ready
+  - Aliases:
+    - `https://smart-return-system-saas.vercel.app`
+    - `https://smart-return-system-saas-kaweis-projects.vercel.app`
+    - `https://smart-return-system-saas-kame5201314-crypto-kaweis-projects.vercel.app`
+- Production public route smoke:
+  - `/`: 200
+  - `/pricing`: 200
+  - `/features/returns`: 200
+  - `/features/ai`: 200
+  - `/features/security`: 200
+  - `/contact`: 200
+  - `/signup`: 200
+  - `/login`: 200
+  - `/legal/terms`: 200
+  - `/legal/privacy`: 200
+  - `/legal/refund`: 200
+- Production unauthenticated route protection smoke:
+  - `/returns`: 307 -> `/login`
+  - `/pickup/scan`: 307 -> `/login`
+  - `/analytics/ai-report`: 307 -> `/login`
+  - `/settings/usage`: 307 -> `/login`
+  - `/internal/orgs`: 307 -> `/login`
+- Not performed:
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-05-26 Latest Deploy Readiness Status
 

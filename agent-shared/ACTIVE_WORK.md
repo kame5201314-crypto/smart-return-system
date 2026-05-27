@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest read-only deploy readiness refresh confirmed `develop-saas` is synced with `origin/develop-saas` at `4a1d7f8 docs(saas): record latest ui handoffs`, but production remains on the earlier Ready Closed Manual Beta deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` until owner explicitly authorizes deploying latest HEAD. Sentry DSN, beta/custom domain, email delivery provider, Billing/ECPay, draft migrations 033-036, and any future deploy remain owner-blocked. Latest Claude UI handoffs through `615ce7c` are recorded: at-risk labels, settings headers, billing trial/cancel banners, onboarding next-step card, and marketing mobile navigation. Current executable queue is Claude UI-only public marketing/legal RWD QA. Codex has no unblocked backend/API/migration task open; Codex should record future Claude handoffs, keep readiness/docs/tests current, and implement new backend contracts only when requested. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Owner-authorized latest HEAD deployment completed: `c699e70 docs(saas): record latest deploy readiness status` -> Vercel deployment `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H` (Ready), aliased to `https://smart-return-system-saas.vercel.app`, with public route 200 smoke and protected unauthenticated 307-to-login smoke passing. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Latest HEAD production deployment record
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/ACTIVE_WORK.md
+- agent-shared/HANDOFF_LOG.md
+Status: done
+Notes: Recorded owner-authorized deployment of latest develop-saas HEAD `c699e70` to Vercel production deployment `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H`. Predeploy gates passed, deployment is Ready, public routes returned 200, and protected unauthenticated routes redirected to /login. Sentry DSN remains missing because no real DSN value is available; no migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Codex
