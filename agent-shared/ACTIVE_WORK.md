@@ -32,6 +32,22 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 
 ```text
 Owner: Codex
+Commit: this commit
+Scope: Platform admin canonical entry routes
+Files:
+- app/admin/page.tsx
+- app/admin/login/page.tsx
+- lib/auth/internal-login-redirect.ts
+- tests/unit/internal-login-redirect.test.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added `/admin` as the operator-facing platform admin entry and `/admin/login` as the platform-admin login alias. Unauthenticated `/internal/*` access now redirects to `/admin/login?next=...`, while merchant users remain routed to `/analytics` and authenticated non-admin internal access remains forbidden. Claude owns the visual login/forbidden/sidebar copy polish that explains the account switch clearly. No deployment, migration, env/secret edit, billing/provider enablement, or master/live/prod change was performed.
+```
+
+```text
+Owner: Codex
 Commit: a3af638
 Scope: Onboarding guide legacy RLS recursion hotfix
 Files:

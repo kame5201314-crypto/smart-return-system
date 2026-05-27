@@ -2,6 +2,10 @@ import { redirect } from 'next/navigation';
 
 import type { PlatformAdminAccessErrorCode } from '@/lib/saas/platform-admin';
 
+export const PLATFORM_ADMIN_ENTRY_PATH = '/admin' as const;
+export const PLATFORM_ADMIN_LOGIN_PATH = '/admin/login' as const;
+export const PLATFORM_ADMIN_HOME_PATH = '/internal' as const;
+
 interface PlatformAdminGatedResult {
   state: string;
   gated?: {
@@ -27,7 +31,7 @@ export function normalizeInternalNextPath(pathname: unknown): string {
 }
 
 export function buildInternalLoginRedirect(pathname: unknown): string {
-  return `/login?next=${encodeURIComponent(normalizeInternalNextPath(pathname))}`;
+  return `${PLATFORM_ADMIN_LOGIN_PATH}?next=${encodeURIComponent(normalizeInternalNextPath(pathname))}`;
 }
 
 export function getInternalLoginRedirectForPlatformAdminResult(

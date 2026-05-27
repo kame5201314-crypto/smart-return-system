@@ -323,6 +323,7 @@ function checkCommercialFoundation() {
   const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
   const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
   const loginPagePath = path.resolve(process.cwd(), 'app/login/page.tsx');
+  const adminLoginPagePath = path.resolve(process.cwd(), 'app/admin/login/page.tsx');
   const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
   if (fs.existsSync(publicRoutesPath) && fs.existsSync(proxyPath)) {
     const publicRoutesSource = fs.readFileSync(publicRoutesPath, 'utf8');
@@ -351,11 +352,13 @@ function checkCommercialFoundation() {
   if (
     fs.existsSync(postLoginRedirectPath) &&
     fs.existsSync(internalLoginRedirectPath) &&
-    fs.existsSync(loginPagePath)
+    fs.existsSync(loginPagePath) &&
+    fs.existsSync(adminLoginPagePath)
   ) {
     const postLoginSource = fs.readFileSync(postLoginRedirectPath, 'utf8');
     const internalRedirectSource = fs.readFileSync(internalLoginRedirectPath, 'utf8');
     const loginPageSource = fs.readFileSync(loginPagePath, 'utf8');
+    const adminLoginPageSource = fs.readFileSync(adminLoginPagePath, 'utf8');
     if (
       postLoginSource.includes('getPostLoginRedirect') &&
       postLoginSource.includes("PLATFORM_ADMIN_POST_LOGIN_PATH = '/internal'") &&
@@ -364,14 +367,17 @@ function checkCommercialFoundation() {
       postLoginSource.includes("trimmed.includes('\\\\')") &&
       postLoginSource.includes("trimmed.startsWith('/login')") &&
       internalRedirectSource.includes('buildInternalLoginRedirect') &&
+      internalRedirectSource.includes("PLATFORM_ADMIN_LOGIN_PATH = '/admin/login'") &&
       internalRedirectSource.includes('redirectUnauthenticatedPlatformAdminResult') &&
       internalRedirectSource.includes("accessCode === 'unauthenticated'") &&
+      adminLoginPageSource.includes('normalizeInternalNextPath') &&
+      adminLoginPageSource.includes('/login?next=') &&
       loginPageSource.includes('new URLSearchParams(window.location.search).get') &&
       loginPageSource.includes('result.redirectTo')
     ) {
-      record('pass', 'SaaS auth redirect contract', 'post-login redirects are role-aware and internal next paths are sanitized');
+      record('pass', 'SaaS auth redirect contract', 'post-login redirects are role-aware and platform admin next paths are sanitized');
     } else {
-      record('fail', 'SaaS auth redirect contract', 'login must use server-provided redirectTo and sanitize internal next paths');
+      record('fail', 'SaaS auth redirect contract', 'login must use server-provided redirectTo and sanitize platform admin next paths');
     }
   }
 

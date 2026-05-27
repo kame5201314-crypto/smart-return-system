@@ -75,7 +75,9 @@ app/internal/billing/events/page.tsx
 Rules:
 
 - Unauthenticated access to an internal page redirects to
-  `/login?next=<encoded internal path>`.
+  `/admin/login?next=<encoded internal path>`, which then forwards to the
+  shared login form with the same safe internal `next` path.
+- `/admin` is the canonical operator-facing entry alias for `/internal`.
 - Authenticated users without platform admin permission stay on the internal
   page with a gated state so Claude can render the forbidden UI.
 - Internal page loaders expose `gated.accessCode` for backend control flow.

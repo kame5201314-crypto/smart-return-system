@@ -26,6 +26,7 @@ Status values:
 | todo | Public marketing and legal RWD inspection | Claude UI-only scope: final route-by-route desktop/mobile QA for `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/signup`; do not change signup persistence, billing behavior, API, server actions, migrations, or env |
 | todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
 | done | Customer settings page declutter and copy polish | Commits `1316b02`, `fb561fa`, and `14dad06`; UI-only cleanup kept backend/auth contracts unchanged |
+| todo | Customer vs platform role separation UI polish | Claude UI-only scope: make `/login` copy clearly distinguish merchant login vs platform admin login, make Forbidden states explain "switch to platform admin account", and keep customer sidebar focused on merchant workflows only |
 | done | Empty / loading / error states | Commit `927bf1a` |
 | done | SaaS settings UI polish | Commit `f216cc8`; used existing `app/(admin)/settings/**` |
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
@@ -46,9 +47,10 @@ Status values:
 | done | Onboarding guide legacy policy hotfix | Commit `a3af638`; optional return-policy signal now treats legacy `system_settings` -> `users` RLS recursion as incomplete instead of failing the whole `/onboarding` page; deployed as `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` |
 | done | Onboarding completion API route contract | This commit; added owner/admin writable-org `POST /api/saas/onboarding/complete` wrapper for Claude onboarding UI handoff; migration `035` still requires explicit apply before UI writes are enabled |
 | done | SaaS doctor coverage for role separation contracts | This commit; readiness check now verifies auth redirects, internal admin redirects, platform admin mode, and platform dashboard contracts |
+| done | Platform admin canonical entry routes | This commit; added `/admin` -> `/internal` and `/admin/login` -> `/login?next=/internal...` aliases, and changed unauthenticated `/internal/*` redirects to use the platform admin login entry |
 | done | Platform admin dashboard backend contract | This commit; added `loadPlatformAdminDashboardView()` with organization KPI, at-risk, trial conversion, and billing event summaries for Claude's `/internal` dashboard UI |
 | done | Platform admin mode backend contract | This commit; added `loadPlatformAdminModeView()` so Claude can render an admin mode indicator without client-side role checks |
-| done | Internal admin unauthenticated redirect contract | This commit; `/internal/*` page loaders now redirect unauthenticated visitors to `/login?next=...` while preserving forbidden gated states for authenticated non-admin users |
+| done | Internal admin unauthenticated redirect contract | This commit; `/internal/*` page loaders now redirect unauthenticated visitors to the platform admin login entry while preserving forbidden gated states for authenticated non-admin users |
 | done | Role-based post-login redirect contract | This commit; `signIn()` returns `redirectTo` so platform admins land on `/internal` while merchant users land on `/analytics`; UI only consumes the backend result |
 | done | Latest HEAD production deployment | Deployed `c699e70` to Vercel deployment `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H`; public smoke returned 200 and protected unauthenticated routes redirected to `/login`; Sentry DSN still missing because no real DSN value is available |
 | done | Closed Manual Beta production smoke | Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` for `smart-return-system-saas` is Ready; public pages returned 200 and protected unauthenticated pages redirected to `/login` |

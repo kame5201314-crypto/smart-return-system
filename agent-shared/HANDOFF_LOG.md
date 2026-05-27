@@ -2,6 +2,47 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Added canonical platform admin entry routes for clearer customer/admin
+separation.
+
+Summary:
+
+- Customer/merchant workspace remains on the normal tenant routes, with
+  `/login` landing merchants on `/analytics`.
+- Platform admin workspace remains on `/internal/*`.
+- New operator-facing aliases:
+  - `/admin` redirects to `/internal`.
+  - `/admin/login` redirects to `/login?next=/internal...`.
+- Unauthenticated `/internal/*` access now redirects through `/admin/login`
+  instead of the generic `/login` entry.
+- Authenticated non-admin users still remain forbidden on `/internal/*`; this
+  prevents merchant accounts from entering the platform console.
+
+Files:
+
+- `app/admin/page.tsx`
+- `app/admin/login/page.tsx`
+- `lib/auth/internal-login-redirect.ts`
+- `tests/unit/internal-login-redirect.test.ts`
+
+Claude UI follow-up:
+
+- Update login copy so merchants see "商家登入" and operators have a clear
+  "平台管理者登入" path.
+- Update internal forbidden states to explain "你目前登入的是商家帳號，請登出後使用平台管理者帳號".
+- Keep the customer sidebar focused on merchant workflows; do not add platform
+  admin navigation to the tenant sidebar.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider was enabled.
+- No master/live/prod change was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Recorded the onboarding guide hotfix and production deployment.
 
 Summary:

@@ -4,6 +4,9 @@ import {
   buildInternalLoginRedirect,
   getInternalLoginRedirectForPlatformAdminResult,
   normalizeInternalNextPath,
+  PLATFORM_ADMIN_ENTRY_PATH,
+  PLATFORM_ADMIN_HOME_PATH,
+  PLATFORM_ADMIN_LOGIN_PATH,
 } from '@/lib/auth/internal-login-redirect';
 
 describe('internal login redirect policy', () => {
@@ -17,7 +20,10 @@ describe('internal login redirect policy', () => {
   });
 
   it('builds a login redirect with an encoded next path', () => {
-    expect(buildInternalLoginRedirect('/internal/orgs')).toBe('/login?next=%2Finternal%2Forgs');
+    expect(PLATFORM_ADMIN_ENTRY_PATH).toBe('/admin');
+    expect(PLATFORM_ADMIN_HOME_PATH).toBe('/internal');
+    expect(PLATFORM_ADMIN_LOGIN_PATH).toBe('/admin/login');
+    expect(buildInternalLoginRedirect('/internal/orgs')).toBe('/admin/login?next=%2Finternal%2Forgs');
   });
 
   it('redirects unauthenticated internal access to login', () => {
@@ -26,7 +32,7 @@ describe('internal login redirect policy', () => {
       gated: {
         accessCode: 'unauthenticated',
       },
-    }, '/internal/orgs')).toBe('/login?next=%2Finternal%2Forgs');
+    }, '/internal/orgs')).toBe('/admin/login?next=%2Finternal%2Forgs');
   });
 
   it('does not redirect authenticated but forbidden internal access', () => {
