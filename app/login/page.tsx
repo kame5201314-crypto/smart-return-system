@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, PackageCheck, User } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,22 +58,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="mx-auto mb-4 w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
-            <Package className="w-8 h-8 text-purple-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">退換貨管理系統</h1>
-          <p className="text-gray-500 mt-2">管理員登入</p>
+          <Link
+            href="/"
+            className="mx-auto mb-4 inline-flex size-16 items-center justify-center rounded-2xl bg-emerald-100 transition-colors hover:bg-emerald-200"
+            aria-label="返回首頁"
+          >
+            <PackageCheck className="size-8 text-emerald-700" />
+          </Link>
+          <h1 className="text-2xl font-bold text-neutral-950">Smart Return</h1>
+          <p className="text-neutral-500 mt-2">登入你的工作區</p>
         </div>
 
         {/* Login Card */}
         <Card className="shadow-lg border bg-white">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl">歡迎回來</CardTitle>
-            <CardDescription>請輸入您的帳號密碼登入系統</CardDescription>
+            <CardDescription>請輸入帳號密碼進入退貨工作區。</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -132,12 +137,12 @@ export default function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 size-4 animate-spin" />
                       登入中...
                     </>
                   ) : (
@@ -147,13 +152,32 @@ export default function LoginPage() {
               </form>
             </Form>
 
-{/* Production login - no demo credentials shown */}
+            <p className="mt-6 text-center text-sm text-neutral-600">
+              還沒有帳號？
+              <Link
+                href="/signup"
+                className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
+              >
+                申請 14 天免費試用
+              </Link>
+            </p>
           </CardContent>
         </Card>
 
+        {/* Back to home */}
+        <p className="mt-6 text-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            返回首頁
+          </Link>
+        </p>
+
         {/* Footer */}
-        <p className="text-center text-gray-400 text-sm mt-6">
-          © {new Date().getFullYear()} Smart Return System. All rights reserved.
+        <p className="text-center text-neutral-400 text-xs mt-4">
+          © {new Date().getFullYear()} Smart Return. All rights reserved.
         </p>
       </div>
     </div>
