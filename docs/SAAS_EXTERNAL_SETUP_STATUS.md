@@ -34,9 +34,32 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest `develop-saas` application/UI HEAD `a63cfe2` plus the subsequent Codex role-separation hardening has not been deployed to the SaaS Vercel production project.
+- Latest `develop-saas` HEAD is `bf371b8 fix(saas): redirect merchant admin entry to workspace`; it includes the latest Claude UI handoffs through `a63cfe2` plus the subsequent Codex role-separation hardening.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, or `a63cfe2`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, `b5a9c13`, or `bf371b8`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-27 Git / Vercel Linkage Status
+
+- Scope:
+  - Recorded the current Git/Vercel linkage after the latest customer/platform role-separation commits.
+  - No deploy, migration, env/secret edit, domain/DNS change, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+- Git state:
+  - Branch: `develop-saas`
+  - Latest HEAD: `bf371b8 fix(saas): redirect merchant admin entry to workspace`
+  - `develop-saas` is synchronized with `origin/develop-saas`.
+- Vercel linkage:
+  - Local `.vercel/project.json` links this checkout to Vercel project `smart-return-system-saas` (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+  - Git pushes to `develop-saas` create Preview deployments and update the branch alias `https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`.
+  - Latest observed Preview deployment: `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`, URL `https://smart-return-system-saas-8uy178u4v-kaweis-projects.vercel.app`, status Ready.
+- Production status:
+  - Production URL remains `https://smart-return-system-saas.vercel.app`.
+  - Current production deployment remains `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`, status Ready.
+  - Production still requires explicit owner authorization for any new production deploy/promote.
+- Expected remaining blockers:
+  - Sentry DSN is still missing.
+  - Billing/ECPay remains disabled for Manual Beta.
+  - Beta/custom domain and email provider delivery remain owner-blocked.
+  - Draft migrations `033`-`036` remain unapplied until explicit approval.
 
 ## 2026-05-27 Latest Git Readiness Status
 
@@ -64,7 +87,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Production status:
   - Production URL: `https://smart-return-system-saas.vercel.app`
   - Current production deployment remains `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`.
-  - Latest application/UI HEAD `a63cfe2` is not yet production-deployed.
+  - Latest application/UI HEAD `a63cfe2` and later role-separation hardening through `bf371b8` are not yet production-deployed.
   - Production `/admin`, `/admin/login`, and `/internal/*` may still show the previous routing behavior until owner authorizes deployment of latest HEAD.
 - Not performed:
   - No deployment was run.

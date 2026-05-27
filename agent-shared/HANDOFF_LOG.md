@@ -2,6 +2,50 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Recorded current Git/Vercel linkage and production gap after the latest
+customer/platform role-separation work.
+
+Summary:
+
+- Current `develop-saas` HEAD is
+  `bf371b8 fix(saas): redirect merchant admin entry to workspace`.
+- Local `.vercel/project.json` links this checkout to Vercel project
+  `smart-return-system-saas`.
+- `develop-saas` pushes create Vercel Preview deployments and update the branch
+  alias `https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`.
+- Latest observed Preview deployment is
+  `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`.
+- Production remains on
+  `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion`
+  / `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` until owner explicitly authorizes
+  another production deploy or promote.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run lint`: passed, 0 errors and existing 44 warnings.
+- `vercel inspect https://smart-return-system-saas.vercel.app`: production
+  deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`, status Ready.
+- `vercel ls smart-return-system-saas --yes`: latest `develop-saas` activity is
+  Preview, not Production.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Closed the authenticated merchant `/admin` entry mismatch.
 
 Summary:
