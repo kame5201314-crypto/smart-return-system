@@ -4,6 +4,26 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
 import { isPublicRoute } from '@/lib/auth/public-routes';
 
+function isPlatformAdminEntryPath(pathname: string): boolean {
+  return pathname === '/admin' || pathname === '/internal' || pathname.startsWith('/internal/');
+}
+
+function normalizeInternalNextPath(pathname: string): string {
+  if (pathname === '/internal' || pathname.startsWith('/internal/')) {
+    return pathname;
+  }
+
+  return '/internal';
+}
+
+function redirectToPlatformAdminLogin(request: NextRequest): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = '/admin/login';
+  url.search = '';
+  url.searchParams.set('next', normalizeInternalNextPath(request.nextUrl.pathname));
+  return NextResponse.redirect(url);
+}
+
 export async function proxy(request: NextRequest) {
   // Skip middleware if Supabase is not configured
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -48,15 +68,33 @@ export async function proxy(request: NextRequest) {
   if (isPublicRoute(pathname)) {
     if (pathname === '/login' && isAuthenticated) {
       const url = request.nextUrl.clone();
+      const requestedNext = url.searchParams.get('next');
+
+      if (
+        isAdminAuthenticated &&
+        requestedNext &&
+        normalizeInternalNextPath(requestedNext) === requestedNext
+      ) {
+        url.pathname = requestedNext;
+        url.search = '';
+        return NextResponse.redirect(url);
+      }
+
       url.pathname = '/analytics';
+      url.search = '';
       return NextResponse.redirect(url);
     }
     return supabaseResponse;
   }
 
   if (!isAuthenticated) {
+    if (isPlatformAdminEntryPath(pathname)) {
+      return redirectToPlatformAdminLogin(request);
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

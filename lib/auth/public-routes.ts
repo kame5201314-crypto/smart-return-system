@@ -1,5 +1,6 @@
 const PUBLIC_ROUTE_EXACT_PATHS = new Set([
   '/',
+  '/admin/login',
   '/contact',
   '/login',
   '/pricing',

@@ -15,6 +15,10 @@ Summary:
   - `/admin/login` redirects to `/login?next=/internal...`.
 - Unauthenticated `/internal/*` access now redirects through `/admin/login`
   instead of the generic `/login` entry.
+- `/admin/login` is explicitly public so operators can reach the shared login
+  form before authentication.
+- The proxy redirects unauthenticated `/admin` and `/internal/*` requests to
+  `/admin/login?next=<safe internal path>` before page loaders run.
 - Authenticated non-admin users still remain forbidden on `/internal/*`; this
   prevents merchant accounts from entering the platform console.
 
@@ -22,8 +26,12 @@ Files:
 
 - `app/admin/page.tsx`
 - `app/admin/login/page.tsx`
+- `lib/auth/public-routes.ts`
 - `lib/auth/internal-login-redirect.ts`
+- `proxy.ts`
+- `scripts/saas/readiness-check.mjs`
 - `tests/unit/internal-login-redirect.test.ts`
+- `tests/unit/public-routes.test.ts`
 
 Claude UI follow-up:
 

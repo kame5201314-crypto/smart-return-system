@@ -78,6 +78,8 @@ Rules:
   `/admin/login?next=<encoded internal path>`, which then forwards to the
   shared login form with the same safe internal `next` path.
 - `/admin` is the canonical operator-facing entry alias for `/internal`.
+- `/admin/login` is public; `/admin` and `/internal/*` are not public and are
+  redirected by `proxy.ts` when the viewer is unauthenticated.
 - Authenticated users without platform admin permission stay on the internal
   page with a gated state so Claude can render the forbidden UI.
 - Internal page loaders expose `gated.accessCode` for backend control flow.

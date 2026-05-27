@@ -338,14 +338,20 @@ function checkCommercialFoundation() {
       "'/legal'",
       "'/portal'",
       "'/login'",
+      "'/admin/login'",
     ];
     const missing = requiredPublicRouteSnippets.filter(
       (snippet) => !publicRoutesSource.includes(snippet)
     );
-    if (missing.length === 0 && proxySource.includes('isPublicRoute(pathname)')) {
-      record('pass', 'SaaS public routes', 'commercial website and portal routes stay public before login');
+    if (
+      missing.length === 0 &&
+      proxySource.includes('isPublicRoute(pathname)') &&
+      proxySource.includes('isPlatformAdminEntryPath(pathname)') &&
+      proxySource.includes("url.pathname = '/admin/login'")
+    ) {
+      record('pass', 'SaaS public routes', 'commercial, portal, login, and platform admin login routes stay reachable before login');
     } else {
-      record('fail', 'SaaS public routes', `missing allowlist or proxy wiring: ${missing.join(', ')}`);
+      record('fail', 'SaaS public routes', `missing allowlist or platform admin proxy wiring: ${missing.join(', ')}`);
     }
   }
 

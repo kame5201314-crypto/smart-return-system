@@ -19,12 +19,14 @@ describe('public route allowlist', () => {
 
   it('keeps customer portal and login routes public', () => {
     expect(isPublicRoute('/login')).toBe(true);
+    expect(isPublicRoute('/admin/login')).toBe(true);
     expect(isPublicRoute('/portal')).toBe(true);
     expect(isPublicRoute('/portal/track/query')).toBe(true);
     expect(isPublicRoute('/portal/track/demo-id')).toBe(true);
   });
 
   it('does not expose app, admin, or internal operations', () => {
+    expect(isPublicRoute('/admin')).toBe(false);
     expect(isPublicRoute('/analytics')).toBe(false);
     expect(isPublicRoute('/returns')).toBe(false);
     expect(isPublicRoute('/settings/billing')).toBe(false);
