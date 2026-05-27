@@ -6,6 +6,7 @@ import { getSaaSPlanDefinition } from '@/lib/config/saas-plans';
 import {
   buildOnboardingUsagePeriod,
   buildSaaSOnboardingViewInputFromRepository,
+  createOnboardingDataRepository,
   loadSaaSOnboardingView,
   type OnboardingDataRepository,
 } from '@/lib/saas/onboarding-live-data';
@@ -70,6 +71,28 @@ function createRepository(
 }
 
 describe('SaaS onboarding live data loader', () => {
+  it('treats legacy users RLS recursion on return policy lookup as an incomplete optional signal', async () => {
+    const query = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      gte: vi.fn(() => query),
+      lt: vi.fn(() => query),
+      order: vi.fn(() => query),
+      maybeSingle: vi.fn(async () => ({
+        data: null,
+        error: {
+          message: 'infinite recursion detected in policy for relation "users"',
+        },
+      })),
+      then: vi.fn(),
+    };
+    const repository = createOnboardingDataRepository({
+      from: vi.fn(() => query),
+    });
+
+    await expect(repository.hasReturnPolicy({ orgId })).resolves.toBe(false);
+  });
+
   it('builds onboarding progress input from real org-scoped repositories', async () => {
     const now = new Date('2026-05-26T10:00:00.000Z');
     const repository = createRepository();

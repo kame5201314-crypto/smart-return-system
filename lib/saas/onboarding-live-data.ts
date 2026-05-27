@@ -131,6 +131,11 @@ function assertNoSupabaseError(error: SupabaseQueryError | null, fallbackMessage
   }
 }
 
+function isLegacyUsersPolicyRecursion(error: SupabaseQueryError | null): boolean {
+  const message = error?.message?.toLowerCase() ?? '';
+  return message.includes('infinite recursion') && message.includes('users');
+}
+
 function normalizeOrganization(row: unknown): OnboardingOrgData | null {
   if (!isRecord(row)) {
     return null;
@@ -205,6 +210,13 @@ export function createOnboardingDataRepository(
         .eq('org_id', input.orgId)
         .eq('setting_key', 'return_policy')
         .maybeSingle();
+
+      if (isLegacyUsersPolicyRecursion(error)) {
+        console.warn(
+          '[saas-onboarding] Skipping return policy signal because legacy system_settings RLS recursed through users.'
+        );
+        return false;
+      }
 
       assertNoSupabaseError(error, 'Failed to load onboarding return policy.');
       return normalizeOrganizationSetting(data);
