@@ -25,10 +25,53 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest production hotfix is `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. It keeps `/onboarding` available when the optional return-policy signal hits legacy `users` RLS recursion. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest application/UI HEAD is `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding` and `npm run saas:predeploy` passes locally. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; it does not yet include `1426e7c`, `ca773c8`, `31e2362`, or `a63cfe2`. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Latest Git readiness record
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Recorded that latest application/UI HEAD is `a63cfe2`, local `npm run saas:predeploy` passes, and production remains on `a3af638` / `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` until owner explicitly authorizes deployment. No deployment, migration, env/secret edit, Sentry/domain/email/billing provider setup, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Claude
+Commit: a63cfe2
+Scope: Not-found SaaS branding
+Files:
+- app/not-found.tsx
+Status: done
+Notes: Aligned the not-found page copy and palette with SaaS branding. UI-only; no backend/API/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: 31e2362
+Scope: Internal loading skeleton
+Files:
+- app/internal/loading.tsx
+Status: done
+Notes: Added a loading skeleton for platform internal pages. UI-only; no backend/API/migration/env/deploy changes were reported.
+```
+
+```text
+Owner: Claude
+Commit: ca773c8
+Scope: Login page SaaS branding
+Files:
+- app/login/page.tsx
+Status: done
+Notes: Aligned the login page with Smart Return SaaS branding and restored the missing `next/link` import so the production build passes. UI-only except for the import required by the existing JSX; no backend/API/migration/env/deploy changes were reported.
+```
 
 ```text
 Owner: Codex

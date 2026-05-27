@@ -2,6 +2,46 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Recorded latest Git readiness after the customer/platform role-separation
+follow-up.
+
+Summary:
+
+- Latest application/UI HEAD before this docs record is now:
+  - `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`
+- Recent relevant commits:
+  - `1426e7c fix(saas): route platform admin entry through proxy`
+  - `ca773c8 fix(saas/ui): align login page with SaaS branding`
+  - `31e2362 feat(saas/ui): add loading skeleton for /internal pages`
+  - `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`
+- Local `npm run saas:predeploy` passes for the latest HEAD.
+- Production remains on:
+  - `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion`
+  - Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`
+- Latest Git HEAD is not yet deployed to production.
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:doctor`: 147 pass, 1 warn, 0 fail.
+- `npm run saas:predeploy`: passed.
+- `lint`: 0 errors and existing 44 warnings.
+- `test:all`: passed.
+- `saas:build`: passed.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Added canonical platform admin entry routes for clearer customer/admin
 separation.
 

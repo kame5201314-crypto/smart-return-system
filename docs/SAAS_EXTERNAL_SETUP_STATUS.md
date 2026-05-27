@@ -21,7 +21,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. Live role resolution still uses the current admin/profile/env source until migration `036` is explicitly applied and guard wiring is approved.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
-- Latest Claude UI handoffs through `615ce7c` are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, and marketing mobile navigation. Remaining executable UI queue is final public marketing/legal RWD QA.
+- Latest Claude UI handoffs through `a63cfe2` are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, and `/not-found` SaaS branding.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
@@ -29,13 +29,51 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
-- `npm run saas:predeploy` passes locally after the AI analytics consistency gate was hardened for optional legacy Shopee date columns.
+- `npm run saas:predeploy` passes locally after the latest UI handoffs through `a63cfe2`.
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest `develop-saas` HEAD has been deployed to the SaaS Vercel production project.
+- Latest `develop-saas` application/UI HEAD `a63cfe2` has not been deployed to the SaaS Vercel production project.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Public route smoke returned 200 and protected unauthenticated routes redirect to `/login`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, or `a63cfe2`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-27 Latest Git Readiness Status
+
+- Scope:
+  - Recorded latest Git/readiness state after customer/platform role-separation follow-up.
+  - Branch: `develop-saas`
+  - Latest observed application/UI HEAD before this docs record: `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`
+  - Relevant recent commits:
+    - `1426e7c fix(saas): route platform admin entry through proxy`
+    - `ca773c8 fix(saas/ui): align login page with SaaS branding`
+    - `31e2362 feat(saas/ui): add loading skeleton for /internal pages`
+    - `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`
+- Current Git state:
+  - `develop-saas` is synchronized with `origin/develop-saas`.
+  - Working tree is clean.
+- Verification:
+  - `npm run safety:agent-boundary`: passed.
+  - `npm run saas:doctor`: 147 pass, 1 warn, 0 fail. The warning is local `ENABLE_MULTI_TENANT_ADMIN=true`.
+  - `npm run saas:predeploy`: passed.
+    - `saas:rollout-check`: 23 pass, 2 warn, 0 fail.
+    - Expected warnings: missing Sentry/logging DSN and `ENABLE_BILLING=false`.
+    - `lint`: 0 errors and existing 44 warnings.
+    - `test:all`: 65 unit files, 362 unit tests, 2 e2e tests, and 5 integration tests passed.
+    - `saas:build`: passed.
+- Production status:
+  - Production URL: `https://smart-return-system-saas.vercel.app`
+  - Current production deployment remains `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`.
+  - Latest application/UI HEAD `a63cfe2` is not yet production-deployed.
+  - Production `/admin`, `/admin/login`, and `/internal/*` may still show the previous routing behavior until owner authorizes deployment of latest HEAD.
+- Not performed:
+  - No deployment was run.
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-05-27 Onboarding Guide Hotfix Deployment
 

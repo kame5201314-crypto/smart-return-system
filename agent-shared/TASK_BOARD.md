@@ -27,6 +27,9 @@ Status values:
 | todo | Responsive QA pass | Claude to report route-by-route findings in chat/commit message for Codex to record; Codex owns only backend/test/doc follow-up |
 | done | Customer settings page declutter and copy polish | Commits `1316b02`, `fb561fa`, and `14dad06`; UI-only cleanup kept backend/auth contracts unchanged |
 | todo | Customer vs platform role separation UI polish | Claude UI-only scope: make `/login` copy clearly distinguish merchant login vs platform admin login, make Forbidden states explain "switch to platform admin account", and keep customer sidebar focused on merchant workflows only |
+| done | Login page SaaS branding | Claude commit `ca773c8`; `/login` now uses Smart Return SaaS branding and links back to the public site/signup while preserving the Codex role-aware redirect contract |
+| done | Internal loading skeleton | Claude commit `31e2362`; `/internal` now has a loading skeleton while platform admin dashboard data resolves |
+| done | Not-found SaaS branding | Claude commit `a63cfe2`; `/not-found` copy and palette now align with SaaS branding |
 | done | Empty / loading / error states | Commit `927bf1a` |
 | done | SaaS settings UI polish | Commit `f216cc8`; used existing `app/(admin)/settings/**` |
 | done | Platform admin UI polish | Commit `f216cc8`; mock UI only |
@@ -87,7 +90,7 @@ Status values:
 | done | Invite creation service and RPC draft | This commit; added seat-checked invite creation service, token generation, `032` draft RPC, and repository wrapper without applying migrations |
 | done | Invite acceptance live data and API route | This commit; added `/invite/[token]` loader and `POST /api/saas/invite/accept` using the already-applied acceptance RPC wrapper |
 | done | Team invite API foundation | This commit; added owner/admin writable-org `POST /api/saas/team/invites` using active seats, pending invites, and invite creation RPC wrapper |
-| blocked | SaaS public rollout external setup | Latest HEAD `c699e70` is deployed and Ready as `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H`, but Vercel env still lacks `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`, no custom domain is configured, ECPay credentials are absent, email delivery remains dry-run, draft migrations `033`-`036` are not applied, and any further deploy/platform setting change still needs explicit owner approval |
+| blocked | SaaS public rollout external setup | Latest application/UI HEAD `a63cfe2` passes `npm run saas:predeploy`, but production remains on `a3af638` / `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`; Vercel env still lacks `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`, no custom domain is configured, ECPay credentials are absent, email delivery remains dry-run, draft migrations `033`-`036` are not applied, and any further deploy/platform setting change still needs explicit owner approval |
 | done | Beta customer onboarding: 遇見未來 | Owner handoff reports org/account/login provisioned for `kawei88888@gmail.com`; keep billing disabled and email dry-run unless owner explicitly authorizes changes |
 | done | Manual Beta local readiness | SaaS project, migrations, schema gate, Gemini key, test org, seed data, login smoke, AI analyze, invite flow, exports, and platform admin read views have been verified locally |
 | done | SaaS schema readiness gate | Added `saas:schema-gate` / `saas:schema-gate:strict` for 023-028 table and org_id readiness checks |
@@ -112,7 +115,7 @@ Codex owns the non-UI queue:
 
 - No unblocked backend/API/migration task is currently open after the role separation, onboarding, platform dashboard, tenant preview, audit, external blocker refresh, and latest UI handoffs.
 - Codex should record future Claude handoffs here, update readiness/docs/tests, and implement backend contracts only when Claude needs a new contract or the owner explicitly authorizes an external/backend change.
-- External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain/DNS, email provider delivery, applying draft migrations `033`-`036`, and any further production deploy or platform setting change. Latest HEAD is deployed and Ready as `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H`, but no Sentry DSN, custom domains, or ECPay env values are configured.
+- External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain/DNS, email provider delivery, applying draft migrations `033`-`036`, and any further production deploy or platform setting change. Latest application/UI HEAD `a63cfe2` is not yet production-deployed; current production remains `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`.
 - Tenant preview is currently a signed, audited, read-only visual context for platform admins. It is not full impersonation and is not wired into `getOrgContext()` or tenant write permissions.
 
 ## Shared Rules
