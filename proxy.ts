@@ -2,18 +2,13 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
+import { normalizeInternalNextPath } from '@/lib/auth/internal-login-redirect';
+import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
+import { resolveAuthenticatedLoginRedirect } from '@/lib/auth/proxy-login-redirect';
 import { isPublicRoute } from '@/lib/auth/public-routes';
 
 function isPlatformAdminEntryPath(pathname: string): boolean {
   return pathname === '/admin' || pathname === '/internal' || pathname.startsWith('/internal/');
-}
-
-function normalizeInternalNextPath(pathname: string): string {
-  if (pathname === '/internal' || pathname.startsWith('/internal/')) {
-    return pathname;
-  }
-
-  return '/internal';
 }
 
 function redirectToPlatformAdminLogin(request: NextRequest): NextResponse {
@@ -63,6 +58,14 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthenticated = isAdminAuthenticated || !!user;
+  const isPlatformAdminAuthenticated =
+    isAdminAuthenticated ||
+    (user
+      ? isExplicitPlatformAdminPrincipal({
+          userId: user.id,
+          userEmail: user.email,
+        })
+      : false);
   const pathname = request.nextUrl.pathname;
 
   if (isPublicRoute(pathname)) {
@@ -70,17 +73,10 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       const requestedNext = url.searchParams.get('next');
 
-      if (
-        isAdminAuthenticated &&
-        requestedNext &&
-        normalizeInternalNextPath(requestedNext) === requestedNext
-      ) {
-        url.pathname = requestedNext;
-        url.search = '';
-        return NextResponse.redirect(url);
-      }
-
-      url.pathname = '/analytics';
+      url.pathname = resolveAuthenticatedLoginRedirect({
+        isPlatformAdminAuthenticated,
+        requestedPath: requestedNext,
+      });
       url.search = '';
       return NextResponse.redirect(url);
     }

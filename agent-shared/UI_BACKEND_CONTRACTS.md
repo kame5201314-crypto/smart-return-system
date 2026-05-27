@@ -57,6 +57,9 @@ Rules:
 - Tenant or legacy profile roles such as `users.role = 'admin'` do not grant
   platform admin access by themselves.
 - Platform admins may return to a safe `/internal/*` `requestedPath`.
+- Already-authenticated platform admins who visit `/login` are redirected to
+  `/internal` or the safe `/internal/*` `next` path; they are not sent to the
+  merchant analytics workspace.
 - Merchant/customer users return `/analytics`.
 - Merchant/customer users cannot use `/internal/*` as `requestedPath`.
 - External URLs, protocol-relative URLs, backslash paths, and `/login` are

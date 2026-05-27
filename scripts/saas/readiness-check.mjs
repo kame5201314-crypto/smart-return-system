@@ -322,6 +322,7 @@ function checkCommercialFoundation() {
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
   const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
   const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
+  const proxyLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/proxy-login-redirect.ts');
   const routeAuthPath = path.resolve(process.cwd(), 'lib/auth/route-auth.ts');
   const platformAdminIdentityPath = path.resolve(
     process.cwd(),
@@ -363,6 +364,7 @@ function checkCommercialFoundation() {
   if (
     fs.existsSync(postLoginRedirectPath) &&
     fs.existsSync(internalLoginRedirectPath) &&
+    fs.existsSync(proxyLoginRedirectPath) &&
     fs.existsSync(routeAuthPath) &&
     fs.existsSync(platformAdminIdentityPath) &&
     fs.existsSync(loginPagePath) &&
@@ -370,8 +372,10 @@ function checkCommercialFoundation() {
   ) {
     const postLoginSource = fs.readFileSync(postLoginRedirectPath, 'utf8');
     const internalRedirectSource = fs.readFileSync(internalLoginRedirectPath, 'utf8');
+    const proxyLoginRedirectSource = fs.readFileSync(proxyLoginRedirectPath, 'utf8');
     const routeAuthSource = fs.readFileSync(routeAuthPath, 'utf8');
     const platformAdminIdentitySource = fs.readFileSync(platformAdminIdentityPath, 'utf8');
+    const proxySource = fs.existsSync(proxyPath) ? fs.readFileSync(proxyPath, 'utf8') : '';
     const loginPageSource = fs.readFileSync(loginPagePath, 'utf8');
     const adminLoginPageSource = fs.readFileSync(adminLoginPagePath, 'utf8');
     if (
@@ -385,10 +389,15 @@ function checkCommercialFoundation() {
       internalRedirectSource.includes("PLATFORM_ADMIN_LOGIN_PATH = '/admin/login'") &&
       internalRedirectSource.includes('redirectUnauthenticatedPlatformAdminResult') &&
       internalRedirectSource.includes("accessCode === 'unauthenticated'") &&
+      proxyLoginRedirectSource.includes('resolveAuthenticatedLoginRedirect') &&
+      proxyLoginRedirectSource.includes('isPlatformAdminAuthenticated') &&
+      proxyLoginRedirectSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('/login?next=') &&
       loginPageSource.includes('new URLSearchParams(window.location.search).get') &&
       loginPageSource.includes('result.redirectTo') &&
+      proxySource.includes('isExplicitPlatformAdminPrincipal') &&
+      proxySource.includes('resolveAuthenticatedLoginRedirect') &&
       routeAuthSource.includes('isExplicitPlatformAdminPrincipal') &&
       !routeAuthSource.includes(".select('role')") &&
       !postLoginSource.includes('profileRole') &&

@@ -2,6 +2,49 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Closed the proxy-level login redirect gap for authenticated platform admins.
+
+Summary:
+
+- Added `lib/auth/proxy-login-redirect.ts` for the pure login redirect policy
+  used by `proxy.ts` after a viewer is already authenticated.
+- `proxy.ts` now uses `isExplicitPlatformAdminPrincipal()` for Supabase
+  platform admins, matching the server action and route guard identity rules.
+- Authenticated platform admins who visit `/login` go to `/internal`.
+- Authenticated platform admins who visit `/login?next=/internal/orgs` go to
+  that safe internal path.
+- Authenticated merchants still go to `/analytics`, even if they try to pass an
+  `/internal/*` next path.
+
+Files:
+
+- `lib/auth/proxy-login-redirect.ts`
+- `proxy.ts`
+- `tests/unit/proxy-login-redirect.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Verification:
+
+- `npx vitest run tests/unit/proxy-login-redirect.test.ts tests/unit/platform-admin-identity.test.ts tests/unit/post-login-redirect.test.ts`: passed.
+- `npm run saas:doctor`: 147 pass, 1 warn, 0 fail.
+- `npm run lint`: 0 errors, existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm run saas:predeploy`: passed.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Hardened customer/platform identity separation for platform admin access.
 
 Summary:

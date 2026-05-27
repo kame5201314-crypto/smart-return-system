@@ -25,10 +25,28 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest local HEAD now includes Codex explicit platform admin identity separation on top of `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`; `npm run saas:predeploy` passes locally. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; it does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, or this role-separation hardening. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest local HEAD now includes Codex explicit platform admin identity and proxy login redirect separation on top of `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`; `npm run saas:predeploy` passes locally. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; it does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, or this proxy login hardening. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Proxy login redirect platform admin separation
+Files:
+- lib/auth/proxy-login-redirect.ts
+- proxy.ts
+- tests/unit/proxy-login-redirect.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Authenticated platform admins who revisit `/login` now resolve to `/internal` or a safe `/internal/*` next path, while merchant users continue to resolve to `/analytics`. This closes the proxy-level mismatch after explicit platform admin identity separation. No deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Codex
