@@ -22,3 +22,19 @@ export function resolveAuthenticatedLoginRedirect(input: {
 
   return PLATFORM_ADMIN_POST_LOGIN_PATH;
 }
+
+export function resolveAuthenticatedAdminEntryRedirect(input: {
+  pathname: string;
+  isAuthenticated: boolean;
+  isPlatformAdminAuthenticated: boolean;
+}): PostLoginRedirectPath | null {
+  if (input.pathname !== '/admin' || !input.isAuthenticated) {
+    return null;
+  }
+
+  if (input.isPlatformAdminAuthenticated) {
+    return null;
+  }
+
+  return CUSTOMER_POST_LOGIN_PATH;
+}

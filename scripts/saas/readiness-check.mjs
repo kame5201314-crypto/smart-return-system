@@ -390,7 +390,9 @@ function checkCommercialFoundation() {
       internalRedirectSource.includes('redirectUnauthenticatedPlatformAdminResult') &&
       internalRedirectSource.includes("accessCode === 'unauthenticated'") &&
       proxyLoginRedirectSource.includes('resolveAuthenticatedLoginRedirect') &&
+      proxyLoginRedirectSource.includes('resolveAuthenticatedAdminEntryRedirect') &&
       proxyLoginRedirectSource.includes('isPlatformAdminAuthenticated') &&
+      proxyLoginRedirectSource.includes("input.pathname !== '/admin'") &&
       proxyLoginRedirectSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('/login?next=') &&
@@ -398,6 +400,7 @@ function checkCommercialFoundation() {
       loginPageSource.includes('result.redirectTo') &&
       proxySource.includes('isExplicitPlatformAdminPrincipal') &&
       proxySource.includes('resolveAuthenticatedLoginRedirect') &&
+      proxySource.includes('resolveAuthenticatedAdminEntryRedirect') &&
       routeAuthSource.includes('isExplicitPlatformAdminPrincipal') &&
       !routeAuthSource.includes(".select('role')") &&
       !postLoginSource.includes('profileRole') &&

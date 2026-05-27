@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveAuthenticatedLoginRedirect } from '@/lib/auth/proxy-login-redirect';
+import {
+  resolveAuthenticatedAdminEntryRedirect,
+  resolveAuthenticatedLoginRedirect,
+} from '@/lib/auth/proxy-login-redirect';
 
 describe('proxy authenticated login redirect policy', () => {
   it('routes authenticated merchants away from login to the merchant workspace', () => {
@@ -39,5 +42,31 @@ describe('proxy authenticated login redirect policy', () => {
       isPlatformAdminAuthenticated: true,
       requestedPath: '/internal\\orgs',
     })).toBe('/internal');
+  });
+
+  it('routes authenticated merchants away from the canonical admin entry', () => {
+    expect(resolveAuthenticatedAdminEntryRedirect({
+      pathname: '/admin',
+      isAuthenticated: true,
+      isPlatformAdminAuthenticated: false,
+    })).toBe('/analytics');
+  });
+
+  it('lets platform admins and non-admin-entry paths continue through normal routing', () => {
+    expect(resolveAuthenticatedAdminEntryRedirect({
+      pathname: '/admin',
+      isAuthenticated: true,
+      isPlatformAdminAuthenticated: true,
+    })).toBeNull();
+    expect(resolveAuthenticatedAdminEntryRedirect({
+      pathname: '/internal',
+      isAuthenticated: true,
+      isPlatformAdminAuthenticated: false,
+    })).toBeNull();
+    expect(resolveAuthenticatedAdminEntryRedirect({
+      pathname: '/admin',
+      isAuthenticated: false,
+      isPlatformAdminAuthenticated: false,
+    })).toBeNull();
   });
 });

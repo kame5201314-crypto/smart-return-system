@@ -4,7 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/auth/admin-session';
 import { normalizeInternalNextPath } from '@/lib/auth/internal-login-redirect';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
-import { resolveAuthenticatedLoginRedirect } from '@/lib/auth/proxy-login-redirect';
+import {
+  resolveAuthenticatedAdminEntryRedirect,
+  resolveAuthenticatedLoginRedirect,
+} from '@/lib/auth/proxy-login-redirect';
 import { isPublicRoute } from '@/lib/auth/public-routes';
 
 function isPlatformAdminEntryPath(pathname: string): boolean {
@@ -81,6 +84,18 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     return supabaseResponse;
+  }
+
+  const authenticatedAdminEntryRedirect = resolveAuthenticatedAdminEntryRedirect({
+    pathname,
+    isAuthenticated,
+    isPlatformAdminAuthenticated,
+  });
+  if (authenticatedAdminEntryRedirect) {
+    const url = request.nextUrl.clone();
+    url.pathname = authenticatedAdminEntryRedirect;
+    url.search = '';
+    return NextResponse.redirect(url);
   }
 
   if (!isAuthenticated) {

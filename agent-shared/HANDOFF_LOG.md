@@ -2,6 +2,47 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Closed the authenticated merchant `/admin` entry mismatch.
+
+Summary:
+
+- Added `resolveAuthenticatedAdminEntryRedirect()` to the proxy redirect policy.
+- Authenticated merchant users who visit `/admin` now return to `/analytics`.
+- Platform admins still pass through `/admin` to the existing `/internal`
+  operator console redirect.
+- Direct `/internal/*` access for authenticated non-admin users remains gated
+  instead of being silently redirected, so Claude can render the explicit
+  forbidden/switch-account state.
+
+Files:
+
+- `lib/auth/proxy-login-redirect.ts`
+- `proxy.ts`
+- `tests/unit/proxy-login-redirect.test.ts`
+- `scripts/saas/readiness-check.mjs`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Verification:
+
+- `npx vitest run tests/unit/proxy-login-redirect.test.ts tests/unit/platform-admin-identity.test.ts tests/unit/post-login-redirect.test.ts`: passed.
+- `npm run saas:doctor`: 147 pass, 1 warn, 0 fail.
+- `npm run lint`: 0 errors, existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm run saas:predeploy`: passed.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Closed the proxy-level login redirect gap for authenticated platform admins.
 
 Summary:
