@@ -322,6 +322,11 @@ function checkCommercialFoundation() {
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
   const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
   const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
+  const routeAuthPath = path.resolve(process.cwd(), 'lib/auth/route-auth.ts');
+  const platformAdminIdentityPath = path.resolve(
+    process.cwd(),
+    'lib/auth/platform-admin-identity.ts'
+  );
   const loginPagePath = path.resolve(process.cwd(), 'app/login/page.tsx');
   const adminLoginPagePath = path.resolve(process.cwd(), 'app/admin/login/page.tsx');
   const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
@@ -358,11 +363,15 @@ function checkCommercialFoundation() {
   if (
     fs.existsSync(postLoginRedirectPath) &&
     fs.existsSync(internalLoginRedirectPath) &&
+    fs.existsSync(routeAuthPath) &&
+    fs.existsSync(platformAdminIdentityPath) &&
     fs.existsSync(loginPagePath) &&
     fs.existsSync(adminLoginPagePath)
   ) {
     const postLoginSource = fs.readFileSync(postLoginRedirectPath, 'utf8');
     const internalRedirectSource = fs.readFileSync(internalLoginRedirectPath, 'utf8');
+    const routeAuthSource = fs.readFileSync(routeAuthPath, 'utf8');
+    const platformAdminIdentitySource = fs.readFileSync(platformAdminIdentityPath, 'utf8');
     const loginPageSource = fs.readFileSync(loginPagePath, 'utf8');
     const adminLoginPageSource = fs.readFileSync(adminLoginPagePath, 'utf8');
     if (
@@ -379,11 +388,19 @@ function checkCommercialFoundation() {
       adminLoginPageSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('/login?next=') &&
       loginPageSource.includes('new URLSearchParams(window.location.search).get') &&
-      loginPageSource.includes('result.redirectTo')
+      loginPageSource.includes('result.redirectTo') &&
+      routeAuthSource.includes('isExplicitPlatformAdminPrincipal') &&
+      !routeAuthSource.includes(".select('role')") &&
+      !postLoginSource.includes('profileRole') &&
+      platformAdminIdentitySource.includes('isExplicitPlatformAdminPrincipal') &&
+      platformAdminIdentitySource.includes('PLACEHOLDER_ADMIN_EMAIL_ALIASES') &&
+      platformAdminIdentitySource.includes('ADMIN_UUID') &&
+      platformAdminIdentitySource.includes('ADMIN_EMAIL') &&
+      platformAdminIdentitySource.includes('PLATFORM_ADMIN_ROLES')
     ) {
-      record('pass', 'SaaS auth redirect contract', 'post-login redirects are role-aware and platform admin next paths are sanitized');
+      record('pass', 'SaaS auth redirect contract', 'post-login redirects use explicit platform admin principals and sanitized next paths');
     } else {
-      record('fail', 'SaaS auth redirect contract', 'login must use server-provided redirectTo and sanitize platform admin next paths');
+      record('fail', 'SaaS auth redirect contract', 'login must use explicit platform admin principals, server-provided redirectTo, and sanitized next paths');
     }
   }
 

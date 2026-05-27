@@ -25,10 +25,31 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest application/UI HEAD is `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding` and `npm run saas:predeploy` passes locally. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; it does not yet include `1426e7c`, `ca773c8`, `31e2362`, or `a63cfe2`. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest local HEAD now includes Codex explicit platform admin identity separation on top of `a63cfe2 fix(saas/ui): align /not-found copy and palette with SaaS branding`; `npm run saas:predeploy` passes locally. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; it does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, or this role-separation hardening. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Explicit platform admin identity separation
+Files:
+- lib/auth/platform-admin-identity.ts
+- lib/auth/route-auth.ts
+- lib/actions/auth.ts
+- lib/auth/post-login-redirect.ts
+- scripts/saas/readiness-check.mjs
+- tests/unit/platform-admin-identity.test.ts
+- tests/unit/post-login-redirect.test.ts
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Platform admin access and post-login redirects no longer use legacy `users.role='admin'` as a platform grant. Real platform admins must use the internal admin session, explicit `ADMIN_EMAIL` / email-style `ADMIN_USERNAME`, or a valid `PLATFORM_ADMIN_ROLES` mapping. No deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Codex

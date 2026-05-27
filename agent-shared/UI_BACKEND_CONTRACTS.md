@@ -49,8 +49,13 @@ Success response:
 
 Rules:
 
-- Platform admin sessions and Supabase users with `users.role = 'admin'`
-  return `/internal`.
+- Platform admin sessions, explicit `ADMIN_EMAIL` / email-style
+  `ADMIN_USERNAME` matches, and valid `PLATFORM_ADMIN_ROLES` mappings return
+  `/internal`.
+- The placeholder `admin@example.com` alias is accepted only through the
+  password-backed internal admin login, not as a Supabase user platform grant.
+- Tenant or legacy profile roles such as `users.role = 'admin'` do not grant
+  platform admin access by themselves.
 - Platform admins may return to a safe `/internal/*` `requestedPath`.
 - Merchant/customer users return `/analytics`.
 - Merchant/customer users cannot use `/internal/*` as `requestedPath`.
@@ -879,6 +884,9 @@ Rules:
 
 - `requirePlatformAdminAccess()` now resolves a `platformRole` and `permissions`.
 - Existing single-admin/manual owner sessions default to `owner` for backward compatibility.
+- Supabase users must be explicitly listed through `ADMIN_EMAIL`, an email-style
+  `ADMIN_USERNAME`, or `PLATFORM_ADMIN_ROLES`; tenant admin/profile roles are not
+  platform admin grants.
 - Optional env mapping `PLATFORM_ADMIN_ROLES` can assign roles by user email or user id:
   - CSV: `support@example.com=support,billing@example.com=billing`
   - JSON: `{ "support@example.com": "support" }`

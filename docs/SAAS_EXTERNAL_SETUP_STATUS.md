@@ -18,7 +18,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.
 - Onboarding backend foundation now includes read-only `loadSaaSOnboardingView()` plus guarded `POST /api/saas/onboarding/complete` for future Claude UI wiring; migration `035` is still not applied, so production UI must not enable completion writes yet.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
-- Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. Live role resolution still uses the current admin/profile/env source until migration `036` is explicitly applied and guard wiring is approved.
+- Platform admin identity separation now requires the signed internal admin session, explicit `ADMIN_EMAIL` / email-style `ADMIN_USERNAME`, or valid `PLATFORM_ADMIN_ROLES`. Tenant/profile `users.role='admin'` is no longer a platform admin grant.
+- Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. DB-backed role assignments still require migration `036` to be explicitly applied before UI exposure.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude UI handoffs through `a63cfe2` are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, and `/not-found` SaaS branding.
@@ -29,11 +30,11 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
-- `npm run saas:predeploy` passes locally after the latest UI handoffs through `a63cfe2`.
+- `npm run saas:predeploy` passes locally after the latest UI handoffs through `a63cfe2` and the subsequent explicit platform admin identity hardening.
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest `develop-saas` application/UI HEAD `a63cfe2` has not been deployed to the SaaS Vercel production project.
+- Latest `develop-saas` application/UI HEAD `a63cfe2` plus the subsequent Codex role-separation hardening has not been deployed to the SaaS Vercel production project.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
 - Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, or `a63cfe2`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
 

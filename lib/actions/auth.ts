@@ -12,8 +12,8 @@ import {
   verifyAdminSessionToken,
 } from '@/lib/auth/admin-session';
 import { getConfiguredAdminUsername, isAdminLoginId } from '@/lib/auth/admin-login';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
+import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 
 // Defensive trim: Vercel env values can accidentally include trailing newlines.
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
@@ -22,44 +22,6 @@ export interface AuthResult {
   success: boolean;
   error?: string;
   redirectTo?: PostLoginRedirectPath;
-}
-
-async function loadUserProfileRoleForRedirect(userId: string | null, email: string): Promise<string | null> {
-  try {
-    const adminClient = createAdminClient();
-
-    if (userId) {
-      const { data, error } = await adminClient
-        .from('users')
-        .select('role')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Post-login role check by id failed:', error);
-      }
-
-      const role = (data as { role?: string } | null)?.role ?? null;
-      if (role) {
-        return role;
-      }
-    }
-
-    const { data, error } = await adminClient
-      .from('users')
-      .select('role')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Post-login role check by email failed:', error);
-    }
-
-    return (data as { role?: string } | null)?.role ?? null;
-  } catch (error) {
-    console.error('Post-login role check failed:', error);
-    return null;
-  }
 }
 
 export async function signIn(
@@ -120,13 +82,16 @@ export async function signIn(
       };
     }
 
-    const profileRole = await loadUserProfileRoleForRedirect(signInData.user?.id ?? null, trimmedEmail);
+    const isPlatformAdmin = isExplicitPlatformAdminPrincipal({
+      userId: signInData.user?.id ?? null,
+      userEmail: trimmedEmail,
+    });
 
     revalidatePath('/', 'layout');
     return {
       success: true,
       redirectTo: getPostLoginRedirect({
-        profileRole,
+        isAdmin: isPlatformAdmin,
         requestedPath,
       }),
     };

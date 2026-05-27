@@ -27,16 +27,11 @@ function normalizeLocalRedirectPath(value: unknown): string | null {
   return trimmed;
 }
 
-export function isPlatformAdminProfileRole(role: unknown): boolean {
-  return typeof role === 'string' && role.trim().toLowerCase() === 'admin';
-}
-
 export function getPostLoginRedirect(input: {
   isAdmin?: boolean;
-  profileRole?: unknown;
   requestedPath?: unknown;
 } = {}): PostLoginRedirectPath {
-  const isPlatformAdmin = input.isAdmin === true || isPlatformAdminProfileRole(input.profileRole);
+  const isPlatformAdmin = input.isAdmin === true;
   const requestedPath = normalizeLocalRedirectPath(input.requestedPath);
 
   if (isPlatformAdmin) {

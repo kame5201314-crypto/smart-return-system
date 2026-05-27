@@ -2,6 +2,55 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Hardened customer/platform identity separation for platform admin access.
+
+Summary:
+
+- Added `lib/auth/platform-admin-identity.ts` as the single backend check for
+  explicit platform admin principals.
+- Platform admin access now accepts:
+  - the signed internal admin session (`admin` login path),
+  - explicit `ADMIN_EMAIL`,
+  - email-style `ADMIN_USERNAME`,
+  - valid `PLATFORM_ADMIN_ROLES` mappings by email or user id.
+- Legacy tenant/profile roles such as `users.role='admin'` no longer grant
+  `/internal/*` access or post-login redirects to `/internal`.
+- Merchant users with tenant admin permissions stay in the merchant workspace.
+- `npm run saas:doctor` now verifies the explicit identity split through the
+  auth redirect/readiness contract.
+
+Files:
+
+- `lib/auth/platform-admin-identity.ts`
+- `lib/auth/route-auth.ts`
+- `lib/actions/auth.ts`
+- `lib/auth/post-login-redirect.ts`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/platform-admin-identity.test.ts`
+- `tests/unit/post-login-redirect.test.ts`
+- `agent-shared/UI_BACKEND_CONTRACTS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+
+Verification:
+
+- `npx vitest run tests/unit/platform-admin-identity.test.ts tests/unit/post-login-redirect.test.ts tests/unit/admin-login.test.ts`: passed.
+- `npm run saas:doctor`: 147 pass, 1 warn, 0 fail.
+- `npm run lint`: 0 errors, existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm run saas:predeploy`: passed.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Recorded latest Git readiness after the customer/platform role-separation
 follow-up.
 

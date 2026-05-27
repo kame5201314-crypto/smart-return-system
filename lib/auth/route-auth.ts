@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { ADMIN_SESSION_COOKIE, ADMIN_UUID, verifyAdminSessionToken } from '@/lib/auth/admin-session';
+import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 
 export interface RouteAuthResult {
   ok: boolean;
@@ -70,46 +70,19 @@ export async function requireRouteAuth(options?: { requireAdmin?: boolean }): Pr
     };
   }
 
-  try {
-    const adminClient = createAdminClient();
-
-    const { data: byId, error: byIdError } = await adminClient
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (byIdError) {
-      console.error('Role check by id failed:', byIdError);
-    }
-
-    let role = (byId as { role?: string } | null)?.role ?? null;
-
-    if (!role && userEmail) {
-      const { data: byEmail, error: byEmailError } = await adminClient
-        .from('users')
-        .select('role')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      if (byEmailError) {
-        console.error('Role check by email failed:', byEmailError);
-      }
-
-      role = (byEmail as { role?: string } | null)?.role ?? null;
-    }
-
-    if (role === 'admin') {
-      return {
-        ok: true,
-        status: 200,
-        userId: userId ?? undefined,
-        userEmail: userEmail ?? undefined,
-        isAdmin: true,
-      };
-    }
-  } catch (error) {
-    console.error('Admin role check failed:', error);
+  if (
+    isExplicitPlatformAdminPrincipal({
+      userId,
+      userEmail,
+    })
+  ) {
+    return {
+      ok: true,
+      status: 200,
+      userId: userId ?? undefined,
+      userEmail: userEmail ?? undefined,
+      isAdmin: true,
+    };
   }
 
   return {

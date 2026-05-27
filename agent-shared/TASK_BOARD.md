@@ -51,6 +51,7 @@ Status values:
 | done | Onboarding completion API route contract | This commit; added owner/admin writable-org `POST /api/saas/onboarding/complete` wrapper for Claude onboarding UI handoff; migration `035` still requires explicit apply before UI writes are enabled |
 | done | SaaS doctor coverage for role separation contracts | This commit; readiness check now verifies auth redirects, internal admin redirects, platform admin mode, and platform dashboard contracts |
 | done | Platform admin canonical entry routes | This commit; added `/admin` -> `/internal`, `/admin/login` -> `/login?next=/internal...`, public allowlist coverage for `/admin/login`, and proxy-level unauthenticated `/admin` / `/internal/*` redirects to the platform admin login entry |
+| done | Explicit platform admin identity separation | This commit; platform admin access and post-login redirects now require an internal admin session, explicit `ADMIN_EMAIL` / email-style `ADMIN_USERNAME`, or valid `PLATFORM_ADMIN_ROLES`; tenant/profile `users.role='admin'` no longer grants the platform console |
 | done | Platform admin dashboard backend contract | This commit; added `loadPlatformAdminDashboardView()` with organization KPI, at-risk, trial conversion, and billing event summaries for Claude's `/internal` dashboard UI |
 | done | Platform admin mode backend contract | This commit; added `loadPlatformAdminModeView()` so Claude can render an admin mode indicator without client-side role checks |
 | done | Internal admin unauthenticated redirect contract | This commit; `/internal/*` page loaders now redirect unauthenticated visitors to the platform admin login entry while preserving forbidden gated states for authenticated non-admin users |
@@ -113,7 +114,7 @@ Claude owns the next executable UI-only work:
 
 Codex owns the non-UI queue:
 
-- No unblocked backend/API/migration task is currently open after the role separation, onboarding, platform dashboard, tenant preview, audit, external blocker refresh, and latest UI handoffs.
+- No unblocked backend/API/migration task is currently open after the explicit platform admin identity separation, onboarding, platform dashboard, tenant preview, audit, external blocker refresh, and latest UI handoffs.
 - Codex should record future Claude handoffs here, update readiness/docs/tests, and implement backend contracts only when Claude needs a new contract or the owner explicitly authorizes an external/backend change.
 - External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain/DNS, email provider delivery, applying draft migrations `033`-`036`, and any further production deploy or platform setting change. Latest application/UI HEAD `a63cfe2` is not yet production-deployed; current production remains `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`.
 - Tenant preview is currently a signed, audited, read-only visual context for platform admins. It is not full impersonation and is not wired into `getOrgContext()` or tenant write permissions.
