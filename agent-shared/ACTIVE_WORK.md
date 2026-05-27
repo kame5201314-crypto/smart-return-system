@@ -25,10 +25,21 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Owner-authorized latest HEAD deployment completed: `c699e70 docs(saas): record latest deploy readiness status` -> Vercel deployment `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H` (Ready), aliased to `https://smart-return-system-saas.vercel.app`, with public route 200 smoke and protected unauthenticated 307-to-login smoke passing. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest production hotfix is `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. It keeps `/onboarding` available when the optional return-policy signal hits legacy `users` RLS recursion. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email delivery provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: a3af638
+Scope: Onboarding guide legacy RLS recursion hotfix
+Files:
+- lib/saas/onboarding-live-data.ts
+- tests/unit/saas-onboarding-live-data.test.ts
+Status: done
+Notes: Optional return-policy signal lookup now treats legacy `system_settings` -> `users` RLS recursion as an incomplete signal instead of failing the whole onboarding page. Deployed to Vercel production deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`; unauthenticated `/onboarding` still redirects to `/login`. No migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Codex

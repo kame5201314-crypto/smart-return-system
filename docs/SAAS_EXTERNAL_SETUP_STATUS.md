@@ -35,7 +35,43 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Latest `develop-saas` HEAD has been deployed to the SaaS Vercel production project.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest owner-authorized production deployment: `c699e70 docs(saas): record latest deploy readiness status` -> Vercel deployment `dpl_9KFNXG1Cw6k54uvSJNuruJchDb5H` (Ready). Public route smoke returned 200 and protected unauthenticated routes redirect to `/login`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Public route smoke returned 200 and protected unauthenticated routes redirect to `/login`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-27 Onboarding Guide Hotfix Deployment
+
+- Scope:
+  - Fixed the customer `/onboarding` setting guide failure caused by legacy `system_settings` RLS recursing through `public.users`.
+  - Kept the onboarding guide available instead of removing it.
+  - If only the optional return-policy signal hits the legacy `users` recursion, the page now treats that signal as incomplete and continues rendering the rest of onboarding progress.
+- Commit:
+  - `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion`
+- Changed files:
+  - `lib/saas/onboarding-live-data.ts`
+  - `tests/unit/saas-onboarding-live-data.test.ts`
+- Verification before deploy:
+  - `npx vitest run tests/unit/saas-onboarding-live-data.test.ts`: passed, 8 tests.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed, 0 errors and existing 44 warnings.
+  - `npm run saas:predeploy`: passed. The rollout check warned about the dirty tree before commit, missing Sentry DSN, and `ENABLE_BILLING=false`; these were expected for a local hotfix/prepaid Manual Beta state.
+- Vercel deployment:
+  - Deployment ID: `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`
+  - Inspect URL: `https://vercel.com/kaweis-projects/smart-return-system-saas/58GGGEpqZTtj6MPGyQvQ5jYhX6zr`
+  - Production URL: `https://smart-return-system-saas.vercel.app`
+  - Deployment URL: `https://smart-return-system-saas-i3a3bxb3h-kaweis-projects.vercel.app`
+  - Status: Ready
+- Production smoke after deploy:
+  - `/`: 200
+  - `/login`: 200
+  - `/onboarding`: 307 -> `/login` when unauthenticated.
+  - `/settings/usage`: 307 -> `/login` when unauthenticated.
+- Not performed:
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-05-27 Latest HEAD Production Deployment
 

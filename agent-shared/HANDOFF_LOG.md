@@ -2,6 +2,58 @@
 
 ## 2026-05-27 Codex -> Claude / Codex
 
+Recorded the onboarding guide hotfix and production deployment.
+
+Summary:
+
+- Customer `/onboarding` failed because the optional return-policy signal reads
+  legacy `system_settings`, whose RLS path can recurse through `public.users`.
+- The setting guide is still useful for new customers, so it was kept.
+- The fix treats only that legacy `users` recursion as an incomplete optional
+  signal and continues rendering the rest of onboarding progress.
+- Other repository/query failures still surface as errors.
+
+Commit:
+
+```text
+a3af638 fix(saas): keep onboarding guide available on legacy policy recursion
+```
+
+Files:
+
+- `lib/saas/onboarding-live-data.ts`
+- `tests/unit/saas-onboarding-live-data.test.ts`
+
+Verification:
+
+- `npx vitest run tests/unit/saas-onboarding-live-data.test.ts`: passed.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed, 0 errors and existing 44 warnings.
+- `npm run saas:predeploy`: passed.
+
+Production deployment:
+
+- Deployment ID: `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`
+- Status: Ready
+- Production URL: `https://smart-return-system-saas.vercel.app`
+- Unauthenticated smoke:
+  - `/`: 200
+  - `/login`: 200
+  - `/onboarding`: 307 -> `/login`
+  - `/settings/usage`: 307 -> `/login`
+
+Notes:
+
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No domain/DNS change was made.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-27 Codex -> Claude / Codex
+
 Recorded the owner-authorized latest HEAD production deployment.
 
 Deployment summary:
