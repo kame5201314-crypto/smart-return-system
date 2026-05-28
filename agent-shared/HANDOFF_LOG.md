@@ -2,6 +2,59 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Implemented the next repo-local security item from the launch audit without
+external production changes.
+
+Summary:
+
+- Added best-effort platform admin password login throttling.
+- Throttle keys combine the attempted admin login id with the forwarded client
+  IP.
+- Repeated failed platform admin password attempts lock that key for the
+  configured lockout window.
+- Successful platform admin login clears the failure counter.
+- Added unit coverage and SaaS doctor coverage for the throttle contract.
+- Reviewed the external audit note about `proxy.ts`; no rename was performed
+  because this project is pinned to Next.js `16.2.6` and local builds recognize
+  `proxy.ts` as `Proxy (Middleware)`.
+
+Files:
+
+- `lib/auth/admin-login-rate-limit.ts`
+- `lib/actions/auth.ts`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/admin-login-rate-limit.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run test:unit -- tests/unit/admin-login-rate-limit.test.ts tests/unit/admin-login.test.ts tests/unit/post-login-redirect.test.ts tests/unit/security-headers.test.ts`:
+  passed as part of the unit suite, 69 files and 378 tests.
+- `npm run saas:doctor`: 151 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run lint`: 0 errors and existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm audit --audit-level=high`: passed with no high-severity advisories.
+- `npm run saas:predeploy`: passed. Rollout warnings were the expected dirty
+  local tree before commit, missing Sentry DSN, and billing disabled for Manual
+  Beta.
+
+Notes:
+
+- This is an in-memory per-runtime throttle, not a persistent WAF/edge rate
+  limit. Public rollout should still add provider-level rate limiting.
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Recorded post-push Vercel Preview status after the launch security hardening
 commit.
 

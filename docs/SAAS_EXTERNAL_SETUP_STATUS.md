@@ -28,17 +28,46 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
+- Platform admin password login now has best-effort, per-runtime throttling by login id and client IP. This reduces repeated password guessing against the `/admin/login` / `/login` internal admin path, but it is not a replacement for a persistent edge/WAF rate limit.
 - Production dependency audit no longer reports high-severity advisories after non-breaking updates. Remaining production audit findings are 4 moderate advisories in nested `next -> postcss` and `exceljs -> uuid`; npm only offers `--force` fixes that would make breaking dependency changes, so they are tracked as residual risk instead of being force-applied before launch.
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
-- `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, and the `/admin` merchant-entry redirect hardening.
+- `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, and platform admin login throttling.
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest `develop-saas` HEAD is `bf371b8 fix(saas): redirect merchant admin entry to workspace`; it includes the latest Claude UI handoffs through `a63cfe2` plus the subsequent Codex role-separation hardening.
+- Latest pushed `develop-saas` HEAD before this admin-login throttling work is `1c715ee docs(saas): clarify post-push vercel preview status`; production is still intentionally behind until owner authorizes another deploy.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, `b5a9c13`, or `bf371b8`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include the later role-separation, UI handoff, launch security, or admin-login throttling commits. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-28 Platform Admin Login Throttling
+
+- Scope:
+  - Added best-effort throttling for the platform admin password branch in `signIn()`.
+  - The throttle key combines the attempted admin login id and the forwarded client IP.
+  - Repeated failed admin password attempts lock the key for the configured lockout window.
+  - Successful admin login clears the failure counter for that key.
+  - Added unit coverage and SaaS doctor coverage for the throttle contract.
+- Important audit clarification:
+  - The earlier external AI note suggested renaming `proxy.ts` back to `middleware.ts`.
+  - This repository is pinned to Next.js `16.2.6`, where `proxy.ts` is the active proxy/middleware entry convention. Local builds already report `Proxy (Middleware)`.
+  - No proxy rename was performed.
+- Limitations:
+  - The throttle is in-memory per server runtime instance. It improves the closed-beta admin password path, but public rollout should still add a provider-level edge/WAF rate limit or persistent store-backed rate limit.
+- Verification:
+  - `npm run test:unit -- tests/unit/admin-login-rate-limit.test.ts tests/unit/admin-login.test.ts tests/unit/post-login-redirect.test.ts tests/unit/security-headers.test.ts`: passed as part of the unit suite, 69 files and 378 tests.
+  - `npm run saas:doctor`: 151 pass, 1 warn, 0 fail. The warning is local `ENABLE_MULTI_TENANT_ADMIN=true`.
+  - `npm run lint`: 0 errors and existing 44 warnings.
+  - `npm run typecheck`: passed.
+  - `npm audit --audit-level=high`: passed with no high-severity advisories.
+  - `npm run saas:predeploy`: passed. Rollout check warnings were the expected dirty local tree before commit, missing Sentry DSN, and billing disabled for Manual Beta.
+- Not performed:
+  - No deployment was run.
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No domain/DNS, billing/provider, email provider, master/live/prod, or production/internal Supabase change was performed.
 
 ## 2026-05-28 Post-Push Vercel Preview Check
 

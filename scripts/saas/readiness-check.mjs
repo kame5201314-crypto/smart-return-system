@@ -183,6 +183,7 @@ function checkCommercialFoundation() {
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
     'lib/security/headers.ts',
+    'lib/auth/admin-login-rate-limit.ts',
     'lib/auth/post-login-redirect.ts',
     'lib/auth/internal-login-redirect.ts',
     'lib/auth/public-routes.ts',
@@ -323,6 +324,8 @@ function checkCommercialFoundation() {
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
   const securityHeadersPath = path.resolve(process.cwd(), 'lib/security/headers.ts');
   const nextConfigPath = path.resolve(process.cwd(), 'next.config.ts');
+  const adminLoginRateLimitPath = path.resolve(process.cwd(), 'lib/auth/admin-login-rate-limit.ts');
+  const authActionPath = path.resolve(process.cwd(), 'lib/actions/auth.ts');
   const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
   const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
   const proxyLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/proxy-login-redirect.ts');
@@ -382,6 +385,27 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS security headers', 'CSP, HSTS, frame, content-type, referrer, and permissions policy headers are wired through Next config');
     } else {
       record('fail', 'SaaS security headers', 'Next config must apply baseline browser hardening headers before launch');
+    }
+  }
+
+  if (fs.existsSync(adminLoginRateLimitPath) && fs.existsSync(authActionPath)) {
+    const adminLoginRateLimitSource = fs.readFileSync(adminLoginRateLimitPath, 'utf8');
+    const authActionSource = fs.readFileSync(authActionPath, 'utf8');
+    if (
+      adminLoginRateLimitSource.includes('ADMIN_LOGIN_RATE_LIMIT_MAX_FAILURES') &&
+      adminLoginRateLimitSource.includes('ADMIN_LOGIN_RATE_LIMIT_LOCKOUT_MS') &&
+      adminLoginRateLimitSource.includes('getClientIpFromHeaders') &&
+      adminLoginRateLimitSource.includes('checkAdminLoginRateLimit') &&
+      adminLoginRateLimitSource.includes('recordAdminLoginFailure') &&
+      adminLoginRateLimitSource.includes('recordAdminLoginSuccess') &&
+      authActionSource.includes('buildAdminLoginRateLimitKey') &&
+      authActionSource.includes('checkAdminLoginRateLimit') &&
+      authActionSource.includes('recordAdminLoginFailure(rateLimitKey)') &&
+      authActionSource.includes('recordAdminLoginSuccess(rateLimitKey)')
+    ) {
+      record('pass', 'SaaS admin login rate limit', 'platform admin password login has best-effort throttling before launch');
+    } else {
+      record('fail', 'SaaS admin login rate limit', 'platform admin password login must throttle repeated failures by login id and client ip');
     }
   }
 

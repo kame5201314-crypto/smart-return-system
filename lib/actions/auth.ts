@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_COOKIE_OPTIONS,
@@ -12,6 +12,13 @@ import {
   verifyAdminSessionToken,
 } from '@/lib/auth/admin-session';
 import { getConfiguredAdminUsername, isAdminLoginId } from '@/lib/auth/admin-login';
+import {
+  buildAdminLoginRateLimitKey,
+  checkAdminLoginRateLimit,
+  getClientIpFromHeaders,
+  recordAdminLoginFailure,
+  recordAdminLoginSuccess,
+} from '@/lib/auth/admin-login-rate-limit';
 import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 
@@ -34,6 +41,19 @@ export async function signIn(
     const trimmedPassword = password.trim();
 
     if (isAdminLoginId(trimmedEmail)) {
+      const requestHeaders = await headers();
+      const rateLimitKey = buildAdminLoginRateLimitKey({
+        loginId: trimmedEmail,
+        clientIp: getClientIpFromHeaders(requestHeaders),
+      });
+      const rateLimit = checkAdminLoginRateLimit(rateLimitKey);
+      if (!rateLimit.allowed) {
+        return {
+          success: false,
+          error: `Too many admin login attempts. Try again in ${rateLimit.retryAfterSeconds} seconds.`,
+        };
+      }
+
       if (!ADMIN_PASSWORD) {
         return {
           success: false,
@@ -42,6 +62,7 @@ export async function signIn(
       }
 
       if (trimmedPassword !== ADMIN_PASSWORD) {
+        recordAdminLoginFailure(rateLimitKey);
         return {
           success: false,
           error: 'Invalid password',
@@ -51,6 +72,7 @@ export async function signIn(
       const cookieStore = await cookies();
       const sessionToken = await createAdminSessionToken(getConfiguredAdminUsername());
       cookieStore.set(ADMIN_SESSION_COOKIE, sessionToken, ADMIN_SESSION_COOKIE_OPTIONS);
+      recordAdminLoginSuccess(rateLimitKey);
 
       revalidatePath('/', 'layout');
       return {
