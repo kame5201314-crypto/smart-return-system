@@ -25,7 +25,7 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest local work adds launch security hardening on top of `bf371b8 fix(saas): redirect merchant admin entry to workspace`; it includes browser security headers, non-breaking dependency audit updates, and SaaS doctor coverage. Vercel Git integration creates Preview deployments for `develop-saas`; latest observed Preview before this security commit was `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd` with alias `https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; production does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, `b5a9c13`, `bf371b8`, or this security hardening. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest pushed HEAD is `82d8b0d fix(saas): harden launch security posture`; it adds browser security headers, non-breaking dependency audit updates, and SaaS doctor coverage on top of the customer/platform role separation. Post-push Vercel check still shows the `develop-saas` branch alias on old Preview `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`; no new Preview for `82d8b0d` was visible immediately after push. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; production does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, `b5a9c13`, `bf371b8`, or `82d8b0d`. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
@@ -47,6 +47,18 @@ Files:
 - agent-shared/ACTIVE_WORK.md
 Status: done
 Notes: Added browser security headers, unit coverage, SaaS doctor coverage, and non-breaking dependency audit updates. High-severity npm audit findings are cleared; 4 moderate nested `postcss`/`uuid` advisories remain because npm only offers breaking `--force` dependency changes. No deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Post-push Vercel preview status correction
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Recorded that after pushing `82d8b0d`, Vercel Preview alias still pointed at old Preview `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`. Production remains unchanged and any launch still needs explicit deploy/promote authorization. No deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
 ```
 
 ```text

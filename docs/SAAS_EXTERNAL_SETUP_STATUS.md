@@ -40,6 +40,23 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
 - Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, `b5a9c13`, or `bf371b8`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
 
+## 2026-05-28 Post-Push Vercel Preview Check
+
+- Scope:
+  - Read-only check after pushing `82d8b0d fix(saas): harden launch security posture`.
+  - No production deploy or promote was run.
+- Git state:
+  - `develop-saas` is synchronized with `origin/develop-saas`.
+  - Latest HEAD is `82d8b0d`.
+- Vercel status:
+  - `vercel project inspect smart-return-system-saas` still shows the correct SaaS project link.
+  - `vercel inspect https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app` still points to Preview deployment `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd` created on 2026-05-27.
+  - `vercel ls smart-return-system-saas --yes` did not show a new Preview deployment for `82d8b0d` immediately after the Git push.
+- Launch implication:
+  - Do not assume Git push alone updates Vercel Preview or Production.
+  - Production launch still requires explicit owner authorization and an explicit Vercel production deploy/promote flow.
+  - After any deploy, smoke test the production URL and verify the security headers are present.
+
 ## 2026-05-28 Launch Security Hardening
 
 - Scope:
@@ -82,7 +99,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - `develop-saas` is synchronized with `origin/develop-saas`.
 - Vercel linkage:
   - Local `.vercel/project.json` links this checkout to Vercel project `smart-return-system-saas` (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
-  - Git pushes to `develop-saas` create Preview deployments and update the branch alias `https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`.
+  - Previous `develop-saas` pushes created Preview deployments and the branch alias `https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`, but the 2026-05-28 post-push check did not show a new Preview for `82d8b0d`.
   - Latest observed Preview deployment: `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`, URL `https://smart-return-system-saas-8uy178u4v-kaweis-projects.vercel.app`, status Ready.
 - Production status:
   - Production URL remains `https://smart-return-system-saas.vercel.app`.

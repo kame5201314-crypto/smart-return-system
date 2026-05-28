@@ -2,6 +2,44 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Recorded post-push Vercel Preview status after the launch security hardening
+commit.
+
+Summary:
+
+- `82d8b0d fix(saas): harden launch security posture` is pushed to
+  `origin/develop-saas`.
+- Immediate Vercel read-only checks did not show a fresh Preview deployment for
+  `82d8b0d`.
+- The branch alias
+  `https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`
+  still resolves to old Preview deployment `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`.
+- Production remains on `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr`.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `vercel project inspect smart-return-system-saas`: linked to SaaS project
+  `prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`.
+- `vercel inspect https://smart-return-system-saas-git-develop-saas-kaweis-projects.vercel.app`:
+  old Preview `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Prepared launch security hardening without external production changes.
 
 Summary:
