@@ -182,6 +182,7 @@ function checkCommercialFoundation() {
   const requiredFiles = [
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
+    'lib/security/headers.ts',
     'lib/auth/post-login-redirect.ts',
     'lib/auth/internal-login-redirect.ts',
     'lib/auth/public-routes.ts',
@@ -320,6 +321,8 @@ function checkCommercialFoundation() {
   }
 
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
+  const securityHeadersPath = path.resolve(process.cwd(), 'lib/security/headers.ts');
+  const nextConfigPath = path.resolve(process.cwd(), 'next.config.ts');
   const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
   const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
   const proxyLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/proxy-login-redirect.ts');
@@ -358,6 +361,27 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public routes', 'commercial, portal, login, and platform admin login routes stay reachable before login');
     } else {
       record('fail', 'SaaS public routes', `missing allowlist or platform admin proxy wiring: ${missing.join(', ')}`);
+    }
+  }
+
+  if (fs.existsSync(securityHeadersPath) && fs.existsSync(nextConfigPath)) {
+    const securityHeadersSource = fs.readFileSync(securityHeadersPath, 'utf8');
+    const nextConfigSource = fs.readFileSync(nextConfigPath, 'utf8');
+    if (
+      securityHeadersSource.includes('Content-Security-Policy') &&
+      securityHeadersSource.includes('Strict-Transport-Security') &&
+      securityHeadersSource.includes('X-Content-Type-Options') &&
+      securityHeadersSource.includes('X-Frame-Options') &&
+      securityHeadersSource.includes('Referrer-Policy') &&
+      securityHeadersSource.includes('Permissions-Policy') &&
+      securityHeadersSource.includes("frame-ancestors 'none'") &&
+      securityHeadersSource.includes("object-src 'none'") &&
+      nextConfigSource.includes('SECURITY_HEADERS') &&
+      nextConfigSource.includes('headers()')
+    ) {
+      record('pass', 'SaaS security headers', 'CSP, HSTS, frame, content-type, referrer, and permissions policy headers are wired through Next config');
+    } else {
+      record('fail', 'SaaS security headers', 'Next config must apply baseline browser hardening headers before launch');
     }
   }
 

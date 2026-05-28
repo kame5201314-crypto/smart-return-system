@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+import { SECURITY_HEADERS } from "./lib/security/headers";
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -10,6 +12,14 @@ const nextConfig: NextConfig = {
   turbopack: {
     // Force workspace root to this project directory and avoid parent lockfile detection.
     root: process.cwd(),
+  },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: SECURITY_HEADERS,
+      },
+    ];
   },
 };
 

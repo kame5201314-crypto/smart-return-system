@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -27,6 +27,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
+- Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
+- Production dependency audit no longer reports high-severity advisories after non-breaking updates. Remaining production audit findings are 4 moderate advisories in nested `next -> postcss` and `exceljs -> uuid`; npm only offers `--force` fixes that would make breaking dependency changes, so they are tracked as residual risk instead of being force-applied before launch.
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
@@ -37,6 +39,37 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Latest `develop-saas` HEAD is `bf371b8 fix(saas): redirect merchant admin entry to workspace`; it includes the latest Claude UI handoffs through `a63cfe2` plus the subsequent Codex role-separation hardening.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
 - Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include `1426e7c`, `ca773c8`, `31e2362`, `a63cfe2`, `9bab503`, `b5a9c13`, or `bf371b8`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-28 Launch Security Hardening
+
+- Scope:
+  - Added baseline browser security headers through `next.config.ts`.
+  - Updated runtime dependencies with non-breaking `npm audit fix` results, including locking Next.js to `16.2.6`.
+  - Added unit coverage for security header policy.
+  - Added SaaS doctor coverage so future readiness checks fail if security headers are removed.
+- Security headers now configured:
+  - `Content-Security-Policy`
+  - `Strict-Transport-Security`
+  - `X-Content-Type-Options`
+  - `X-Frame-Options`
+  - `Referrer-Policy`
+  - `Permissions-Policy`
+- Audit result:
+  - `npm audit --audit-level=high`: no high-severity advisories.
+  - `npm audit --omit=dev --audit-level=moderate`: still reports 4 moderate advisories.
+  - Remaining moderate advisories require `npm audit fix --force`, which would make breaking changes (`next@9.3.3` or `exceljs@3.4.0` according to npm output), so they were not force-applied.
+- Verification:
+  - `npm run saas:doctor`: 149 pass, 1 warn, 0 fail. The warning is local `ENABLE_MULTI_TENANT_ADMIN=true`.
+  - `npm run lint`: 0 errors and existing 44 warnings.
+  - `npm run typecheck`: passed.
+  - `npm run test:unit -- tests/unit/security-headers.test.ts`: passed as part of the unit suite.
+  - `npm run saas:predeploy`: passed, including schema gate, lint, typecheck, tests, and build.
+- Not performed:
+  - No deployment was run.
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No domain/DNS, billing/provider, email provider, master/live/prod, or production/internal Supabase change was performed.
 
 ## 2026-05-27 Git / Vercel Linkage Status
 

@@ -1,5 +1,53 @@
 # Handoff Log
 
+## 2026-05-28 Codex -> Claude / Codex
+
+Prepared launch security hardening without external production changes.
+
+Summary:
+
+- Added shared browser security headers in `lib/security/headers.ts`.
+- Wired those headers through `next.config.ts` for all routes.
+- Added unit tests for the header policy.
+- Added SaaS doctor/readiness coverage for the header wiring.
+- Ran non-breaking npm audit remediation and pinned `next` to `16.2.6`.
+- Did not apply `npm audit fix --force`; npm reports that the remaining
+  moderate advisories require breaking dependency changes.
+
+Files:
+
+- `lib/security/headers.ts`
+- `next.config.ts`
+- `package.json`
+- `package-lock.json`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/security-headers.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run test:unit -- tests/unit/security-headers.test.ts`: passed as part of
+  the unit suite, 68 files and 374 tests.
+- `npm run saas:doctor`: 149 pass, 1 warn, 0 fail.
+- `npm run lint`: 0 errors and existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm run saas:predeploy`: passed.
+- `npm audit --audit-level=high`: no high-severity advisories.
+- `npm audit --omit=dev --audit-level=moderate`: still reports 4 moderate
+  nested `next -> postcss` and `exceljs -> uuid` advisories.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
 ## 2026-05-27 Codex -> Claude / Codex
 
 Recorded current Git/Vercel linkage and production gap after the latest
