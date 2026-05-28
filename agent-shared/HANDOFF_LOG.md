@@ -2,6 +2,44 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Cleaned up stale-prone handoff wording after the post-hardening docs refresh.
+
+Summary:
+
+- Replaced exact "latest pushed HEAD is `b3bf314`" wording with "latest runtime
+  hardening commit is `b3bf314`" where appropriate.
+- Current docs/status refresh commits after `b3bf314` are now documented as
+  non-runtime changes, so future docs-only commits do not immediately make the
+  handoff state inconsistent.
+- Codex still has no unblocked backend/API/migration task open.
+- Production remains on `a3af638` / `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` until
+  owner explicitly authorizes another SaaS deploy/promote.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:doctor`: passed.
+- `npm run lint`: passed.
+
+Notes:
+
+- Documentation-only status cleanup.
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Refreshed the post-hardening handoff state after the public signup rate-limit
 commit.
 

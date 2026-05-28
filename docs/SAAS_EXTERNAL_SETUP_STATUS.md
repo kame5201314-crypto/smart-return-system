@@ -39,7 +39,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest pushed `develop-saas` HEAD is `b3bf314 fix(saas): throttle public signup requests`; production is still intentionally behind until owner authorizes another deploy.
+- Latest runtime hardening commit is `b3bf314 fix(saas): throttle public signup requests`; later docs/status refresh commits do not change runtime behavior. Production is still intentionally behind until owner authorizes another deploy.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
 - Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include the later role-separation, UI handoff, launch security, admin-login throttling, same-origin mutation guard, or public signup rate-limit commits. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
 
