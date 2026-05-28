@@ -25,14 +25,14 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest pushed HEAD before this public signup rate-limit work is `9fc4d0e fix(saas): reject cross-site mutation requests`; current local work adds best-effort request throttling to the future public signup API. Post-push Vercel check still shows the `develop-saas` branch alias on old Preview `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`; no fresh Preview for `82d8b0d` was visible immediately after that earlier push. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; production does not yet include the customer/platform role-separation commits, latest Claude UI handoffs, launch security hardening, admin-login throttling, same-origin mutation guard, or this public signup rate-limit work. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest pushed HEAD is `b3bf314 fix(saas): throttle public signup requests`; it includes customer/platform role separation, latest Claude UI handoffs, launch security headers, admin-login throttling, same-origin mutation guard, and future public signup rate limiting. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; production does not yet include the later `develop-saas` hardening commits until owner authorizes another deploy/promote. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Codex has no unblocked backend/API/migration task open; do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
 
 ```text
 Owner: Codex
-Commit: this commit
+Commit: b3bf314
 Scope: Public signup rate limit hardening
 Files:
 - lib/security/request-rate-limit.ts

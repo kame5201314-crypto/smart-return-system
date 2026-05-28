@@ -2,6 +2,48 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Refreshed the post-hardening handoff state after the public signup rate-limit
+commit.
+
+Summary:
+
+- Current pushed `develop-saas` HEAD is
+  `b3bf314 fix(saas): throttle public signup requests`.
+- Codex has no unblocked backend/API/migration work open after launch security
+  headers, admin-login throttling, mutation same-origin guard, and public signup
+  throttling.
+- Production remains on `a3af638` / `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` until
+  owner explicitly authorizes another SaaS deploy/promote.
+- Remaining work is external/owner-blocked: Sentry DSN, beta/custom domain,
+  email provider delivery, Billing/ECPay, draft migrations `033`-`036`, and any
+  production deploy/platform setting change.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run lint`: 0 errors and existing 44 warnings.
+
+Notes:
+
+- Documentation-only status refresh.
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Implemented public signup request throttling without enabling public signup or
 touching external services.
 
