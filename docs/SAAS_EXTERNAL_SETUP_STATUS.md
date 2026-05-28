@@ -30,17 +30,41 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
 - Platform admin password login now has best-effort, per-runtime throttling by login id and client IP. This reduces repeated password guessing against the `/admin/login` / `/login` internal admin path, but it is not a replacement for a persistent edge/WAF rate limit.
 - Browser-driven mutation APIs now share a same-origin guard that rejects explicit cross-site `Origin`, `Referer`, or Fetch Metadata requests before route handlers run. ECPay webhook, cron, and schema alert routes are intentionally excluded because they are provider/secret-gated server-to-server endpoints.
+- Public signup API now has best-effort, per-runtime request throttling. Public signup is still closed by `ENABLE_PUBLIC_SIGNUP=false`, but the route is safer for a future controlled rollout.
 - Production dependency audit no longer reports high-severity advisories after non-breaking updates. Remaining production audit findings are 4 moderate advisories in nested `next -> postcss` and `exceljs -> uuid`; npm only offers `--force` fixes that would make breaking dependency changes, so they are tracked as residual risk instead of being force-applied before launch.
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
-- `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, and mutation same-origin guard.
+- `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest pushed `develop-saas` HEAD before this mutation same-origin guard work is `2ffc241 fix(saas): throttle platform admin login attempts`; production is still intentionally behind until owner authorizes another deploy.
+- Latest pushed `develop-saas` HEAD before this public signup rate-limit work is `9fc4d0e fix(saas): reject cross-site mutation requests`; production is still intentionally behind until owner authorizes another deploy.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
 - Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include the later role-separation, UI handoff, launch security, or admin-login throttling commits. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-28 Public Signup Rate Limit
+
+- Scope:
+  - Added `lib/security/request-rate-limit.ts` as a shared in-memory request limiter.
+  - Applied best-effort throttling to `POST /api/saas/signup`.
+  - The limiter keys by scope, forwarded client IP, and user agent.
+  - Public signup remains disabled by default; this is a future public-rollout hardening step only.
+- Limitations:
+  - This is per-runtime memory state. It is enough for Manual Beta hardening but does not replace edge/WAF or persistent rate limiting before broad public traffic.
+- Verification:
+  - `npm run test:unit -- tests/unit/request-rate-limit.test.ts tests/unit/saas-public-signup-request.test.ts tests/unit/saas-public-signup.test.ts`: passed as part of the unit suite, 71 files and 388 tests.
+  - `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local `ENABLE_MULTI_TENANT_ADMIN=true`.
+  - `npm run lint`: 0 errors and existing 44 warnings.
+  - `npm run typecheck`: passed.
+  - `npm audit --audit-level=high`: passed with no high-severity advisories.
+  - `npm run saas:predeploy`: passed. Rollout check warnings were the expected dirty local tree before commit, missing Sentry DSN, and billing disabled for Manual Beta.
+- Not performed:
+  - No deployment was run.
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No domain/DNS, billing/provider, email provider, master/live/prod, or production/internal Supabase change was performed.
 
 ## 2026-05-28 Mutation Same-Origin Guard
 

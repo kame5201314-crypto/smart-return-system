@@ -2,6 +2,54 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Implemented public signup request throttling without enabling public signup or
+touching external services.
+
+Summary:
+
+- Added `lib/security/request-rate-limit.ts`.
+- Applied best-effort in-memory throttling to `POST /api/saas/signup`.
+- The rate-limit key uses scope, forwarded client IP, and user agent.
+- Public signup remains closed by `ENABLE_PUBLIC_SIGNUP=false`.
+- Added unit coverage and SaaS doctor coverage.
+
+Files:
+
+- `lib/security/request-rate-limit.ts`
+- `app/api/saas/signup/route.ts`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/request-rate-limit.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run test:unit -- tests/unit/request-rate-limit.test.ts tests/unit/saas-public-signup-request.test.ts tests/unit/saas-public-signup.test.ts`:
+  passed as part of the unit suite, 71 files and 388 tests.
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run lint`: 0 errors and existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm audit --audit-level=high`: passed with no high-severity advisories.
+- `npm run saas:predeploy`: passed. Rollout warnings were the expected dirty
+  local tree before commit, missing Sentry DSN, and billing disabled for Manual
+  Beta.
+
+Notes:
+
+- This is per-runtime memory state and does not replace edge/WAF or persistent
+  rate limiting before broad public traffic.
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Implemented same-origin hardening for browser-driven mutation API routes without
 external production changes.
 

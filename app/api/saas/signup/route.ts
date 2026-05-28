@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
+import {
+  buildClientRateLimitKey,
+  createInMemoryRateLimiter,
+} from '@/lib/security/request-rate-limit';
 
 import {
   SaaSPublicSignupRequestError,
@@ -17,6 +21,11 @@ interface HandlerDependencies {
 }
 
 export const dynamic = 'force-dynamic';
+
+const signupRateLimiter = createInMemoryRateLimiter({
+  maxRequests: 5,
+  windowMs: 60 * 60 * 1000,
+});
 
 async function readJsonBody(request: NextRequest): Promise<unknown> {
   try {
@@ -77,6 +86,23 @@ export async function POST(request: NextRequest) {
   const crossSiteResponse = rejectCrossSiteRequest(request);
   if (crossSiteResponse) {
     return crossSiteResponse;
+  }
+
+  const rateLimit = signupRateLimiter.check(
+    buildClientRateLimitKey({
+      scope: 'saas_public_signup',
+      headers: request.headers,
+    })
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Too many signup requests. Try again in ${rateLimit.retryAfterSeconds} seconds.`,
+        code: 'rate_limited',
+      },
+      { status: 429 }
+    );
   }
 
   return handleSaaSPublicSignupRequest(request);

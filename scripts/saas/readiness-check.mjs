@@ -184,6 +184,7 @@ function checkCommercialFoundation() {
     'lib/config/feature-flags.ts',
     'lib/security/headers.ts',
     'lib/security/same-origin.ts',
+    'lib/security/request-rate-limit.ts',
     'lib/auth/admin-login-rate-limit.ts',
     'lib/auth/post-login-redirect.ts',
     'lib/auth/internal-login-redirect.ts',
@@ -325,6 +326,7 @@ function checkCommercialFoundation() {
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
   const securityHeadersPath = path.resolve(process.cwd(), 'lib/security/headers.ts');
   const sameOriginPath = path.resolve(process.cwd(), 'lib/security/same-origin.ts');
+  const requestRateLimitPath = path.resolve(process.cwd(), 'lib/security/request-rate-limit.ts');
   const nextConfigPath = path.resolve(process.cwd(), 'next.config.ts');
   const adminLoginRateLimitPath = path.resolve(process.cwd(), 'lib/auth/admin-login-rate-limit.ts');
   const authActionPath = path.resolve(process.cwd(), 'lib/actions/auth.ts');
@@ -426,6 +428,27 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS mutation same-origin guard', 'browser-driven mutation routes reject explicit cross-site requests');
     } else {
       record('fail', 'SaaS mutation same-origin guard', `missing guard coverage: ${missingSameOriginGuard.join(', ') || 'helper contract incomplete'}`);
+    }
+  }
+
+  if (fs.existsSync(requestRateLimitPath)) {
+    const requestRateLimitSource = fs.readFileSync(requestRateLimitPath, 'utf8');
+    const signupRoutePath = path.resolve(process.cwd(), 'app/api/saas/signup/route.ts');
+    const signupRouteSource = fs.existsSync(signupRoutePath)
+      ? fs.readFileSync(signupRoutePath, 'utf8')
+      : '';
+
+    if (
+      requestRateLimitSource.includes('createInMemoryRateLimiter') &&
+      requestRateLimitSource.includes('buildClientRateLimitKey') &&
+      requestRateLimitSource.includes('getClientIpForRateLimit') &&
+      signupRouteSource.includes('signupRateLimiter') &&
+      signupRouteSource.includes("scope: 'saas_public_signup'") &&
+      signupRouteSource.includes("code: 'rate_limited'")
+    ) {
+      record('pass', 'SaaS public signup rate limit', 'public signup mutation has best-effort per-runtime request throttling');
+    } else {
+      record('fail', 'SaaS public signup rate limit', 'public signup route must throttle repeated signup requests before public rollout');
     }
   }
 
