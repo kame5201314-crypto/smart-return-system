@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 
 import {
   SaaSPublicSignupRequestError,
@@ -73,5 +74,10 @@ export async function handleSaaSPublicSignupRequest(
 }
 
 export async function POST(request: NextRequest) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   return handleSaaSPublicSignupRequest(request);
 }

@@ -25,10 +25,39 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest pushed HEAD before this admin-login throttling work is `1c715ee docs(saas): clarify post-push vercel preview status`; current local work adds best-effort platform admin password login throttling on top of `82d8b0d fix(saas): harden launch security posture`. Post-push Vercel check still shows the `develop-saas` branch alias on old Preview `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`; no fresh Preview for `82d8b0d` was visible immediately after push. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; production does not yet include the customer/platform role-separation commits, latest Claude UI handoffs, launch security hardening, or this admin-login throttling work. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest pushed HEAD before this mutation same-origin guard work is `2ffc241 fix(saas): throttle platform admin login attempts`; current local work adds shared same-origin rejection for browser-driven mutation API routes. Post-push Vercel check still shows the `develop-saas` branch alias on old Preview `dpl_5qqTLC2gQ6AZKWoF2oqteygma4nd`; no fresh Preview for `82d8b0d` was visible immediately after that earlier push. Production remains on `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready), aliased to `https://smart-return-system-saas.vercel.app`; production does not yet include the customer/platform role-separation commits, latest Claude UI handoffs, launch security hardening, admin-login throttling, or this same-origin mutation guard work. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain owner-blocked. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Mutation route same-origin hardening
+Files:
+- lib/security/same-origin.ts
+- app/api/v1/upload/session/route.ts
+- app/api/v1/upload/signed-url/route.ts
+- app/api/v1/ai/analyze/route.ts
+- app/api/saas/signup/route.ts
+- app/api/saas/invite/accept/route.ts
+- app/api/saas/onboarding/complete/route.ts
+- app/api/saas/team/invites/route.ts
+- app/api/internal/saas/orgs/route.ts
+- app/api/internal/saas/orgs/[id]/preview/route.ts
+- app/api/internal/saas/tenant-preview/route.ts
+- app/api/internal/saas/platform-admins/route.ts
+- app/api/internal/saas/billing/operations/route.ts
+- app/api/internal/saas/billing/events/[id]/retry/route.ts
+- scripts/saas/readiness-check.mjs
+- tests/unit/same-origin-request.test.ts
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added a shared same-origin guard for browser-driven mutation APIs. The guard rejects explicit cross-site `Sec-Fetch-Site`, `Origin`, and `Referer` requests while allowing missing browser origin headers for non-browser clients. ECPay webhook, cron, and schema alert routes remain excluded because they are provider/secret-gated server-to-server paths. No deployment, migration, env/secret edit, billing/provider enablement, master/live/prod change, or production/internal Supabase action was performed.
+```
 
 ```text
 Owner: Codex

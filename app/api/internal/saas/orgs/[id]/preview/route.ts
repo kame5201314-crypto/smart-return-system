@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import {
@@ -127,7 +128,12 @@ export async function handleStartPlatformTenantPreview(
   }
 }
 
-export async function POST(_request: NextRequest, context: RouteContext) {
+export async function POST(request: NextRequest, context: RouteContext) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   const params = await context.params;
   return handleStartPlatformTenantPreview(params.id);
 }

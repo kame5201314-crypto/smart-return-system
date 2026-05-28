@@ -1,4 +1,5 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -85,6 +86,11 @@ setInterval(() => {
  * Generate signed URL for direct upload to Supabase Storage.
  */
 export async function POST(request: NextRequest) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   try {
     const clientIP = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')

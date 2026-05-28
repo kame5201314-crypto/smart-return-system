@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import {
@@ -238,5 +239,10 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   return handleDryRunPlatformBillingEventRetry(request, context);
 }

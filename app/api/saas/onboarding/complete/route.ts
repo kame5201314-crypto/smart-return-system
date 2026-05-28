@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 
 import { SaaSOnboardingError } from '@/lib/saas/onboarding';
 import {
@@ -69,5 +70,10 @@ export async function handleCompleteSaaSOnboardingRequest(
 }
 
 export async function POST(request: NextRequest) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   return handleCompleteSaaSOnboardingRequest(request);
 }

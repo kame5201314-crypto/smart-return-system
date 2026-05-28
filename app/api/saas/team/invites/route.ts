@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 
 import {
   createSaaSTeamInviteFromRequest,
@@ -72,5 +73,10 @@ export async function handleCreateSaaSTeamInviteRequest(
 }
 
 export async function POST(request: NextRequest) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   return handleCreateSaaSTeamInviteRequest(request);
 }

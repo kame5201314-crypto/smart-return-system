@@ -2,6 +2,70 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Implemented same-origin hardening for browser-driven mutation API routes without
+external production changes.
+
+Summary:
+
+- Added `lib/security/same-origin.ts`.
+- The shared guard rejects explicit cross-site browser mutation requests using
+  `Sec-Fetch-Site`, `Origin`, and `Referer`.
+- The guard allows requests without browser origin headers so local tests and
+  non-browser clients are not silently blocked.
+- Applied the guard to upload session/signed-url, AI analyze, SaaS signup,
+  invite accept, onboarding complete, team invite, and internal platform admin
+  mutation routes.
+- ECPay webhook, cron routes, and schema drift alert remain intentionally
+  excluded because they are provider/secret-gated server-to-server endpoints.
+- Added unit coverage and SaaS doctor coverage.
+
+Files:
+
+- `lib/security/same-origin.ts`
+- `app/api/v1/upload/session/route.ts`
+- `app/api/v1/upload/signed-url/route.ts`
+- `app/api/v1/ai/analyze/route.ts`
+- `app/api/saas/signup/route.ts`
+- `app/api/saas/invite/accept/route.ts`
+- `app/api/saas/onboarding/complete/route.ts`
+- `app/api/saas/team/invites/route.ts`
+- `app/api/internal/saas/orgs/route.ts`
+- `app/api/internal/saas/orgs/[id]/preview/route.ts`
+- `app/api/internal/saas/tenant-preview/route.ts`
+- `app/api/internal/saas/platform-admins/route.ts`
+- `app/api/internal/saas/billing/operations/route.ts`
+- `app/api/internal/saas/billing/events/[id]/retry/route.ts`
+- `scripts/saas/readiness-check.mjs`
+- `tests/unit/same-origin-request.test.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run test:unit -- tests/unit/same-origin-request.test.ts tests/unit/upload-session.route.test.ts tests/unit/upload-signed-url.route.test.ts tests/unit/saas-team-invite-route.test.ts tests/unit/saas-onboarding-route.test.ts tests/unit/saas-invite-accept-route.test.ts tests/unit/saas-platform-admin-routes.test.ts tests/unit/security-headers.test.ts`:
+  passed as part of the unit suite, 70 files and 384 tests.
+- `npm run saas:doctor`: 153 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run lint`: 0 errors and existing 44 warnings.
+- `npm run typecheck`: passed.
+- `npm audit --audit-level=high`: passed with no high-severity advisories.
+- `npm run saas:predeploy`: passed. Rollout warnings were the expected dirty
+  local tree before commit, missing Sentry DSN, and billing disabled for Manual
+  Beta.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Implemented the next repo-local security item from the launch audit without
 external production changes.
 

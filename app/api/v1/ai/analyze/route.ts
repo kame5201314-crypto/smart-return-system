@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import { format } from 'date-fns';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
@@ -390,6 +391,11 @@ async function recordAIUsageEvent(
 }
 
 export async function POST(request: NextRequest) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   try {
     const orgContext = await getOrgContext({
       requirements: {

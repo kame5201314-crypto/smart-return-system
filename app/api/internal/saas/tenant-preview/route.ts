@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import {
@@ -110,6 +111,11 @@ export async function GET() {
   return handleGetPlatformTenantPreview();
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const crossSiteResponse = rejectCrossSiteRequest(request);
+  if (crossSiteResponse) {
+    return crossSiteResponse;
+  }
+
   return handleClearPlatformTenantPreview();
 }

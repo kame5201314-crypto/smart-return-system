@@ -183,6 +183,7 @@ function checkCommercialFoundation() {
     'lib/config/saas-plans.ts',
     'lib/config/feature-flags.ts',
     'lib/security/headers.ts',
+    'lib/security/same-origin.ts',
     'lib/auth/admin-login-rate-limit.ts',
     'lib/auth/post-login-redirect.ts',
     'lib/auth/internal-login-redirect.ts',
@@ -323,6 +324,7 @@ function checkCommercialFoundation() {
 
   const publicRoutesPath = path.resolve(process.cwd(), 'lib/auth/public-routes.ts');
   const securityHeadersPath = path.resolve(process.cwd(), 'lib/security/headers.ts');
+  const sameOriginPath = path.resolve(process.cwd(), 'lib/security/same-origin.ts');
   const nextConfigPath = path.resolve(process.cwd(), 'next.config.ts');
   const adminLoginRateLimitPath = path.resolve(process.cwd(), 'lib/auth/admin-login-rate-limit.ts');
   const authActionPath = path.resolve(process.cwd(), 'lib/actions/auth.ts');
@@ -385,6 +387,45 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS security headers', 'CSP, HSTS, frame, content-type, referrer, and permissions policy headers are wired through Next config');
     } else {
       record('fail', 'SaaS security headers', 'Next config must apply baseline browser hardening headers before launch');
+    }
+  }
+
+  if (fs.existsSync(sameOriginPath)) {
+    const sameOriginSource = fs.readFileSync(sameOriginPath, 'utf8');
+    const mutationRoutePaths = [
+      'app/api/v1/upload/session/route.ts',
+      'app/api/v1/upload/signed-url/route.ts',
+      'app/api/v1/ai/analyze/route.ts',
+      'app/api/saas/signup/route.ts',
+      'app/api/saas/invite/accept/route.ts',
+      'app/api/saas/onboarding/complete/route.ts',
+      'app/api/saas/team/invites/route.ts',
+      'app/api/internal/saas/orgs/route.ts',
+      'app/api/internal/saas/orgs/[id]/preview/route.ts',
+      'app/api/internal/saas/tenant-preview/route.ts',
+      'app/api/internal/saas/platform-admins/route.ts',
+      'app/api/internal/saas/billing/operations/route.ts',
+      'app/api/internal/saas/billing/events/[id]/retry/route.ts',
+    ];
+    const missingSameOriginGuard = mutationRoutePaths.filter((routePath) => {
+      const sourcePath = path.resolve(process.cwd(), routePath);
+      return (
+        !fs.existsSync(sourcePath) ||
+        !fs.readFileSync(sourcePath, 'utf8').includes('rejectCrossSiteRequest(request)')
+      );
+    });
+
+    if (
+      sameOriginSource.includes('checkSameOriginRequest') &&
+      sameOriginSource.includes('sec-fetch-site') &&
+      sameOriginSource.includes('origin') &&
+      sameOriginSource.includes('referer') &&
+      sameOriginSource.includes('cross_site_request') &&
+      missingSameOriginGuard.length === 0
+    ) {
+      record('pass', 'SaaS mutation same-origin guard', 'browser-driven mutation routes reject explicit cross-site requests');
+    } else {
+      record('fail', 'SaaS mutation same-origin guard', `missing guard coverage: ${missingSameOriginGuard.join(', ') || 'helper contract incomplete'}`);
     }
   }
 
