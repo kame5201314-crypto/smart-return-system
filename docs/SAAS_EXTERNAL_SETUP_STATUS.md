@@ -40,9 +40,37 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - The remaining expected rollout warnings are:
   - Sentry/logging DSN is not configured.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest runtime hardening commit is `b3bf314 fix(saas): throttle public signup requests`; later docs/status refresh commits do not change runtime behavior. Production is still intentionally behind until owner authorizes another deploy.
-- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending explicit approval.
-- Latest owner-authorized production deployment: `a3af638 fix(saas): keep onboarding guide available on legacy policy recursion` -> Vercel deployment `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` (Ready). Production does not yet include the later role-separation, UI handoff, launch security, admin-login throttling, same-origin mutation guard, or public signup rate-limit commits. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+- Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings`.
+- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
+- Latest owner-authorized production deployment: `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-05-28 Production Deploy of c335410
+
+- Scope:
+  - Ran `npm run saas:predeploy` locally before deployment.
+  - Deployed latest `develop-saas` HEAD `c335410 chore(saas): clean up non-ui lint warnings` to Vercel production project `smart-return-system-saas`.
+  - Deployment URL: `https://smart-return-system-saas-52lgyehzp-kaweis-projects.vercel.app`.
+  - Production alias: `https://smart-return-system-saas.vercel.app`.
+  - Vercel deployment ID: `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh`.
+- Smoke test:
+  - Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/signup`, `/login` returned `200`.
+  - `/admin` and `/admin/login` returned `307`, preserving platform admin entry routing.
+  - Protected tenant routes `/analytics`, `/returns`, `/pickup/scan`, `/analytics/ai-report`, and `/settings/usage` returned `307 -> /login` for unauthenticated visitors.
+  - Protected platform routes `/internal` and `/internal/orgs` returned `307 -> /admin/login?next=...` for unauthenticated visitors.
+- Remaining blockers:
+  - Sentry DSN is still not configured. Add SaaS-only `SENTRY_DSN` and optionally `NEXT_PUBLIC_SENTRY_DSN` in Vercel after a real DSN is available.
+  - Custom/beta domain is still not configured because no target domain/DNS access was provided.
+  - Email provider delivery remains dry-run because no provider/API credentials were provided.
+  - Billing/ECPay remains disabled because no ECPay credentials were provided.
+  - Draft migrations `033`-`036` remain unapplied; this deployment did not run Supabase migrations.
+- Not performed:
+  - No migration was run.
+  - No env/secret was edited.
+  - No Sentry DSN was configured.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-05-28 Public Signup Rate Limit
 

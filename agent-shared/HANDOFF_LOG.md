@@ -2,6 +2,59 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Deployed the latest `develop-saas` HEAD to the SaaS Vercel production project
+after the owner requested completing the remaining launch work that could be
+done from this checkout.
+
+Summary:
+
+- Ran `npm run saas:predeploy` locally before deployment.
+- Deployed `c335410 chore(saas): clean up non-ui lint warnings` to
+  `smart-return-system-saas`.
+- New Vercel deployment is `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` and is Ready.
+- Production alias is `https://smart-return-system-saas.vercel.app`.
+- Public smoke passed.
+- Unauthenticated tenant routes redirect to `/login`.
+- Unauthenticated platform routes redirect to `/admin/login?next=...`.
+
+Smoke test:
+
+- `200`: `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, `/login`.
+- `307`: `/admin`, `/admin/login`.
+- `307 -> /login`: `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, `/settings/usage`.
+- `307 -> /admin/login?next=...`: `/internal`, `/internal/orgs`.
+
+Still blocked by missing external values:
+
+- Sentry DSN is not configured; no real SaaS DSN is available locally or in
+  Vercel env.
+- Custom/beta domain is not configured; no target domain/DNS access was
+  provided.
+- Email provider delivery remains dry-run; no provider/API credentials were
+  provided.
+- Billing/ECPay remains disabled; no ECPay credentials were provided.
+- Draft migrations `033`-`036` remain unapplied.
+
+Verification:
+
+- `npm run saas:predeploy`: passed.
+- Vercel deployment: Ready.
+- Production smoke: passed.
+
+Notes:
+
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Completed a Codex-owned non-UI lint warning cleanup without changing runtime
 contracts or external settings.
 
