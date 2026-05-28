@@ -76,7 +76,7 @@ async function checkSupabaseConnection() {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
     // Test basic connection
-    const { data, error } = await supabase.from('customers').select('count').limit(1);
+    const { error } = await supabase.from('customers').select('count').limit(1);
 
     if (error) {
       // 表不存在也算通過，只要連線成功
@@ -100,7 +100,7 @@ async function checkSupabaseConnection() {
     }
 
     // Check for infringement_system schema
-    const { data: schemaData, error: schemaError } = await supabase
+    const { error: schemaError } = await supabase
       .rpc('get_schemas', {})
       .maybeSingle();
 

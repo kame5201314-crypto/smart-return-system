@@ -58,6 +58,7 @@ Status values:
 | done | Platform admin login rate limit hardening | This commit; platform admin password login now has best-effort per-runtime throttling by login id and client IP, with unit tests and SaaS doctor coverage. No deploy, migration, env/secret edit, or provider setting change was performed |
 | done | Mutation route same-origin hardening | This commit; browser-driven POST/DELETE mutation APIs now reject explicit cross-site requests through a shared same-origin guard, with unit tests and SaaS doctor coverage. ECPay webhook, cron, and schema alert routes remain provider/secret-gated server-to-server paths |
 | done | Public signup rate limit hardening | Commit `b3bf314`; `POST /api/saas/signup` now has best-effort per-runtime request throttling by scope, client IP, and user agent, with unit tests and SaaS doctor coverage. Public signup remains disabled by default |
+| done | Non-UI lint warning cleanup | This commit; removed unused local variables from Codex-owned `lib/**` and `scripts/**` paths without changing API behavior. Known lint warnings are reduced from 44 to 31; remaining warnings are UI/component scoped |
 | done | Platform admin dashboard backend contract | This commit; added `loadPlatformAdminDashboardView()` with organization KPI, at-risk, trial conversion, and billing event summaries for Claude's `/internal` dashboard UI |
 | done | Platform admin mode backend contract | This commit; added `loadPlatformAdminModeView()` so Claude can render an admin mode indicator without client-side role checks |
 | done | Internal admin unauthenticated redirect contract | This commit; `/internal/*` page loaders now redirect unauthenticated visitors to the platform admin login entry while preserving forbidden gated states for authenticated non-admin users |
@@ -120,7 +121,7 @@ Claude owns the next executable UI-only work:
 
 Codex owns the non-UI queue:
 
-- No unblocked backend/API/migration task is currently open after the explicit platform admin identity separation, launch security hardening, platform admin login throttling, mutation same-origin hardening, public signup rate limiting, onboarding, platform dashboard, tenant preview, audit, external blocker refresh, and latest UI handoffs.
+- No unblocked backend/API/migration task is currently open after the explicit platform admin identity separation, launch security hardening, platform admin login throttling, mutation same-origin hardening, public signup rate limiting, non-UI lint cleanup, onboarding, platform dashboard, tenant preview, audit, external blocker refresh, and latest UI handoffs.
 - Codex should record future Claude handoffs here, update readiness/docs/tests, and implement backend contracts only when Claude needs a new contract or the owner explicitly authorizes an external/backend change.
 - External/owner-blocked items remain Sentry DSN activation, Billing/ECPay plus `ENABLE_BILLING`, beta/custom domain/DNS, email provider delivery, applying draft migrations `033`-`036`, and any further production deploy or platform setting change. Production remains on `dpl_58GGGEpqZTtj6MPGyQvQ5jYhX6zr` until owner explicitly authorizes another deploy/promote.
 - Tenant preview is currently a signed, audited, read-only visual context for platform admins. It is not full impersonation and is not wired into `getOrgContext()` or tenant write permissions.

@@ -2,6 +2,46 @@
 
 ## 2026-05-28 Codex -> Claude / Codex
 
+Completed a Codex-owned non-UI lint warning cleanup without changing runtime
+contracts or external settings.
+
+Summary:
+
+- Removed unused local variables from `lib/actions/upload.ts`.
+- Replaced rest-destructure discard patterns in `lib/utils/return-ranking.ts`
+  and `lib/utils/ai-sku-analysis.ts` with explicit DTO construction.
+- Removed unused Supabase query result bindings from `scripts/health-check.ts`.
+- Known lint warnings dropped from 44 to 31.
+- Remaining lint warnings are in UI/component paths and stay in Claude scope.
+
+Files:
+
+- `lib/actions/upload.ts`
+- `lib/utils/return-ranking.ts`
+- `lib/utils/ai-sku-analysis.ts`
+- `scripts/health-check.ts`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run test:unit -- tests/unit/return-ranking.test.ts tests/unit/ai-sku-analysis.test.ts tests/unit/normalize-ai-sku-output.test.ts tests/unit/ai-analysis-prompt.test.ts tests/unit/ai-analysis-fallback.test.ts`: passed as part of the unit suite, 71 files and 388 tests.
+- `npm run lint`: 0 errors and 31 remaining warnings.
+- `npm run typecheck`: passed.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-05-28 Codex -> Claude / Codex
+
 Cleaned up stale-prone handoff wording after the post-hardening docs refresh.
 
 Summary:

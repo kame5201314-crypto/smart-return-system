@@ -35,7 +35,7 @@ export async function uploadImage(data: ImageUploadData): Promise<UploadResult> 
     const storagePath = `returns/${data.returnRequestId}/${data.imageType}_${timestamp}_${randomId}.${extension}`;
 
     // 上傳到 Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('return-images')
       .upload(storagePath, buffer, {
         contentType: data.contentType,

@@ -64,7 +64,12 @@ export function aggregateReturnRanking(rows: ReturnRankingInput[]): ReturnRankin
   });
 
   return Array.from(grouped.values())
-    .map(({ nameTotals: _nameTotals, ...row }) => row)
+    .map((row) => ({
+      name: row.name,
+      sku: row.sku,
+      channel: row.channel,
+      quantity: row.quantity,
+    }))
     .sort((a, b) => {
       if (b.quantity !== a.quantity) return b.quantity - a.quantity;
       if (a.sku !== b.sku) return a.sku.localeCompare(b.sku);

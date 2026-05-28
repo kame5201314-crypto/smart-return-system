@@ -319,15 +319,19 @@ export function buildAISkuAnalysisGroups(
   });
 
   return Array.from(grouped.values())
-    .map(({ productNameTotals: _groupTotals, variantMap, ...group }) => ({
-      ...group,
+    .map((group) => ({
+      sku_group: group.sku_group,
+      product_name: group.product_name,
+      return_count: group.return_count,
       channels: sortTextList(group.channels),
       reason_texts: sortTextList(group.reason_texts),
       buyer_note_texts: sortTextList(group.buyer_note_texts),
       return_reason_note_texts: sortTextList(group.return_reason_note_texts),
-      variants: Array.from(variantMap.values())
-        .map(({ productNameTotals: _variantTotals, ...variant }) => ({
-          ...variant,
+      variants: Array.from(group.variantMap.values())
+        .map((variant) => ({
+          product_name: variant.product_name,
+          sku: variant.sku,
+          return_count: variant.return_count,
           channels: sortTextList(variant.channels),
           reason_texts: sortTextList(variant.reason_texts),
           buyer_note_texts: sortTextList(variant.buyer_note_texts),
@@ -492,23 +496,34 @@ export function normalizeAISkuAnalysisOutput(
     .map((group) => {
       const variants = Array.from(group.variantMap.values())
         .filter((variant) => variant.return_count > 0 || variant.mainIssueSet.size > 0)
-        .map(({ mainIssueSet, productWeight: _productWeight, suggestionWeight: _suggestionWeight, order: _order, ...variant }) => ({
-          ...variant,
-          main_issues: Array.from(mainIssueSet),
+        .map((variant) => ({
+          product_name: variant.product_name,
+          sku: variant.sku,
+          return_count: variant.return_count,
+          suggestion: variant.suggestion,
+          main_issues: Array.from(variant.mainIssueSet),
         }))
         .sort((a, b) => {
           if (b.return_count !== a.return_count) return b.return_count - a.return_count;
           return a.sku.localeCompare(b.sku);
         });
 
-      const { mainIssueSet, productWeight: _productWeight, suggestionWeight: _suggestionWeight, order, variantMap: _variantMap, ...rest } = group;
-
-      return {
-        ...rest,
-        main_issues: Array.from(mainIssueSet),
+      const result: AISkuAnalysisGroupResult & { order: number } = {
+        sku_group: group.sku_group,
+        sku: group.sku,
+        product_name: group.product_name,
+        return_count: group.return_count,
+        suggestion: group.suggestion,
+        main_issues: Array.from(group.mainIssueSet),
         variants,
-        order,
+        order: group.order,
       };
+
+      if (group.return_rate !== undefined) {
+        result.return_rate = group.return_rate;
+      }
+
+      return result;
     })
     .sort((a, b) => {
       if (Array.isArray(candidates)) {
@@ -519,5 +534,21 @@ export function normalizeAISkuAnalysisOutput(
       return a.sku_group.localeCompare(b.sku_group);
     });
 
-  return sortedGroups.map(({ order: _order, ...group }) => group);
+  return sortedGroups.map((group) => {
+    const result: AISkuAnalysisGroupResult = {
+      sku_group: group.sku_group,
+      sku: group.sku,
+      product_name: group.product_name,
+      return_count: group.return_count,
+      main_issues: group.main_issues,
+      suggestion: group.suggestion,
+      variants: group.variants,
+    };
+
+    if (group.return_rate !== undefined) {
+      result.return_rate = group.return_rate;
+    }
+
+    return result;
+  });
 }
