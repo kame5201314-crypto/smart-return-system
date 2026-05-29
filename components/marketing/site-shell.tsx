@@ -37,10 +37,10 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Button asChild variant="ghost" size="sm" className="hidden h-11 sm:inline-flex sm:h-9">
               <Link href="/login">登入</Link>
             </Button>
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="h-11 sm:h-9">
               <Link href="/signup">
                 免費試用 14 天
                 <ArrowRight className="size-4" />
@@ -69,9 +69,13 @@ export function MarketingShell({ children }: { children: ReactNode }) {
 
           <div>
             <div className="text-sm font-semibold">網站</div>
-            <div className="mt-3 grid gap-2">
+            <div className="mt-3 grid">
               {publicNavItems.map((item) => (
-                <Link key={item.href} href={item.href} className="text-sm text-neutral-300 hover:text-white">
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm text-neutral-300 hover:bg-white/5 hover:text-white"
+                >
                   {item.label}
                 </Link>
               ))}
@@ -80,9 +84,13 @@ export function MarketingShell({ children }: { children: ReactNode }) {
 
           <div>
             <div className="text-sm font-semibold">法務</div>
-            <div className="mt-3 grid gap-2">
+            <div className="mt-3 grid">
               {legalNavItems.map((item) => (
-                <Link key={item.href} href={item.href} className="text-sm text-neutral-300 hover:text-white">
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 text-sm text-neutral-300 hover:bg-white/5 hover:text-white"
+                >
                   {item.label}
                 </Link>
               ))}
@@ -97,13 +105,13 @@ export function MarketingShell({ children }: { children: ReactNode }) {
       {/* Sticky mobile CTA bar */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-7xl items-center gap-2">
-          <Button asChild className="flex-1">
+          <Button asChild className="h-11 flex-1">
             <Link href="/signup">
               免費試用 14 天
               <ArrowRight className="size-4" />
             </Link>
           </Button>
-          <Button asChild variant="outline" size="default">
+          <Button asChild variant="outline" size="default" className="h-11">
             <Link href="/contact">Demo</Link>
           </Button>
         </div>

@@ -39,7 +39,7 @@ export function MarketingMobileNav({
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="size-11 md:hidden"
           aria-label="開啟導覽選單"
         >
           <Menu className="size-5" aria-hidden="true" />
