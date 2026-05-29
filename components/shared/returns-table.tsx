@@ -159,10 +159,6 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
     }
   }
 
-  function openDeleteDialog(item: ReturnItem) {
-    setDeletingItem(item);
-    setDeleteDialogOpen(true);
-  }
   // Helper to render sort icon
   function SortIcon({ field }: { field: SortField }) {
     if (sortField !== field) {

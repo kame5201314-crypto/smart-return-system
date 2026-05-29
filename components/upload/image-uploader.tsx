@@ -2,10 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, Image as ImageIcon, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Upload, X, AlertCircle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { IMAGE_UPLOAD_CONFIG, REQUIRED_IMAGE_TYPES } from '@/config/constants';
 
@@ -26,7 +24,7 @@ export function ImageUploader({ images, onImagesChange, disabled }: ImageUploade
   const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback(
-    (acceptedFiles: File[], rejectedFiles: unknown[]) => {
+    (acceptedFiles: File[]) => {
       setError(null);
 
       // Check if adding these would exceed max

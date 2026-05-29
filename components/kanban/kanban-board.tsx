@@ -37,7 +37,7 @@ interface KanbanBoardProps {
   onStatusChange?: (id: string, newStatus: string) => void;
 }
 
-export function KanbanBoard({ items, onStatusChange }: KanbanBoardProps) {
+export function KanbanBoard({ items }: KanbanBoardProps) {
   return (
     <div className="flex gap-4 pb-4">
       {KANBAN_COLUMNS.map((column) => {

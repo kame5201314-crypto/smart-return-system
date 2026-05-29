@@ -127,7 +127,7 @@ export default function ShopeeReturnDetailPage() {
 
   const [record, setRecord] = useState<ShopeeReturn | null>(null);
   const [groupItems, setGroupItems] = useState<ShopeeReturn[]>([]);
-  const [portalReasonDetail, setPortalReasonDetail] = useState<string>('');
+  const [portalReasonDetail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<'scanned' | 'inbound' | 'processed' | 'printed' | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});

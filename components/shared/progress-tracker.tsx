@@ -35,11 +35,6 @@ export function ProgressTracker({ currentStatus, className = '', stepTimes }: Pr
   const isAbnormal = currentStatus === RETURN_STATUS.ABNORMAL_DISPUTED;
   const isCompleted = currentStatus === RETURN_STATUS.COMPLETED;
 
-  // Determine current step index (0: 待審核, 1: 已結案, 2: 驗收異常)
-  let currentIndex = 0;
-  if (isCompleted) currentIndex = 1;
-  if (isAbnormal) currentIndex = 2;
-
   return (
     <div className={`${className}`}>
       {/* Abnormal alert */}

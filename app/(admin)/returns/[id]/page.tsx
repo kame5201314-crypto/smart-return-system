@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -51,7 +51,7 @@ import {
 } from '@/components/ui/form';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
 
-import { getReturnRequestDetail, updateReturnStatus, updateReturnInfo, submitInspection, deleteReturnRequest } from '@/lib/actions/return.actions';
+import { getReturnRequestDetail, updateReturnInfo, submitInspection, deleteReturnRequest } from '@/lib/actions/return.actions';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import {
@@ -165,10 +165,7 @@ export default function ReturnDetailPage() {
   const [returnData, setReturnData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [editInfoDialogOpen, setEditInfoDialogOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState('');
-  const [notes, setNotes] = useState('');
   const [editProductName, setEditProductName] = useState('');
   const [editProductSku, setEditProductSku] = useState('');
   const [editRefundAmount, setEditRefundAmount] = useState('');
@@ -248,39 +245,6 @@ export default function ReturnDetailPage() {
       router.replace(`/returns/${returnRequestId}`, { scroll: false });
     }
   }, [searchParams, returnData, returnRequestId, openEditInfoDialog, router]);
-
-  async function handleStatusUpdate() {
-    if (!newStatus || !returnData) return;
-
-    try {
-      setUpdating(true);
-      const user = await getCurrentUser();
-      if (!user) {
-        toast.error('請先登入');
-        return;
-      }
-      const result = await updateReturnStatus(
-        {
-          returnRequestId: returnData.id,
-          newStatus: newStatus as typeof RETURN_STATUS[keyof typeof RETURN_STATUS],
-          notes,
-        },
-        user.id
-      );
-
-      if (result.success) {
-        toast.success('狀態更新成功');
-        setStatusDialogOpen(false);
-        await fetchDetail();
-      } else {
-        toast.error(result.error || '更新失敗');
-      }
-    } catch {
-      toast.error('更新失敗');
-    } finally {
-      setUpdating(false);
-    }
-  }
 
   async function handleInfoUpdate() {
     if (!returnData) return;
