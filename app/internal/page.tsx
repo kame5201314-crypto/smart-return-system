@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { signOut } from '@/lib/actions/auth';
+import { getCurrentUser, signOut } from '@/lib/actions/auth';
 import { loadPlatformAdminDashboardView } from '@/lib/saas/platform-admin-live-data';
 import type {
   PlatformAdminDashboardView,
@@ -357,9 +357,11 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
 function GatedView({
   message,
   accessCode,
+  currentEmail,
 }: {
   message: string;
   accessCode: string;
+  currentEmail: string | null;
 }) {
   const isAuthIssue = accessCode === 'unauthenticated';
   const title = isAuthIssue ? '需要登入' : '沒有平台管理權限';
@@ -377,6 +379,11 @@ function GatedView({
         <CardDescription className="text-amber-900">{description}</CardDescription>
       </CardHeader>
       <CardContent>
+        {!isAuthIssue && currentEmail ? (
+          <p className="mb-3 text-sm text-amber-900">
+            目前帳號：<span className="font-mono">{currentEmail}</span>
+          </p>
+        ) : null}
         {message ? (
           <p className="mb-4 font-mono text-xs text-amber-800">{message}</p>
         ) : null}
@@ -400,6 +407,7 @@ export default async function InternalDashboardPage() {
   const result = await loadPlatformAdminDashboardView();
 
   if (result.state === 'gated') {
+    const currentUser = await getCurrentUser();
     return (
       <div className="space-y-6">
         <div>
@@ -408,7 +416,11 @@ export default async function InternalDashboardPage() {
             查看 SaaS 訂閱、用量與金流概況。
           </p>
         </div>
-        <GatedView message={result.gated.message} accessCode={result.gated.accessCode} />
+        <GatedView
+          message={result.gated.message}
+          accessCode={result.gated.accessCode}
+          currentEmail={currentUser?.email ?? null}
+        />
       </div>
     );
   }
