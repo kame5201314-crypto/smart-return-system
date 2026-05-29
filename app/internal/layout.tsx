@@ -40,17 +40,17 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold">Platform Admin</h1>
-                <Badge variant="outline">SaaS only</Badge>
+                <Badge variant="outline">SaaS 營運專用</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                商業版平台管理骨架，正式資料寫入需等 service role route 與 SaaS RLS 通過後再開啟。
+                查看所有租戶的訂閱、用量、健康度與金流事件；不顯示任何客戶的退貨資料明細。
               </p>
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href="/settings">
+            <Link href="/analytics">
               <ArrowLeft className="size-4" />
-              返回商家設定
+              切換到商家工作台
             </Link>
           </Button>
         </div>
