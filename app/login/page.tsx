@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { ArrowLeft, Eye, EyeOff, Loader2, Lock, PackageCheck, User } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, PackageCheck, ShieldCheck, User } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,16 @@ const loginSchema = z.object({
 
 type LoginInput = z.infer<typeof loginSchema>;
 
+function isPlatformAdminNext(value: string | null): boolean {
+  if (!value) return false;
+  return value === '/admin' || value === '/internal' || value.startsWith('/internal/');
+}
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next');
+  const isPlatformAdminLogin = isPlatformAdminNext(nextParam);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -64,20 +72,36 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link
             href="/"
-            className="mx-auto mb-4 inline-flex size-16 items-center justify-center rounded-2xl bg-emerald-100 transition-colors hover:bg-emerald-200"
+            className={`mx-auto mb-4 inline-flex size-16 items-center justify-center rounded-2xl transition-colors ${
+              isPlatformAdminLogin
+                ? 'bg-neutral-900 hover:bg-neutral-800'
+                : 'bg-emerald-100 hover:bg-emerald-200'
+            }`}
             aria-label="返回首頁"
           >
-            <PackageCheck className="size-8 text-emerald-700" />
+            {isPlatformAdminLogin ? (
+              <ShieldCheck className="size-8 text-emerald-300" />
+            ) : (
+              <PackageCheck className="size-8 text-emerald-700" />
+            )}
           </Link>
           <h1 className="text-2xl font-bold text-neutral-950">Smart Return</h1>
-          <p className="text-neutral-500 mt-2">登入你的工作區</p>
+          <p className="text-neutral-500 mt-2">
+            {isPlatformAdminLogin ? '平台管理員登入' : '登入你的工作區'}
+          </p>
         </div>
 
         {/* Login Card */}
         <Card className="shadow-lg border bg-white">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl">歡迎回來</CardTitle>
-            <CardDescription>請輸入帳號密碼進入退貨工作區。</CardDescription>
+            <CardTitle className="text-xl">
+              {isPlatformAdminLogin ? '平台管理後台登入' : '歡迎回來'}
+            </CardTitle>
+            <CardDescription>
+              {isPlatformAdminLogin
+                ? '請使用平台管理員帳號登入。商家請改用一般登入入口。'
+                : '請輸入帳號密碼進入退貨工作區。'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -152,15 +176,27 @@ export default function LoginPage() {
               </form>
             </Form>
 
-            <p className="mt-6 text-center text-sm text-neutral-600">
-              還沒有帳號？
-              <Link
-                href="/signup"
-                className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
-              >
-                申請 14 天免費試用
-              </Link>
-            </p>
+            {isPlatformAdminLogin ? (
+              <p className="mt-6 text-center text-sm text-neutral-600">
+                想以商家身分登入？
+                <Link
+                  href="/login"
+                  className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
+                >
+                  改用一般登入
+                </Link>
+              </p>
+            ) : (
+              <p className="mt-6 text-center text-sm text-neutral-600">
+                還沒有帳號？
+                <Link
+                  href="/signup"
+                  className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
+                >
+                  申請 14 天免費試用
+                </Link>
+              </p>
+            )}
           </CardContent>
         </Card>
 
