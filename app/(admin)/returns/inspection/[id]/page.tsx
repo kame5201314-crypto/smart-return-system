@@ -169,6 +169,7 @@ export default function InspectionPage() {
                   {/* Main image viewer */}
                   {selectedImage && (
                     <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- Inspection viewer for user-uploaded Storage URL with unknown intrinsic dimensions. */}
                       <img
                         src={selectedImage}
                         alt="Selected"
@@ -187,6 +188,7 @@ export default function InspectionPage() {
                         `}
                         onClick={() => setSelectedImage(image.image_url)}
                       >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- Thumbnail of user-uploaded Storage URL with unknown intrinsic dimensions. */}
                         <img
                           src={image.image_url}
                           alt={image.image_type || 'Photo'}

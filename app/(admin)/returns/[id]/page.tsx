@@ -55,7 +55,6 @@ import { getReturnRequestDetail, updateReturnInfo, submitInspection, deleteRetur
 import { getCurrentUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import {
-  RETURN_STATUS,
   RETURN_STATUS_LABELS,
   RETURN_STATUS_COLORS,
   RETURN_REASONS,
@@ -798,6 +797,7 @@ export default function ReturnDetailPage() {
                   {returnData.return_images.map((image) => (
                     <div key={image.id} className="space-y-1">
                       <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL with unknown intrinsic dimensions; next/image would need remotePatterns + width/height. */}
                         <img
                           src={image.image_url}
                           alt={image.image_type || 'Photo'}
@@ -900,6 +900,7 @@ export default function ReturnDetailPage() {
             <DialogTitle>照片預覽</DialogTitle>
           </DialogHeader>
           {lightboxImage && (
+            // eslint-disable-next-line @next/next/no-img-element -- Lightbox preview of user-uploaded Storage URL with unknown dimensions.
             <img
               src={lightboxImage}
               alt="放大照片"

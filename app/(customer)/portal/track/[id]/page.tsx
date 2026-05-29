@@ -229,6 +229,7 @@ export default function TrackReturnPage() {
             <div className="grid grid-cols-3 gap-3">
               {returnRequest.return_images.map((image) => (
                 <div key={image.id} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Customer portal photo from Storage URL; lazy + async loaded with unknown intrinsic dimensions. */}
                   <img
                     src={image.image_url}
                     alt={image.image_type || 'Photo'}

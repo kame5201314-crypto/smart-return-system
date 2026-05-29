@@ -234,6 +234,7 @@ export default function TrackQueryPage() {
                                 rel="noopener noreferrer"
                                 className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-teal-400 transition-colors"
                               >
+                                {/* eslint-disable-next-line @next/next/no-img-element -- Customer portal track-query thumbnail; Storage URL with unknown intrinsic dimensions. */}
                                 <img
                                   src={img.image_url}
                                   alt="退貨圖片"

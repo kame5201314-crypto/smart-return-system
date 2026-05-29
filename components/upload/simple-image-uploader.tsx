@@ -119,6 +119,7 @@ export function SimpleImageUploader({
           {images.map((image) => (
             <div key={image.id} className="relative group">
               <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Local upload preview (object URL); next/image is incompatible with unknown-dimension client previews. */}
                 <img
                   src={image.preview}
                   alt="Preview"
