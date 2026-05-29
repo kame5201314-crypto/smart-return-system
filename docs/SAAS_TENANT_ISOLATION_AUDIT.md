@@ -1,23 +1,41 @@
 # SaaS Tenant Isolation Audit
 
-Date: 2026-05-20
-Status: Draft for review
+Date: 2026-05-29
+Status: Read-only refresh for public multi-tenant readiness
 Scope: SaaS `develop-saas` checkout only
 
-This audit covers the next safe SaaS work item after `023_saas_commercial_foundation.sql` and `024_saas_commercial_v2.sql`: attach tenant identity to business data and remove cross-organization read/write paths.
+This audit covers the current SaaS tenant isolation posture before any public multi-tenant rollout. It reviews local code, migrations, tests, and read-only schema gate output only.
 
-No database migration has been applied. No Supabase project has been touched.
+No database migration was run by this refresh. No env/secret, deploy, provider, master/live/prod, or production/internal Supabase change was made.
 
 ## Executive Summary
 
-The current SaaS branch has the commercial foundation tables, but most production business tables still come from the internal/live-era schema. Several tables either have no `org_id`, or have RLS policies using `USING (true)` for every authenticated user. Runtime code also uses service-role clients heavily in server actions and API routes.
+The SaaS project has moved past the original draft state:
 
-Before changing server actions, the safe order is:
+- The dedicated SaaS schema chain is applied through `032`.
+- `npm run saas:schema-gate:strict` passes read-only with `22 table(s), 81 column(s) checked`.
+- `025_attach_org_id_to_business_tables.sql` is present and the SaaS schema gate verifies the required `org_id` columns for core customer/business tables.
+- P0 runtime isolation has been added for `lib/actions/return.actions.ts`, `app/api/v1/ai/analyze/route.ts`, and the three export routes.
+- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0 `getOrgContext()` and `.eq('org_id', ...)` guard patterns.
+
+Public multi-tenant rollout is still not fully cleared. The remaining isolation risks are not the already-gated P0 paths; they are the older service-role-heavy P1/P2 paths that still need explicit tenant context or a deliberate non-public gate before broader self-serve use:
+
+- `lib/actions/shopee-returns.actions.ts`
+- `lib/actions/pickup.actions.ts`
+- `lib/actions/customer-return.actions.ts`
+- `lib/actions/upload.ts`
+- `app/api/v1/upload/signed-url/route.ts`
+- `lib/actions/backup.actions.ts`
+- cron/maintenance routes that use service-role clients
+
+Current recommendation: keep Closed Manual Beta constrained. Do not open public signup or broad multi-tenant customer onboarding until the P1/P2 runtime paths are either org-context hardened, disabled behind a flag, or explicitly scoped to trusted/admin-only use.
+
+Before public multi-tenant, the safe order is:
 
 1. Review this audit.
-2. Review `supabase/migrations/025_attach_org_id_to_business_tables.sql`.
-3. Apply `023`, `024`, and `025` only to the SaaS Supabase project after credentials exist.
-4. Use `getOrgContext()` and replace service-role business paths with org-scoped queries.
+2. Keep `025` and `saas:schema-gate:strict` green; do not run new migrations without owner approval.
+3. Convert the remaining P1/P2 runtime paths to `getOrgContext()` plus explicit `.eq('org_id', orgId)` filters before exposing them to public multi-tenant tenants.
+4. Keep service-role access limited to platform-admin, cron, provider, or audited server-only paths with explicit authorization and tenant identifiers.
 
 ## Design Decisions
 
@@ -40,9 +58,18 @@ Before changing server actions, the safe order is:
 - Supports guard requirements for role, feature flag, and writable billing status.
 - Uses the authenticated Supabase server client for membership lookup; it does not use service-role clients for org context.
 
-This is only a local code foundation. P0 runtime action rewrites are still pending and must add explicit `.eq('org_id', orgId)` filters when service-role paths remain necessary.
+The first P0 runtime action rewrites are now in place for returns, AI analysis, and export routes. Remaining service-role paths still need the same guard-and-filter pattern before public multi-tenant exposure.
 
 ## Schema And RLS Audit
+
+Read-only current status:
+
+- `npm run saas:schema-gate:strict` passed on 2026-05-29.
+- The gate checks core SaaS/commercial tables plus business-table `org_id` readiness.
+- Draft migrations `033`-`036` remain unapplied and are outside this audit's allowed actions.
+- `proxy.ts` was not changed; current Next build behavior recognizes it as Proxy / Middleware.
+
+The table below remains useful as the baseline risk map that `025` was designed to close. The live SaaS project should continue to rely on schema-gate output rather than the older internal/live-era assumptions.
 
 | Table | Source | `org_id` today | Current RLS risk | Required action |
 |---|---|---:|---|---|
@@ -74,19 +101,19 @@ The older `supabase/schema.sql` and `001_return_system_schema.sql` already conta
 
 ## Runtime Query And Service Role Audit
 
-High-risk runtime files that currently use service-role or admin clients for customer data:
+Runtime files that use service-role or admin clients for customer data:
 
 | File | Main tables | Risk | Priority |
 |---|---|---|---|
-| `lib/actions/return.actions.ts` | `orders`, `return_requests`, `return_items`, `return_images`, `inspection_records`, `activity_logs`, `customers`, `pickup_records` | Many server actions bypass RLS and do not inject org scope yet. | P0 |
-| `lib/actions/shopee-returns.actions.ts` | `shopee_returns`, `shopee_scan_events`, `shopee_unmatched_scans`, `orders`, `return_requests` | Core hot path for imports, scan, inbound updates. | P0 |
-| `app/api/v1/ai/analyze/route.ts` | `return_requests`, `shopee_returns`, `pickup_records`, `ai_analysis_reports`, `ai_usage_events` | AI reports can aggregate across orgs without org filter. | P0 |
-| `app/api/v1/admin/returns/export/route.ts` | `return_requests`, `users` | Export path must never cross org. | P0 |
-| `app/api/v1/admin/shopee-returns/export/route.ts` | `shopee_returns`, `users` | Export path must never cross org. | P0 |
-| `app/api/v1/admin/pickup/export/route.ts` | `pickup_records`, `users` | Export path must never cross org. | P0 |
-| `lib/actions/pickup.actions.ts` | `pickup_records` | Service role write/read path; needs org context. | P1 |
-| `lib/actions/customer-return.actions.ts` | `customers`, `orders`, `return_requests`, `return_items`, `return_images`, `activity_logs` | Public portal path must map request to org safely. | P1 |
-| `lib/actions/upload.ts` and upload routes | `return_images`, storage `return-images` | Storage path and DB rows need org scoping. | P1 |
+| `lib/actions/return.actions.ts` | `orders`, `return_requests`, `return_items`, `return_images`, `inspection_records`, `activity_logs`, `customers`, `pickup_records` | P0 guard/filter now present: `getOrgContext()` / writable context plus explicit `org_id` inserts and filters. Keep regression tests. | P0 done |
+| `app/api/v1/ai/analyze/route.ts` | `return_requests`, `shopee_returns`, `pickup_records`, `ai_analysis_reports`, `ai_usage_events` | P0 guard/filter now present: org context, AI quota by org, org-scoped reads/writes and usage events. Keep regression tests. | P0 done |
+| `app/api/v1/admin/returns/export/route.ts` | `return_requests`, `orders`, `return_items` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
+| `app/api/v1/admin/shopee-returns/export/route.ts` | `shopee_returns` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
+| `app/api/v1/admin/pickup/export/route.ts` | `pickup_records` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
+| `lib/actions/shopee-returns.actions.ts` | `shopee_returns`, `shopee_scan_events`, `shopee_unmatched_scans`, `orders`, `return_requests` | Still service-role-heavy and this refresh found no `getOrgContext()` / `org_id` guard pattern in the file. Treat as not public multi-tenant safe until hardened or gated. | P1 |
+| `lib/actions/pickup.actions.ts` | `pickup_records` | Still service-role-heavy and this refresh found no `getOrgContext()` / `org_id` guard pattern in the file. Needs tenant context before broad tenant use. | P1 |
+| `lib/actions/customer-return.actions.ts` | `customers`, `orders`, `return_requests`, `return_items`, `return_images`, `activity_logs` | Public portal path still needs explicit org derivation from a trusted route/order context; it must not rely on global order number/phone alone. | P1 |
+| `lib/actions/upload.ts` and `app/api/v1/upload/signed-url/route.ts` | `return_images`, storage `return-images` | Storage and DB rows still need verified org scoping in the object path/session contract before public multi-tenant exposure. | P1 |
 | `lib/actions/backup.actions.ts` | `backup_records`, `backups`, core tables | Backup feature can export all org data if not isolated. | P2 |
 | Cron routes under `app/api/cron/*` | reports, KPIs, retention | Cron should iterate orgs or be platform-admin only. | P2 |
 | Maintenance/predeploy scripts | service role checks | OK for local/CI checks, but SaaS env must point to SaaS DB only. | P2 |
@@ -176,18 +203,20 @@ Service-role policies may stay for controlled server-only paths, but runtime cod
 
 | Priority | Scope | First target |
 |---|---|---|
-| P0 | hot customer data and exports | `return.actions.ts`, `shopee-returns.actions.ts`, AI analyze route, export routes |
-| P1 | portal, upload, pickup | customer portal actions, signed upload/session routes, pickup actions |
+| P0 | hot customer data and exports | Completed for return actions, AI analyze route, and export routes; keep regression coverage. |
+| P1 | Shopee, portal, upload, pickup | `shopee-returns.actions.ts`, customer portal actions, signed upload/session routes, pickup actions |
 | P2 | cron, backup, maintenance | cron routes, backup actions, retention/archive jobs |
 
 ## Next Local Tasks
 
-1. Review `025_attach_org_id_to_business_tables.sql`.
-2. Convert P0 paths to require org context and add `.eq('org_id', orgId)` to every read/write.
-3. Add tests for org-scoped AI analysis, export, returns, and Shopee scan paths.
+1. Keep `tests/unit/saas-runtime-org-isolation.test.ts` as the P0 regression guard.
+2. Add the next regression suite for Shopee import/scan actions before implementation.
+3. Convert `lib/actions/shopee-returns.actions.ts` to require org context and add `.eq('org_id', orgId)` / `org_id` writes to every tenant data path.
+4. Convert `lib/actions/pickup.actions.ts`, `lib/actions/customer-return.actions.ts`, and upload/signed-url paths to the same guard-and-filter pattern.
+5. Decide whether backup/cron routes are platform-only, per-org iteration jobs, or disabled for public multi-tenant launch.
 
 Blocked platform tasks:
 
-- Create SaaS Supabase project.
-- Provide SaaS Supabase env values.
-- Apply `023`, `024`, and `025` to the SaaS Supabase project.
+- External public rollout decisions remain owner-blocked: Sentry DSN, beta/custom domain, email provider, Billing/ECPay, and any production/provider changes.
+- Draft migrations `033`-`036` still require explicit owner authorization before any apply.
+- Public signup / broad self-serve tenant onboarding should stay closed until the P1 tenant isolation gaps are resolved or explicitly gated.

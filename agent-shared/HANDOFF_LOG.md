@@ -1,5 +1,42 @@
 # Handoff Log
 
+## 2026-05-29 Codex -> Claude / Codex
+
+Refreshed the SaaS tenant isolation audit with read-only checks only.
+
+Summary:
+
+- Preflight passed on `develop-saas`; working tree was clean before the audit.
+- Current local HEAD before this documentation update was
+  `097aea8 fix(saas/ui): meet iOS HIG 44px touch targets on marketing shell`.
+- `npm run saas:schema-gate:strict` passed read-only with
+  `22 table(s), 81 column(s) checked`.
+- P0 runtime isolation remains covered for:
+  - `lib/actions/return.actions.ts`
+  - `app/api/v1/ai/analyze/route.ts`
+  - `app/api/v1/admin/returns/export/route.ts`
+  - `app/api/v1/admin/shopee-returns/export/route.ts`
+  - `app/api/v1/admin/pickup/export/route.ts`
+- Public multi-tenant still has P1/P2 gaps because service-role-heavy legacy
+  paths still need tenant context or explicit gating:
+  - `lib/actions/shopee-returns.actions.ts`
+  - `lib/actions/pickup.actions.ts`
+  - `lib/actions/customer-return.actions.ts`
+  - `lib/actions/upload.ts`
+  - `app/api/v1/upload/signed-url/route.ts`
+  - `lib/actions/backup.actions.ts`
+  - cron/maintenance service-role jobs
+
+Notes:
+
+- `proxy.ts` was not changed; current Next 16.2.6 build behavior recognizes it
+  as Proxy / Middleware.
+- No migration was run.
+- No deployment was performed.
+- No env/secret was edited.
+- No billing/provider/domain setting was changed.
+- No master/live/prod/internal Supabase action was performed.
+
 ## 2026-05-28 Codex -> Claude / Codex
 
 Deployed the latest `develop-saas` HEAD to the SaaS Vercel production project

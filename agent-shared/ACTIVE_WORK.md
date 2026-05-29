@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Production now includes customer/platform role separation, latest Claude UI handoffs, launch security headers, admin-login throttling, same-origin mutation guard, future public signup rate limiting, and the non-UI lint cleanup that reduced known lint warnings from 44 to 31. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Codex has no unblocked backend/API task open; do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Latest local HEAD is `097aea8 fix(saas/ui): meet iOS HIG 44px touch targets on marketing shell`. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Read-only tenant isolation audit refresh
+Files:
+- docs/SAAS_TENANT_ISOLATION_AUDIT.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Audited current SaaS tenant isolation without running migrations or changing env/deploy/provider settings. Confirmed `npm run saas:schema-gate:strict` passes read-only and P0 return actions, AI analyze route, and export routes are covered by org-context/org_id regression tests. Recorded remaining public multi-tenant gaps in Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup actions, and cron/maintenance service-role paths. `proxy.ts` was not changed.
+```
 
 ```text
 Owner: Codex
