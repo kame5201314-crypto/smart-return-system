@@ -43,6 +43,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Latest deployed `develop-saas` HEAD is `9176589 fix(saas/ui): finish public RWD and role separation polish`.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `9176589 fix(saas/ui): finish public RWD and role separation polish` -> Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+- Latest read-only external blocker audit confirmed the production alias still points at `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`, Vercel env names still do not include Sentry DSN or provider credentials, no custom/beta domain is visible, and draft migrations `033`-`036` remain unapplied.
 
 ## 2026-06-05 Production Deploy of 9176589
 
@@ -71,6 +72,37 @@ This file tracks external SaaS setup work that must stay separate from the live 
   - No email provider was enabled.
   - No billing/provider was enabled.
   - No master/live/internal Supabase action was performed.
+
+## 2026-06-05 Post-Deploy External Blocker Audit
+
+- Scope:
+  - Read-only post-deploy check after documenting deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`.
+  - No deploy, migration, env/secret edit, domain/DNS change, provider enablement, billing enablement, master/live/prod/internal Supabase action, or production setting mutation was performed.
+- Production deployment:
+  - `npx vercel inspect https://smart-return-system-saas.vercel.app` fetched deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`.
+  - Target is `production`.
+  - Status is Ready.
+  - Production alias remains `https://smart-return-system-saas.vercel.app`.
+- Sentry/logging:
+  - `npx vercel env ls` did not list `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN`.
+  - Sentry SDK support exists in code, but production monitoring remains inactive until owner adds SaaS-only DSN values in Vercel.
+- Domain:
+  - Vercel inspect shows only Vercel-managed aliases for the SaaS project.
+  - No custom or beta domain is visible from the read-only check.
+- Email provider:
+  - Vercel production env names do not list provider keys such as Resend, Postmark, SendGrid, SMTP, or a configured email provider selector.
+  - Email queue/worker remains dry-run only until owner selects a provider, configures sender/domain authentication, and authorizes real delivery.
+- Billing/ECPay:
+  - `ENABLE_BILLING` is present as a production env key, but its encrypted value was not pulled or printed.
+  - No `BILLING_PROVIDER`, `ECPAY_MERCHANT_ID`, `ECPAY_HASH_KEY`, `ECPAY_HASH_IV`, or `ECPAY_MODE` production env keys were listed.
+  - Billing remains blocked for paid self-serve until owner provides ECPay credentials and explicitly authorizes provider activation.
+- Draft migrations:
+  - Draft files remain present in the repo:
+    - `033_saas_platform_billing_operations.sql`
+    - `034_saas_notification_email_queue.sql`
+    - `035_saas_onboarding_completion_rpc.sql`
+    - `036_saas_platform_admin_roles.sql`
+  - They remain recorded as unapplied and require separate owner authorization before any SaaS DB migration work.
 
 ## 2026-06-05 Public Marketing / Legal RWD QA
 

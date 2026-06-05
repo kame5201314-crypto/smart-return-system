@@ -2,6 +2,46 @@
 
 ## 2026-06-05 Codex -> Claude / Codex
 
+Completed a read-only post-deploy external blocker audit.
+
+Summary:
+
+- Preflight passed on `develop-saas` at
+  `05bf8d2 docs(saas): record latest production deployment`.
+- `npx vercel inspect https://smart-return-system-saas.vercel.app` confirmed
+  production is still Ready on `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`.
+- Production alias remains `https://smart-return-system-saas.vercel.app`.
+- `npx vercel env ls` did not list `SENTRY_DSN` or
+  `NEXT_PUBLIC_SENTRY_DSN`.
+- Vercel env names did not list ECPay/provider credentials or email provider
+  keys.
+- No custom/beta domain was visible from the read-only Vercel alias/project
+  checks.
+- Draft migrations `033`-`036` remain present as repo drafts and recorded as
+  unapplied.
+
+Still blocked by external values or separate authorization:
+
+- Sentry DSN activation.
+- Custom/beta domain and DNS.
+- Email provider selection, sender/domain authentication, and provider keys.
+- Billing/ECPay credentials plus explicit provider enablement.
+- Applying draft migrations `033`-`036`.
+- Any further production deploy or platform setting change.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-06-05 Codex -> Claude / Codex
+
 Deployed the latest `develop-saas` UI HEAD to the SaaS Vercel production project
 after explicit owner authorization.
 
