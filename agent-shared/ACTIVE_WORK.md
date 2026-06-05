@@ -25,7 +25,7 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Latest local UI QA completed public marketing/legal RWD inspection for the eight listed public routes, fixed public CTA/nav touch targets to meet 44px, and confirmed customer vs platform role separation UI handoffs are in place. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `9176589 fix(saas/ui): finish public RWD and role separation polish` -> Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Latest production smoke returned 200 for public marketing/login routes, redirected unauthenticated merchant routes to `/login`, and redirected unauthenticated platform routes to `/admin/login?next=...`. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
@@ -33,6 +33,19 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Owner-authorized production deployment of latest UI HEAD
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Owner authorized deploying `develop-saas` HEAD `9176589 fix(saas/ui): finish public RWD and role separation polish` to Vercel production project `smart-return-system-saas`. Ran `npm run saas:predeploy` before deployment; it passed. New production deployment is `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Smoke passed for public routes, unauthenticated merchant-route redirects, and unauthenticated platform-route redirects. No migration, env/secret edit, Sentry/domain/email/billing/provider enablement, master/live/prod/internal Supabase action, or billing activation was performed.
+```
+
+```text
+Owner: Codex
+Commit: 9176589
 Scope: Public marketing/legal RWD QA and UI touch targets
 Files:
 - components/marketing/site-shell.tsx

@@ -2,6 +2,48 @@
 
 ## 2026-06-05 Codex -> Claude / Codex
 
+Deployed the latest `develop-saas` UI HEAD to the SaaS Vercel production project
+after explicit owner authorization.
+
+Summary:
+
+- Preflight passed on `develop-saas` at
+  `9176589 fix(saas/ui): finish public RWD and role separation polish`.
+- Ran `npm run saas:predeploy`; it passed before deployment.
+- Deployed to Vercel production project `smart-return-system-saas`.
+- New Vercel deployment is `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` and is Ready.
+- Deployment URL:
+  `https://smart-return-system-saas-qrewyhbga-kaweis-projects.vercel.app`.
+- Production alias remains `https://smart-return-system-saas.vercel.app`.
+
+Smoke test:
+
+- `200`: `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, `/login`.
+- `307 -> /login`: `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, `/settings/usage`.
+- `307 -> /admin/login?next=...`: `/internal`, `/internal/orgs`.
+
+Still blocked by external values or separate authorization:
+
+- Sentry DSN is not configured.
+- Custom/beta domain is not configured.
+- Email provider delivery remains dry-run.
+- Billing/ECPay remains disabled.
+- Draft migrations `033`-`036` remain unapplied.
+
+Notes:
+
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-06-05 Codex -> Claude / Codex
+
 Completed public marketing/legal RWD QA and customer/platform role-separation
 UI status recording.
 
