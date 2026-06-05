@@ -136,13 +136,13 @@ export default function ReturnsFeaturePage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild className="bg-white text-neutral-950 hover:bg-neutral-100">
+            <Button asChild className="min-h-11 bg-white text-neutral-950 hover:bg-neutral-100">
               <Link href="/signup">
                 14 天免費試用
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white">
+            <Button asChild variant="outline" className="min-h-11 border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white">
               <Link href="/contact">預約 Demo</Link>
             </Button>
           </div>

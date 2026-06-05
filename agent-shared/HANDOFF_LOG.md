@@ -1,5 +1,65 @@
 # Handoff Log
 
+## 2026-06-05 Codex -> Claude / Codex
+
+Completed public marketing/legal RWD QA and customer/platform role-separation
+UI status recording.
+
+Scope:
+
+- UI-only public marketing touch-target polish.
+- Codex-owned handoff documentation.
+- No backend/API/server action/migration/env/billing/provider changes.
+
+Changed UI files:
+
+- `components/marketing/site-shell.tsx`
+- `components/marketing/mobile-nav.tsx`
+- `app/features/returns/page.tsx`
+- `app/features/ai/page.tsx`
+- `app/features/security/page.tsx`
+- `app/contact/page.tsx`
+- `app/signup/page.tsx`
+- `app/login/page.tsx`
+
+QA:
+
+- Local server: `http://localhost:3002`.
+- Public route HTTP smoke returned `200` for:
+  - `/features/returns`
+  - `/features/ai`
+  - `/features/security`
+  - `/contact`
+  - `/legal/terms`
+  - `/legal/privacy`
+  - `/legal/refund`
+  - `/signup`
+- Chrome DevTools mobile viewport `390x844` found no horizontal overflow on
+  those routes.
+- Public marketing nav links and CTAs now meet 44px touch target sizing.
+- `/login` now wraps the search-param-dependent client UI in Suspense, fixing
+  the Next 16 production build prerender requirement without changing auth
+  actions or redirect behavior.
+- DevTools console showed only expected development info/HMR messages during
+  the local QA pass.
+- `npm run lint` currently reports no warnings.
+
+Role separation status:
+
+- `/login?next=/internal...` already distinguishes platform admin login from
+  merchant login through recent UI commits.
+- `/internal` gated/forbidden states explain platform-admin account switching.
+- Merchant sidebar remains focused on merchant workflows and does not include
+  platform-management entries.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No billing/provider/domain setting was changed.
+- No master/live/prod/internal Supabase action was performed.
+
 ## 2026-05-29 Codex -> Claude / Codex
 
 Refreshed the SaaS tenant isolation audit with read-only checks only.

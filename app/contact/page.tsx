@@ -74,7 +74,7 @@ export default function ContactPage() {
             <p className="mt-3 text-sm leading-6 text-neutral-700">
               點下方按鈕會幫你帶好 Email 範本，補上你的資訊送出就好。1 個工作天內回覆。
             </p>
-            <Button asChild className="mt-6 bg-emerald-700 hover:bg-emerald-800">
+            <Button asChild className="mt-6 min-h-11 bg-emerald-700 hover:bg-emerald-800">
               <Link href={mailHref}>
                 <Mail className="size-4" />
                 寄信聯絡
@@ -85,7 +85,7 @@ export default function ContactPage() {
             <div className="mt-6 border-t border-emerald-200 pt-5 text-sm text-neutral-700">
               <p className="font-semibold">想直接申請試用？</p>
               <p className="mt-2 text-neutral-600">
-                <Link href="/signup" className="text-emerald-700 underline underline-offset-2">
+                <Link href="/signup" className="inline-flex min-h-11 items-center text-emerald-700 underline underline-offset-2">
                   申請 Beta 試用 →
                 </Link>
               </p>

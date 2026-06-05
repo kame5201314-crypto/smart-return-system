@@ -119,7 +119,7 @@ export default function SecurityFeaturePage() {
               </p>
             </div>
           </div>
-          <Button asChild>
+          <Button asChild className="min-h-11">
             <Link href="/contact">
               洽談企業方案
               <ArrowRight className="size-4" />

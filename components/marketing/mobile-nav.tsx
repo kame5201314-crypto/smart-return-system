@@ -56,7 +56,7 @@ export function MarketingMobileNav({
               key={item.href}
               href={item.href}
               onClick={handleNavigate}
-              className="rounded-md px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+              className="flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
             >
               {item.label}
             </Link>
@@ -73,7 +73,7 @@ export function MarketingMobileNav({
                 key={item.href}
                 href={item.href}
                 onClick={handleNavigate}
-                className="rounded-md px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100"
+                className="flex min-h-11 items-center rounded-md px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100"
               >
                 {item.label}
               </Link>
@@ -85,7 +85,7 @@ export function MarketingMobileNav({
           <Link
             href="/login"
             onClick={handleNavigate}
-            className="block rounded-md px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+            className="flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
           >
             登入
           </Link>

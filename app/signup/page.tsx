@@ -121,14 +121,14 @@ export default function SignupPage() {
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button asChild className="bg-emerald-700 hover:bg-emerald-800">
+              <Button asChild className="min-h-11 bg-emerald-700 hover:bg-emerald-800">
                 <Link href={primaryHref}>
                   <Mail className="size-4" />
                   寄信申請（範本已帶好）
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="min-h-11">
                 <Link href="/contact">改用其他方式聯絡</Link>
               </Button>
             </div>

@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-05-28
+Last updated: 2026-06-05
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -22,7 +22,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. DB-backed role assignments still require migration `036` to be explicitly applied before UI exposure.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
-- Latest Claude UI handoffs through `a63cfe2` are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, and `/not-found` SaaS branding.
+- Latest Claude/Codex UI handoffs through the 2026-06-05 public RWD QA are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, and public marketing/legal mobile touch-target QA.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
@@ -31,7 +31,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Platform admin password login now has best-effort, per-runtime throttling by login id and client IP. This reduces repeated password guessing against the `/admin/login` / `/login` internal admin path, but it is not a replacement for a persistent edge/WAF rate limit.
 - Browser-driven mutation APIs now share a same-origin guard that rejects explicit cross-site `Origin`, `Referer`, or Fetch Metadata requests before route handlers run. ECPay webhook, cron, and schema alert routes are intentionally excluded because they are provider/secret-gated server-to-server endpoints.
 - Public signup API now has best-effort, per-runtime request throttling. Public signup is still closed by `ENABLE_PUBLIC_SIGNUP=false`, but the route is safer for a future controlled rollout.
-- Non-UI lint cleanup removed unused local variables from Codex-owned `lib/**` and `scripts/**` paths. Known lint warnings are reduced from 44 to 31; remaining warnings are UI/component scoped.
+- Non-UI lint cleanup removed unused local variables from Codex-owned `lib/**` and `scripts/**` paths. The 2026-06-05 UI QA pass observed `npm run lint` with no warnings.
 - Production dependency audit no longer reports high-severity advisories after non-breaking updates. Remaining production audit findings are 4 moderate advisories in nested `next -> postcss` and `exceljs -> uuid`; npm only offers `--force` fixes that would make breaking dependency changes, so they are tracked as residual risk instead of being force-applied before launch.
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
@@ -43,6 +43,32 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings`.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
+
+## 2026-06-05 Public Marketing / Legal RWD QA
+
+- Scope:
+  - Local UI-only QA for `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, and `/signup`.
+  - Customer vs platform role separation UI status recording.
+- Local smoke:
+  - All eight public/legal/signup routes returned `200` from `http://localhost:3002`.
+- Mobile RWD:
+  - Chrome DevTools viewport `390x844`.
+  - No horizontal overflow detected on the eight routes.
+  - Public marketing nav links and CTAs meet 44px touch target sizing after this UI-only pass.
+- Login build readiness:
+  - `/login` now wraps the search-param-dependent client UI in Suspense, satisfying the Next 16 production build prerender requirement without changing auth actions or redirect behavior.
+- Role separation UI:
+  - `/login?next=/internal...` distinguishes platform admin login from merchant login.
+  - `/internal` gated/forbidden states explain platform admin account switching.
+  - Merchant sidebar remains focused on merchant workflows and does not include platform-management entries.
+- Verification:
+  - `npm run lint`: passed with no warnings.
+- Not performed:
+  - No backend/API/server action change.
+  - No migration was run.
+  - No deployment was performed.
+  - No env/secret was edited.
+  - No billing/provider/domain setting was changed.
 
 ## 2026-05-28 Production Deploy of c335410
 

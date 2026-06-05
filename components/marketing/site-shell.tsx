@@ -16,7 +16,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
               publicNavItems={publicNavItems}
               legalNavItems={legalNavItems}
             />
-            <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
+            <Link href="/" className="flex min-h-11 items-center gap-2 rounded-md pr-2 text-sm font-semibold">
               <span className="flex size-9 items-center justify-center rounded-md bg-neutral-950 text-white">
                 <PackageCheck className="size-5" />
               </span>
@@ -29,7 +29,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-md px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950"
+                className="inline-flex min-h-11 items-center rounded-md px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950"
               >
                 {item.label}
               </Link>
@@ -37,10 +37,10 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="hidden h-11 sm:inline-flex sm:h-9">
+            <Button asChild variant="ghost" size="sm" className="hidden h-11 sm:inline-flex">
               <Link href="/login">登入</Link>
             </Button>
-            <Button asChild size="sm" className="h-11 sm:h-9">
+            <Button asChild size="sm" className="h-11">
               <Link href="/signup">
                 免費試用 14 天
                 <ArrowRight className="size-4" />

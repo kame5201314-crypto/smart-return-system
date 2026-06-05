@@ -121,7 +121,7 @@ export default function AiFeaturePage() {
               </p>
             </div>
           </div>
-          <Button asChild>
+          <Button asChild className="min-h-11">
             <Link href="/contact">
               預約 30 分鐘 Demo
               <ArrowRight className="size-4" />

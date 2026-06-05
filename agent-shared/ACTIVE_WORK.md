@@ -25,10 +25,31 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Latest local HEAD is `097aea8 fix(saas/ui): meet iOS HIG 44px touch targets on marketing shell`. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `c335410 chore(saas): clean up non-ui lint warnings` -> Vercel deployment `dpl_4rT9FztGCfh6QxcM9mUHzaBPkSzh` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Latest local UI QA completed public marketing/legal RWD inspection for the eight listed public routes, fixed public CTA/nav touch targets to meet 44px, and confirmed customer vs platform role separation UI handoffs are in place. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN is still not configured because no real DSN is available locally or in Vercel env. Beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Public marketing/legal RWD QA and UI touch targets
+Files:
+- components/marketing/site-shell.tsx
+- components/marketing/mobile-nav.tsx
+- app/features/returns/page.tsx
+- app/features/ai/page.tsx
+- app/features/security/page.tsx
+- app/contact/page.tsx
+- app/signup/page.tsx
+- app/login/page.tsx
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+Status: done
+Notes: Ran local public/legal smoke and Chrome DevTools mobile QA for `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/legal/terms`, `/legal/privacy`, `/legal/refund`, and `/signup`. All returned 200, no mobile horizontal overflow was detected at 390x844, and public marketing links/CTAs now meet 44px touch target sizing. Wrapped the `/login` search-param UI in a Suspense boundary so Next 16 production build can prerender the login route. Lint currently reports no warnings. No backend/API/server action/migration/env/billing/provider change was made.
+```
 
 ```text
 Owner: Codex
