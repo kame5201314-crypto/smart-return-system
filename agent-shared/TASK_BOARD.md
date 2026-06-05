@@ -65,6 +65,7 @@ Status values:
 | done | Internal admin unauthenticated redirect contract | This commit; `/internal/*` page loaders now redirect unauthenticated visitors to the platform admin login entry while preserving forbidden gated states for authenticated non-admin users |
 | done | Role-based post-login redirect contract | This commit; `signIn()` returns `redirectTo` so platform admins land on `/internal` while merchant users land on `/analytics`; UI only consumes the backend result |
 | done | Latest HEAD production deployment | Deployed `9176589` to Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`; public smoke returned 200, tenant protected routes redirected to `/login`, and platform protected routes redirected to `/admin/login?next=...`; Sentry DSN still missing because no real DSN value is available |
+| done | External owner action runbook | This commit; added `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md` with Sentry/domain/email/Billing/ECPay handoff templates, production smoke snapshot, and migration `033`-`036` sequencing guidance. No deployment, migration, env/secret edit, or provider enablement |
 | done | Closed Manual Beta production smoke | Deployment `dpl_8Huiefp9Y3A3W3Wxpsvsx4WFDajS` for `smart-return-system-saas` is Ready; public pages returned 200 and protected unauthenticated pages redirected to `/login` |
 | done | Platform admin billing operation backend plan | This commit; added guarded `POST /api/internal/saas/billing/operations`, RPC wrapper, and draft `033` for manual payment marking, suspend/resume, refund request, and audit logging |
 | done | At-risk alert backend contract | This commit; added read-only `PlatformAtRiskAlertsView` and `loadPlatformAtRiskAlertsView()` for past_due, suspended, AI/return/seat quota, and trial expiry signals |
@@ -117,8 +118,8 @@ Status values:
 
 Claude owns the next executable UI-only work:
 
-- Public marketing/legal responsive QA and any UI-only polish on the listed public routes.
-- Any follow-up from the RWD pass should stay UI-only unless Claude explicitly needs a new backend contract.
+- No open Claude UI task is recorded after the public marketing/legal RWD QA and customer/platform role-separation polish.
+- Any future UI follow-up from owner feedback should stay UI-only unless Claude explicitly needs a new backend contract.
 
 Codex owns the non-UI queue:
 

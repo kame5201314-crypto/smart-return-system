@@ -4,6 +4,10 @@ Last updated: 2026-06-05
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
+See also: [`SAAS_EXTERNAL_OWNER_ACTIONS.md`](./SAAS_EXTERNAL_OWNER_ACTIONS.md)
+for owner-provided values, handoff templates, and the recommended order for
+Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
+
 ## Current Status Snapshot
 
 - Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
@@ -13,6 +17,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
 - Draft migration `035_saas_onboarding_completion_rpc.sql` exists for onboarding completion audit writes but has not been applied.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
+- External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
 - Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.

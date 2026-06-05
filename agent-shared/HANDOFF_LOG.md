@@ -1,5 +1,60 @@
 # Handoff Log
 
+## 2026-06-05 Codex -> Owner / Claude / Codex
+
+Added the external owner action runbook and refreshed the remaining blocker
+handoff without touching runtime services.
+
+Summary:
+
+- Added `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`.
+- Recorded the current production smoke snapshot for
+  `https://smart-return-system-saas.vercel.app`.
+- Documented owner-provided values required for Sentry DSN, beta/custom domain,
+  email provider, Billing/ECPay, and draft migrations `033`-`036`.
+- Added copy/paste handoff templates for each external action.
+- Ranked migrations `033`-`036` by recommended timing:
+  - `035` is the best first candidate if onboarding completion persistence is
+    desired.
+  - `034` is queue storage for future email delivery.
+  - `036` needs a DB-backed platform admin role rollout and seed plan.
+  - `033` should wait for Stage 2 billing operations.
+
+Production smoke snapshot:
+
+- Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` is Ready.
+- `200`: `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, `/login`.
+- `307 -> /login`: `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, `/settings/usage`.
+- `307 -> /admin/login?next=...`: `/internal`, `/internal/orgs`.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run lint`: passed with 0 warnings.
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
 ## 2026-06-05 Codex -> Claude / Codex
 
 Completed a read-only post-deploy external blocker audit.
