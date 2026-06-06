@@ -1,10 +1,12 @@
 'use server';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import { getOrgContext } from '@/lib/saas/org-context';
 import type { ApiResponse } from '@/types';
 
 export interface BackupRecord {
   id: string;
+  org_id?: string | null;
   backup_name: string;
   backup_type: 'manual' | 'auto';
   file_path: string;
@@ -16,6 +18,7 @@ export interface BackupRecord {
 export interface BackupData {
   metadata: {
     created_at: string;
+    org_id: string;
     backup_type: 'manual' | 'auto';
     tables: string[];
     record_counts: Record<string, number>;
@@ -29,46 +32,160 @@ export interface BackupData {
   };
 }
 
-/**
- * 獲取備份歷史記錄
- */
+interface BackupActionOptions {
+  orgId?: string;
+  source?: 'tenant' | 'cron';
+}
+
+interface QueryError {
+  code?: string;
+  message?: string;
+}
+
+interface QueryResult<T> {
+  data: T[] | null;
+  error: QueryError | null;
+}
+
+async function getBackupReadOrgId(options?: BackupActionOptions): Promise<string> {
+  if (options?.source === 'cron' && options.orgId) {
+    return options.orgId;
+  }
+
+  const context = await getOrgContext({
+    requirements: {
+      roles: ['owner', 'admin'],
+      exportable: true,
+    },
+  });
+
+  return context.orgId;
+}
+
+async function getBackupWritableOrgId(options?: BackupActionOptions): Promise<string> {
+  if (options?.source === 'cron' && options.orgId) {
+    return options.orgId;
+  }
+
+  const context = await getOrgContext({
+    requirements: {
+      roles: ['owner', 'admin'],
+      writable: true,
+      exportable: true,
+    },
+  });
+
+  return context.orgId;
+}
+
+function isMissingBackupSchemaError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const record = error as QueryError;
+  const message = String(record.message || '').toLowerCase();
+  return (
+    record.code === '42P01'
+    || record.code === 'PGRST205'
+    || (message.includes('backup_records') && message.includes('schema cache'))
+    || (message.includes('org_id') && (message.includes('schema cache') || message.includes('column')))
+  );
+}
+
+function getOrgBackupPrefix(orgId: string): string {
+  return `backups/${orgId}/`;
+}
+
+function isOrgBackupPath(filePath: string, orgId: string): boolean {
+  return filePath.startsWith(getOrgBackupPrefix(orgId));
+}
+
+function scopeRowsToOrg(rows: unknown[] | undefined, orgId: string): never[] {
+  return (rows || []).map((row) => ({
+    ...(typeof row === 'object' && row !== null ? row : {}),
+    org_id: orgId,
+  })) as never[];
+}
+
+function formatBackupTimestamp(date: Date): string {
+  const pad = (value: number) => value.toString().padStart(2, '0');
+  return [
+    date.getFullYear(),
+    '-',
+    pad(date.getMonth() + 1),
+    '-',
+    pad(date.getDate()),
+    '_',
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join('');
+}
+
+async function loadOrgRows<T>(
+  supabase: ReturnType<typeof createUntypedAdminClient>,
+  table: string,
+  orgId: string,
+  order?: { column: string; ascending: boolean }
+): Promise<ApiResponse<T[]>> {
+  let query = supabase
+    .from(table)
+    .select('*')
+    .eq('org_id', orgId);
+
+  if (order) {
+    query = query.order(order.column, { ascending: order.ascending });
+  }
+
+  const result = (await query) as QueryResult<T>;
+  if (result.error) {
+    return { success: false, error: result.error.message || `${table} backup query failed` };
+  }
+
+  return { success: true, data: result.data || [] };
+}
+
 export async function getBackupHistory(): Promise<ApiResponse<BackupRecord[]>> {
   try {
+    const orgId = await getBackupReadOrgId();
     const supabase = createUntypedAdminClient();
 
     const { data, error } = await supabase
       .from('backup_records')
       .select('*')
+      .eq('org_id', orgId)
       .order('created_at', { ascending: false })
       .limit(50);
 
     if (error) {
-      // 如果表不存在，返回空數組
-      if (error.code === '42P01') {
+      if (isMissingBackupSchemaError(error)) {
         return { success: true, data: [] };
       }
-      return { success: false, error: '獲取備份歷史失敗' };
+      return { success: false, error: error.message || 'Backup history failed' };
     }
 
     return { success: true, data: (data as BackupRecord[]) || [] };
-  } catch {
-    return { success: false, error: '獲取備份歷史失敗' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Backup history failed',
+    };
   }
 }
 
-/**
- * 執行備份 - 導出數據
- */
 export async function createBackup(
   selectedTables: string[],
   backupType: 'manual' | 'auto' = 'manual',
-  pickupRecords?: unknown[] // 從前端傳入的 localStorage 數據
+  _pickupRecords?: unknown[],
+  options?: BackupActionOptions
 ): Promise<ApiResponse<{ data: BackupData; downloadUrl?: string }>> {
+  void _pickupRecords;
+
   try {
+    const orgId = await getBackupWritableOrgId(options);
     const supabase = createUntypedAdminClient();
     const backupData: BackupData = {
       metadata: {
         created_at: new Date().toISOString(),
+        org_id: orgId,
         backup_type: backupType,
         tables: selectedTables,
         record_counts: {},
@@ -76,55 +193,58 @@ export async function createBackup(
       data: {},
     };
 
-    // 備份退貨管理相關表
     if (selectedTables.includes('return_management')) {
-      // return_requests
-      const { data: requests } = await supabase
-        .from('return_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-      backupData.data.return_requests = requests || [];
-      backupData.metadata.record_counts.return_requests = requests?.length || 0;
+      const requests = await loadOrgRows<Record<string, unknown>>(
+        supabase,
+        'return_requests',
+        orgId,
+        { column: 'created_at', ascending: false }
+      );
+      if (!requests.success) return { success: false, error: requests.error };
+      backupData.data.return_requests = requests.data || [];
+      backupData.metadata.record_counts.return_requests = requests.data?.length || 0;
 
-      // return_items
-      const { data: items } = await supabase
-        .from('return_items')
-        .select('*');
-      backupData.data.return_items = items || [];
-      backupData.metadata.record_counts.return_items = items?.length || 0;
+      const items = await loadOrgRows<Record<string, unknown>>(supabase, 'return_items', orgId);
+      if (!items.success) return { success: false, error: items.error };
+      backupData.data.return_items = items.data || [];
+      backupData.metadata.record_counts.return_items = items.data?.length || 0;
 
-      // return_images
-      const { data: images } = await supabase
-        .from('return_images')
-        .select('*');
-      backupData.data.return_images = images || [];
-      backupData.metadata.record_counts.return_images = images?.length || 0;
+      const images = await loadOrgRows<Record<string, unknown>>(supabase, 'return_images', orgId);
+      if (!images.success) return { success: false, error: images.error };
+      backupData.data.return_images = images.data || [];
+      backupData.metadata.record_counts.return_images = images.data?.length || 0;
     }
 
-    // 備份蝦皮退貨
     if (selectedTables.includes('shopee_returns')) {
-      const { data: shopeeReturns } = await supabase
-        .from('shopee_returns')
-        .select('*')
-        .order('created_at', { ascending: false });
-      backupData.data.shopee_returns = shopeeReturns || [];
-      backupData.metadata.record_counts.shopee_returns = shopeeReturns?.length || 0;
+      const shopeeReturns = await loadOrgRows<Record<string, unknown>>(
+        supabase,
+        'shopee_returns',
+        orgId,
+        { column: 'created_at', ascending: false }
+      );
+      if (!shopeeReturns.success) return { success: false, error: shopeeReturns.error };
+      backupData.data.shopee_returns = shopeeReturns.data || [];
+      backupData.metadata.record_counts.shopee_returns = shopeeReturns.data?.length || 0;
     }
 
-    // 備份派車收件（從前端傳入）
-    if (selectedTables.includes('pickup') && pickupRecords) {
-      backupData.data.pickup_records = pickupRecords;
-      backupData.metadata.record_counts.pickup_records = pickupRecords.length;
+    if (selectedTables.includes('pickup')) {
+      const pickupRecords = await loadOrgRows<Record<string, unknown>>(
+        supabase,
+        'pickup_records',
+        orgId,
+        { column: 'created_at', ascending: false }
+      );
+      if (!pickupRecords.success) return { success: false, error: pickupRecords.error };
+      backupData.data.pickup_records = pickupRecords.data || [];
+      backupData.metadata.record_counts.pickup_records = pickupRecords.data?.length || 0;
     }
 
-    // 如果是自動備份，存到 Storage
     if (backupType === 'auto') {
-      const fileName = `backup_${format(new Date(), 'yyyy-MM-dd_HHmmss')}.json`;
-      const filePath = `backups/${fileName}`;
+      const fileName = `backup_${formatBackupTimestamp(new Date())}.json`;
+      const filePath = `${getOrgBackupPrefix(orgId)}${fileName}`;
       const jsonString = JSON.stringify(backupData, null, 2);
-      const fileSize = new Blob([jsonString]).size;
+      const fileSize = Buffer.byteLength(jsonString, 'utf8');
 
-      // 上傳到 Storage
       const { error: uploadError } = await supabase.storage
         .from('backups')
         .upload(filePath, jsonString, {
@@ -133,15 +253,14 @@ export async function createBackup(
         });
 
       if (uploadError) {
-        // 如果 bucket 不存在，提示用戶
-        if (uploadError.message.includes('not found')) {
-          return { success: false, error: '請先在 Supabase 創建 backups 儲存桶' };
+        if (String(uploadError.message || '').includes('not found')) {
+          return { success: false, error: 'Backups storage bucket is not ready' };
         }
-        return { success: false, error: '備份上傳失敗' };
+        return { success: false, error: uploadError.message || 'Backup upload failed' };
       }
 
-      // 記錄備份歷史
-      await supabase.from('backup_records').insert({
+      const { error: recordError } = await supabase.from('backup_records').insert({
+        org_id: orgId,
         backup_name: fileName,
         backup_type: backupType,
         file_path: filePath,
@@ -149,168 +268,180 @@ export async function createBackup(
         tables_included: selectedTables,
       });
 
-      // 清理舊備份（保留最近60天）
-      await cleanupOldBackups();
+      if (recordError) {
+        return { success: false, error: recordError.message || 'Backup record failed' };
+      }
+
+      await cleanupOldBackups(orgId);
     }
 
     return { success: true, data: { data: backupData } };
-  } catch {
-    return { success: false, error: '備份失敗' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Backup failed',
+    };
   }
 }
 
-/**
- * 從 Storage 下載備份
- */
 export async function downloadBackup(filePath: string): Promise<ApiResponse<{ url: string }>> {
   try {
+    const orgId = await getBackupReadOrgId();
+    if (!isOrgBackupPath(filePath, orgId)) {
+      return { success: false, error: 'Backup file is outside this workspace' };
+    }
+
     const supabase = createUntypedAdminClient();
 
     const { data, error } = await supabase.storage
       .from('backups')
-      .createSignedUrl(filePath, 3600); // 1小時有效
+      .createSignedUrl(filePath, 3600);
 
     if (error) {
-      return { success: false, error: '下載失敗' };
+      return { success: false, error: error.message || 'Backup download failed' };
     }
 
     return { success: true, data: { url: data.signedUrl } };
-  } catch {
-    return { success: false, error: '下載失敗' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Backup download failed',
+    };
   }
 }
 
-/**
- * 刪除備份
- */
 export async function deleteBackup(id: string, filePath: string): Promise<ApiResponse<void>> {
   try {
+    const orgId = await getBackupWritableOrgId();
+    if (!isOrgBackupPath(filePath, orgId)) {
+      return { success: false, error: 'Backup file is outside this workspace' };
+    }
+
     const supabase = createUntypedAdminClient();
 
-    // 刪除 Storage 文件
     await supabase.storage.from('backups').remove([filePath]);
 
-    // 刪除記錄
     const { error } = await supabase
       .from('backup_records')
       .delete()
+      .eq('org_id', orgId)
       .eq('id', id);
 
     if (error) {
-      return { success: false, error: '刪除記錄失敗' };
+      return { success: false, error: error.message || 'Backup delete failed' };
     }
 
     return { success: true };
-  } catch {
-    return { success: false, error: '刪除失敗' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Backup delete failed',
+    };
   }
 }
 
-/**
- * 清理超過60天的舊備份
- */
-async function cleanupOldBackups(): Promise<void> {
+async function cleanupOldBackups(orgId: string): Promise<void> {
   try {
     const supabase = createUntypedAdminClient();
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-    // 獲取要刪除的備份記錄
-    const { data: oldBackups } = await supabase
+    const { data: oldBackups, error } = await supabase
       .from('backup_records')
       .select('id, file_path')
+      .eq('org_id', orgId)
       .lt('created_at', sixtyDaysAgo.toISOString());
 
-    if (oldBackups && oldBackups.length > 0) {
-      // 刪除 Storage 文件
-      const filePaths = oldBackups.map((b: { file_path: string }) => b.file_path);
-      await supabase.storage.from('backups').remove(filePaths);
-
-      // 刪除記錄
-      const ids = oldBackups.map((b: { id: string }) => b.id);
-      await supabase.from('backup_records').delete().in('id', ids);
+    if (error || !oldBackups || oldBackups.length === 0) {
+      return;
     }
+
+    const scopedBackups = (oldBackups as { id: string; file_path: string }[]).filter((backup) =>
+      isOrgBackupPath(backup.file_path, orgId)
+    );
+    if (scopedBackups.length === 0) {
+      return;
+    }
+
+    const filePaths = scopedBackups.map((backup) => backup.file_path);
+    await supabase.storage.from('backups').remove(filePaths);
+
+    const ids = scopedBackups.map((backup) => backup.id);
+    await supabase.from('backup_records').delete().eq('org_id', orgId).in('id', ids);
   } catch {
-    // 清理失敗不影響主流程
+    // Retention cleanup is best-effort and must not fail the backup itself.
   }
 }
 
-// Helper function
-function format(date: Date, formatStr: string): string {
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return formatStr
-    .replace('yyyy', date.getFullYear().toString())
-    .replace('MM', pad(date.getMonth() + 1))
-    .replace('dd', pad(date.getDate()))
-    .replace('HH', pad(date.getHours()))
-    .replace('mm', pad(date.getMinutes()))
-    .replace('ss', pad(date.getSeconds()));
-}
-
-/**
- * 還原備份資料
- */
 export async function restoreBackup(
   backupData: BackupData,
   selectedTables: string[]
 ): Promise<ApiResponse<{ restored: Record<string, number> }>> {
   try {
+    const orgId = await getBackupWritableOrgId();
+    if (backupData.metadata.org_id && backupData.metadata.org_id !== orgId) {
+      return { success: false, error: 'Backup belongs to another workspace' };
+    }
+
     const supabase = createUntypedAdminClient();
     const restored: Record<string, number> = {};
 
-    // 還原退貨管理相關表
     if (selectedTables.includes('return_management')) {
-      // 還原 return_requests
-      if (backupData.data.return_requests && backupData.data.return_requests.length > 0) {
+      const returnRequests = scopeRowsToOrg(backupData.data.return_requests, orgId);
+      if (returnRequests.length > 0) {
         const { error } = await supabase
           .from('return_requests')
-          .upsert(backupData.data.return_requests as never[], { onConflict: 'id' });
-        if (error) {
-          return { success: false, error: '還原退貨申請失敗' };
-        }
-        restored.return_requests = backupData.data.return_requests.length;
+          .upsert(returnRequests, { onConflict: 'id' });
+        if (error) return { success: false, error: error.message || 'Return restore failed' };
+        restored.return_requests = returnRequests.length;
       }
 
-      // 還原 return_items
-      if (backupData.data.return_items && backupData.data.return_items.length > 0) {
+      const returnItems = scopeRowsToOrg(backupData.data.return_items, orgId);
+      if (returnItems.length > 0) {
         const { error } = await supabase
           .from('return_items')
-          .upsert(backupData.data.return_items as never[], { onConflict: 'id' });
-        if (error) {
-          return { success: false, error: '還原退貨商品失敗' };
-        }
-        restored.return_items = backupData.data.return_items.length;
+          .upsert(returnItems, { onConflict: 'id' });
+        if (error) return { success: false, error: error.message || 'Return item restore failed' };
+        restored.return_items = returnItems.length;
       }
 
-      // 還原 return_images
-      if (backupData.data.return_images && backupData.data.return_images.length > 0) {
+      const returnImages = scopeRowsToOrg(backupData.data.return_images, orgId);
+      if (returnImages.length > 0) {
         const { error } = await supabase
           .from('return_images')
-          .upsert(backupData.data.return_images as never[], { onConflict: 'id' });
-        if (error) {
-          return { success: false, error: '還原退貨照片失敗' };
-        }
-        restored.return_images = backupData.data.return_images.length;
+          .upsert(returnImages, { onConflict: 'id' });
+        if (error) return { success: false, error: error.message || 'Return image restore failed' };
+        restored.return_images = returnImages.length;
       }
     }
 
-    // 還原蝦皮退貨
     if (selectedTables.includes('shopee_returns')) {
-      if (backupData.data.shopee_returns && backupData.data.shopee_returns.length > 0) {
+      const shopeeReturns = scopeRowsToOrg(backupData.data.shopee_returns, orgId);
+      if (shopeeReturns.length > 0) {
         const { error } = await supabase
           .from('shopee_returns')
-          .upsert(backupData.data.shopee_returns as never[], { onConflict: 'id' });
-        if (error) {
-          return { success: false, error: '還原蝦皮退貨失敗' };
-        }
-        restored.shopee_returns = backupData.data.shopee_returns.length;
+          .upsert(shopeeReturns, { onConflict: 'id' });
+        if (error) return { success: false, error: error.message || 'Shopee restore failed' };
+        restored.shopee_returns = shopeeReturns.length;
       }
     }
 
-    // 派車收件需要在前端處理（localStorage）
+    if (selectedTables.includes('pickup')) {
+      const pickupRecords = scopeRowsToOrg(backupData.data.pickup_records, orgId);
+      if (pickupRecords.length > 0) {
+        const { error } = await supabase
+          .from('pickup_records')
+          .upsert(pickupRecords, { onConflict: 'id' });
+        if (error) return { success: false, error: error.message || 'Pickup restore failed' };
+        restored.pickup_records = pickupRecords.length;
+      }
+    }
 
     return { success: true, data: { restored } };
-  } catch {
-    return { success: false, error: '還原失敗' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Backup restore failed',
+    };
   }
 }

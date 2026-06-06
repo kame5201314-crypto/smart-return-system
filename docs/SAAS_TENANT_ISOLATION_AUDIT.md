@@ -1,7 +1,7 @@
 # SaaS Tenant Isolation Audit
 
 Date: 2026-06-06
-Status: P1 pickup/customer/upload isolation hardening in progress for public multi-tenant readiness
+Status: P2 backup and cron gating completed locally for public multi-tenant readiness
 Scope: SaaS `develop-saas` checkout only
 
 This audit covers the current SaaS tenant isolation posture before any public multi-tenant rollout. It reviews local code, migrations, tests, and read-only schema gate output only.
@@ -20,14 +20,19 @@ The SaaS project has moved past the original draft state:
 - P1 pickup runtime isolation is now added for `lib/actions/pickup.actions.ts`.
 - P1 customer-return portal writes now derive tenant scope from the matched existing order and bind all customer/order/return/image/item/log writes to the derived `org_id`.
 - P1 upload image actions now require org context for authenticated image DB/storage reads and writes; signed upload sessions can carry `orgId` and write staged paths under `staging/{orgId}/{draftId}` while retaining legacy anonymous staging compatibility.
-- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0, Shopee P1, pickup P1, customer-return P1, and upload/signed-url guard patterns.
+- P2 backup actions now require owner/admin org context, scope backup reads/writes by `org_id`, force restored rows back to the active org, and store/download/delete files only under `backups/{orgId}/`.
+- The backup cron no longer performs platform-wide backup by default; it skips safely unless `SAAS_BACKUP_ORG_ID` is configured, and then calls the backup action with an explicit cron org id.
+- Non-backup platform maintenance cron routes now skip safely unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured.
+- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0, Shopee P1, pickup P1, customer-return P1, upload/signed-url, backup/backup-cron, and maintenance cron gate patterns.
 
-Public multi-tenant rollout is still not fully cleared. The remaining isolation risks are not the already-gated P0 paths; they are the older service-role-heavy P1/P2 paths that still need explicit tenant context or a deliberate non-public gate before broader self-serve use:
+Public multi-tenant runtime isolation is locally gated for the known P0/P1/P2 paths reviewed here. Remaining public rollout blockers are now external/product decisions rather than unscoped customer-data runtime actions:
 
-- `lib/actions/backup.actions.ts`
-- cron/maintenance routes that use service-role clients
+- configuring `app.smart-return.tw`
+- keeping email provider skipped or choosing a provider later
+- keeping Billing/ECPay disabled until Stage 2
+- deciding whether to set `ENABLE_PLATFORM_MAINTENANCE_CRON=true` for platform-wide maintenance cron after accepting its platform-only behavior
 
-Current recommendation: keep Closed Manual Beta constrained. Do not open public signup or broad multi-tenant customer onboarding until the P1/P2 runtime paths are either org-context hardened, disabled behind a flag, or explicitly scoped to trusted/admin-only use.
+Current recommendation: keep Closed Manual Beta constrained until domain and public signup decisions are explicit. If public signup or broad onboarding is enabled, keep `ENABLE_PLATFORM_MAINTENANCE_CRON` unset/false unless platform-wide maintenance semantics are reviewed and accepted.
 
 Before public multi-tenant, the safe order is:
 
@@ -57,7 +62,7 @@ Before public multi-tenant, the safe order is:
 - Supports guard requirements for role, feature flag, and writable billing status.
 - Uses the authenticated Supabase server client for membership lookup; it does not use service-role clients for org context.
 
-The first P0 runtime action rewrites are now in place for returns, AI analysis, and export routes. Shopee returns and scan actions now use the same guard-and-filter pattern. Remaining service-role paths still need the same guard-and-filter pattern before public multi-tenant exposure.
+The first P0 runtime action rewrites are now in place for returns, AI analysis, and export routes. Shopee, pickup, customer-return, upload/signed-url, and backup actions now use tenant guard/filter or explicit-org gating patterns. Non-backup service-role cron/maintenance paths are now disabled by default unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true`.
 
 ## Schema And RLS Audit
 
@@ -113,8 +118,9 @@ Runtime files that use service-role or admin clients for customer data:
 | `lib/actions/pickup.actions.ts` | `pickup_records` | P1 guard/filter now present: read actions use org context, mutating actions require writable org context, reads/updates/deletes filter by `org_id`, imports/creates include `org_id`, and scan audit metadata includes the org id. | P1 done |
 | `lib/actions/customer-return.actions.ts` | `customers`, `orders`, `return_requests`, `return_items`, `return_images`, `activity_logs` | P1 hardening now derives tenant scope from an existing matched order number + customer phone pair, rejects missing or ambiguous org matches, writes child rows with `org_id`, filters lookups by derived org, and stores final images under `returns/{orgId}/...`. Anonymous public portal uploads still use a legacy-compatible staging fallback until the UI can pass org-scoped upload sessions earlier in the flow. | P1 done with compatibility note |
 | `lib/actions/upload.ts` and `app/api/v1/upload/signed-url/route.ts` | `return_images`, storage `return-images` | P1 action hardening now requires org context for authenticated image upload/record/delete/read helpers, DB rows include/filter `org_id`, and storage paths include org id. Signed-url route supports org-scoped session payloads and falls back to legacy anonymous staging when no org-scoped session exists. | P1 done with compatibility note |
-| `lib/actions/backup.actions.ts` | `backup_records`, `backups`, core tables | Backup feature can export all org data if not isolated. | P2 |
-| Cron routes under `app/api/cron/*` | reports, KPIs, retention | Cron should iterate orgs or be platform-admin only. | P2 |
+| `lib/actions/backup.actions.ts` | `backup_records`, `backups`, core tables | P2 hardening now requires owner/admin org context for tenant backup actions, filters table reads by `org_id`, writes backup records with `org_id`, stores files under `backups/{orgId}/`, rejects cross-org file paths, and forces restored rows to the active org. | P2 done |
+| `app/api/cron/backup/route.ts` | `backup_records`, `backups`, core tables | P2 gate now skips unless `SAAS_BACKUP_ORG_ID` is configured, then runs a single explicit-org backup through the hardened backup action. | P2 gated |
+| Other cron routes under `app/api/cron/*` | reports, KPIs, retention | P2 gate now skips platform maintenance cron unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true`. This keeps public rollout from accidentally running platform-wide service-role maintenance. | P2 gated |
 | Maintenance/predeploy scripts | service role checks | OK for local/CI checks, but SaaS env must point to SaaS DB only. | P2 |
 
 ## RLS Policy Templates
@@ -204,17 +210,17 @@ Service-role policies may stay for controlled server-only paths, but runtime cod
 |---|---|---|
 | P0 | hot customer data and exports | Completed for return actions, AI analyze route, and export routes; keep regression coverage. |
 | P1 | Portal, upload, pickup | Completed for pickup actions, customer portal actions, upload helpers, and signed-url org-scoped session support; anonymous staging compatibility remains until UI can pass org earlier |
-| P2 | cron, backup, maintenance | cron routes, backup actions, retention/archive jobs |
+| P2 | cron, backup, maintenance | Backup action, backup cron, and non-backup maintenance cron are gated locally |
 
 ## Next Local Tasks
 
-1. Keep `tests/unit/saas-runtime-org-isolation.test.ts` as the P0 regression guard.
+1. Keep `tests/unit/saas-runtime-org-isolation.test.ts` as the P0/P1/P2 regression guard.
 2. Keep the Shopee regression coverage in `tests/unit/saas-runtime-org-isolation.test.ts` and `tests/e2e/shopee-scan-flow.e2e.test.ts`.
-3. Decide whether backup/cron routes are platform-only, per-org iteration jobs, or disabled for public multi-tenant launch.
+3. Keep `ENABLE_PLATFORM_MAINTENANCE_CRON` unset/false for public multi-tenant launch unless platform-wide maintenance cron is explicitly approved.
 4. If customer portal UX is revised later, pass a verified org-scoped upload session before direct uploads so anonymous staging no longer needs the legacy `staging/{draftId}` fallback.
 
 Blocked platform tasks:
 
-- External public rollout decisions remain owner-blocked: Sentry DSN, beta/custom domain, email provider, Billing/ECPay, and any production/provider changes.
+- External public rollout decisions remain owner-blocked: beta/custom domain, email provider, Billing/ECPay, and any production/provider changes.
 - Draft migrations `033`-`036` still require explicit owner authorization before any apply.
-- Public signup / broad self-serve tenant onboarding should stay closed until the P1 tenant isolation gaps are resolved or explicitly gated.
+- Public signup / broad self-serve tenant onboarding should stay closed until the owner explicitly approves domain/signup posture and confirms maintenance cron should remain disabled or be enabled as platform-wide maintenance.

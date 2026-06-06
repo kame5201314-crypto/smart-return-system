@@ -104,4 +104,39 @@ describe('SaaS runtime org isolation', () => {
     expect(routeSource).toContain('sessionVerification.payload.orgId');
     expect(routeSource).toContain('staging/${orgId}/${draftId}');
   });
+
+  it('requires org context and org-scoped storage paths in backup actions', () => {
+    const source = readProjectFile('lib/actions/backup.actions.ts');
+
+    expect(source).toContain("from '@/lib/saas/org-context'");
+    expect(source).toContain('await getBackupReadOrgId()');
+    expect(source).toContain('await getBackupWritableOrgId()');
+    expect(source).toContain(".eq('org_id', orgId)");
+    expect(source).toContain('org_id: orgId');
+    expect(source).toContain('backups/${orgId}/');
+    expect(source).toContain('Backup belongs to another workspace');
+  });
+
+  it('keeps backup cron tenant-scoped instead of platform-wide', () => {
+    const source = readProjectFile('app/api/cron/backup/route.ts');
+
+    expect(source).toContain('process.env.SAAS_BACKUP_ORG_ID');
+    expect(source).toContain('SAAS_BACKUP_ORG_ID is not configured');
+    expect(source).toContain('orgId: backupOrgId');
+    expect(source).toContain("source: 'cron'");
+    expect(source).not.toContain("createBackup(\n      ['return_management', 'shopee_returns'],\n      'auto'\n    )");
+  });
+
+  it.each([
+    ['Shopee scan daily report', 'app/api/cron/shopee-scan-daily-report/route.ts'],
+    ['Shopee scan smoke', 'app/api/cron/shopee-scan-smoke/route.ts'],
+    ['scan retention', 'app/api/cron/scan-retention/route.ts'],
+    ['AI report reconciliation', 'app/api/cron/reconcile-ai-reports/route.ts'],
+  ])('gates %s maintenance cron before platform-wide service-role work', (_name, path) => {
+    const source = readProjectFile(path);
+
+    expect(source).toContain("from '@/lib/maintenance/cron-policy'");
+    expect(source).toContain('isPlatformMaintenanceCronEnabled()');
+    expect(source).toContain('buildPlatformMaintenanceCronSkip(');
+  });
 });

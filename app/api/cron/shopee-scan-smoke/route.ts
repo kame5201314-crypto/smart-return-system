@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import {
+  buildPlatformMaintenanceCronSkip,
+  isPlatformMaintenanceCronEnabled,
+} from '@/lib/maintenance/cron-policy';
 import { collectShopeeScanHealthSnapshot } from '@/lib/maintenance/shopee-scan-health';
 
 function normalizeEnvValue(value: string | undefined | null): string {
@@ -41,6 +45,10 @@ export async function GET(request: Request) {
       { success: false, error: auth.errorMessage },
       { status: auth.errorStatus || 401 }
     );
+  }
+
+  if (!isPlatformMaintenanceCronEnabled()) {
+    return NextResponse.json(buildPlatformMaintenanceCronSkip('cron.shopee-scan-smoke'));
   }
 
   try {

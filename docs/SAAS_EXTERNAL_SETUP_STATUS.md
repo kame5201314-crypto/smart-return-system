@@ -50,7 +50,7 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Latest external blocker audit confirmed the production alias points at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`, Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
 - Owner selected `app.smart-return.tw` as the app domain, but no Vercel domain/DNS change has been authorized or performed.
 - Owner chose to skip email provider setup for now.
-- Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee return/scan action isolation is now complete; remaining P1/P2 items are pickup actions, customer portal actions, upload/signed-url paths, backup actions, and cron/maintenance service-role paths.
+- Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 
 ## 2026-06-06 Owner-Authorized Migration 035 Apply
 

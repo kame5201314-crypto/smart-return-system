@@ -37,9 +37,14 @@ serialized in this order:
      authority or DNS records.
    - Codex configures only the SaaS Vercel project after explicit approval.
 2. Public multi-tenant isolation:
-   - Shopee returns/scan P1 is hardened locally.
-   - Continue pickup actions, customer portal actions, upload/signed-url, then
-     backup/cron gating before public signup or broad multi-customer rollout.
+   - Shopee, pickup, customer portal, and upload/signed-url P1 are hardened
+     locally.
+   - Backup action and backup cron P2 gating is complete locally. Backup cron
+     now skips unless `SAAS_BACKUP_ORG_ID` is configured.
+   - Non-backup platform maintenance cron routes now skip unless
+     `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured.
+   - Keep both cron env vars unset unless the owner explicitly wants automated
+     platform maintenance enabled in production.
 3. Email provider:
    - Owner chose to skip this for now.
    - Owner chooses Resend, Postmark, SendGrid, or SMTP and provides credentials

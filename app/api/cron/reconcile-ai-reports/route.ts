@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import {
+  buildPlatformMaintenanceCronSkip,
+  isPlatformMaintenanceCronEnabled,
+} from '@/lib/maintenance/cron-policy';
+import {
   buildReconcileMismatches,
   type AiReportMetricRow,
   type ReturnRequestMetricRow,
@@ -128,6 +132,10 @@ export async function GET(request: Request) {
 
     if (!cronSecret && !isProduction) {
       console.warn('CRON_SECRET not set - allowing request in development mode');
+    }
+
+    if (!isPlatformMaintenanceCronEnabled()) {
+      return NextResponse.json(buildPlatformMaintenanceCronSkip('cron.reconcile-ai-reports'));
     }
 
     const result = await reconcileReports(request.url);

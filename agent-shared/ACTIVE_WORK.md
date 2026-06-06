@@ -25,10 +25,31 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected `app.smart-return.tw` but no Vercel/DNS change has been authorized. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, and upload/signed-url P1 work is complete; remaining P2 gaps are backup actions and cron/maintenance service-role jobs, plus the customer portal anonymous staging compatibility note in the audit. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected `app.smart-return.tw` but no Vercel/DNS change has been authorized. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete; remaining external blockers are domain/DNS authorization, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: P2 backup action and backup cron tenant gating
+Files:
+- lib/actions/backup.actions.ts
+- app/api/cron/backup/route.ts
+- app/api/cron/reconcile-ai-reports/route.ts
+- app/api/cron/scan-retention/route.ts
+- app/api/cron/shopee-scan-daily-report/route.ts
+- app/api/cron/shopee-scan-smoke/route.ts
+- lib/maintenance/cron-policy.ts
+- tests/unit/saas-runtime-org-isolation.test.ts
+- docs/SAAS_TENANT_ISOLATION_AUDIT.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Backup actions now require owner/admin org context for tenant calls, scope backup table reads/writes/restores by `org_id`, restrict storage paths to `backups/{orgId}/`, and reject cross-org restore/download/delete. The backup cron no longer performs platform-wide backup by default; it skips safely unless `SAAS_BACKUP_ORG_ID` is configured, then runs the hardened backup action for that explicit org id. Non-backup maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true`. No deployment, migration, env/secret edit, `SAAS_BACKUP_ORG_ID` or `ENABLE_PLATFORM_MAINTENANCE_CRON` env setting, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+```
 
 ```text
 Owner: Codex

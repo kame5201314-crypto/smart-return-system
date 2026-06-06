@@ -1,5 +1,51 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
+Continued public multi-tenant P2 tenant isolation hardening for backup and
+backup cron paths.
+
+Completed in this handoff:
+
+- Rewrote `lib/actions/backup.actions.ts` as an org-scoped backup action.
+- Tenant backup history/download/delete now requires owner/admin org context.
+- Tenant backup create/restore now requires owner/admin plus writable/exportable
+  org context.
+- Backup table reads now filter by `org_id`.
+- Auto backup records now include `org_id`.
+- Backup storage paths now use `backups/{orgId}/...`.
+- Download/delete rejects backup file paths outside the active org prefix.
+- Restore rejects backups from another org and forces restored rows back to the
+  active org id.
+- Updated `/api/cron/backup` so it no longer performs a platform-wide backup by
+  default.
+- Backup cron now skips safely unless `SAAS_BACKUP_ORG_ID` is configured; if
+  configured, it runs one explicit-org backup through the hardened backup action.
+- Added `lib/maintenance/cron-policy.ts`.
+- Non-backup platform maintenance cron routes now skip safely unless
+  `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured:
+  - `/api/cron/reconcile-ai-reports`
+  - `/api/cron/scan-retention`
+  - `/api/cron/shopee-scan-daily-report`
+  - `/api/cron/shopee-scan-smoke`
+- Added regression coverage in
+  `tests/unit/saas-runtime-org-isolation.test.ts`.
+
+Remaining public rollout queue:
+
+1. Decide whether platform maintenance cron should stay disabled or be enabled
+   with `ENABLE_PLATFORM_MAINTENANCE_CRON=true`.
+2. Decide policy for maintenance scripts that use service-role clients; they
+   should remain local/CI-only or require explicit SaaS project safety gates.
+3. If customer portal UX is revised later, pass a verified org-scoped upload
+   session before direct uploads so the legacy anonymous staging fallback can be
+   removed.
+
+No deployment, migration, env/secret edit, domain/DNS change,
+`SAAS_BACKUP_ORG_ID` or `ENABLE_PLATFORM_MAINTENANCE_CRON` Vercel env setting,
+email provider enablement, billing/provider enablement, master/live/internal
+Supabase action, or production setting mutation was performed.
+
 ## 2026-06-06 Codex -> Owner / Claude / Codex
 
 Continued public multi-tenant P1 tenant isolation hardening after the Shopee

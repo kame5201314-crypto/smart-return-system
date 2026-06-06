@@ -75,6 +75,7 @@ describe('GET /api/cron/shopee-scan-smoke integration', () => {
     vi.stubEnv('CRON_SECRET', 'cron-secret');
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('ENABLE_PLATFORM_MAINTENANCE_CRON', 'true');
   });
 
   afterEach(() => {

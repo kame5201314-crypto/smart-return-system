@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+import {
+  buildPlatformMaintenanceCronSkip,
+  isPlatformMaintenanceCronEnabled,
+} from '@/lib/maintenance/cron-policy';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 
@@ -40,6 +44,10 @@ export async function GET(request: Request) {
       { success: false, error: auth.errorMessage },
       { status: auth.errorStatus || 401 }
     );
+  }
+
+  if (!isPlatformMaintenanceCronEnabled()) {
+    return NextResponse.json(buildPlatformMaintenanceCronSkip('cron.scan-retention'));
   }
 
   const url = new URL(request.url);
