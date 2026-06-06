@@ -42,13 +42,43 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
-- The remaining expected rollout warnings are:
-  - Sentry/logging DSN is not configured.
+- The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest deployed `develop-saas` HEAD is `9176589 fix(saas/ui): finish public RWD and role separation polish`.
-- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, Sentry DSN, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Latest owner-authorized production deployment: `9176589 fix(saas/ui): finish public RWD and role separation polish` -> Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Sentry DSN was not configured because no real DSN value is available locally or in Vercel env.
-- Latest read-only external blocker audit confirmed the production alias still points at `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`, Vercel env names still do not include Sentry DSN or provider credentials, no custom/beta domain is visible, and draft migrations `033`-`036` remain unapplied.
+- Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit`.
+- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
+- Latest owner-authorized production deployment: `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
+- Latest external blocker audit confirmed the production alias points at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`, Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, and draft migrations `033`-`036` remain unapplied.
+
+## 2026-06-06 Sentry Setup and Production Redeploy
+
+- Scope:
+  - Created Sentry organization `smart-return-saas` using Google account `kawei88888@gmail.com`.
+  - Sentry shows a 14-day Business trial and states the account moves to the free plan after the trial with no charge.
+  - Selected Next.js setup and copied the project DSN from Sentry.
+  - Set SaaS Vercel Production env vars `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` on project `smart-return-system-saas`.
+  - Did not write DSN values to git or docs, and cleared the clipboard after setting env.
+  - Redeployed production so the new Sentry env values are available at runtime.
+- Production deployment:
+  - Deployment URL: `https://smart-return-system-saas-74zuwjn4w-kaweis-projects.vercel.app`.
+  - Production alias: `https://smart-return-system-saas.vercel.app`.
+  - Vercel deployment ID: `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
+  - Vercel status: Ready.
+- Smoke test:
+  - Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/signup`, `/login` returned `200`.
+  - Protected tenant routes `/analytics`, `/returns`, `/pickup/scan`, `/analytics/ai-report`, and `/settings/usage` returned `307 -> /login` for unauthenticated visitors.
+  - Protected platform routes `/internal` and `/internal/orgs` returned `307 -> /admin/login?next=...` for unauthenticated visitors.
+- Verification:
+  - `npm run saas:predeploy`: passed before deployment.
+  - Vercel env name check: `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are present for Production.
+  - Local `saas:rollout-check` still warns about missing Sentry DSN because `.env.saas.local` intentionally does not store the DSN; Vercel Production env is configured.
+- Not performed:
+  - No migration was run.
+  - No source code was changed.
+  - No DSN value was committed.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-06-06 Owner-Blocked Readiness Audit
 

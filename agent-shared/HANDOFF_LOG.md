@@ -2,6 +2,53 @@
 
 ## 2026-06-06 Codex -> Owner / Claude / Codex
 
+Completed SaaS Sentry setup and redeployed production so the Sentry env values
+are active.
+
+Summary:
+
+- Created Sentry organization `smart-return-saas` with Google account
+  `kawei88888@gmail.com`.
+- Sentry showed a 14-day Business trial and stated the account will move to the
+  free plan after the trial with no charge.
+- Selected the Next.js project setup and copied the Sentry DSN.
+- Set Vercel Production env vars on `smart-return-system-saas`:
+  - `SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_DSN`
+- DSN values were not printed in docs or committed to git.
+- Cleared the clipboard after setting env.
+- Ran `npm run saas:predeploy`; it passed.
+- Redeployed production to `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
+- Production URL remains `https://smart-return-system-saas.vercel.app`.
+
+Smoke test:
+
+- `200`: `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, `/login`.
+- `307 -> /login`: `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, `/settings/usage`.
+- `307 -> /admin/login?next=...`: `/internal`, `/internal/orgs`.
+
+Still blocked by external values or separate authorization:
+
+- Custom/beta domain and DNS.
+- Email provider selection, sender/domain authentication, and provider keys.
+- Billing/ECPay credentials plus explicit provider enablement.
+- Applying draft migrations `033`-`036`.
+- Any further production deploy or platform setting change.
+
+Notes:
+
+- No migration was run.
+- No source code was changed.
+- No DSN value was committed.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
+## 2026-06-06 Codex -> Owner / Claude / Codex
+
 Completed the owner-blocked SaaS launch readiness audit with read-only platform
 checks and local gates only.
 

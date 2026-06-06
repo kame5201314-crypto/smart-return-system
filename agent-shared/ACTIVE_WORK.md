@@ -25,7 +25,7 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `9176589 fix(saas/ui): finish public RWD and role separation polish` -> Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 read-only owner-blocked audit confirmed Vercel project `smart-return-system-saas`, no visible Sentry DSN env keys, no visible custom/beta domain, no visible email provider credentials, no visible ECPay/provider credentials, billing still disabled for Manual Beta, and draft migrations 033-036 still unapplied. `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md` records owner-provided values, handoff templates, and sequencing for Sentry, beta/custom domain, email provider, Billing/ECPay, and migrations 033-036. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN, beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. Custom/beta domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
@@ -33,6 +33,20 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Sentry setup and production redeploy
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Created Sentry org `smart-return-saas` with Google account `kawei88888@gmail.com`, selected Next.js setup, copied DSN without committing it, set Vercel Production env `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and redeployed production to `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`. Production smoke passed. No migration, source code change, custom domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or DSN commit was performed.
+```
+
+```text
+Owner: Codex
+Commit: 360c56f
 Scope: Owner-blocked launch readiness audit
 Files:
 - docs/SAAS_EXTERNAL_SETUP_STATUS.md

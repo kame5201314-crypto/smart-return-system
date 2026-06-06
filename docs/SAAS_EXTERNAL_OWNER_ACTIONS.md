@@ -10,18 +10,33 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 
 - Branch: `develop-saas`
 - Production URL: `https://smart-return-system-saas.vercel.app`
-- Production deployment: `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`
+- Production deployment: `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`
 - Production status: Ready
-- Latest read-only audit: 2026-06-06
+- Latest Sentry setup / redeploy: 2026-06-06
 - Latest deployed runtime commit:
-  `9176589 fix(saas/ui): finish public RWD and role separation polish`
+  `360c56f docs(saas): record owner-blocked launch readiness audit`
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
   - email delivery remains dry-run
   - no custom/beta domain is configured
-  - Sentry DSN is not configured
+  - Sentry DSN is configured in Vercel Production env
   - draft migrations `033`-`036` remain unapplied
+
+## 2026-06-06 Completed Owner Action: Sentry
+
+- Sentry organization `smart-return-saas` was created with Google account
+  `kawei88888@gmail.com`.
+- The Sentry onboarding page reports a 14-day Business trial and states it will
+  move to the free plan after the trial with no charge.
+- Next.js setup was selected and the DSN was copied from Sentry.
+- Vercel Production env now contains:
+  - `SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_DSN`
+- DSN values were not written to git or docs.
+- Production was redeployed so the env values are available at runtime:
+  `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
+- Production smoke passed after redeploy.
 
 ## 2026-06-06 Owner-Blocked Audit Result
 
@@ -31,8 +46,8 @@ values or irreversible authorization:
 - Vercel project is confirmed as `smart-return-system-saas`; SaaS doctor reports
   it is not linked to the internal/live project.
 - Production deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` remains Ready.
-- Vercel production env names do not list `SENTRY_DSN` or
-  `NEXT_PUBLIC_SENTRY_DSN`; no placeholder DSN was set.
+- Vercel production env names now list `SENTRY_DSN` and
+  `NEXT_PUBLIC_SENTRY_DSN`.
 - No custom/beta domain is visible from the read-only Vercel deployment check.
 - Vercel production env names do not list email provider credentials.
 - Vercel production env names do not list ECPay/provider credentials.
@@ -44,8 +59,10 @@ Latest verification:
 
 - `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local
   `ENABLE_MULTI_TENANT_ADMIN=true`.
-- `npm run saas:rollout-check`: 23 pass, 2 warn, 0 fail. Warnings are missing
-  Sentry DSN and `ENABLE_BILLING=false`, both expected for Manual Beta.
+- `npm run saas:rollout-check`: 23 pass, 2 warn, 0 fail in local env before
+  Sentry was added to Vercel. The local Sentry warning is expected because
+  `.env.saas.local` intentionally does not store DSN values. Vercel Production
+  env is now configured.
 - `npm run lint`: passed.
 - `npm run typecheck`: passed.
 - `npm run test:all`: passed.
@@ -75,18 +92,26 @@ Verified on 2026-06-05:
 
 ## Recommended Order
 
-1. Add SaaS-only Sentry DSN.
-2. Decide and configure a beta/custom domain.
-3. Apply migration `035` only if onboarding completion writes should persist.
-4. Choose an email provider, then wire provider delivery after credentials
+1. Decide and configure a beta/custom domain.
+2. Apply migration `035` only if onboarding completion writes should persist.
+3. Choose an email provider, then wire provider delivery after credentials
    exist.
-5. Keep Billing/ECPay disabled until Stage 2 paid Beta.
-6. Apply migrations `033`, `034`, and `036` only when their matching runtime
+4. Keep Billing/ECPay disabled until Stage 2 paid Beta.
+5. Apply migrations `033`, `034`, and `036` only when their matching runtime
    feature is needed and explicitly authorized.
 
 ## Sentry DSN
 
-Owner must provide:
+Status: complete for Vercel Production.
+
+Already configured:
+
+- SaaS-only `SENTRY_DSN`
+- Browser-side `NEXT_PUBLIC_SENTRY_DSN`
+- Production deployment after env update:
+  `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`
+
+Keep these rules for future rotation:
 
 - SaaS-only `SENTRY_DSN`
 - Optional browser-side `NEXT_PUBLIC_SENTRY_DSN`
