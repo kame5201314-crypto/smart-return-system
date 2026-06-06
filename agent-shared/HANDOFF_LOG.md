@@ -1,5 +1,44 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
+Recorded the post-Sentry next action queue because the owner asked to complete
+remaining work in order and hand off anything blocked.
+
+Current state:
+
+- Branch is `develop-saas`.
+- Production remains Ready at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
+- Production URL remains `https://smart-return-system-saas.vercel.app`.
+- Sentry DSN activation is complete in Vercel Production env.
+- No unblocked local code task is currently open.
+
+Next action order:
+
+1. Custom/beta domain after the owner provides the target domain and DNS access
+   or DNS records.
+2. Migration `035_saas_onboarding_completion_rpc.sql` only after explicit
+   owner authorization for SaaS Supabase project `auyznbwtjvemyamujmgt`.
+3. Email provider only after the owner chooses a provider and supplies real
+   credentials out of band.
+4. Billing/ECPay only for Stage 2 paid Beta after credentials and
+   `ENABLE_BILLING=true` approval exist.
+5. Migrations `033`, `034`, and `036` only as separately authorized actions.
+6. Public multi-tenant rollout only after the P1/P2 tenant-isolation gaps in
+   `docs/SAAS_TENANT_ISOLATION_AUDIT.md` are scheduled and hardened or gated.
+
+Stop condition:
+
+- If the owner asks to "finish everything" without the required values above,
+  stop and request the missing value or explicit authorization. Do not set
+  placeholder env values, run bundled migrations, enable providers, change DNS,
+  or deploy again.
+
+This handoff updated docs/coordination files only. No deployment, migration,
+env/secret edit, domain/DNS change, email provider enablement, billing/provider
+enablement, master/live/internal Supabase action, or production setting mutation
+was performed.
+
 ## 2026-06-06 Codex -> Owner / Claude / Codex
 
 Completed SaaS Sentry setup and redeployed production so the Sentry env values

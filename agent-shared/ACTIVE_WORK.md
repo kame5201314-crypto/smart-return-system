@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. Custom/beta domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. There is no remaining unblocked local code task. Next executable queue is custom/beta domain with owner DNS decision, migration `035` with explicit SaaS Supabase authorization, email provider with real credentials, Billing/ECPay for Stage 2 only, then separately authorized migrations `033`/`034`/`036`. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Next owner-blocked queue hardening
+Files:
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Recorded the post-Sentry next executable order and the stop condition for agents asked to finish everything without external values. No deploy, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+```
 
 ```text
 Owner: Codex

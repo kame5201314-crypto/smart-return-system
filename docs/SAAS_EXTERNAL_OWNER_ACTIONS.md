@@ -23,6 +23,41 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - Sentry DSN is configured in Vercel Production env
   - draft migrations `033`-`036` remain unapplied
 
+## 2026-06-06 Next Executable Queue
+
+Codex has no remaining safe local code/doc action that can complete the blocked
+rollout items without owner-provided values or per-action authorization. The
+next actions must stay serialized in this order:
+
+1. Custom/beta domain:
+   - Owner provides the target domain and DNS authority.
+   - Codex configures only the SaaS Vercel project after explicit approval.
+2. Migration `035_saas_onboarding_completion_rpc.sql`:
+   - Owner explicitly authorizes applying only migration `035` to SaaS
+     Supabase project `auyznbwtjvemyamujmgt`.
+   - Codex runs preflight, target checks, migration, post-checks, then updates
+     docs and pushes.
+3. Email provider:
+   - Owner chooses Resend, Postmark, SendGrid, or SMTP and provides credentials
+     out of band.
+   - Codex wires delivery only after provider credentials and enablement scope
+     are confirmed.
+4. Billing/ECPay:
+   - Keep disabled for Closed Manual Beta.
+   - Start only when Stage 2 paid Beta is approved and ECPay credentials exist.
+5. Migrations `033`, `034`, and `036`:
+   - Do not apply as a bundle.
+   - Apply only when the matching runtime feature is ready and separately
+     authorized.
+6. Public multi-tenant expansion:
+   - Do not open public signup or broad multi-tenant rollout until the P1/P2
+     tenant-isolation gaps in `docs/SAAS_TENANT_ISOLATION_AUDIT.md` are
+     explicitly scheduled and hardened or gated.
+
+If an agent is asked to "finish everything" without the required values above,
+the correct action is to stop, report the missing value/authorization, and avoid
+placeholder env values, migrations, provider activation, or domain changes.
+
 ## 2026-06-06 Completed Owner Action: Sentry
 
 - Sentry organization `smart-return-saas` was created with Google account
