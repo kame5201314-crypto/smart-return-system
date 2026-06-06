@@ -1,7 +1,7 @@
 # SaaS Tenant Isolation Audit
 
 Date: 2026-06-06
-Status: P1 Shopee isolation hardening in progress for public multi-tenant readiness
+Status: P1 pickup/customer/upload isolation hardening in progress for public multi-tenant readiness
 Scope: SaaS `develop-saas` checkout only
 
 This audit covers the current SaaS tenant isolation posture before any public multi-tenant rollout. It reviews local code, migrations, tests, and read-only schema gate output only.
@@ -17,14 +17,13 @@ The SaaS project has moved past the original draft state:
 - `025_attach_org_id_to_business_tables.sql` is present and the SaaS schema gate verifies the required `org_id` columns for core customer/business tables.
 - P0 runtime isolation has been added for `lib/actions/return.actions.ts`, `app/api/v1/ai/analyze/route.ts`, and the three export routes.
 - P1 Shopee runtime isolation is now added for `lib/actions/shopee-returns.actions.ts`.
-- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0 and Shopee P1 `getOrgContext()` / `.eq('org_id', ...)` guard patterns.
+- P1 pickup runtime isolation is now added for `lib/actions/pickup.actions.ts`.
+- P1 customer-return portal writes now derive tenant scope from the matched existing order and bind all customer/order/return/image/item/log writes to the derived `org_id`.
+- P1 upload image actions now require org context for authenticated image DB/storage reads and writes; signed upload sessions can carry `orgId` and write staged paths under `staging/{orgId}/{draftId}` while retaining legacy anonymous staging compatibility.
+- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0, Shopee P1, pickup P1, customer-return P1, and upload/signed-url guard patterns.
 
 Public multi-tenant rollout is still not fully cleared. The remaining isolation risks are not the already-gated P0 paths; they are the older service-role-heavy P1/P2 paths that still need explicit tenant context or a deliberate non-public gate before broader self-serve use:
 
-- `lib/actions/pickup.actions.ts`
-- `lib/actions/customer-return.actions.ts`
-- `lib/actions/upload.ts`
-- `app/api/v1/upload/signed-url/route.ts`
 - `lib/actions/backup.actions.ts`
 - cron/maintenance routes that use service-role clients
 
@@ -111,9 +110,9 @@ Runtime files that use service-role or admin clients for customer data:
 | `app/api/v1/admin/shopee-returns/export/route.ts` | `shopee_returns` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
 | `app/api/v1/admin/pickup/export/route.ts` | `pickup_records` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
 | `lib/actions/shopee-returns.actions.ts` | `shopee_returns`, `shopee_scan_events`, `shopee_unmatched_scans`, `orders`, `return_requests` | P1 guard/filter now present: read actions use org context, write/scan/import/bind actions require writable org context, tenant reads filter by `org_id`, and tenant writes include `org_id`. Keep regression tests. | P1 done |
-| `lib/actions/pickup.actions.ts` | `pickup_records` | Still service-role-heavy and this refresh found no `getOrgContext()` / `org_id` guard pattern in the file. Needs tenant context before broad tenant use. | P1 |
-| `lib/actions/customer-return.actions.ts` | `customers`, `orders`, `return_requests`, `return_items`, `return_images`, `activity_logs` | Public portal path still needs explicit org derivation from a trusted route/order context; it must not rely on global order number/phone alone. | P1 |
-| `lib/actions/upload.ts` and `app/api/v1/upload/signed-url/route.ts` | `return_images`, storage `return-images` | Storage and DB rows still need verified org scoping in the object path/session contract before public multi-tenant exposure. | P1 |
+| `lib/actions/pickup.actions.ts` | `pickup_records` | P1 guard/filter now present: read actions use org context, mutating actions require writable org context, reads/updates/deletes filter by `org_id`, imports/creates include `org_id`, and scan audit metadata includes the org id. | P1 done |
+| `lib/actions/customer-return.actions.ts` | `customers`, `orders`, `return_requests`, `return_items`, `return_images`, `activity_logs` | P1 hardening now derives tenant scope from an existing matched order number + customer phone pair, rejects missing or ambiguous org matches, writes child rows with `org_id`, filters lookups by derived org, and stores final images under `returns/{orgId}/...`. Anonymous public portal uploads still use a legacy-compatible staging fallback until the UI can pass org-scoped upload sessions earlier in the flow. | P1 done with compatibility note |
+| `lib/actions/upload.ts` and `app/api/v1/upload/signed-url/route.ts` | `return_images`, storage `return-images` | P1 action hardening now requires org context for authenticated image upload/record/delete/read helpers, DB rows include/filter `org_id`, and storage paths include org id. Signed-url route supports org-scoped session payloads and falls back to legacy anonymous staging when no org-scoped session exists. | P1 done with compatibility note |
 | `lib/actions/backup.actions.ts` | `backup_records`, `backups`, core tables | Backup feature can export all org data if not isolated. | P2 |
 | Cron routes under `app/api/cron/*` | reports, KPIs, retention | Cron should iterate orgs or be platform-admin only. | P2 |
 | Maintenance/predeploy scripts | service role checks | OK for local/CI checks, but SaaS env must point to SaaS DB only. | P2 |
@@ -204,15 +203,15 @@ Service-role policies may stay for controlled server-only paths, but runtime cod
 | Priority | Scope | First target |
 |---|---|---|
 | P0 | hot customer data and exports | Completed for return actions, AI analyze route, and export routes; keep regression coverage. |
-| P1 | Portal, upload, pickup | customer portal actions, signed upload/session routes, pickup actions |
+| P1 | Portal, upload, pickup | Completed for pickup actions, customer portal actions, upload helpers, and signed-url org-scoped session support; anonymous staging compatibility remains until UI can pass org earlier |
 | P2 | cron, backup, maintenance | cron routes, backup actions, retention/archive jobs |
 
 ## Next Local Tasks
 
 1. Keep `tests/unit/saas-runtime-org-isolation.test.ts` as the P0 regression guard.
 2. Keep the Shopee regression coverage in `tests/unit/saas-runtime-org-isolation.test.ts` and `tests/e2e/shopee-scan-flow.e2e.test.ts`.
-3. Convert `lib/actions/pickup.actions.ts`, `lib/actions/customer-return.actions.ts`, and upload/signed-url paths to the same guard-and-filter pattern.
-4. Decide whether backup/cron routes are platform-only, per-org iteration jobs, or disabled for public multi-tenant launch.
+3. Decide whether backup/cron routes are platform-only, per-org iteration jobs, or disabled for public multi-tenant launch.
+4. If customer portal UX is revised later, pass a verified org-scoped upload session before direct uploads so anonymous staging no longer needs the legacy `staging/{draftId}` fallback.
 
 Blocked platform tasks:
 

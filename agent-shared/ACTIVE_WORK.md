@@ -25,10 +25,32 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected `app.smart-return.tw` but no Vercel/DNS change has been authorized. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee P1 is complete; remaining P1/P2 gaps are pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected `app.smart-return.tw` but no Vercel/DNS change has been authorized. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, and upload/signed-url P1 work is complete; remaining P2 gaps are backup actions and cron/maintenance service-role jobs, plus the customer portal anonymous staging compatibility note in the audit. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: P1 pickup/customer/upload tenant isolation hardening
+Files:
+- lib/actions/pickup.actions.ts
+- lib/actions/customer-return.actions.ts
+- lib/actions/upload.ts
+- lib/upload/security.ts
+- app/api/v1/upload/signed-url/route.ts
+- tests/unit/saas-runtime-org-isolation.test.ts
+- tests/unit/upload-signed-url.route.test.ts
+- tests/unit/pickup.actions.test.ts
+- tests/backend/pickup-scan.backend.test.ts
+- docs/SAAS_TENANT_ISOLATION_AUDIT.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Continued public multi-tenant P1 hardening after Shopee. Pickup actions now use read/writable SaaS org context and explicit `org_id` filters/inserts for pickup records and scan updates. Customer-return public portal writes derive org scope from an existing matched order number + phone, reject missing/ambiguous org matches, and write/filter returns, images, items, logs, and final storage paths by org. Upload helpers now require org context and signed-url sessions support org-scoped staging paths with legacy anonymous staging fallback. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+```
 
 ```text
 Owner: Codex

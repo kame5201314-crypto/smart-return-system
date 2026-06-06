@@ -20,6 +20,12 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }));
 
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: vi.fn(async () => {
+    throw new Error('No authenticated org context in anonymous upload tests');
+  }),
+}));
+
 import { POST } from '@/app/api/v1/upload/signed-url/route';
 
 function buildRequest(
@@ -36,8 +42,8 @@ function buildRequest(
   });
 }
 
-function buildSession(draftId: string): string {
-  const tokenResult = createUploadSessionToken({ draftId });
+function buildSession(draftId: string, orgId?: string): string {
+  const tokenResult = createUploadSessionToken({ draftId, orgId });
   if (!tokenResult.token) {
     throw new Error('Failed to create test upload session token');
   }
@@ -94,6 +100,26 @@ describe('POST /api/v1/upload/signed-url', () => {
 
     expect(response.status).toBe(200);
     expect(createSignedUploadUrlMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('scopes staging upload paths by org when the session carries org context', async () => {
+    const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f60';
+    const orgId = '11111111-1111-4111-8111-111111111111';
+    const sessionToken = buildSession(draftId, orgId);
+    const response = await POST(buildRequest({
+      fileName: 'product.jpg',
+      fileType: 'image/jpeg',
+      fileSize: 1024,
+      folder: 'product-photos',
+      draftId,
+      sessionToken,
+    }, '10.0.0.6') as never);
+
+    expect(response.status).toBe(200);
+    expect(createSignedUploadUrlMock).toHaveBeenCalledTimes(1);
+    expect(createSignedUploadUrlMock).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`^staging/${orgId}/${draftId}/product-photos/\\d+_[a-f0-9]+\\.(jpg|jpeg)$`))
+    );
   });
 
   it('rejects unsupported file types', async () => {

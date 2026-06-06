@@ -1,5 +1,53 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Claude / Codex
+
+Continued public multi-tenant P1 tenant isolation hardening after the Shopee
+actions pass.
+
+Completed in this handoff:
+
+- Hardened `lib/actions/pickup.actions.ts`.
+- Pickup read actions now require SaaS org context and filter by `org_id`.
+- Pickup write/import/update/delete/scan actions now require writable SaaS org
+  context, include `org_id` on inserts, and filter updates/deletes by `org_id`.
+- Pickup scan audit metadata now records the active org id.
+- Hardened `lib/actions/customer-return.actions.ts`.
+- Public customer-return submission now derives tenant scope from an existing
+  matched order number + customer phone pair, rejects missing or ambiguous org
+  matches, and writes `customers`, `return_requests`, `return_items`,
+  `return_images`, and `activity_logs` with the derived `org_id`.
+- Customer-return lookups now filter by derived org and reject ambiguous
+  cross-org matches.
+- Final return image storage paths now use `returns/{orgId}/{returnRequestId}`.
+- Hardened `lib/actions/upload.ts`.
+- Authenticated upload helpers now require read/writable org context, write
+  `return_images.org_id`, filter image reads/deletes by `org_id`, and store
+  direct image uploads under `returns/{orgId}/...`.
+- Updated upload session/signed-url support so session payloads can carry
+  `orgId` and signed upload staging paths can use
+  `staging/{orgId}/{draftId}`.
+- Kept legacy anonymous staging fallback for current customer portal
+  compatibility; final persisted rows and final storage paths are org-scoped.
+- Added/updated regression coverage:
+  - `tests/unit/saas-runtime-org-isolation.test.ts`
+  - `tests/unit/upload-signed-url.route.test.ts`
+  - `tests/unit/pickup.actions.test.ts`
+  - `tests/backend/pickup-scan.backend.test.ts`
+
+Remaining tenant-isolation queue before broad public multi-tenant:
+
+1. Backup actions must be made platform-only, org-scoped, or disabled.
+2. Cron/maintenance service-role jobs must be platform-only or iterate orgs
+   explicitly.
+3. If customer portal UX is revised later, pass a verified org-scoped upload
+   session before direct uploads so the legacy anonymous staging fallback can be
+   removed.
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
 Started public multi-tenant hardening after the owner selected

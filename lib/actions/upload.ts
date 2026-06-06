@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getOrgContext, type SaaSOrgContext } from '@/lib/saas/org-context';
 import type { ReturnImage } from '@/types/database.types';
 
 export interface UploadResult {
@@ -19,9 +20,23 @@ export interface ImageUploadData {
   base64Data: string;
 }
 
+async function getUploadReadOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext();
+}
+
+async function getUploadWritableOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext({
+    requirements: {
+      roles: ['owner', 'admin', 'staff'],
+      writable: true,
+    },
+  });
+}
+
 // 上傳單張圖片到 Supabase Storage
 export async function uploadImage(data: ImageUploadData): Promise<UploadResult> {
   try {
+    const orgContext = await getUploadWritableOrgContext();
     const supabase = await createClient();
 
     // 將 base64 轉換為 Buffer
@@ -32,7 +47,7 @@ export async function uploadImage(data: ImageUploadData): Promise<UploadResult> 
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 8);
     const extension = data.fileName.split('.').pop() || 'jpg';
-    const storagePath = `returns/${data.returnRequestId}/${data.imageType}_${timestamp}_${randomId}.${extension}`;
+    const storagePath = `returns/${orgContext.orgId}/${data.returnRequestId}/${data.imageType}_${timestamp}_${randomId}.${extension}`;
 
     // 上傳到 Supabase Storage
     const { error: uploadError } = await supabase.storage
@@ -110,11 +125,13 @@ export async function saveImageRecord(data: {
   fileSize: number;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    const orgContext = await getUploadWritableOrgContext();
     const supabase = createAdminClient();
 
     const { data: record, error } = await supabase
       .from('return_images')
       .insert({
+        org_id: orgContext.orgId,
         return_request_id: data.returnRequestId,
         image_url: data.imageUrl,
         storage_path: data.storagePath,
@@ -152,6 +169,7 @@ export async function deleteImage(
   storagePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const orgContext = await getUploadWritableOrgContext();
     const supabase = createAdminClient();
 
     // 從 Storage 刪除
@@ -167,6 +185,7 @@ export async function deleteImage(
     const { error: dbError } = await supabase
       .from('return_images')
       .delete()
+      .eq('org_id', orgContext.orgId)
       .eq('id', imageId);
 
     if (dbError) {
@@ -192,11 +211,13 @@ export async function getReturnImages(
   returnRequestId: string
 ): Promise<{ success: boolean; images?: ReturnImage[]; error?: string }> {
   try {
+    const orgContext = await getUploadReadOrgContext();
     const supabase = createAdminClient();
 
     const { data: images, error } = await supabase
       .from('return_images')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .eq('return_request_id', returnRequestId)
       .order('created_at', { ascending: true });
 

@@ -2,10 +2,12 @@
 
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { recordScanAuditLog } from '@/lib/observability/scan-audit';
+import { getOrgContext, type SaaSOrgContext } from '@/lib/saas/org-context';
 import type { ApiResponse } from '@/types';
 
 export interface PickupRecord {
   id: string;
+  org_id?: string | null;
   process_date: string;
   order_number: string;
   tracking_number: string | null;
@@ -35,6 +37,19 @@ export interface PickupRecordInput {
 }
 
 export type PickupScanStatus = 'matched' | 'unmatched' | 'duplicate' | 'error';
+
+async function getPickupReadOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext();
+}
+
+async function getPickupWritableOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext({
+    requirements: {
+      roles: ['owner', 'admin', 'staff'],
+      writable: true,
+    },
+  });
+}
 
 function isPickupScanSchemaError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -134,6 +149,7 @@ export async function importPickupRecords(
   items: PickupRecordInput[]
 ): Promise<ApiResponse<{ imported: number; duplicates: number }>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const supabase = createUntypedAdminClient();
 
     if (!items || items.length === 0) {
@@ -176,6 +192,7 @@ export async function importPickupRecords(
     }
 
     const insertData = deduplicated.map((item) => ({
+      org_id: orgContext.orgId,
       process_date: item.process_date,
       order_number: item.order_number,
       tracking_number: item.tracking_number || null,
@@ -212,11 +229,13 @@ export async function importPickupRecords(
  */
 export async function getPickupRecords(): Promise<ApiResponse<PickupRecord[]>> {
   try {
+    const orgContext = await getPickupReadOrgContext();
     const supabase = createUntypedAdminClient();
 
     const { data, error } = await supabase
       .from('pickup_records')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -239,11 +258,13 @@ export async function createPickupRecord(
   input: PickupRecordInput
 ): Promise<ApiResponse<PickupRecord>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const supabase = createUntypedAdminClient();
 
     const { data, error } = await supabase
       .from('pickup_records')
       .insert({
+        org_id: orgContext.orgId,
         process_date: input.process_date,
         order_number: input.order_number,
         tracking_number: input.tracking_number || null,
@@ -289,12 +310,14 @@ export async function updatePickupRecord(
   }
 ): Promise<ApiResponse<PickupRecord>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const supabase = createUntypedAdminClient();
     const { data: beforeRow, error: beforeError } = await supabase
       .from('pickup_records')
       .select(
         'delivery_status, received_status, is_scanned, scanned_at, is_printed, process_date, order_number, tracking_number'
       )
+      .eq('org_id', orgContext.orgId)
       .eq('id', id)
       .single();
 
@@ -308,6 +331,7 @@ export async function updatePickupRecord(
         ...updates,
         updated_at: new Date().toISOString(),
       } as never)
+      .eq('org_id', orgContext.orgId)
       .eq('id', id)
       .select()
       .single();
@@ -332,6 +356,7 @@ export async function updatePickupRecord(
         beforeState: (beforeRow as Record<string, unknown>) || null,
         afterState: (data as Record<string, unknown>) || null,
         metadata: {
+          orgId: orgContext.orgId,
           updatedFields,
         },
       });
@@ -352,12 +377,14 @@ export async function getRecentScannedPickupRecords(
   limit = 20
 ): Promise<ApiResponse<PickupRecord[]>> {
   try {
+    const orgContext = await getPickupReadOrgContext();
     const supabase = createUntypedAdminClient();
     const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(1, limit), 100) : 20;
 
     const { data, error } = await supabase
       .from('pickup_records')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .eq('is_scanned', true)
       .order('scanned_at', { ascending: false })
       .limit(safeLimit);
@@ -390,6 +417,7 @@ export async function scanPickupRecord(
   scanStatus: PickupScanStatus;
 }>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const cleanCode = scannedCode.trim();
     if (!cleanCode) {
       return { success: false, error: '請輸入條碼內容' };
@@ -404,6 +432,7 @@ export async function scanPickupRecord(
     const { data, error } = await supabase
       .from('pickup_records')
       .select('*')
+      .eq('org_id', orgContext.orgId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -458,6 +487,7 @@ export async function scanPickupRecord(
         scanned_at: now,
         updated_at: now,
       } as never)
+      .eq('org_id', orgContext.orgId)
       .eq('id', matched.id)
       .select('*')
       .single();
@@ -491,11 +521,13 @@ export async function scanPickupRecord(
  */
 export async function deletePickupRecord(id: string): Promise<ApiResponse<void>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const supabase = createUntypedAdminClient();
 
     const { error } = await supabase
       .from('pickup_records')
       .delete()
+      .eq('org_id', orgContext.orgId)
       .eq('id', id);
 
     if (error) {
@@ -516,11 +548,13 @@ export async function deletePickupRecord(id: string): Promise<ApiResponse<void>>
  */
 export async function batchDeletePickupRecords(ids: string[]): Promise<ApiResponse<void>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const supabase = createUntypedAdminClient();
 
     const { error } = await supabase
       .from('pickup_records')
       .delete()
+      .eq('org_id', orgContext.orgId)
       .in('id', ids);
 
     if (error) {
@@ -541,6 +575,7 @@ export async function batchDeletePickupRecords(ids: string[]): Promise<ApiRespon
  */
 export async function batchUpdatePickupPrinted(ids: string[]): Promise<ApiResponse<void>> {
   try {
+    const orgContext = await getPickupWritableOrgContext();
     const supabase = createUntypedAdminClient();
 
     const { error } = await supabase
@@ -549,6 +584,7 @@ export async function batchUpdatePickupPrinted(ids: string[]): Promise<ApiRespon
         is_printed: true,
         updated_at: new Date().toISOString(),
       } as never)
+      .eq('org_id', orgContext.orgId)
       .in('id', ids);
 
     if (error) {

@@ -20,6 +20,7 @@ export type AllowedImageMimeType = typeof ALLOWED_IMAGE_MIME_TYPES[number];
 export interface UploadSessionPayload {
   v: number;
   draftId: string;
+  orgId?: string;
   iat: number;
   exp: number;
   maxFiles: number;
@@ -77,6 +78,7 @@ function secureEqual(a: string, b: string): boolean {
 
 export function createUploadSessionToken(input: {
   draftId: string;
+  orgId?: string;
   ttlSeconds?: number;
   maxFiles?: number;
   maxFileSizeBytes?: number;
@@ -94,6 +96,7 @@ export function createUploadSessionToken(input: {
   const payload: UploadSessionPayload = {
     v: SESSION_VERSION,
     draftId: input.draftId,
+    ...(input.orgId ? { orgId: input.orgId } : {}),
     iat: now,
     exp: now + (input.ttlSeconds || UPLOAD_SESSION_TTL_SECONDS),
     maxFiles: input.maxFiles || UPLOAD_MAX_TOTAL_FILES,

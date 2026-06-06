@@ -8,6 +8,15 @@ vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
 }));
 
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: vi.fn(async () => ({
+    orgId: 'org-pickup-e2e-test',
+    role: 'admin',
+    featureFlags: {},
+    plan: 'growth',
+  })),
+}));
+
 import {
   createPickupRecord,
   getRecentScannedPickupRecords,
@@ -85,23 +94,35 @@ function buildPickupClient(seedRows: PickupRecord[]) {
     limit: recentLimitMock,
   });
 
-  const selectEqMock = vi.fn().mockReturnValue({
-    order: recentOrderMock,
+  const selectMock = vi.fn().mockImplementation(() => {
+    const selectChain = {
+      eq: vi.fn(),
+      order: vi.fn((column: string) => {
+        if (column === 'scanned_at') {
+          return recentOrderMock();
+        }
+        return selectOrderMock();
+      }),
+    };
+    selectChain.eq.mockReturnValue(selectChain);
+    return selectChain;
   });
 
-  const selectMock = vi.fn().mockReturnValue({
-    order: selectOrderMock,
-    eq: selectEqMock,
-  });
-
-  const updateMock = vi.fn().mockImplementation((payload: Record<string, unknown>) => ({
-    eq: vi.fn().mockImplementation((field: string, id: string) => ({
+  const updateMock = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
+    let updateId: string | null = null;
+    const updateChain = {
+      eq: vi.fn((field: string, value: string) => {
+        if (field === 'id') {
+          updateId = value;
+        }
+        return updateChain;
+      }),
       select: vi.fn().mockReturnValue({
         single: vi.fn().mockImplementation(() => {
-          if (field !== 'id') {
-            return Promise.resolve({ data: null, error: { message: `Unexpected field: ${field}` } });
+          if (!updateId) {
+            return Promise.resolve({ data: null, error: { message: 'missing id filter' } });
           }
-          const row = rows.find((entry) => entry.id === id);
+          const row = rows.find((entry) => entry.id === updateId);
           if (!row) {
             return Promise.resolve({ data: null, error: { message: 'not found' } });
           }
@@ -109,8 +130,9 @@ function buildPickupClient(seedRows: PickupRecord[]) {
           return Promise.resolve({ data: row, error: null });
         }),
       }),
-    })),
-  }));
+    };
+    return updateChain;
+  });
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
     if (table !== 'pickup_records') {

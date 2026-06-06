@@ -8,6 +8,15 @@ vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
 }));
 
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: vi.fn(async () => ({
+    orgId: 'org-pickup-test',
+    role: 'admin',
+    featureFlags: {},
+    plan: 'growth',
+  })),
+}));
+
 import {
   getRecentScannedPickupRecords,
   scanPickupRecord,
@@ -59,12 +68,21 @@ function mockPickupSelectRows(rows: PickupRow[]) {
     error: null,
   });
   const recentOrderMock = vi.fn().mockReturnValue({ limit: recentLimitMock });
-  const recentEqMock = vi.fn().mockReturnValue({ order: recentOrderMock });
-
-  return vi.fn().mockReturnValue({
+  const scanSelectChain = {
+    eq: vi.fn(),
     order: selectOrderMock,
-    eq: recentEqMock,
-  });
+  };
+  scanSelectChain.eq.mockReturnValue(scanSelectChain);
+
+  const recentSelectChain = {
+    eq: vi.fn(),
+    order: recentOrderMock,
+  };
+  recentSelectChain.eq.mockReturnValue(recentSelectChain);
+
+  return vi.fn()
+    .mockReturnValueOnce(scanSelectChain)
+    .mockReturnValue(recentSelectChain);
 }
 
 describe('pickup actions', () => {
@@ -121,18 +139,20 @@ describe('pickup actions', () => {
       code: 'PGRST205',
     };
 
+    const selectChain = {
+      eq: vi.fn(),
+      order: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue({
+          data: null,
+          error: scanSchemaError,
+        }),
+      }),
+    };
+    selectChain.eq.mockReturnValue(selectChain);
+
     createUntypedAdminClientMock.mockReturnValue({
       from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({
-                data: null,
-                error: scanSchemaError,
-              }),
-            }),
-          }),
-        }),
+        select: vi.fn().mockReturnValue(selectChain),
       }),
     });
 

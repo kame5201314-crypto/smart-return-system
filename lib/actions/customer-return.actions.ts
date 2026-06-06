@@ -168,9 +168,13 @@ async function withRetry<T>(
 async function validatePreUploadedImages(
   adminClient: ReturnType<typeof createAdminClient>,
   images: PreUploadedImageInput[],
-  draftId: string
+  draftId: string,
+  orgId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const stagingPrefix = `staging/${draftId}/`;
+  const stagingPrefixes = [
+    `staging/${orgId}/${draftId}/`,
+    `staging/${draftId}/`,
+  ];
 
   for (const [index, image] of images.entries()) {
     if (!image.storagePath || typeof image.storagePath !== 'string') {
@@ -180,7 +184,7 @@ async function validatePreUploadedImages(
       };
     }
 
-    if (!image.storagePath.startsWith(stagingPrefix)) {
+    if (!stagingPrefixes.some((prefix) => image.storagePath.startsWith(prefix))) {
       return {
         success: false,
         error: `第 ${index + 1} 張圖片驗證失敗（來源）：圖片不屬於本次上傳草稿`,
@@ -245,34 +249,63 @@ export async function submitCustomerReturn(
       return { success: false, error: '伺服器設定錯誤，請稍後再試' };
     }
 
-    let customerResult;
     let orderResult;
     try {
-      [customerResult, orderResult] = await Promise.all([
-        adminClient
-          .from('customers')
-          .select('id')
-          .eq('phone', formData.phone)
-          .single()
-          .then((res) => res as { data: { id: string } | null; error: Error | null }),
-        adminClient
-          .from('orders')
-          .select('id, metadata')
-          .eq('order_number', formData.orderNumber)
-          .single()
-          .then((res) => res as { data: { id: string; metadata?: unknown } | null; error: Error | null }),
-      ]);
+      orderResult = await adminClient
+        .from('orders')
+        .select('id, org_id, customer_id, metadata')
+        .eq('order_number', formData.orderNumber)
+        .eq('customer_phone', formData.phone)
+        .limit(2)
+        .then((res) => res as {
+          data: {
+            id: string;
+            org_id?: string | null;
+            customer_id?: string | null;
+            metadata?: unknown;
+          }[] | null;
+          error: Error | null;
+        });
     } catch {
       return { success: false, error: '資料庫連線失敗，請稍後再試' };
     }
 
-    let customerId: string | null = customerResult.data?.id || null;
-    let orderId: string | null = orderResult.data?.id || null;
+    if (orderResult.error) {
+      return { success: false, error: '查詢訂單資料失敗，請稍後再試' };
+    }
+
+    const orderRows = orderResult.data || [];
+    const orderOrgIds = [...new Set(orderRows.map((row) => row.org_id).filter(Boolean))];
+    if (orderRows.length === 0 || orderOrgIds.length !== 1) {
+      return { success: false, error: '找不到符合的訂單資料，請確認訂單編號與手機或聯絡客服' };
+    }
+
+    const orgId = orderOrgIds[0] as string;
+    const orderRow = orderRows.find((row) => row.org_id === orgId);
+    if (!orderRow) {
+      return { success: false, error: '訂單資料需要人工確認，請聯絡客服' };
+    }
+
+    let customerId: string | null = orderRow.customer_id || null;
+    const orderId: string = orderRow.id;
+
+    if (!customerId) {
+      const customerResult = await adminClient
+        .from('customers')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('phone', formData.phone)
+        .single()
+        .then((res) => res as { data: { id: string } | null; error: Error | null });
+
+      customerId = customerResult.data?.id || null;
+    }
 
     if (!customerId) {
       const { data: newCustomer, error: customerError } = await adminClient
         .from('customers')
         .insert({
+          org_id: orgId,
           phone: formData.phone,
           name: formData.ordererName,
         } as never)
@@ -285,34 +318,8 @@ export async function submitCustomerReturn(
       customerId = newCustomer?.id || null;
     }
 
-    if (!orderId) {
-      const orderChannelSource = ['shopee', 'official', 'momo', 'dealer', 'other'].includes(formData.channelSource)
-        ? formData.channelSource
-        : 'other';
-
-      const { data: newOrder, error: orderError } = await adminClient
-        .from('orders')
-        .insert({
-          order_number: formData.orderNumber,
-          customer_id: customerId,
-          customer_phone: formData.phone,
-          customer_name: formData.ordererName,
-          channel_source: orderChannelSource,
-          status: 'delivered',
-          metadata: {
-            account_id: formData.accountId,
-            source_channel_raw: formData.channelSource,
-          },
-        } as never)
-        .select('id')
-        .single() as { data: { id: string } | null; error: Error | null };
-
-      if (orderError || !newOrder) {
-        return { success: false, error: `建立訂單失敗: ${orderError?.message || '未知錯誤'}` };
-      }
-      orderId = newOrder.id;
-    } else {
-      const currentMetadata = toRecord(orderResult.data?.metadata);
+    {
+      const currentMetadata = toRecord(orderRow.metadata);
       const nextAccountId = formData.accountId.trim();
 
       if (nextAccountId && currentMetadata.account_id !== nextAccountId) {
@@ -328,6 +335,7 @@ export async function submitCustomerReturn(
         const { error: updateOrderMetadataError } = await adminClient
           .from('orders')
           .update({ metadata: mergedMetadata } as never)
+          .eq('org_id', orgId)
           .eq('id', orderId);
 
         if (updateOrderMetadataError) {
@@ -352,7 +360,7 @@ export async function submitCustomerReturn(
         return { success: false, error: '上傳草稿與工作階段不一致，請重新上傳照片' };
       }
 
-      const imageValidation = await validatePreUploadedImages(adminClient, imageFiles, uploadSession.draftId);
+      const imageValidation = await validatePreUploadedImages(adminClient, imageFiles, uploadSession.draftId, orgId);
       if (!imageValidation.success) {
         return { success: false, error: imageValidation.error };
       }
@@ -380,6 +388,7 @@ export async function submitCustomerReturn(
     const { data: returnRequest, error: returnError } = await adminClient
       .from('return_requests')
       .insert({
+        org_id: orgId,
         order_id: orderId,
         customer_id: customerId,
         channel_source: validChannelSource,
@@ -417,7 +426,7 @@ export async function submitCustomerReturn(
             }
 
             const extension = getExtensionFromMimeType(validation.detectedMime);
-            const targetPath = `returns/${returnRequest.id}/${Date.now()}_${index}_${crypto.randomUUID().slice(0, 8)}.${extension}`;
+            const targetPath = `returns/${orgId}/${returnRequest.id}/${Date.now()}_${index}_${crypto.randomUUID().slice(0, 8)}.${extension}`;
 
             await withRetry(async () => {
               const { error: moveError } = await adminClient.storage
@@ -446,7 +455,7 @@ export async function submitCustomerReturn(
         if (movedPaths.length > 0) {
           await adminClient.storage.from('return-images').remove(movedPaths);
         }
-        await adminClient.from('return_requests').delete().eq('id', returnRequest.id);
+        await adminClient.from('return_requests').delete().eq('org_id', orgId).eq('id', returnRequest.id);
 
         return {
           success: false,
@@ -460,7 +469,7 @@ export async function submitCustomerReturn(
 
       const uploadPromises = base64Images.map(async (file, index) => {
         const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const fileName = `returns/${returnRequest.id}/${Date.now()}_${index}_${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+        const fileName = `returns/${orgId}/${returnRequest.id}/${Date.now()}_${index}_${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
 
         const base64Data = file.base64.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
@@ -495,6 +504,7 @@ export async function submitCustomerReturn(
     const insertImagesPromise = uploadedImages.length > 0
       ? adminClient.from('return_images').insert(
           uploadedImages.map((img) => ({
+            org_id: orgId,
             return_request_id: returnRequest.id,
             image_url: img.url,
             storage_path: img.storagePath,
@@ -510,6 +520,7 @@ export async function submitCustomerReturn(
 
     const insertItemPromise = (async () => {
       const itemPayload: Record<string, unknown> = {
+        org_id: orgId,
         return_request_id: returnRequest.id,
         product_name: productName,
         quantity: 1,
@@ -544,6 +555,7 @@ export async function submitCustomerReturn(
     })();
 
     const insertLogPromise = adminClient.from('activity_logs').insert({
+      org_id: orgId,
       entity_type: 'return_request',
       entity_id: returnRequest.id,
       action: 'created',
@@ -639,14 +651,23 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
     // First find orders with this phone number
     const { data: orders, error: ordersError } = await adminClient
       .from('orders')
-      .select('id')
-      .eq('customer_phone', phone) as { data: { id: string }[] | null; error: Error | null };
+      .select('id, org_id')
+      .eq('customer_phone', phone)
+      .limit(100) as { data: { id: string; org_id?: string | null }[] | null; error: Error | null };
 
     if (ordersError || !orders || orders.length === 0) {
       return { success: true, data: [] };
     }
 
-    const orderIds = orders.map(o => o.id);
+    const orgIds = [...new Set(orders.map((order) => order.org_id).filter(Boolean))];
+    if (orgIds.length !== 1) {
+      return { success: false, error: '查詢條件需要人工確認，請聯絡客服' };
+    }
+
+    const orgId = orgIds[0] as string;
+    const orderIds = orders
+      .filter((order) => order.org_id === orgId)
+      .map(o => o.id);
 
     // Then find return requests for these orders
     const { data, error } = await adminClient
@@ -673,6 +694,7 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
           image_type
         )
       `)
+      .eq('org_id', orgId)
       .in('order_id', orderIds)
       .order('created_at', { ascending: false }) as { data: ReturnListResult[] | null; error: Error | null };
 
@@ -716,6 +738,23 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
   try {
     const adminClient = createAdminClient();
 
+    const { data: requestRefs, error: refError } = await adminClient
+      .from('return_requests')
+      .select('id, org_id')
+      .eq('request_number', requestNumber)
+      .limit(2) as { data: { id: string; org_id?: string | null }[] | null; error: Error | null };
+
+    if (refError || !requestRefs || requestRefs.length === 0) {
+      return { success: false, error: '找不到此退貨單號' };
+    }
+
+    const orgIds = [...new Set(requestRefs.map((row) => row.org_id).filter(Boolean))];
+    if (orgIds.length !== 1) {
+      return { success: false, error: '退貨單資料需要人工確認，請聯絡客服' };
+    }
+
+    const orgId = orgIds[0] as string;
+
     const { data, error } = await adminClient
       .from('return_requests')
       .select(`
@@ -740,6 +779,7 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
           image_type
         )
       `)
+      .eq('org_id', orgId)
       .eq('request_number', requestNumber)
       .single() as { data: ReturnSearchResult | null; error: Error | null };
 
@@ -752,4 +792,3 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
     return { success: false, error: '绯荤当閷' };
   }
 }
-

@@ -58,4 +58,50 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain('orgId: orgContext.orgId');
     expect(source).not.toContain("orgId: 'unknown'");
   });
+
+  it('requires org context and org filters in P1 pickup actions', () => {
+    const source = readProjectFile('lib/actions/pickup.actions.ts');
+
+    expect(source).toContain("from '@/lib/saas/org-context'");
+    expect(source).toContain('await getPickupReadOrgContext()');
+    expect(source).toContain('await getPickupWritableOrgContext()');
+    expect(source).toContain(".eq('org_id', orgContext.orgId)");
+    expect(source).toContain('org_id: orgContext.orgId');
+    expect(source).toContain('orgId: orgContext.orgId');
+  });
+
+  it('scopes customer return portal writes and lookups by derived organization', () => {
+    const source = readProjectFile('lib/actions/customer-return.actions.ts');
+
+    expect(source).toContain(".select('id, org_id, customer_id, metadata')");
+    expect(source).toContain(".eq('order_number', formData.orderNumber)");
+    expect(source).toContain(".eq('customer_phone', formData.phone)");
+    expect(source).toContain("const orgId = orderOrgIds[0] as string");
+    expect(source).toContain(".eq('org_id', orgId)");
+    expect(source).toContain('org_id: orgId');
+    expect(source).toContain('returns/${orgId}/${returnRequest.id}');
+    expect(source).not.toContain('.insert({\n          order_number: formData.orderNumber');
+  });
+
+  it('requires org context and org filters in upload image actions', () => {
+    const source = readProjectFile('lib/actions/upload.ts');
+
+    expect(source).toContain("from '@/lib/saas/org-context'");
+    expect(source).toContain('await getUploadReadOrgContext()');
+    expect(source).toContain('await getUploadWritableOrgContext()');
+    expect(source).toContain('returns/${orgContext.orgId}/${data.returnRequestId}');
+    expect(source).toContain(".eq('org_id', orgContext.orgId)");
+    expect(source).toContain('org_id: orgContext.orgId');
+  });
+
+  it('supports org-scoped upload sessions in signed-url route', () => {
+    const securitySource = readProjectFile('lib/upload/security.ts');
+    const routeSource = readProjectFile('app/api/v1/upload/signed-url/route.ts');
+
+    expect(securitySource).toContain('orgId?: string');
+    expect(securitySource).toContain("...(input.orgId ? { orgId: input.orgId } : {})");
+    expect(routeSource).toContain("from '@/lib/saas/org-context'");
+    expect(routeSource).toContain('sessionVerification.payload.orgId');
+    expect(routeSource).toContain('staging/${orgId}/${draftId}');
+  });
 });

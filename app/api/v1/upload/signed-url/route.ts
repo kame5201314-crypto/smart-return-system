@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
+import { getOrgContext } from '@/lib/saas/org-context';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -286,7 +287,27 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const randomId = crypto.randomUUID().split('-')[0];
     const fileExt = getExtensionFromFileName(fileName);
-    const filePath = `staging/${draftId}/${safeFolder}/${timestamp}_${randomId}.${fileExt}`;
+    const tokenOrgId = typeof sessionVerification.payload.orgId === 'string'
+      ? sessionVerification.payload.orgId.trim()
+      : '';
+    let orgId = tokenOrgId || null;
+
+    if (!orgId) {
+      try {
+        const orgContext = await getOrgContext({
+          requirements: {
+            roles: ['owner', 'admin', 'staff'],
+            writable: true,
+          },
+        });
+        orgId = orgContext.orgId;
+      } catch {
+        orgId = null;
+      }
+    }
+
+    const stagingRoot = orgId ? `staging/${orgId}/${draftId}` : `staging/${draftId}`;
+    const filePath = `${stagingRoot}/${safeFolder}/${timestamp}_${randomId}.${fileExt}`;
 
     const { data, error } = await adminClient.storage
       .from('return-images')

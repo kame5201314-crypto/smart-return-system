@@ -8,6 +8,15 @@ vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
 }));
 
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: vi.fn(async () => ({
+    orgId: 'org-pickup-backend-test',
+    role: 'admin',
+    featureFlags: {},
+    plan: 'growth',
+  })),
+}));
+
 import {
   getRecentScannedPickupRecords,
   scanPickupRecord,
@@ -45,13 +54,18 @@ function buildMockClient(initialRows: PickupRow[]) {
   const recentOrderMock = vi.fn().mockReturnValue({
     limit: recentLimitMock,
   });
-  const recentEqMock = vi.fn().mockReturnValue({
-    order: recentOrderMock,
-  });
-
-  const selectMock = vi.fn().mockReturnValue({
-    order: selectOrderMock,
-    eq: recentEqMock,
+  const selectMock = vi.fn().mockImplementation(() => {
+    const selectChain = {
+      eq: vi.fn(),
+      order: vi.fn((column: string) => {
+        if (column === 'scanned_at') {
+          return recentOrderMock();
+        }
+        return selectOrderMock();
+      }),
+    };
+    selectChain.eq.mockReturnValue(selectChain);
+    return selectChain;
   });
 
   const updateSingleMock = vi.fn().mockImplementation((id: string, payload: Record<string, unknown>) => {
@@ -69,20 +83,28 @@ function buildMockClient(initialRows: PickupRow[]) {
     });
   });
 
-  const updateEqMock = vi.fn().mockImplementation((field: string, id: string) => ({
-    select: vi.fn().mockReturnValue({
-      single: vi.fn().mockImplementation(() => {
-        const payload = updateMock.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-        if (field !== 'id') {
-          return Promise.resolve({ data: null, error: { message: 'unexpected field' } });
+  let updateId: string | null = null;
+  let updatePayload: Record<string, unknown> = {};
+  const updateMock = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
+    updatePayload = payload;
+    updateId = null;
+    const updateChain = {
+      eq: vi.fn((field: string, value: string) => {
+        if (field === 'id') {
+          updateId = value;
         }
-        return updateSingleMock(id, payload);
+        return updateChain;
       }),
-    }),
-  }));
-
-  const updateMock = vi.fn().mockReturnValue({
-    eq: updateEqMock,
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockImplementation(() => {
+          if (!updateId) {
+            return Promise.resolve({ data: null, error: { message: 'missing id filter' } });
+          }
+          return updateSingleMock(updateId, updatePayload);
+        }),
+      }),
+    };
+    return updateChain;
   });
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
