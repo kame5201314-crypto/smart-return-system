@@ -21,7 +21,9 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
   - email delivery remains dry-run
-  - owner selected custom app domain `app.smart-return.tw`, but no Vercel/DNS change has been authorized or performed
+  - owner selected custom app domain `app.smart-return.tw`; Codex attempted
+    Vercel setup after owner authorization, but Vercel domain access is still
+    blocked until DNS/ownership is verified
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
@@ -35,9 +37,15 @@ serialized in this order:
 
 1. Custom/beta domain:
    - Owner selected `app.smart-return.tw`.
-   - Owner still needs to authorize the Vercel domain change and provide DNS
-     authority or DNS records.
-   - Codex configures only the SaaS Vercel project after explicit approval.
+   - Codex attempted to add the domain to Vercel project
+     `smart-return-system-saas` on 2026-06-06.
+   - The CLI printed a project-add success message, but subsequent
+     `vercel domains inspect app.smart-return.tw` and `vercel alias set ...`
+     failed with Vercel 403 domain access errors.
+   - `vercel domains ls` still reports 0 domains under the current Vercel
+     scope, and local DNS lookup does not resolve `app.smart-return.tw`.
+   - Owner must set/verify DNS ownership or provide DNS provider access before
+     Codex can complete alias verification.
 2. Public multi-tenant isolation:
    - Shopee, pickup, customer portal, and upload/signed-url P1 are hardened
      locally.
@@ -253,17 +261,35 @@ Owner selected:
 
 - Target domain: `app.smart-return.tw`
 
-Owner must still provide:
+Latest attempt:
+
+- `npx vercel domains add app.smart-return.tw` printed a success message for
+  project `smart-return-system-saas`, but the CLI then failed to fetch the
+  domain with Vercel 403 access errors.
+- `npx vercel domains inspect app.smart-return.tw` failed with "You don't have
+  access to the domain".
+- `npx vercel alias set <current-production-deployment> app.smart-return.tw`
+  failed with the same Vercel 403 domain access error.
+- `npx vercel domains ls` reports 0 domains under the current Vercel scope.
+- Local DNS lookup does not resolve `app.smart-return.tw`.
+
+Owner must still provide or perform:
 
 - DNS provider access or the exact DNS records owner will set manually
+- A DNS record for the app subdomain. Start with:
+  - Type: `CNAME`
+  - Name/Host: `app`
+  - Value/Target: `cname.vercel-dns.com`
+- If the Vercel dashboard shows a domain ownership `TXT` verification record,
+  add that exact TXT record first, then retry verification/alias.
 - Confirmation whether `NEXT_PUBLIC_APP_URL` should move to the new domain
   after Vercel confirms the domain is ready
 
-Handoff after the domain is chosen:
+Handoff after DNS is set or DNS access is available:
 
 ```text
-I authorize configuring custom domain <domain> for Vercel project
-smart-return-system-saas.
+I authorize retrying custom domain verification for app.smart-return.tw on
+Vercel project smart-return-system-saas.
 
 Scope:
 - Add/configure only this SaaS domain.

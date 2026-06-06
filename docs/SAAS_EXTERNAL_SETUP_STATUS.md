@@ -45,11 +45,11 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Latest deployed `develop-saas` HEAD is `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
-- Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
+- Billing/ECPay credentials plus `ENABLE_BILLING`, verified custom domain/DNS, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `0c9c983 docs(saas): avoid stale latest head wording` -> Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
 - Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
-- Owner selected `app.smart-return.tw` as the app domain, but no Vercel domain/DNS change has been authorized or performed.
+- Owner selected `app.smart-return.tw` as the app domain. Codex attempted Vercel domain setup after owner authorization, but Vercel returned domain access 403 errors and local DNS does not yet resolve the subdomain.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 
@@ -76,6 +76,52 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
   - No migration was run.
   - No env/secret was edited.
   - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
+
+## 2026-06-06 Custom Domain Attempt
+
+- Scope:
+  - Owner authorized setting up the selected SaaS app domain
+    `app.smart-return.tw`.
+  - Preflight passed on `develop-saas`, working tree was clean, and
+    `npm run safety:agent-boundary` passed.
+  - Target Vercel project was confirmed as `smart-return-system-saas`
+    (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+- Attempted actions:
+  - `npx vercel domains inspect app.smart-return.tw` before setup returned
+    `Domain not found`.
+  - `npx vercel domains add app.smart-return.tw` printed
+    `Success! Domain app.smart-return.tw added to project
+    smart-return-system-saas.`
+  - The same command then failed while fetching the domain with a Vercel 403
+    domain access error.
+  - `npx vercel domains inspect app.smart-return.tw` still failed with:
+    `You don't have access to the domain app.smart-return.tw under
+    kaweis-projects.`
+  - `npx vercel alias set smart-return-system-saas-lb3o8btq0-kaweis-projects.vercel.app app.smart-return.tw`
+    failed with the same Vercel 403 domain access error.
+  - `npx vercel domains ls` reports 0 domains under the current Vercel scope.
+  - Local DNS lookup for `app.smart-return.tw` and `smart-return.tw` returned
+    no records.
+- Current result:
+  - The custom domain is not ready.
+  - Production remains available at
+    `https://smart-return-system-saas.vercel.app`.
+  - Owner/DNS action is required before retrying Vercel verification.
+- Required owner/DNS action:
+  - Add a DNS record at the domain provider:
+    - Type: `CNAME`
+    - Name/Host: `app`
+    - Value/Target: `cname.vercel-dns.com`
+  - If Vercel dashboard asks for a domain ownership `TXT` verification record,
+    add that exact TXT record first.
+  - After DNS propagates, retry domain verification/alias and then decide
+    whether to update `NEXT_PUBLIC_APP_URL` to `https://app.smart-return.tw`.
+- Not performed:
+  - No migration was run.
+  - No env/secret was changed.
   - No email provider was enabled.
   - No billing/provider was enabled.
   - No master/live/internal Supabase action was performed.

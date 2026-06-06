@@ -1,5 +1,55 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
+Attempted owner-authorized custom domain setup for `app.smart-return.tw` on the
+SaaS Vercel project.
+
+Completed in this handoff:
+
+- Ran preflight and `npm run safety:agent-boundary`; both confirmed
+  `develop-saas` / SaaS checkout safety.
+- Confirmed Vercel project `smart-return-system-saas`
+  (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+- Confirmed `app.smart-return.tw` was not already visible before setup.
+- Ran `npx vercel domains add app.smart-return.tw`.
+- Vercel printed a project-add success message, then failed to fetch the domain
+  with a 403 domain access error.
+- Retried domain inspect and alias:
+  - `npx vercel domains inspect app.smart-return.tw`
+  - `npx vercel alias set smart-return-system-saas-lb3o8btq0-kaweis-projects.vercel.app app.smart-return.tw`
+- Both failed with Vercel 403 domain access errors.
+- Confirmed `npx vercel domains ls` reports 0 domains under the current Vercel
+  scope.
+- Confirmed local DNS lookup does not resolve `app.smart-return.tw`.
+
+Current blocker:
+
+- Owner must set/verify DNS ownership before Codex can retry Vercel alias
+  verification.
+- Recommended DNS start point for the subdomain:
+  - Type: `CNAME`
+  - Name/Host: `app`
+  - Value/Target: `cname.vercel-dns.com`
+- If Vercel dashboard displays a TXT ownership challenge, add that exact TXT
+  record first.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/TASK_BOARD.md`
+
+Not performed:
+
+- No migration.
+- No env/secret edit.
+- No email provider enablement.
+- No billing/provider enablement.
+- No master/live/internal Supabase action.
+
 ## 2026-06-06 Codex -> Owner / Claude / Codex
 
 Completed the owner-authorized production deployment of current
