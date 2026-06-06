@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -12,6 +12,7 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 - Production URL: `https://smart-return-system-saas.vercel.app`
 - Production deployment: `dpl_x5K1udVYJBGo1sMEwenry9csz8UR`
 - Production status: Ready
+- Latest read-only audit: 2026-06-06
 - Latest deployed runtime commit:
   `9176589 fix(saas/ui): finish public RWD and role separation polish`
 - Manual Beta posture:
@@ -21,6 +22,33 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - no custom/beta domain is configured
   - Sentry DSN is not configured
   - draft migrations `033`-`036` remain unapplied
+
+## 2026-06-06 Owner-Blocked Audit Result
+
+Codex completed every safe check that can be run without additional owner
+values or irreversible authorization:
+
+- Vercel project is confirmed as `smart-return-system-saas`; SaaS doctor reports
+  it is not linked to the internal/live project.
+- Production deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` remains Ready.
+- Vercel production env names do not list `SENTRY_DSN` or
+  `NEXT_PUBLIC_SENTRY_DSN`; no placeholder DSN was set.
+- No custom/beta domain is visible from the read-only Vercel deployment check.
+- Vercel production env names do not list email provider credentials.
+- Vercel production env names do not list ECPay/provider credentials.
+- Billing remains disabled for Manual Beta; no provider was enabled.
+- Draft migrations `033`-`036` remain unapplied. `035` remains the only first
+  migration candidate, but still requires explicit owner authorization.
+
+Latest verification:
+
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run saas:rollout-check`: 23 pass, 2 warn, 0 fail. Warnings are missing
+  Sentry DSN and `ENABLE_BILLING=false`, both expected for Manual Beta.
+- `npm run lint`: passed.
+- `npm run typecheck`: passed.
+- `npm run test:all`: passed.
 
 ## Latest Smoke Snapshot
 

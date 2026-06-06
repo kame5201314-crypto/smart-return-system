@@ -1,5 +1,58 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Claude / Codex
+
+Completed the owner-blocked SaaS launch readiness audit with read-only platform
+checks and local gates only.
+
+Summary:
+
+- Preflight passed on `develop-saas` at
+  `e8fbd95 docs(saas): add external owner action runbook`.
+- Confirmed Vercel project `smart-return-system-saas`
+  (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+- Confirmed production deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` is Ready.
+- Production URL remains `https://smart-return-system-saas.vercel.app`.
+- Vercel env names do not list `SENTRY_DSN` or `NEXT_PUBLIC_SENTRY_DSN`.
+- No custom/beta domain is visible from the Vercel deployment aliases.
+- Vercel env names do not list email provider keys for Resend, Postmark,
+  SendGrid, SMTP, or equivalent provider credentials.
+- Vercel env names do not list `BILLING_PROVIDER`, `ECPAY_MERCHANT_ID`,
+  `ECPAY_HASH_KEY`, `ECPAY_HASH_IV`, or `ECPAY_MODE`.
+- Manual Beta remains billing-disabled; no provider was enabled.
+- Draft migrations `033`-`036` remain unapplied. `035` remains the first
+  migration candidate only if the owner separately authorizes it.
+
+Verification:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is local
+  `ENABLE_MULTI_TENANT_ADMIN=true`.
+- `npm run saas:rollout-check`: 23 pass, 2 warn, 0 fail. Warnings are missing
+  Sentry DSN and `ENABLE_BILLING=false`, both expected for Manual Beta.
+- `npm run lint`: passed.
+- `npm run typecheck`: passed.
+- `npm run test:all`: passed.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+- `agent-shared/TASK_BOARD.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Notes:
+
+- No deployment was performed.
+- No migration was run.
+- No env/secret was edited.
+- No Sentry DSN was configured.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/prod/internal Supabase action was performed.
+
 ## 2026-06-05 Codex -> Owner / Claude / Codex
 
 Added the external owner action runbook and refreshed the remaining blocker

@@ -25,7 +25,7 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `9176589 fix(saas/ui): finish public RWD and role separation polish` -> Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. Latest production smoke returned 200 for public marketing/login routes, redirected unauthenticated merchant routes to `/login`, and redirected unauthenticated platform routes to `/admin/login?next=...`. `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md` now records owner-provided values, handoff templates, and sequencing for Sentry, beta/custom domain, email provider, Billing/ECPay, and migrations 033-036. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN, beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `9176589 fix(saas/ui): finish public RWD and role separation polish` -> Vercel deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 read-only owner-blocked audit confirmed Vercel project `smart-return-system-saas`, no visible Sentry DSN env keys, no visible custom/beta domain, no visible email provider credentials, no visible ECPay/provider credentials, billing still disabled for Manual Beta, and draft migrations 033-036 still unapplied. `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md` records owner-provided values, handoff templates, and sequencing for Sentry, beta/custom domain, email provider, Billing/ECPay, and migrations 033-036. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Sentry DSN, beta/custom domain, email provider, Billing/ECPay, and draft migrations 033-036 remain blocked on external values/credentials or separate migration authorization. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization.
 ```
 
 ## Recent Completed
@@ -33,6 +33,20 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Owner-blocked launch readiness audit
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Completed the safe read-only launch checks requested by the owner. Confirmed Vercel project `smart-return-system-saas`, production deployment `dpl_x5K1udVYJBGo1sMEwenry9csz8UR` Ready, no visible Sentry DSN env keys, no visible custom/beta domain, no visible email provider keys, no visible ECPay/provider keys, billing disabled for Manual Beta, and migrations `033`-`036` still only draft/unapplied. Ran `npm run saas:doctor`, `npm run saas:rollout-check`, `npm run lint`, `npm run typecheck`, and `npm run test:all`. No deploy, migration, env/secret edit, domain/DNS change, provider enablement, billing enablement, master/live/prod/internal Supabase action, or production setting mutation was performed.
+```
+
+```text
+Owner: Codex
+Commit: 54cffed
 Scope: Post-deploy external blocker audit
 Files:
 - docs/SAAS_EXTERNAL_SETUP_STATUS.md
