@@ -9,12 +9,13 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 ## Current Verified State
 
 - Branch: `develop-saas`
+- Latest pushed commit: `27c5ecb fix(saas): gate backup and maintenance cron isolation`
 - Production URL: `https://smart-return-system-saas.vercel.app`
 - Production deployment: `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`
 - Production status: Ready
-- Latest Sentry setup / redeploy: 2026-06-06
 - Latest deployed runtime commit:
   `360c56f docs(saas): record owner-blocked launch readiness audit`
+- Latest Sentry setup / redeploy: 2026-06-06
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
@@ -31,12 +32,19 @@ confirmed many customers will be opened. External rollout actions still need
 owner-provided values or per-action authorization. The next actions must stay
 serialized in this order:
 
-1. Custom/beta domain:
+1. Deploy latest pushed SaaS HEAD:
+   - Latest pushed commit is `27c5ecb`.
+   - Production still runs `360c56f` / `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
+   - Deploy only after explicit owner authorization naming the target Vercel
+     project `smart-return-system-saas`.
+   - Do not combine this with domain, env, provider, billing, or migration work
+     unless separately authorized.
+2. Custom/beta domain:
    - Owner selected `app.smart-return.tw`.
    - Owner still needs to authorize the Vercel domain change and provide DNS
      authority or DNS records.
    - Codex configures only the SaaS Vercel project after explicit approval.
-2. Public multi-tenant isolation:
+3. Public multi-tenant isolation:
    - Shopee, pickup, customer portal, and upload/signed-url P1 are hardened
      locally.
    - Backup action and backup cron P2 gating is complete locally. Backup cron
@@ -45,16 +53,16 @@ serialized in this order:
      `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured.
    - Keep both cron env vars unset unless the owner explicitly wants automated
      platform maintenance enabled in production.
-3. Email provider:
+4. Email provider:
    - Owner chose to skip this for now.
    - Owner chooses Resend, Postmark, SendGrid, or SMTP and provides credentials
      out of band.
    - Codex wires delivery only after provider credentials and enablement scope
      are confirmed.
-4. Billing/ECPay:
+5. Billing/ECPay:
    - Keep disabled for Closed Manual Beta.
    - Start only when Stage 2 paid Beta is approved and ECPay credentials exist.
-5. Migrations `033`, `034`, and `036`:
+6. Migrations `033`, `034`, and `036`:
    - Do not apply as a bundle.
    - Apply only when the matching runtime feature is ready and separately
      authorized.
@@ -156,12 +164,37 @@ Verified on 2026-06-05:
 
 ## Recommended Order
 
-1. Decide and configure a beta/custom domain.
-2. Choose an email provider, then wire provider delivery after credentials
+1. Deploy latest pushed `develop-saas` HEAD after explicit deploy
+   authorization.
+2. Decide and configure a beta/custom domain.
+3. Choose an email provider, then wire provider delivery after credentials
    exist.
-3. Keep Billing/ECPay disabled until Stage 2 paid Beta.
-4. Apply migrations `033`, `034`, and `036` only when their matching runtime
+4. Keep Billing/ECPay disabled until Stage 2 paid Beta.
+5. Apply migrations `033`, `034`, and `036` only when their matching runtime
    feature is needed and explicitly authorized.
+
+## Latest Head Deployment Handoff
+
+Use this only if the owner wants the latest pushed code to reach production:
+
+```text
+I authorize deploying develop-saas latest pushed commit 27c5ecb to Vercel
+production project smart-return-system-saas.
+
+Scope:
+- Run preflight and safety checks first.
+- Run npm run saas:predeploy before deploy.
+- Deploy only smart-return-system-saas.
+- Do not configure domain/DNS.
+- Do not run migration.
+- Do not edit env/secrets.
+- Do not enable email provider.
+- Do not enable billing/provider.
+- Do not touch master/live/internal Supabase.
+
+After deploy, run production smoke tests, update docs, commit, and push
+develop-saas.
+```
 
 ## Sentry DSN
 

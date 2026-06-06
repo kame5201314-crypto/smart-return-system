@@ -2,6 +2,39 @@
 
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
+Recorded the post-`27c5ecb` rollout order after the owner asked to continue in
+sequence.
+
+Completed in this handoff:
+
+- Clarified that `27c5ecb fix(saas): gate backup and maintenance cron
+  isolation` is pushed to `origin/develop-saas`.
+- Clarified that production still runs `360c56f` /
+  `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
+- Added a deployment authorization template for deploying only the latest
+  pushed SaaS HEAD to Vercel project `smart-return-system-saas`.
+- Updated the external setup status and active-work notes so agents do not
+  mistake the latest pushed commit for the latest deployed runtime.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS configuration.
+- No email provider enablement.
+- No billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
 Continued public multi-tenant P2 tenant isolation hardening for backup and
 backup cron paths.
 
