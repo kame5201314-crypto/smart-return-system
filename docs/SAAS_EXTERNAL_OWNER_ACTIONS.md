@@ -9,15 +9,13 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Pending deployment scope: production is behind `origin/develop-saas`; the
-  pending runtime/security change includes
-  `27c5ecb fix(saas): gate backup and maintenance cron isolation` plus later
-  docs-only handoff commits.
+- Current production includes `27c5ecb fix(saas): gate backup and maintenance
+  cron isolation`.
 - Production URL: `https://smart-return-system-saas.vercel.app`
-- Production deployment: `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`
+- Production deployment: `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`
 - Production status: Ready
 - Latest deployed runtime commit:
-  `360c56f docs(saas): record owner-blocked launch readiness audit`
+  `0c9c983 docs(saas): avoid stale latest head wording`
 - Latest Sentry setup / redeploy: 2026-06-06
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
@@ -35,22 +33,12 @@ confirmed many customers will be opened. External rollout actions still need
 owner-provided values or per-action authorization. The next actions must stay
 serialized in this order:
 
-1. Deploy current `origin/develop-saas` SaaS HEAD:
-   - Pending runtime/security change includes `27c5ecb`.
-   - Later docs-only handoff commits may sit after `27c5ecb`; deploy the
-     current remote HEAD after pulling and verifying it still targets
-     `develop-saas`.
-   - Production still runs `360c56f` / `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
-   - Deploy only after explicit owner authorization naming the target Vercel
-     project `smart-return-system-saas`.
-   - Do not combine this with domain, env, provider, billing, or migration work
-     unless separately authorized.
-2. Custom/beta domain:
+1. Custom/beta domain:
    - Owner selected `app.smart-return.tw`.
    - Owner still needs to authorize the Vercel domain change and provide DNS
      authority or DNS records.
    - Codex configures only the SaaS Vercel project after explicit approval.
-3. Public multi-tenant isolation:
+2. Public multi-tenant isolation:
    - Shopee, pickup, customer portal, and upload/signed-url P1 are hardened
      locally.
    - Backup action and backup cron P2 gating is complete locally. Backup cron
@@ -59,16 +47,16 @@ serialized in this order:
      `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured.
    - Keep both cron env vars unset unless the owner explicitly wants automated
      platform maintenance enabled in production.
-4. Email provider:
+3. Email provider:
    - Owner chose to skip this for now.
    - Owner chooses Resend, Postmark, SendGrid, or SMTP and provides credentials
      out of band.
    - Codex wires delivery only after provider credentials and enablement scope
      are confirmed.
-5. Billing/ECPay:
+4. Billing/ECPay:
    - Keep disabled for Closed Manual Beta.
    - Start only when Stage 2 paid Beta is approved and ECPay credentials exist.
-6. Migrations `033`, `034`, and `036`:
+5. Migrations `033`, `034`, and `036`:
    - Do not apply as a bundle.
    - Apply only when the matching runtime feature is ready and separately
      authorized.
@@ -145,9 +133,25 @@ Latest verification:
 - `npm run typecheck`: passed.
 - `npm run test:all`: passed.
 
+## 2026-06-06 Completed Owner Action: Current HEAD Production Deploy
+
+- Owner authorized deploying current `origin/develop-saas` HEAD to Vercel
+  Production project `smart-return-system-saas`.
+- Required included commit:
+  `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
+- Actual deployed HEAD:
+  `0c9c983 docs(saas): avoid stale latest head wording`.
+- `npm run saas:predeploy` passed before deployment.
+- Vercel deployment ID: `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+- Production alias: `https://smart-return-system-saas.vercel.app`.
+- Smoke test passed for public `200`, tenant `307 -> /login`, and platform
+  `307 -> /admin/login?next=...` routes.
+- No domain/DNS, migration, env/secret, email provider, billing/provider,
+  master/live/internal Supabase, or provider setting change was performed.
+
 ## Latest Smoke Snapshot
 
-Verified on 2026-06-05:
+Verified on 2026-06-06:
 
 - Public routes returned `200`:
   - `/`
@@ -170,24 +174,24 @@ Verified on 2026-06-05:
 
 ## Recommended Order
 
-1. Deploy current `origin/develop-saas` HEAD after explicit deploy
-   authorization.
-2. Decide and configure a beta/custom domain.
-3. Choose an email provider, then wire provider delivery after credentials
+1. Decide and configure a beta/custom domain.
+2. Choose an email provider, then wire provider delivery after credentials
    exist.
-4. Keep Billing/ECPay disabled until Stage 2 paid Beta.
-5. Apply migrations `033`, `034`, and `036` only when their matching runtime
+3. Keep Billing/ECPay disabled until Stage 2 paid Beta.
+4. Apply migrations `033`, `034`, and `036` only when their matching runtime
    feature is needed and explicitly authorized.
 
 ## Current Head Deployment Handoff
 
-Use this only if the owner wants the current remote `develop-saas` code to reach
-production:
+Status: completed on 2026-06-06 for `0c9c983` /
+`dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+
+Use this pattern only for a future new remote `develop-saas` HEAD:
 
 ```text
 I authorize deploying current origin/develop-saas HEAD to Vercel production
-project smart-return-system-saas. The deployed HEAD must include
-27c5ecb fix(saas): gate backup and maintenance cron isolation.
+project smart-return-system-saas. The deployed HEAD must include the target
+commit named in my current authorization.
 
 Scope:
 - Run preflight and safety checks first.

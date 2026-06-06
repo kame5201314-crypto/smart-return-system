@@ -1,5 +1,61 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Claude / Codex
+
+Completed the owner-authorized production deployment of current
+`origin/develop-saas` HEAD to the SaaS Vercel project.
+
+Authorization scope:
+
+- Deploy current `origin/develop-saas` HEAD to Vercel Production project
+  `smart-return-system-saas`.
+- Required included commit:
+  `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
+- Do not configure domain/DNS.
+- Do not run migrations.
+- Do not edit env/secrets.
+- Do not enable email provider.
+- Do not enable billing/provider.
+- Do not touch master/live/internal Supabase.
+
+Predeploy:
+
+- Preflight passed in
+  `D:\AI專案\AI退貨系統商業版_2026.5.16` on branch `develop-saas`.
+- `git pull --ff-only origin develop-saas`: already up to date.
+- Actual deployed HEAD: `0c9c983 docs(saas): avoid stale latest head wording`.
+- Confirmed `0c9c983` contains the required `27c5ecb`.
+- `.vercel/project.json` confirmed project `smart-return-system-saas`
+  (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:predeploy`: passed.
+
+Production deployment:
+
+- Deployment URL:
+  `https://smart-return-system-saas-lb3o8btq0-kaweis-projects.vercel.app`.
+- Production alias:
+  `https://smart-return-system-saas.vercel.app`.
+- Vercel deployment ID: `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+- Vercel status: Ready.
+
+Smoke test:
+
+- `200`: `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, `/login`.
+- `307 -> /login`: `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, `/settings/usage`.
+- `307 -> /admin/login?next=...`: `/internal`, `/internal/orgs`.
+
+Notes:
+
+- No migration was run.
+- No env/secret was edited.
+- No domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
 Clarified the deployment handoff wording after the docs-only handoff commit made

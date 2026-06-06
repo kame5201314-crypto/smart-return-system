@@ -44,14 +44,41 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit`.
+- Latest deployed `develop-saas` HEAD is `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Latest owner-authorized production deployment: `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
-- Production is behind `origin/develop-saas`; the pending runtime/security change includes `27c5ecb fix(saas): gate backup and maintenance cron isolation` plus later docs-only handoff commits. Deploying the current remote HEAD requires separate owner deployment authorization.
-- Latest external blocker audit confirmed the production alias points at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`, Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
+- Latest owner-authorized production deployment: `0c9c983 docs(saas): avoid stale latest head wording` -> Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
+- Production now includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
+- Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
 - Owner selected `app.smart-return.tw` as the app domain, but no Vercel domain/DNS change has been authorized or performed.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
+
+## 2026-06-06 Owner-Authorized Production Deploy of Current HEAD
+
+- Scope:
+  - Owner authorized deploying current `origin/develop-saas` HEAD to Vercel Production project `smart-return-system-saas`.
+  - Required included commit: `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
+  - Actual deployed HEAD: `0c9c983 docs(saas): avoid stale latest head wording`, which contains `27c5ecb`.
+  - Preflight passed on `develop-saas`, working tree was clean, and `npm run safety:agent-boundary` passed.
+  - `git pull --ff-only origin develop-saas` was already up to date before deploy.
+  - `.vercel/project.json` confirmed project `smart-return-system-saas` (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+  - `npm run saas:predeploy` passed before deployment.
+- Production deployment:
+  - Deployment URL: `https://smart-return-system-saas-lb3o8btq0-kaweis-projects.vercel.app`.
+  - Production alias: `https://smart-return-system-saas.vercel.app`.
+  - Vercel deployment ID: `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+  - Vercel status: Ready.
+- Smoke test:
+  - Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`, `/features/security`, `/contact`, `/signup`, `/login` returned `200`.
+  - Protected tenant routes `/analytics`, `/returns`, `/pickup/scan`, `/analytics/ai-report`, and `/settings/usage` returned `307 -> /login` for unauthenticated visitors.
+  - Protected platform routes `/internal` and `/internal/orgs` returned `307 -> /admin/login?next=...` for unauthenticated visitors.
+- Not performed:
+  - No migration was run.
+  - No env/secret was edited.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-06-06 Owner-Authorized Migration 035 Apply
 
