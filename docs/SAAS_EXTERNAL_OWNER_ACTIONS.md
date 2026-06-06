@@ -21,7 +21,8 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - email delivery remains dry-run
   - no custom/beta domain is configured
   - Sentry DSN is configured in Vercel Production env
-  - draft migrations `033`-`036` remain unapplied
+  - migration `035_saas_onboarding_completion_rpc.sql` is applied
+  - draft migrations `033`, `034`, and `036` remain unapplied
 
 ## 2026-06-06 Next Executable Queue
 
@@ -32,24 +33,19 @@ next actions must stay serialized in this order:
 1. Custom/beta domain:
    - Owner provides the target domain and DNS authority.
    - Codex configures only the SaaS Vercel project after explicit approval.
-2. Migration `035_saas_onboarding_completion_rpc.sql`:
-   - Owner explicitly authorizes applying only migration `035` to SaaS
-     Supabase project `auyznbwtjvemyamujmgt`.
-   - Codex runs preflight, target checks, migration, post-checks, then updates
-     docs and pushes.
-3. Email provider:
+2. Email provider:
    - Owner chooses Resend, Postmark, SendGrid, or SMTP and provides credentials
      out of band.
    - Codex wires delivery only after provider credentials and enablement scope
      are confirmed.
-4. Billing/ECPay:
+3. Billing/ECPay:
    - Keep disabled for Closed Manual Beta.
    - Start only when Stage 2 paid Beta is approved and ECPay credentials exist.
-5. Migrations `033`, `034`, and `036`:
+4. Migrations `033`, `034`, and `036`:
    - Do not apply as a bundle.
    - Apply only when the matching runtime feature is ready and separately
      authorized.
-6. Public multi-tenant expansion:
+5. Public multi-tenant expansion:
    - Do not open public signup or broad multi-tenant rollout until the P1/P2
      tenant-isolation gaps in `docs/SAAS_TENANT_ISOLATION_AUDIT.md` are
      explicitly scheduled and hardened or gated.
@@ -73,6 +69,30 @@ placeholder env values, migrations, provider activation, or domain changes.
   `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
 - Production smoke passed after redeploy.
 
+## 2026-06-06 Completed Owner Action: Migration 035
+
+- Owner explicitly authorized applying only
+  `035_saas_onboarding_completion_rpc.sql` to SaaS Supabase project
+  `auyznbwtjvemyamujmgt`.
+- Preflight, `npm run safety:agent-boundary`, and
+  `npm run saas:migration-plan:strict` passed before the apply.
+- Remote migration history before apply showed `033`, `034`, `035`, and `036`
+  pending.
+- Codex applied only `035` and repaired remote migration history for version
+  `035` to `applied`.
+- Post-checks confirmed:
+  - `035` is applied remotely.
+  - `033`, `034`, and `036` remain unapplied.
+  - `public.complete_organization_onboarding(uuid, uuid, timestamptz, jsonb)`
+    exists.
+  - `service_role` can execute the RPC.
+  - `npm run saas:schema-gate:strict` passed.
+  - `npm run saas:doctor` passed with 155 pass, 1 expected local flag warning,
+    and 0 fail.
+- No deployment, env/secret edit, domain/DNS change, email provider enablement,
+  billing/provider enablement, master/live/internal Supabase action, or
+  migrations `033`, `034`, `036` apply was performed.
+
 ## 2026-06-06 Owner-Blocked Audit Result
 
 Codex completed every safe check that can be run without additional owner
@@ -87,8 +107,8 @@ values or irreversible authorization:
 - Vercel production env names do not list email provider credentials.
 - Vercel production env names do not list ECPay/provider credentials.
 - Billing remains disabled for Manual Beta; no provider was enabled.
-- Draft migrations `033`-`036` remain unapplied. `035` remains the only first
-  migration candidate, but still requires explicit owner authorization.
+- Draft migrations `033`, `034`, and `036` remain unapplied. Migration `035`
+  has since been explicitly authorized and applied.
 
 Latest verification:
 
@@ -128,11 +148,10 @@ Verified on 2026-06-05:
 ## Recommended Order
 
 1. Decide and configure a beta/custom domain.
-2. Apply migration `035` only if onboarding completion writes should persist.
-3. Choose an email provider, then wire provider delivery after credentials
+2. Choose an email provider, then wire provider delivery after credentials
    exist.
-4. Keep Billing/ECPay disabled until Stage 2 paid Beta.
-5. Apply migrations `033`, `034`, and `036` only when their matching runtime
+3. Keep Billing/ECPay disabled until Stage 2 paid Beta.
+4. Apply migrations `033`, `034`, and `036` only when their matching runtime
    feature is needed and explicitly authorized.
 
 ## Sentry DSN
@@ -319,6 +338,13 @@ Recommendation:
 
 ### `035_saas_onboarding_completion_rpc.sql`
 
+Status:
+
+- Applied to SaaS Supabase project `auyznbwtjvemyamujmgt` on 2026-06-06 after
+  explicit owner authorization.
+- Remote migration history records version `035` as applied.
+- Do not reapply unless a future repair/rollback plan is explicitly approved.
+
 Purpose:
 
 - Adds `complete_organization_onboarding()` RPC and audit write.
@@ -335,8 +361,8 @@ Risk:
 
 Recommendation:
 
-- Best first candidate among `033`-`036`, but still needs explicit owner
-  authorization and a backup.
+- Completed. Next migration actions remain `033`, `034`, and `036`, each only
+  after separate owner authorization.
 
 ### `036_saas_platform_admin_roles.sql`
 

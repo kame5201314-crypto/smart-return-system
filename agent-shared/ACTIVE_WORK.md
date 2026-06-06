@@ -25,10 +25,24 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. There is no remaining unblocked local code task. Next executable queue is custom/beta domain with owner DNS decision, migration `035` with explicit SaaS Supabase authorization, email provider with real credentials, Billing/ECPay for Stage 2 only, then separately authorized migrations `033`/`034`/`036`. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. There is no remaining unblocked local code task. Next executable queue is custom/beta domain with owner DNS decision, email provider with real credentials, Billing/ECPay for Stage 2 only, then separately authorized migrations `033`/`034`/`036`. Read-only tenant isolation audit on 2026-05-29 confirmed `saas:schema-gate:strict` is green and P0 return/AI/export paths have org-context filters, but public multi-tenant is not fully cleared until P1/P2 service-role-heavy paths are hardened or gated: Shopee returns actions, pickup actions, customer portal actions, upload/signed-url, backup, and cron/maintenance jobs. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Owner-authorized migration 035 apply
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Owner authorized applying only `035_saas_onboarding_completion_rpc.sql` to SaaS Supabase project `auyznbwtjvemyamujmgt`. Ran preflight, safety, `npm run saas:migration-plan:strict`, applied only 035 through the linked SaaS DB query path, repaired remote migration history for version `035`, and confirmed the RPC exists with service-role execute privilege. `npm run saas:schema-gate:strict` passed and `npm run saas:doctor` reported 155 pass, 1 expected local flag warning, 0 fail. No deployment, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or migrations `033`/`034`/`036` apply was performed.
+```
 
 ```text
 Owner: Codex

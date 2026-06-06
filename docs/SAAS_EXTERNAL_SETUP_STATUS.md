@@ -15,13 +15,13 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - Draft migration `033_saas_platform_billing_operations.sql` exists for platform billing operations but has not been applied.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
-- Draft migration `035_saas_onboarding_completion_rpc.sql` exists for onboarding completion audit writes but has not been applied.
+- Migration `035_saas_onboarding_completion_rpc.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `035` as applied.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
 - Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.
-- Onboarding backend foundation now includes read-only `loadSaaSOnboardingView()` plus guarded `POST /api/saas/onboarding/complete` for future Claude UI wiring; migration `035` is still not applied, so production UI must not enable completion writes yet.
+- Onboarding backend foundation now includes read-only `loadSaaSOnboardingView()` plus guarded `POST /api/saas/onboarding/complete`; migration `035` is applied and the `complete_organization_onboarding()` RPC is available to the service role.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
 - Platform admin identity separation now requires the signed internal admin session, explicit `ADMIN_EMAIL` / email-style `ADMIN_USERNAME`, or valid `PLATFORM_ADMIN_ROLES`. Tenant/profile `users.role='admin'` is no longer a platform admin grant. Proxy-level `/login` redirects now use the same explicit platform admin identity policy for already-authenticated users, and authenticated merchants who visit `/admin` are sent back to `/analytics`.
 - Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. DB-backed role assignments still require migration `036` to be explicitly applied before UI exposure.
@@ -47,7 +47,36 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Latest deployed `develop-saas` HEAD is `360c56f docs(saas): record owner-blocked launch readiness audit`.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
-- Latest external blocker audit confirmed the production alias points at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`, Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, and draft migrations `033`-`036` remain unapplied.
+- Latest external blocker audit confirmed the production alias points at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`, Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
+
+## 2026-06-06 Owner-Authorized Migration 035 Apply
+
+- Scope:
+  - Owner explicitly authorized applying only `035_saas_onboarding_completion_rpc.sql` to SaaS Supabase project `auyznbwtjvemyamujmgt`.
+  - Preflight passed on `develop-saas` with a clean working tree and `npm run safety:agent-boundary` passed.
+  - `npm run saas:migration-plan:strict` passed before the apply and confirmed:
+    - `SAAS_SUPABASE_PROJECT_ID=auyznbwtjvemyamujmgt`
+    - `SUPABASE_PROJECT_ID_EXPECTED=auyznbwtjvemyamujmgt`
+    - Supabase URL matches the SaaS ref
+    - forbidden internal/live refs were not targeted
+    - `SUPABASE_DB_PASSWORD` is set
+  - Remote migration list before apply showed `033`, `034`, `035`, and `036` pending.
+  - Applied only `supabase/migrations/035_saas_onboarding_completion_rpc.sql` via the linked SaaS database query path.
+  - Repaired remote migration history for version `035` to `applied`.
+- Post-checks:
+  - Remote migration list now shows `035` applied and `033`, `034`, `036` still unapplied.
+  - `public.complete_organization_onboarding(uuid, uuid, timestamptz, jsonb)` exists.
+  - `service_role` has execute privilege on the RPC.
+  - `npm run saas:schema-gate:strict`: passed (`22 table(s), 81 column(s) checked`).
+  - `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning remains local `ENABLE_MULTI_TENANT_ADMIN=true`.
+- Not performed:
+  - No deployment was performed.
+  - No env/secret was changed.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No migrations `033`, `034`, or `036` were applied.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-06-06 Sentry Setup and Production Redeploy
 

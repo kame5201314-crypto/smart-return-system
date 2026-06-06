@@ -1,5 +1,60 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Claude / Codex
+
+Applied the owner-authorized onboarding completion migration to the SaaS
+Supabase project only.
+
+Scope:
+
+- Owner explicitly authorized applying only
+  `035_saas_onboarding_completion_rpc.sql`.
+- Target SaaS Supabase project: `auyznbwtjvemyamujmgt`.
+- No migration `033`, `034`, or `036` authorization was included.
+
+Preflight and target checks:
+
+- Branch: `develop-saas`.
+- Working tree was clean before apply.
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:migration-plan:strict`: passed.
+- SaaS project checks confirmed:
+  - `SAAS_SUPABASE_PROJECT_ID=auyznbwtjvemyamujmgt`
+  - `SUPABASE_PROJECT_ID_EXPECTED=auyznbwtjvemyamujmgt`
+  - Supabase URL matched the SaaS ref.
+  - Forbidden internal/live refs were not targeted.
+- Remote migration list before apply showed `033`, `034`, `035`, and `036`
+  pending.
+
+Migration result:
+
+- Applied only `supabase/migrations/035_saas_onboarding_completion_rpc.sql`
+  via the linked SaaS database query path.
+- Repaired remote migration history for version `035` to `applied`.
+- Remote migration list after apply shows:
+  - `035` applied.
+  - `033`, `034`, and `036` still unapplied.
+- Verified `public.complete_organization_onboarding(uuid, uuid, timestamptz,
+  jsonb)` exists.
+- Verified `service_role` can execute the RPC.
+
+Verification:
+
+- `npm run saas:schema-gate:strict`: passed (`22 table(s), 81 column(s)
+  checked`).
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail. The warning is the existing
+  local `ENABLE_MULTI_TENANT_ADMIN=true` flag warning.
+
+Notes:
+
+- No deployment was performed.
+- No env/secret was edited.
+- No custom domain/DNS was configured.
+- No email provider was enabled.
+- No billing/provider was enabled.
+- No master/live/internal Supabase action was performed.
+- No migrations `033`, `034`, or `036` were applied.
+
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
 Recorded the post-Sentry next action queue because the owner asked to complete
