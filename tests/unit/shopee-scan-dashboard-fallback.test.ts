@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createUntypedAdminClientMock } = vi.hoisted(() => ({
+const { createUntypedAdminClientMock, getOrgContextMock } = vi.hoisted(() => ({
   createUntypedAdminClientMock: vi.fn(),
+  getOrgContextMock: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
+}));
+
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: getOrgContextMock,
 }));
 
 import { getShopeeScanDashboard } from '@/lib/actions/shopee-returns.actions';
@@ -18,6 +23,18 @@ const schemaCacheMissingTableError = {
 describe('getShopeeScanDashboard fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOrgContextMock.mockResolvedValue({
+      userId: 'user-1',
+      orgId: 'org-1',
+      orgName: 'Test Org',
+      orgSlug: 'test-org',
+      orgStatus: 'trialing',
+      role: 'owner',
+      plan: 'growth',
+      planDefinition: {},
+      featureFlags: {},
+      isPlatformAdmin: false,
+    });
   });
 
   it('gracefully degrades when scan event tables are missing', async () => {
@@ -27,18 +44,22 @@ describe('getShopeeScanDashboard fallback', () => {
           select: vi.fn().mockImplementation((columns: string) => {
             if (columns === '*') {
               return {
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: schemaCacheMissingTableError,
+                eq: vi.fn().mockReturnValue({
+                  order: vi.fn().mockReturnValue({
+                    limit: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: schemaCacheMissingTableError,
+                    }),
                   }),
                 }),
               };
             }
             return {
-              gte: vi.fn().mockResolvedValue({
-                data: null,
-                error: schemaCacheMissingTableError,
+              eq: vi.fn().mockReturnValue({
+                gte: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: schemaCacheMissingTableError,
+                }),
               }),
             };
           }),
@@ -48,10 +69,12 @@ describe('getShopeeScanDashboard fallback', () => {
       if (table === 'shopee_unmatched_scans') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: null,
-              count: null,
-              error: schemaCacheMissingTableError,
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: null,
+                count: null,
+                error: schemaCacheMissingTableError,
+              }),
             }),
           }),
         };
@@ -59,12 +82,14 @@ describe('getShopeeScanDashboard fallback', () => {
 
       if (table === 'shopee_returns') {
         return {
-          select: vi.fn().mockResolvedValue({
-            data: [
-              { id: '1', is_scanned: true },
-              { id: '2', is_scanned: false },
-            ],
-            error: null,
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                { id: '1', is_scanned: true },
+                { id: '2', is_scanned: false },
+              ],
+              error: null,
+            }),
           }),
         };
       }
@@ -96,21 +121,25 @@ describe('getShopeeScanDashboard fallback', () => {
           select: vi.fn().mockImplementation((columns: string) => {
             if (columns === '*') {
               return {
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: {
-                      message: 'permission denied',
-                      code: '42501',
-                    },
+                eq: vi.fn().mockReturnValue({
+                  order: vi.fn().mockReturnValue({
+                    limit: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: {
+                        message: 'permission denied',
+                        code: '42501',
+                      },
+                    }),
                   }),
                 }),
               };
             }
             return {
-              gte: vi.fn().mockResolvedValue({
-                data: null,
-                error: null,
+              eq: vi.fn().mockReturnValue({
+                gte: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: null,
+                }),
               }),
             };
           }),
@@ -120,10 +149,12 @@ describe('getShopeeScanDashboard fallback', () => {
       if (table === 'shopee_unmatched_scans') {
         return {
           select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: null,
-              count: 0,
-              error: null,
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: null,
+                count: 0,
+                error: null,
+              }),
             }),
           }),
         };
@@ -131,9 +162,11 @@ describe('getShopeeScanDashboard fallback', () => {
 
       if (table === 'shopee_returns') {
         return {
-          select: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
           }),
         };
       }

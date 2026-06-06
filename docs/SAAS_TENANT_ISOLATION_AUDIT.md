@@ -1,7 +1,7 @@
 # SaaS Tenant Isolation Audit
 
-Date: 2026-05-29
-Status: Read-only refresh for public multi-tenant readiness
+Date: 2026-06-06
+Status: P1 Shopee isolation hardening in progress for public multi-tenant readiness
 Scope: SaaS `develop-saas` checkout only
 
 This audit covers the current SaaS tenant isolation posture before any public multi-tenant rollout. It reviews local code, migrations, tests, and read-only schema gate output only.
@@ -16,11 +16,11 @@ The SaaS project has moved past the original draft state:
 - `npm run saas:schema-gate:strict` passes read-only with `22 table(s), 81 column(s) checked`.
 - `025_attach_org_id_to_business_tables.sql` is present and the SaaS schema gate verifies the required `org_id` columns for core customer/business tables.
 - P0 runtime isolation has been added for `lib/actions/return.actions.ts`, `app/api/v1/ai/analyze/route.ts`, and the three export routes.
-- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0 `getOrgContext()` and `.eq('org_id', ...)` guard patterns.
+- P1 Shopee runtime isolation is now added for `lib/actions/shopee-returns.actions.ts`.
+- `tests/unit/saas-runtime-org-isolation.test.ts` asserts the P0 and Shopee P1 `getOrgContext()` / `.eq('org_id', ...)` guard patterns.
 
 Public multi-tenant rollout is still not fully cleared. The remaining isolation risks are not the already-gated P0 paths; they are the older service-role-heavy P1/P2 paths that still need explicit tenant context or a deliberate non-public gate before broader self-serve use:
 
-- `lib/actions/shopee-returns.actions.ts`
 - `lib/actions/pickup.actions.ts`
 - `lib/actions/customer-return.actions.ts`
 - `lib/actions/upload.ts`
@@ -58,7 +58,7 @@ Before public multi-tenant, the safe order is:
 - Supports guard requirements for role, feature flag, and writable billing status.
 - Uses the authenticated Supabase server client for membership lookup; it does not use service-role clients for org context.
 
-The first P0 runtime action rewrites are now in place for returns, AI analysis, and export routes. Remaining service-role paths still need the same guard-and-filter pattern before public multi-tenant exposure.
+The first P0 runtime action rewrites are now in place for returns, AI analysis, and export routes. Shopee returns and scan actions now use the same guard-and-filter pattern. Remaining service-role paths still need the same guard-and-filter pattern before public multi-tenant exposure.
 
 ## Schema And RLS Audit
 
@@ -110,7 +110,7 @@ Runtime files that use service-role or admin clients for customer data:
 | `app/api/v1/admin/returns/export/route.ts` | `return_requests`, `orders`, `return_items` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
 | `app/api/v1/admin/shopee-returns/export/route.ts` | `shopee_returns` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
 | `app/api/v1/admin/pickup/export/route.ts` | `pickup_records` | P0 export guard now requires org context with `exportable: true` and filters by `org_id`. | P0 done |
-| `lib/actions/shopee-returns.actions.ts` | `shopee_returns`, `shopee_scan_events`, `shopee_unmatched_scans`, `orders`, `return_requests` | Still service-role-heavy and this refresh found no `getOrgContext()` / `org_id` guard pattern in the file. Treat as not public multi-tenant safe until hardened or gated. | P1 |
+| `lib/actions/shopee-returns.actions.ts` | `shopee_returns`, `shopee_scan_events`, `shopee_unmatched_scans`, `orders`, `return_requests` | P1 guard/filter now present: read actions use org context, write/scan/import/bind actions require writable org context, tenant reads filter by `org_id`, and tenant writes include `org_id`. Keep regression tests. | P1 done |
 | `lib/actions/pickup.actions.ts` | `pickup_records` | Still service-role-heavy and this refresh found no `getOrgContext()` / `org_id` guard pattern in the file. Needs tenant context before broad tenant use. | P1 |
 | `lib/actions/customer-return.actions.ts` | `customers`, `orders`, `return_requests`, `return_items`, `return_images`, `activity_logs` | Public portal path still needs explicit org derivation from a trusted route/order context; it must not rely on global order number/phone alone. | P1 |
 | `lib/actions/upload.ts` and `app/api/v1/upload/signed-url/route.ts` | `return_images`, storage `return-images` | Storage and DB rows still need verified org scoping in the object path/session contract before public multi-tenant exposure. | P1 |
@@ -204,16 +204,15 @@ Service-role policies may stay for controlled server-only paths, but runtime cod
 | Priority | Scope | First target |
 |---|---|---|
 | P0 | hot customer data and exports | Completed for return actions, AI analyze route, and export routes; keep regression coverage. |
-| P1 | Shopee, portal, upload, pickup | `shopee-returns.actions.ts`, customer portal actions, signed upload/session routes, pickup actions |
+| P1 | Portal, upload, pickup | customer portal actions, signed upload/session routes, pickup actions |
 | P2 | cron, backup, maintenance | cron routes, backup actions, retention/archive jobs |
 
 ## Next Local Tasks
 
 1. Keep `tests/unit/saas-runtime-org-isolation.test.ts` as the P0 regression guard.
-2. Add the next regression suite for Shopee import/scan actions before implementation.
-3. Convert `lib/actions/shopee-returns.actions.ts` to require org context and add `.eq('org_id', orgId)` / `org_id` writes to every tenant data path.
-4. Convert `lib/actions/pickup.actions.ts`, `lib/actions/customer-return.actions.ts`, and upload/signed-url paths to the same guard-and-filter pattern.
-5. Decide whether backup/cron routes are platform-only, per-org iteration jobs, or disabled for public multi-tenant launch.
+2. Keep the Shopee regression coverage in `tests/unit/saas-runtime-org-isolation.test.ts` and `tests/e2e/shopee-scan-flow.e2e.test.ts`.
+3. Convert `lib/actions/pickup.actions.ts`, `lib/actions/customer-return.actions.ts`, and upload/signed-url paths to the same guard-and-filter pattern.
+4. Decide whether backup/cron routes are platform-only, per-org iteration jobs, or disabled for public multi-tenant launch.
 
 Blocked platform tasks:
 

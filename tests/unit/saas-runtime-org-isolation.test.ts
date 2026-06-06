@@ -46,4 +46,16 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain('exportable: true');
     expect(source).toContain(".eq('org_id', orgId)");
   });
+
+  it('requires org context and org filters in P1 Shopee returns actions', () => {
+    const source = readProjectFile('lib/actions/shopee-returns.actions.ts');
+
+    expect(source).toContain("from '@/lib/saas/org-context'");
+    expect(source).toContain('await getShopeeReadOrgContext()');
+    expect(source).toContain('await getShopeeWritableOrgContext()');
+    expect(source).toContain(".eq('org_id', orgContext.orgId)");
+    expect(source).toContain('org_id: orgContext.orgId');
+    expect(source).toContain('orgId: orgContext.orgId');
+    expect(source).not.toContain("orgId: 'unknown'");
+  });
 });

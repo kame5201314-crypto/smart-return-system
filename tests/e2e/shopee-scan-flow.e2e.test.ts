@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createUntypedAdminClientMock } = vi.hoisted(() => ({
+const { createUntypedAdminClientMock, getOrgContextMock } = vi.hoisted(() => ({
   createUntypedAdminClientMock: vi.fn(),
+  getOrgContextMock: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
+}));
+
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: getOrgContextMock,
 }));
 
 import {
@@ -23,15 +28,6 @@ interface MockUnmatchedRow {
 
 function normalizeToken(value: string | null | undefined): string {
   return (value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
-function toThenableResult<T>(result: T) {
-  return {
-    then: (onFulfilled?: (value: T) => unknown, onRejected?: (reason: unknown) => unknown) =>
-      Promise.resolve(result).then(onFulfilled, onRejected),
-    catch: (onRejected?: (reason: unknown) => unknown) => Promise.resolve(result).catch(onRejected),
-    finally: (onFinally?: () => void) => Promise.resolve(result).finally(onFinally),
-  };
 }
 
 function buildShopeeRow(partial: Partial<ShopeeReturn>): ShopeeReturn {
@@ -76,27 +72,84 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
   const events: ShopeeScanEvent[] = [];
   const unmatchedRows: MockUnmatchedRow[] = [];
 
-  const returnsSelectInMock = vi.fn().mockImplementation((field: string, values: string[]) => {
-    const tokenSet = new Set(values.map((value) => normalizeToken(value)));
-    const filtered = rows.filter((row) => {
-      if (field === 'order_number_norm') {
-        return tokenSet.has(normalizeToken(row.order_number_norm || row.order_number));
-      }
-      if (field === 'tracking_number_norm') {
-        return tokenSet.has(normalizeToken(row.tracking_number_norm || row.tracking_number));
-      }
-      return false;
-    });
-    return Promise.resolve({ data: filtered, error: null });
-  });
+  const rowMatchesFilter = (row: Record<string, unknown>, field: string, value: string) => {
+    if (field === 'org_id') return String(row.org_id || 'org-1') === value;
+    return String(row[field] || '') === value;
+  };
 
-  const returnsSelectMock = vi.fn().mockImplementation(() => {
-    const fallbackResult = { data: rows, error: null };
-    return {
-      in: returnsSelectInMock,
-      ...toThenableResult(fallbackResult),
+  const buildThenableQuery = <T extends Record<string, unknown>>(
+    sourceRows: T[],
+    options: {
+      projection?: (row: T) => Record<string, unknown>;
+      defaultSort?: (input: T[]) => T[];
+    } = {}
+  ) => {
+    const equals: Array<[string, string]> = [];
+    let inFilter: [string, string[]] | null = null;
+    let gteFilter: [string, string] | null = null;
+    let limitCount: number | null = null;
+
+    const resolveRows = () => {
+      let filtered = sourceRows.filter((row) =>
+        equals.every(([field, value]) => rowMatchesFilter(row, field, value))
+      );
+
+      if (inFilter) {
+        const [field, values] = inFilter;
+        const tokenSet = new Set(values.map((value) => normalizeToken(value)));
+        filtered = filtered.filter((row) => {
+          if (field === 'order_number_norm') {
+            return tokenSet.has(normalizeToken(String(row.order_number_norm || row.order_number || '')));
+          }
+          if (field === 'tracking_number_norm') {
+            return tokenSet.has(normalizeToken(String(row.tracking_number_norm || row.tracking_number || '')));
+          }
+          return tokenSet.has(normalizeToken(String(row[field] || '')));
+        });
+      }
+
+      if (gteFilter) {
+        const [field, lowerBound] = gteFilter;
+        const lower = new Date(lowerBound).getTime();
+        filtered = filtered.filter((row) =>
+          Number.isNaN(lower) ? true : new Date(String(row[field] || '')).getTime() >= lower
+        );
+      }
+
+      filtered = options.defaultSort ? options.defaultSort(filtered) : filtered;
+      if (limitCount !== null) filtered = filtered.slice(0, limitCount);
+      return options.projection ? filtered.map(options.projection) : filtered;
     };
-  });
+
+    const query = {
+      eq: vi.fn().mockImplementation((field: string, value: string) => {
+        equals.push([field, value]);
+        return query;
+      }),
+      in: vi.fn().mockImplementation((field: string, values: string[]) => {
+        inFilter = [field, values];
+        return Promise.resolve({ data: resolveRows(), error: null });
+      }),
+      gte: vi.fn().mockImplementation((field: string, value: string) => {
+        gteFilter = [field, value];
+        return Promise.resolve({ data: resolveRows(), error: null });
+      }),
+      order: vi.fn().mockImplementation(() => query),
+      limit: vi.fn().mockImplementation((count: number) => {
+        limitCount = count;
+        return Promise.resolve({ data: resolveRows(), error: null });
+      }),
+      then: (onFulfilled?: (value: { data: Record<string, unknown>[]; error: null }) => unknown, onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve({ data: resolveRows(), error: null }).then(onFulfilled, onRejected),
+      catch: (onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve({ data: resolveRows(), error: null }).catch(onRejected),
+      finally: (onFinally?: () => void) => Promise.resolve({ data: resolveRows(), error: null }).finally(onFinally),
+    };
+
+    return query;
+  };
+
+  const returnsSelectMock = vi.fn().mockImplementation(() => buildThenableQuery(rows as unknown as Record<string, unknown>[]));
 
   const returnsUpdateInMock = vi.fn().mockImplementation((field: string, values: string[]) => {
     if (field !== 'id') {
@@ -113,8 +166,14 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
     return Promise.resolve({ error: null });
   });
 
-  const returnsUpdateMock = vi.fn().mockReturnValue({
-    in: returnsUpdateInMock,
+  const returnsUpdateMock = vi.fn().mockImplementation(() => {
+    const query = {} as {
+      eq: ReturnType<typeof vi.fn>;
+      in: typeof returnsUpdateInMock;
+    };
+    query.eq = vi.fn().mockImplementation(() => query);
+    query.in = returnsUpdateInMock;
+    return query;
   });
 
   const scanEventsSelectMock = vi.fn().mockImplementation((columns: string) => {
@@ -124,43 +183,20 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
       );
 
     if (columns.includes('scan_status')) {
-      return {
-        gte: vi.fn().mockImplementation((field: string, lowerBound: string) => {
-          const lower = new Date(lowerBound).getTime();
-          const filtered = events
-            .filter((event) => (field === 'scanned_at' ? new Date(event.scanned_at).getTime() >= lower : true))
-            .map((event) => ({
-              scan_status: event.scan_status,
-              scanned_at: event.scanned_at,
-            }));
-          return Promise.resolve({ data: filtered, error: null });
+      return buildThenableQuery(events as unknown as Record<string, unknown>[], {
+        projection: (event) => ({
+          scan_status: event.scan_status,
+          scanned_at: event.scanned_at,
         }),
-      };
+      });
     }
 
-    return {
-      eq: vi.fn().mockImplementation((field: string, value: string) => ({
-        order: vi.fn().mockImplementation(() => ({
-          limit: vi.fn().mockImplementation((limit: number) => {
-            const filtered = toNewestFirst(
-              events.filter((event) => (field === 'normalized_code' ? event.normalized_code === value : true))
-            ).slice(0, limit);
-            const data = columns.includes('id, scanned_at')
-              ? filtered.map((event) => ({ id: event.id, scanned_at: event.scanned_at }))
-              : filtered;
-            return Promise.resolve({ data, error: null });
-          }),
-        })),
-      })),
-      order: vi.fn().mockImplementation(() => ({
-        limit: vi.fn().mockImplementation((limit: number) =>
-          Promise.resolve({
-            data: toNewestFirst(events).slice(0, limit),
-            error: null,
-          })
-        ),
-      })),
-    };
+    return buildThenableQuery(events as unknown as Record<string, unknown>[], {
+      defaultSort: (input) => toNewestFirst(input as unknown as ShopeeScanEvent[]) as unknown as Record<string, unknown>[],
+      projection: columns.includes('id, scanned_at')
+        ? (event) => ({ id: event.id, scanned_at: event.scanned_at })
+        : undefined,
+    });
   });
 
   const scanEventsInsertMock = vi.fn().mockImplementation((payload: Record<string, unknown>) => ({
@@ -191,37 +227,42 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
   const unmatchedSelectMock = vi.fn().mockImplementation(
     (_columns: string, options?: { count?: 'exact'; head?: boolean }) => {
       if (options?.head) {
-        return {
+        const equals: Array<[string, string]> = [];
+        const query = {
           eq: vi.fn().mockImplementation((field: string, value: string) => {
-            const key = field as keyof MockUnmatchedRow;
-            const count = unmatchedRows.filter((row) => String(row[key] || '') === value).length;
-            return Promise.resolve({ data: null, error: null, count });
+            equals.push([field, value]);
+            return query;
           }),
+          then: (onFulfilled?: (value: { data: null; error: null; count: number }) => unknown, onRejected?: (reason: unknown) => unknown) => {
+            const count = unmatchedRows.filter((row) =>
+              equals.every(([field, value]) => rowMatchesFilter(row as unknown as Record<string, unknown>, field, value))
+            ).length;
+            return Promise.resolve({ data: null, error: null, count }).then(onFulfilled, onRejected);
+          },
         };
+        return query;
       }
 
-      return {
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-          }),
-        }),
-      };
+      return buildThenableQuery(unmatchedRows as unknown as Record<string, unknown>[]);
     }
   );
 
   const unmatchedUpdateMock = vi.fn().mockImplementation((payload: Record<string, unknown>) => ({
     eq: vi.fn().mockImplementation((fieldA: string, valueA: string) => ({
-      eq: vi.fn().mockImplementation((fieldB: string, valueB: string) => {
-        const keyA = fieldA as keyof MockUnmatchedRow;
-        const keyB = fieldB as keyof MockUnmatchedRow;
+      eq: vi.fn().mockImplementation((fieldB: string, valueB: string) => ({
+        eq: vi.fn().mockImplementation((fieldC: string, valueC: string) => {
         for (const row of unmatchedRows) {
-          if (String(row[keyA] || '') === valueA && String(row[keyB] || '') === valueB) {
+          if (
+            rowMatchesFilter(row as unknown as Record<string, unknown>, fieldA, valueA) &&
+            rowMatchesFilter(row as unknown as Record<string, unknown>, fieldB, valueB) &&
+            rowMatchesFilter(row as unknown as Record<string, unknown>, fieldC, valueC)
+          ) {
             Object.assign(row, payload);
           }
         }
         return Promise.resolve({ error: null });
-      }),
+        }),
+      })),
     })),
   }));
 
@@ -263,6 +304,18 @@ function buildShopeeClient(seedRows: ShopeeReturn[]) {
 describe('Shopee scan e2e flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOrgContextMock.mockResolvedValue({
+      userId: 'user-1',
+      orgId: 'org-1',
+      orgName: 'Test Org',
+      orgSlug: 'test-org',
+      orgStatus: 'trialing',
+      role: 'owner',
+      plan: 'growth',
+      planDefinition: {},
+      featureFlags: {},
+      isPlatformAdmin: false,
+    });
   });
 
   it('scans, updates status, and aggregates dashboard KPI end-to-end', async () => {

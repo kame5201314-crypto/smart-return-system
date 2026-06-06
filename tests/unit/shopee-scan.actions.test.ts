@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createUntypedAdminClientMock } = vi.hoisted(() => ({
+const { createUntypedAdminClientMock, getOrgContextMock } = vi.hoisted(() => ({
   createUntypedAdminClientMock: vi.fn(),
+  getOrgContextMock: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
+}));
+
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: getOrgContextMock,
 }));
 
 import { scanShopeeReturn } from '@/lib/actions/shopee-returns.actions';
@@ -42,8 +47,11 @@ function buildMockClient(rows: MockRow[], options: MockBuildOptions = {}) {
   const returnsUpdateInMock = vi.fn().mockResolvedValue({
     error: options.updateError || null,
   });
-  const returnsUpdateMock = vi.fn().mockReturnValue({
+  const returnsUpdateEqMock = vi.fn().mockReturnValue({
     in: returnsUpdateInMock,
+  });
+  const returnsUpdateMock = vi.fn().mockReturnValue({
+    eq: returnsUpdateEqMock,
   });
 
   const returnsSelectInMock = vi.fn().mockImplementation((field: string, values: string[]) => {
@@ -63,7 +71,12 @@ function buildMockClient(rows: MockRow[], options: MockBuildOptions = {}) {
 
   const returnsSelectMock = vi.fn().mockImplementation(() => {
     const fallbackResult = { data: rows, error: null };
+    const orgScopedResult = {
+      in: returnsSelectInMock,
+      ...toThenableResult(fallbackResult),
+    };
     return {
+      eq: vi.fn().mockReturnValue(orgScopedResult),
       in: returnsSelectInMock,
       ...toThenableResult(fallbackResult),
     };
@@ -76,11 +89,14 @@ function buildMockClient(rows: MockRow[], options: MockBuildOptions = {}) {
   const scanEventsSelectOrderMock = vi.fn().mockReturnValue({
     limit: scanEventsSelectLimitMock,
   });
-  const scanEventsSelectEqMock = vi.fn().mockReturnValue({
+  const scanEventsSelectSecondEqMock = vi.fn().mockReturnValue({
     order: scanEventsSelectOrderMock,
   });
+  const scanEventsSelectFirstEqMock = vi.fn().mockReturnValue({
+    eq: scanEventsSelectSecondEqMock,
+  });
   const scanEventsSelectMock = vi.fn().mockReturnValue({
-    eq: scanEventsSelectEqMock,
+    eq: scanEventsSelectFirstEqMock,
   });
 
   const scanEventsInsertPayloads: Record<string, unknown>[] = [];
@@ -106,8 +122,11 @@ function buildMockClient(rows: MockRow[], options: MockBuildOptions = {}) {
     data: options.openUnmatchedRows || [],
     error: null,
   });
-  const unmatchedSelectSecondEqMock = vi.fn().mockReturnValue({
+  const unmatchedSelectThirdEqMock = vi.fn().mockReturnValue({
     limit: unmatchedSelectLimitMock,
+  });
+  const unmatchedSelectSecondEqMock = vi.fn().mockReturnValue({
+    eq: unmatchedSelectThirdEqMock,
   });
   const unmatchedSelectFirstEqMock = vi.fn().mockReturnValue({
     eq: unmatchedSelectSecondEqMock,
@@ -116,7 +135,10 @@ function buildMockClient(rows: MockRow[], options: MockBuildOptions = {}) {
     eq: unmatchedSelectFirstEqMock,
   });
 
-  const unmatchedUpdateSecondEqMock = vi.fn().mockResolvedValue({ error: null });
+  const unmatchedUpdateThirdEqMock = vi.fn().mockResolvedValue({ error: null });
+  const unmatchedUpdateSecondEqMock = vi.fn().mockReturnValue({
+    eq: unmatchedUpdateThirdEqMock,
+  });
   const unmatchedUpdateFirstEqMock = vi.fn().mockReturnValue({
     eq: unmatchedUpdateSecondEqMock,
   });
@@ -166,6 +188,18 @@ function buildMockClient(rows: MockRow[], options: MockBuildOptions = {}) {
 describe('scanShopeeReturn action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOrgContextMock.mockResolvedValue({
+      userId: 'user-1',
+      orgId: 'org-1',
+      orgName: 'Test Org',
+      orgSlug: 'test-org',
+      orgStatus: 'trialing',
+      role: 'owner',
+      plan: 'growth',
+      planDefinition: {},
+      featureFlags: {},
+      isPlatformAdmin: false,
+    });
   });
 
   it('matches normalized code and marks all unscanned rows of same match', async () => {

@@ -1,17 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createUntypedAdminClientMock } = vi.hoisted(() => ({
+const { createUntypedAdminClientMock, getOrgContextMock } = vi.hoisted(() => ({
   createUntypedAdminClientMock: vi.fn(),
+  getOrgContextMock: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
   createUntypedAdminClient: createUntypedAdminClientMock,
 }));
 
+vi.mock('@/lib/saas/org-context', () => ({
+  getOrgContext: getOrgContextMock,
+}));
+
 import { updateShopeeReturnStatus } from '@/lib/actions/shopee-returns.actions';
 
 function buildMockClient() {
-  const updateEqMock = vi.fn().mockResolvedValue({ error: null });
+  const updateSecondEqMock = vi.fn().mockResolvedValue({ error: null });
+  const updateEqMock = vi.fn().mockReturnValue({ eq: updateSecondEqMock });
   const updateMock = vi.fn().mockReturnValue({ eq: updateEqMock });
 
   const selectSingleMock = vi.fn().mockResolvedValue({
@@ -23,7 +29,8 @@ function buildMockClient() {
     },
     error: null,
   });
-  const selectEqMock = vi.fn().mockReturnValue({ single: selectSingleMock });
+  const selectSecondEqMock = vi.fn().mockReturnValue({ single: selectSingleMock });
+  const selectEqMock = vi.fn().mockReturnValue({ eq: selectSecondEqMock });
   const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
 
   const fromMock = vi.fn().mockReturnValue({
@@ -36,15 +43,29 @@ function buildMockClient() {
     fromMock,
     selectMock,
     selectEqMock,
+    selectSecondEqMock,
     selectSingleMock,
     updateMock,
     updateEqMock,
+    updateSecondEqMock,
   };
 }
 
 describe('shopee status separation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOrgContextMock.mockResolvedValue({
+      userId: 'user-1',
+      orgId: 'org-1',
+      orgName: 'Test Org',
+      orgSlug: 'test-org',
+      orgStatus: 'trialing',
+      role: 'owner',
+      plan: 'growth',
+      planDefinition: {},
+      featureFlags: {},
+      isPlatformAdmin: false,
+    });
   });
 
   it('updating inbound status does not mutate scan fields', async () => {

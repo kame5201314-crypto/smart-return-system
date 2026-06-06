@@ -1,5 +1,46 @@
 # Handoff Log
 
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
+Started public multi-tenant hardening after the owner selected
+`app.smart-return.tw`, skipped email provider for now, and confirmed the SaaS
+will open to many customers.
+
+Completed in this handoff:
+
+- Hardened `lib/actions/shopee-returns.actions.ts` as the first P1 isolation
+  target.
+- Read paths now require SaaS org context and filter tenant rows by `org_id`.
+- Write paths now require writable SaaS org context and include/filter
+  `org_id` for imports, status updates, batch updates, delete, scan, create,
+  detail update, scan dashboard, unmatched scan list, candidate search, and
+  manual bind.
+- Scan events and unmatched scan writes now include `org_id`.
+- Added regression coverage in `tests/unit/saas-runtime-org-isolation.test.ts`.
+- Updated `tests/e2e/shopee-scan-flow.e2e.test.ts` to mock org context and
+  chained `org_id` filters.
+
+Owner decisions recorded:
+
+- Custom app domain selected: `app.smart-return.tw`.
+- Domain/DNS has not been configured because external domain changes still need
+  explicit authorization and DNS authority or DNS records.
+- Email provider is skipped for now.
+- Billing/ECPay remains Stage 2 only.
+
+Remaining public multi-tenant isolation queue:
+
+1. `lib/actions/pickup.actions.ts`
+2. `lib/actions/customer-return.actions.ts`
+3. `lib/actions/upload.ts`
+4. `app/api/v1/upload/signed-url/route.ts`
+5. backup actions
+6. cron/maintenance service-role paths
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
 ## 2026-06-06 Codex -> Owner / Claude / Codex
 
 Applied the owner-authorized onboarding completion migration to the SaaS

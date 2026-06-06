@@ -48,6 +48,9 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, final custom domain, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `360c56f docs(saas): record owner-blocked launch readiness audit` -> Vercel deployment `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Latest external blocker audit confirmed the production alias points at `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`, Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
+- Owner selected `app.smart-return.tw` as the app domain, but no Vercel domain/DNS change has been authorized or performed.
+- Owner chose to skip email provider setup for now.
+- Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee return/scan action isolation is now complete; remaining P1/P2 items are pickup actions, customer portal actions, upload/signed-url paths, backup actions, and cron/maintenance service-role paths.
 
 ## 2026-06-06 Owner-Authorized Migration 035 Apply
 

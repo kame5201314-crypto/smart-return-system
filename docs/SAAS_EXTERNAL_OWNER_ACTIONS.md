@@ -19,36 +19,40 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
   - email delivery remains dry-run
-  - no custom/beta domain is configured
+  - owner selected custom app domain `app.smart-return.tw`, but no Vercel/DNS change has been authorized or performed
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
 
 ## 2026-06-06 Next Executable Queue
 
-Codex has no remaining safe local code/doc action that can complete the blocked
-rollout items without owner-provided values or per-action authorization. The
-next actions must stay serialized in this order:
+Codex has started the public multi-tenant isolation hardening because the owner
+confirmed many customers will be opened. External rollout actions still need
+owner-provided values or per-action authorization. The next actions must stay
+serialized in this order:
 
 1. Custom/beta domain:
-   - Owner provides the target domain and DNS authority.
+   - Owner selected `app.smart-return.tw`.
+   - Owner still needs to authorize the Vercel domain change and provide DNS
+     authority or DNS records.
    - Codex configures only the SaaS Vercel project after explicit approval.
-2. Email provider:
+2. Public multi-tenant isolation:
+   - Shopee returns/scan P1 is hardened locally.
+   - Continue pickup actions, customer portal actions, upload/signed-url, then
+     backup/cron gating before public signup or broad multi-customer rollout.
+3. Email provider:
+   - Owner chose to skip this for now.
    - Owner chooses Resend, Postmark, SendGrid, or SMTP and provides credentials
      out of band.
    - Codex wires delivery only after provider credentials and enablement scope
      are confirmed.
-3. Billing/ECPay:
+4. Billing/ECPay:
    - Keep disabled for Closed Manual Beta.
    - Start only when Stage 2 paid Beta is approved and ECPay credentials exist.
-4. Migrations `033`, `034`, and `036`:
+5. Migrations `033`, `034`, and `036`:
    - Do not apply as a bundle.
    - Apply only when the matching runtime feature is ready and separately
      authorized.
-5. Public multi-tenant expansion:
-   - Do not open public signup or broad multi-tenant rollout until the P1/P2
-     tenant-isolation gaps in `docs/SAAS_TENANT_ISOLATION_AUDIT.md` are
-     explicitly scheduled and hardened or gated.
 
 If an agent is asked to "finish everything" without the required values above,
 the correct action is to stop, report the missing value/authorization, and avoid
@@ -195,11 +199,15 @@ separately authorize a redeploy. Update docs and push develop-saas.
 
 ## Beta Or Custom Domain
 
-Owner must provide:
+Owner selected:
 
-- Target domain, for example `beta.example.com`
+- Target domain: `app.smart-return.tw`
+
+Owner must still provide:
+
 - DNS provider access or the exact DNS records owner will set manually
 - Confirmation whether `NEXT_PUBLIC_APP_URL` should move to the new domain
+  after Vercel confirms the domain is ready
 
 Handoff after the domain is chosen:
 
