@@ -110,6 +110,18 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
   - Production remains available at
     `https://smart-return-system-saas.vercel.app`.
   - Owner/DNS action is required before retrying Vercel verification.
+- Retry check after owner request:
+  - `Resolve-DnsName app.smart-return.tw` still returns NXDOMAIN /
+    `DNS name does not exist`.
+  - `npx vercel domains inspect app.smart-return.tw` still returns:
+    `You don't have access to the domain app.smart-return.tw under
+    kaweis-projects.`
+  - `npx vercel domains ls` still reports `0 Domains found under
+    kaweis-projects`.
+  - No Vercel TXT ownership verification record was returned by the CLI; there
+    is no safe TXT value to report from this checkout.
+  - Alias was not attempted on this retry because DNS is not resolving and
+    Vercel domain access is still blocked.
 - Required owner/DNS action:
   - Add a DNS record at the domain provider:
     - Type: `CNAME`

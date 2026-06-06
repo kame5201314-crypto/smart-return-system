@@ -2,6 +2,47 @@
 
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
+Retried custom domain verification for `app.smart-return.tw` after the owner
+asked to continue verification and alias.
+
+Checks:
+
+- Preflight passed in
+  `D:\AI專案\AI退貨系統商業版_2026.5.16` on branch `develop-saas`.
+- `npm run safety:agent-boundary`: passed.
+- `git pull --ff-only origin develop-saas`: already up to date.
+- `Resolve-DnsName app.smart-return.tw`: still returns NXDOMAIN /
+  `DNS name does not exist`.
+- `npx vercel domains inspect app.smart-return.tw`: still returns 403,
+  `You don't have access to the domain app.smart-return.tw under
+  kaweis-projects.`
+- `npx vercel domains ls`: still reports 0 domains under the current Vercel
+  scope.
+
+Result:
+
+- No alias was set because DNS does not resolve and Vercel domain access is
+  still blocked.
+- No TXT ownership verification record was returned by the Vercel CLI, so there
+  is no safe TXT value to report from this checkout yet.
+- Production remains available at
+  `https://smart-return-system-saas.vercel.app`.
+
+Needed owner/DNS action:
+
+- Add/verify the `app.smart-return.tw` DNS record or provide DNS provider
+  access.
+- Start with `CNAME app -> cname.vercel-dns.com` unless the Vercel dashboard
+  shows a specific TXT ownership challenge.
+- If Vercel dashboard shows a TXT ownership record, add that exact TXT record
+  first and then ask Codex to retry verification/alias.
+
+No deployment, migration, env/secret edit, email provider enablement,
+billing/provider enablement, master/live/internal Supabase action, or unrelated
+domain/DNS change was performed.
+
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
 Attempted owner-authorized custom domain setup for `app.smart-return.tw` on the
 SaaS Vercel project.
 

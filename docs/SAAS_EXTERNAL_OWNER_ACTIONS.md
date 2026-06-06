@@ -272,6 +272,11 @@ Latest attempt:
   failed with the same Vercel 403 domain access error.
 - `npx vercel domains ls` reports 0 domains under the current Vercel scope.
 - Local DNS lookup does not resolve `app.smart-return.tw`.
+- Retry after the latest owner request confirmed the blocker is unchanged:
+  `Resolve-DnsName app.smart-return.tw` still returns NXDOMAIN, `vercel domains
+  inspect` still returns 403, and `vercel domains ls` still shows 0 domains.
+- No TXT ownership verification record was returned by the Vercel CLI, so there
+  is no TXT value to copy from this checkout yet.
 
 Owner must still provide or perform:
 
