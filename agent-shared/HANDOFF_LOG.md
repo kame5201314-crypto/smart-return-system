@@ -2,6 +2,38 @@
 
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
+Clarified the deployment handoff wording after the docs-only handoff commit made
+"latest pushed commit is `27c5ecb`" imprecise.
+
+Completed in this handoff:
+
+- Replaced exact "latest pushed commit" wording with "current
+  `origin/develop-saas` HEAD is ahead of production".
+- Kept `27c5ecb fix(saas): gate backup and maintenance cron isolation` as the
+  pending runtime/security change that production must include.
+- Preserved the stop rule: no deployment, domain, env, migration, email, or
+  billing work without separate explicit owner authorization.
+
+Files:
+
+- `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+- `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+- `agent-shared/ACTIVE_WORK.md`
+- `agent-shared/HANDOFF_LOG.md`
+- `agent-shared/TASK_BOARD.md`
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS configuration.
+- No email provider enablement.
+- No billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-06-06 Codex -> Owner / Codex for Windows
+
 Recorded the post-`27c5ecb` rollout order after the owner asked to continue in
 sequence.
 

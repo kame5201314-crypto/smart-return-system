@@ -9,7 +9,10 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Latest pushed commit: `27c5ecb fix(saas): gate backup and maintenance cron isolation`
+- Pending deployment scope: production is behind `origin/develop-saas`; the
+  pending runtime/security change includes
+  `27c5ecb fix(saas): gate backup and maintenance cron isolation` plus later
+  docs-only handoff commits.
 - Production URL: `https://smart-return-system-saas.vercel.app`
 - Production deployment: `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`
 - Production status: Ready
@@ -32,8 +35,11 @@ confirmed many customers will be opened. External rollout actions still need
 owner-provided values or per-action authorization. The next actions must stay
 serialized in this order:
 
-1. Deploy latest pushed SaaS HEAD:
-   - Latest pushed commit is `27c5ecb`.
+1. Deploy current `origin/develop-saas` SaaS HEAD:
+   - Pending runtime/security change includes `27c5ecb`.
+   - Later docs-only handoff commits may sit after `27c5ecb`; deploy the
+     current remote HEAD after pulling and verifying it still targets
+     `develop-saas`.
    - Production still runs `360c56f` / `dpl_FjkpCWZwYPSv7RY2sBJEhpFPPMab`.
    - Deploy only after explicit owner authorization naming the target Vercel
      project `smart-return-system-saas`.
@@ -164,7 +170,7 @@ Verified on 2026-06-05:
 
 ## Recommended Order
 
-1. Deploy latest pushed `develop-saas` HEAD after explicit deploy
+1. Deploy current `origin/develop-saas` HEAD after explicit deploy
    authorization.
 2. Decide and configure a beta/custom domain.
 3. Choose an email provider, then wire provider delivery after credentials
@@ -173,13 +179,15 @@ Verified on 2026-06-05:
 5. Apply migrations `033`, `034`, and `036` only when their matching runtime
    feature is needed and explicitly authorized.
 
-## Latest Head Deployment Handoff
+## Current Head Deployment Handoff
 
-Use this only if the owner wants the latest pushed code to reach production:
+Use this only if the owner wants the current remote `develop-saas` code to reach
+production:
 
 ```text
-I authorize deploying develop-saas latest pushed commit 27c5ecb to Vercel
-production project smart-return-system-saas.
+I authorize deploying current origin/develop-saas HEAD to Vercel production
+project smart-return-system-saas. The deployed HEAD must include
+27c5ecb fix(saas): gate backup and maintenance cron isolation.
 
 Scope:
 - Run preflight and safety checks first.
