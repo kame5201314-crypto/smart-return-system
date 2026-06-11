@@ -20,7 +20,7 @@ import { submitCustomerReturn } from '@/lib/actions/customer-return.actions';
 
 // Form validation schema
 const returnFormSchema = z.object({
-  accountId: z.string().min(1, '請填寫您的帳號'),
+  accountId: z.string().min(1, '請填寫官網信箱或蝦皮帳號'),
   orderNumber: z.string().min(1, '請填寫訂單編號'),
   ordererName: z.string().min(1, '請填寫訂購人姓名'),
   phone: z.string().regex(/^09\d{8}$/, '請輸入有效的手機號碼'),
@@ -564,11 +564,11 @@ export default function CustomerPortalPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-teal-700 font-bold text-base">
-                        您的帳號 (官網 / 蝦皮) <span className="text-red-500">*</span>
+                        您的【官網信箱】或【蝦皮帳號】 <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="您的回答"
+                          placeholder="請填寫官網信箱或蝦皮帳號"
                           className="border-0 border-b-2 border-gray-300 rounded-none focus:border-teal-500 focus:ring-0"
                           {...field}
                           disabled={isLoading}
