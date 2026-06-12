@@ -212,6 +212,8 @@ export interface PlatformOrganizationListItem {
   ownerEmail: string | null;
   memberCount: number;
   createdAt: string;
+  trialEnd: string | null;
+  daysUntilTrialEnd: number | null;
   usage: PlatformOrganizationUsage;
   health: PlatformOrganizationHealth;
 }
@@ -664,9 +666,17 @@ export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSetting
 
 export function buildPlatformOrganizationListView(
   organizations: PlatformOrgSummary[],
-  usageByOrgId: PlatformOrgUsageById
+  usageByOrgId: PlatformOrgUsageById,
+  options: {
+    subscriptionsByOrgId?: PlatformOrgSubscriptionsById;
+    now?: Date;
+  } = {}
 ): PlatformOrganizationListView {
-  const items = organizations.map((org) => buildPlatformOrganizationListItem(org, usageByOrgId));
+  const now = options.now ?? new Date();
+  const subscriptionsByOrgId = options.subscriptionsByOrgId ?? {};
+  const items = organizations.map((org) =>
+    buildPlatformOrganizationListItem(org, usageByOrgId, subscriptionsByOrgId[org.id], now)
+  );
 
   return {
     summary: buildPlatformOrganizationSummary(items),
@@ -678,12 +688,20 @@ export function buildPlatformOrganizationDetailView(
   organization: PlatformOrgDetail,
   input: {
     usageByOrgId: PlatformOrgUsageById;
+    subscriptionsByOrgId?: PlatformOrgSubscriptionsById;
     recentAuditLogs: PlatformOrganizationDetailView['recentAuditLogs'];
+    now?: Date;
   }
 ): PlatformOrganizationDetailView {
+  const now = input.now ?? new Date();
   return {
     organization: {
-      ...buildPlatformOrganizationListItem(organization, input.usageByOrgId),
+      ...buildPlatformOrganizationListItem(
+        organization,
+        input.usageByOrgId,
+        input.subscriptionsByOrgId?.[organization.id],
+        now
+      ),
       billingEmail: organization.billingEmail,
       taxId: organization.taxId,
       featureFlags: booleanFlagsOnly(organization.featureFlags),
@@ -731,7 +749,11 @@ export function buildPlatformAtRiskAlertsView(
 ): PlatformAtRiskAlertsView {
   const organizationItems = buildPlatformOrganizationListView(
     organizations,
-    usageByOrgId
+    usageByOrgId,
+    {
+      subscriptionsByOrgId,
+      now: options.now,
+    }
   ).organizations;
   const now = options.now ?? new Date();
   const alerts = organizationItems.flatMap((org) =>
@@ -778,7 +800,11 @@ export function buildPlatformAdminDashboardView(input: {
   const now = input.now ?? new Date();
   const organizationList = buildPlatformOrganizationListView(
     input.organizations,
-    input.usageByOrgId
+    input.usageByOrgId,
+    {
+      subscriptionsByOrgId: input.subscriptionsByOrgId,
+      now,
+    }
   );
   const atRisk = buildPlatformAtRiskAlertsView(
     input.organizations,
@@ -838,7 +864,9 @@ function buildPlatformBillingEventDashboardSummary(
 
 function buildPlatformOrganizationListItem(
   org: PlatformOrgSummary,
-  usageByOrgId: PlatformOrgUsageById
+  usageByOrgId: PlatformOrgUsageById,
+  subscription: PlatformOrgSubscriptionSnapshot | undefined = undefined,
+  now: Date = new Date()
 ): PlatformOrganizationListItem {
   const id = requireString(org.id, 'organization.id');
   const plan = getSaaSPlanDefinition(org.plan);
@@ -846,6 +874,7 @@ function buildPlatformOrganizationListItem(
   const status = normalizeOrgStatus(org.status);
   const memberCount = nonNegativeNumber(org.memberCount, 'organization.memberCount');
   const usage = requireUsage(usageByOrgId, id);
+  const trialEnd = status === 'trialing' ? subscription?.trialEnd ?? null : null;
 
   return {
     id,
@@ -856,6 +885,8 @@ function buildPlatformOrganizationListItem(
     ownerEmail: org.ownerEmail,
     memberCount,
     createdAt: requireString(org.createdAt, 'organization.createdAt'),
+    trialEnd,
+    daysUntilTrialEnd: daysUntil(now, trialEnd),
     usage,
     health: buildPlatformOrganizationHealth({
       plan,

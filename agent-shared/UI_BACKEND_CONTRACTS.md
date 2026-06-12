@@ -542,6 +542,8 @@ interface PlatformOrganizationListView {
     ownerEmail: string | null;
     memberCount: number;
     createdAt: string;
+    trialEnd: string | null;
+    daysUntilTrialEnd: number | null;
     usage: {
       returnsThisMonth: number;
       aiUsedThisMonth: number;
@@ -961,7 +963,7 @@ PlatformOrganizationListView
 
 State triggers:
 
-- `ready`: platform admin auth and `multi_tenant_admin` flag pass, organizations and monthly usage snapshots validate through `buildPlatformOrganizationListView()`.
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, organizations, monthly usage snapshots, and subscription snapshots validate through `buildPlatformOrganizationListView()`.
 - `empty`: no organizations exist.
 - `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
 - `error`: repository query failure or DTO contract validation failure.
@@ -982,7 +984,7 @@ PlatformOrganizationDetailView
 
 State triggers:
 
-- `ready`: platform admin auth and `multi_tenant_admin` flag pass, `orgId` is valid, organization detail, usage, and audit logs validate through `buildPlatformOrganizationDetailView()`.
+- `ready`: platform admin auth and `multi_tenant_admin` flag pass, `orgId` is valid, organization detail, usage, subscription, and audit logs validate through `buildPlatformOrganizationDetailView()`.
 - `empty`: invalid `orgId` or organization not found.
 - `gated`: missing auth/admin role or disabled `multi_tenant_admin` feature flag. The repository is not queried.
 - `error`: repository query failure or DTO contract validation failure.

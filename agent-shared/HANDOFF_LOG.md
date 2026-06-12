@@ -1,5 +1,36 @@
 # Handoff Log
 
+## 2026-06-12 Codex -> Claude
+
+Completed the backend DTO handoff for the platform operations refinement item
+`/internal/orgs` Trial 到期日 / 剩餘天數.
+
+Completed:
+
+- `PlatformOrganizationListItem` now includes:
+  - `trialEnd: string | null`
+  - `daysUntilTrialEnd: number | null`
+- `loadPlatformOrganizationsView()` now fetches organization subscription
+  snapshots together with usage snapshots and passes them into
+  `buildPlatformOrganizationListView()`.
+- `loadPlatformOrganizationDetailView()` now fetches the selected
+  organization's subscription snapshot and passes it into
+  `buildPlatformOrganizationDetailView()`.
+- `agent-shared/UI_BACKEND_CONTRACTS.md` documents the new fields.
+- Regression coverage was added for the DTO and live data loader.
+
+Claude UI follow-up:
+
+- `/internal/orgs` can render a Trial 到期日 / 剩餘天數 column directly from
+  `organization.trialEnd` and `organization.daysUntilTrialEnd`.
+- `/internal/orgs/[id]` can reuse the same fields for the detail health or
+  billing/trial summary.
+- No UI-side Supabase query or API route is needed for these fields.
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
 ## 2026-06-06 Codex -> Owner / Codex for Windows
 
 Retried custom domain verification for `app.smart-return.tw` after the owner

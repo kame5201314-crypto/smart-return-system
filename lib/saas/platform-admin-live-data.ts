@@ -186,14 +186,23 @@ export async function loadPlatformOrganizationsView(
       };
     }
 
-    const usageByOrgId = await repository.listOrganizationUsage({
-      orgIds: organizations.map((org) => org.id),
-      periodStart: getCurrentMonthStartIso(options.now),
-    });
+    const orgIds = organizations.map((org) => org.id);
+    const [usageByOrgId, subscriptionsByOrgId] = await Promise.all([
+      repository.listOrganizationUsage({
+        orgIds,
+        periodStart: getCurrentMonthStartIso(options.now),
+      }),
+      repository.listOrganizationSubscriptions({
+        orgIds,
+      }),
+    ]);
 
     return {
       state: 'ready',
-      data: buildPlatformOrganizationListView(organizations, usageByOrgId),
+      data: buildPlatformOrganizationListView(organizations, usageByOrgId, {
+        subscriptionsByOrgId,
+        now: options.now,
+      }),
       context,
     };
   } catch (error) {
@@ -293,10 +302,13 @@ export async function loadPlatformOrganizationDetailView(
       };
     }
 
-    const [usageByOrgId, recentAuditLogs] = await Promise.all([
+    const [usageByOrgId, subscriptionsByOrgId, recentAuditLogs] = await Promise.all([
       repository.listOrganizationUsage({
         orgIds: [organization.id],
         periodStart: getCurrentMonthStartIso(deps.now),
+      }),
+      repository.listOrganizationSubscriptions({
+        orgIds: [organization.id],
       }),
       repository.listAuditLogs({
         orgId: organization.id,
@@ -308,7 +320,9 @@ export async function loadPlatformOrganizationDetailView(
       state: 'ready',
       data: buildPlatformOrganizationDetailView(organization, {
         usageByOrgId,
+        subscriptionsByOrgId,
         recentAuditLogs,
+        now: deps.now,
       }),
       context,
     };

@@ -211,6 +211,8 @@ describe('SaaS platform admin live data loaders', () => {
           {
             id: 'org-1',
             plan: 'growth',
+            trialEnd: null,
+            daysUntilTrialEnd: null,
             usage: {
               returnsThisMonth: 12,
               aiUsedThisMonth: 4,
@@ -227,6 +229,9 @@ describe('SaaS platform admin live data loaders', () => {
     expect(repository.listOrganizationUsage).toHaveBeenCalledWith({
       orgIds: ['org-1'],
       periodStart: '2026-05-01T00:00:00.000Z',
+    });
+    expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
     });
   });
 
@@ -255,6 +260,7 @@ describe('SaaS platform admin live data loaders', () => {
     });
     expect(repository.listOrganizations).not.toHaveBeenCalled();
     expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+    expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
   });
 
   it('marks unauthenticated platform admin access for page-level login redirects', async () => {
@@ -281,6 +287,7 @@ describe('SaaS platform admin live data loaders', () => {
       },
     });
     expect(repository.listOrganizations).not.toHaveBeenCalled();
+    expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
   });
 
   it('returns empty state for platform organization list when no orgs exist', async () => {
@@ -301,6 +308,7 @@ describe('SaaS platform admin live data loaders', () => {
       },
     });
     expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+    expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
   });
 
   it('loads platform organization detail with usage and audit logs', async () => {
@@ -318,6 +326,8 @@ describe('SaaS platform admin live data loaders', () => {
         organization: {
           id: 'org-1',
           billingEmail: 'billing@example.com',
+          trialEnd: null,
+          daysUntilTrialEnd: null,
           usage: {
             returnsThisMonth: 12,
             aiUsedThisMonth: 4,
@@ -337,6 +347,9 @@ describe('SaaS platform admin live data loaders', () => {
       },
     });
     expect(repository.getOrganization).toHaveBeenCalledWith({ orgId: 'org-1' });
+    expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+    });
     expect(repository.listAuditLogs).toHaveBeenCalledWith({
       orgId: 'org-1',
       limit: 20,
@@ -357,6 +370,7 @@ describe('SaaS platform admin live data loaders', () => {
       message: 'A valid organization id is required.',
     });
     expect(repository.getOrganization).not.toHaveBeenCalled();
+    expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
   });
 
   it('returns empty state when platform organization detail is not found', async () => {
@@ -374,6 +388,7 @@ describe('SaaS platform admin live data loaders', () => {
       message: 'Organization not found.',
     });
     expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
+    expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
     expect(repository.listAuditLogs).not.toHaveBeenCalled();
   });
 

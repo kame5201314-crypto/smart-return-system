@@ -380,6 +380,8 @@ describe('SaaS UI/backend contracts', () => {
           ownerEmail: 'owner@example.com',
           memberCount: 3,
           createdAt: '2026-05-20T00:00:00.000Z',
+          trialEnd: null,
+          daysUntilTrialEnd: null,
           usage: {
             returnsThisMonth: 1700,
             aiUsedThisMonth: 30,
@@ -397,6 +399,47 @@ describe('SaaS UI/backend contracts', () => {
           },
         },
       ],
+    });
+  });
+
+  it('exposes trial deadline fields on platform organization list items', () => {
+    const trialOrg: PlatformOrgSummary = {
+      id: 'org-2',
+      name: 'Trial Store',
+      slug: 'trial-store',
+      plan: 'basic',
+      status: 'trialing',
+      ownerEmail: 'trial@example.com',
+      memberCount: 1,
+      createdAt: '2026-05-20T00:00:00.000Z',
+    };
+
+    expect(
+      buildPlatformOrganizationListView(
+        [trialOrg],
+        {
+          'org-2': {
+            returnsThisMonth: 12,
+            aiUsedThisMonth: 1,
+          },
+        },
+        {
+          subscriptionsByOrgId: {
+            'org-2': {
+              status: 'trialing',
+              currentPeriodEnd: '2026-05-28T00:00:00.000Z',
+              trialEnd: '2026-05-28T00:00:00.000Z',
+              cancelAtPeriodEnd: false,
+            },
+          },
+          now: new Date('2026-05-25T00:00:00.000Z'),
+        }
+      ).organizations[0]
+    ).toMatchObject({
+      id: 'org-2',
+      status: 'trialing',
+      trialEnd: '2026-05-28T00:00:00.000Z',
+      daysUntilTrialEnd: 3,
     });
   });
 
