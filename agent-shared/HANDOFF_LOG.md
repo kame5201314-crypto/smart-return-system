@@ -1,5 +1,40 @@
 # Handoff Log
 
+## 2026-06-12 Codex -> Owner / Claude
+
+Finalized the first platform operations UI simplification pass from the shared
+working tree.
+
+Completed:
+
+- `/internal/orgs` now renders trial deadline / remaining days from the new
+  Codex DTO fields.
+- `/internal/orgs` now shows suggested actions for platform risk reasons.
+- `/internal/orgs` removes the disabled tenant pause button and keeps the live
+  manual beta org form plus one Stage 2 write-operation note.
+- `/internal/orgs/[id]` localizes detail labels, member role/status labels,
+  risk copy, audit table headers, and suggested actions.
+- `/internal/orgs/[id]` collapses disabled plan/status write buttons into one
+  Stage 2 note while preserving tenant preview.
+- `/internal/billing/events` removes the static Webhook Guard Checklist from
+  the operator UI.
+- `/internal/billing/events` localizes status summary and table labels.
+- `/internal/billing/events` replaces the disabled retry button with one
+  read-only Stage 2 note.
+- The merchant sidebar removes the low-frequency `/onboarding` and
+  `/settings/backup` entries from primary navigation.
+
+Notes:
+
+- This does not enable tenant suspension, plan changes, billing replay, email,
+  provider retries, or any Stage 2 write operation.
+- Those write-operation closures still belong with the Stage 2 billing backend
+  and audit-log work.
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
 ## 2026-06-12 Codex -> Claude
 
 Completed the backend DTO handoff for the platform operations refinement item

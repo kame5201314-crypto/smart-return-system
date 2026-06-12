@@ -25,10 +25,27 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`, on Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected and authorized setup for `app.smart-return.tw`; latest retry still shows DNS NXDOMAIN, Vercel 403 domain access, `vercel domains ls` reports 0 domains in the current scope, and the CLI returned no TXT ownership record. Owner/DNS action is now required before retrying verification or alias. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete. Platform org trial deadline DTO is now ready for Claude UI rendering on `/internal/orgs` / org detail. Remaining external blockers are DNS/ownership verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`, on Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected and authorized setup for `app.smart-return.tw`; latest retry still shows DNS NXDOMAIN, Vercel 403 domain access, `vercel domains ls` reports 0 domains in the current scope, and the CLI returned no TXT ownership record. Owner/DNS action is now required before retrying verification or alias. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete. Platform org trial deadline DTO and first platform operations UI simplification are complete for `/internal/orgs` and `/internal/billing/events`. Remaining external blockers are DNS/ownership verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Platform operations UI simplification handoff
+Files:
+- app/(admin)/layout.tsx
+- app/internal/orgs/page.tsx
+- app/internal/orgs/[id]/page.tsx
+- app/internal/billing/events/page.tsx
+- components/internal/platform-labels.ts
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Finalized the working-tree UI refinement for the Beta operations console. `/internal/orgs` now shows trial deadline/remaining days from the Codex DTO, displays suggested actions for risk reasons, and removes the disabled tenant pause button in favor of one Stage 2 note while keeping the manual beta org form. `/internal/orgs/[id]` localizes operator-facing labels, displays suggested risk actions, and collapses disabled plan/status write buttons into the Stage 2 note while preserving tenant preview. `/internal/billing/events` removes the static webhook checklist, localizes status labels, and replaces the disabled retry button with one read-only Stage 2 note. The merchant sidebar removes `/onboarding` and `/settings/backup` from primary navigation. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+```
 
 ```text
 Owner: Codex

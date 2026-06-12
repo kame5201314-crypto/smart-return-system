@@ -15,6 +15,7 @@ Status values:
 | done | Platform admin mode floating indicator | Claude commit `9edf220`; `(admin)` tenant pages now render the Codex `loadPlatformAdminModeView()` contract as a persistent platform-admin indicator |
 | done | Platform admin org page copy polish | Claude commit `f5d8171`; `/internal/orgs` and `/internal/orgs/[id]` now use operator-facing wording without schema/table helper text |
 | done | Platform billing events copy polish | Claude commit `8a5a6dc`; `/internal/billing/events` now removes stage wording and schema-source copy while keeping operator-relevant guard requirements |
+| done | Platform operations simplification | This commit; `/internal/orgs` adds trial deadline display and suggested actions, `/internal/orgs/[id]` localizes detail copy and suggested actions, disabled write buttons are collapsed into Stage 2 notes, `/internal/billing/events` removes the static webhook checklist, and the merchant sidebar removes low-frequency setup/backup entries |
 | done | Tenant preview start button UI | Claude commit `85f65bd`; `/internal/orgs/[id]` now exposes the Codex preview-start route through a guarded org-detail action button |
 | done | Tenant preview banner UI | Claude commit `da23eff`; `(admin)` tenant pages now show a read-only orange tenant-preview banner and exit button when Codex preview cookie is active |
 | done | Onboarding progress banner | Claude commit `1924065`; `(admin)` tenant pages now show a slim setup-progress banner from `loadSaaSOnboardingView()` until onboarding is complete |
