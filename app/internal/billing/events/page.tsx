@@ -1,7 +1,6 @@
-import { AlertTriangle, CheckCircle2, CircleEllipsis, FileClock, RotateCw, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleEllipsis, FileClock, XCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -18,12 +17,12 @@ import type { PlatformBillingEventsView } from '@/lib/saas/ui-backend-contracts'
 
 type EventStatus = PlatformBillingEventsView['events'][number]['status'];
 
-const guardRows = [
-  ['signature verification', 'required', 'ECPay HashKey/HashIV、Stripe/TapPay webhook secret'],
-  ['idempotency', 'required', 'billing_events.provider_event_id 唯一鍵'],
-  ['replay window', 'required', '拒絕過期或重複 payload'],
-  ['manual retry', 'disabled', 'ECPay 測試金鑰啟用後開放'],
-] as const;
+const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
+  received: '已接收',
+  processed: '已處理',
+  failed: '處理失敗',
+  ignored: '已略過',
+};
 
 function statusBadge(status: EventStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (status === 'processed') return 'default';
@@ -55,10 +54,10 @@ function EventsContent({ data }: { data: PlatformBillingEventsView }) {
   );
 
   const summaryItems = [
-    { label: 'Processed', value: counts.processed, helper: '已處理事件', icon: CheckCircle2 },
-    { label: 'Received', value: counts.received, helper: '已接收待處理', icon: CircleEllipsis },
-    { label: 'Failed', value: counts.failed, helper: '處理失敗', icon: XCircle },
-    { label: 'Ignored', value: counts.ignored, helper: '非啟用 provider 或重複事件', icon: AlertTriangle },
+    { label: '已處理', value: counts.processed, helper: '完成入帳與狀態更新', icon: CheckCircle2 },
+    { label: '已接收', value: counts.received, helper: '等待處理或人工確認', icon: CircleEllipsis },
+    { label: '處理失敗', value: counts.failed, helper: '需人工檢查', icon: XCircle },
+    { label: '已略過', value: counts.ignored, helper: '非啟用金流商或重複事件', icon: AlertTriangle },
   ] as const;
 
   return (
@@ -95,12 +94,12 @@ function EventsContent({ data }: { data: PlatformBillingEventsView }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Received</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Org</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Provider Event Id</TableHead>
+                <TableHead>接收時間</TableHead>
+                <TableHead>金流商</TableHead>
+                <TableHead>事件類型</TableHead>
+                <TableHead>租戶</TableHead>
+                <TableHead>狀態</TableHead>
+                <TableHead>事件編號</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -113,7 +112,7 @@ function EventsContent({ data }: { data: PlatformBillingEventsView }) {
                   <TableCell className="font-mono text-xs">{event.eventType}</TableCell>
                   <TableCell className="font-medium">{event.orgName ?? event.orgId}</TableCell>
                   <TableCell>
-                    <Badge variant={statusBadge(event.status)}>{event.status}</Badge>
+                    <Badge variant={statusBadge(event.status)}>{EVENT_STATUS_LABEL[event.status]}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {event.providerEventId ?? '—'}
@@ -125,37 +124,6 @@ function EventsContent({ data }: { data: PlatformBillingEventsView }) {
         </CardContent>
       </Card>
 
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-5 text-cyan-700" />
-            Webhook Guard Checklist
-          </CardTitle>
-          <CardDescription>正式接金流前，這些 guard 必須先在 route 與測試中固定下來。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Guard</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Rule</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {guardRows.map(([guard, status, rule]) => (
-                <TableRow key={guard}>
-                  <TableCell className="font-medium">{guard}</TableCell>
-                  <TableCell>
-                    <Badge variant={status === 'required' ? 'secondary' : 'outline'}>{status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{rule}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </>
   );
 }
@@ -173,13 +141,9 @@ export default async function InternalBillingEventsPage() {
             金流 webhook 與電子發票事件的接收、處理與失敗紀錄。
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <Button disabled variant="outline" title="webhook 重送功能上線後開放">
-            <RotateCw className="size-4" />
-            重送事件
-          </Button>
-          <p className="text-xs text-muted-foreground">webhook 重送上線後啟用。</p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          目前為唯讀檢視；事件重送將於 Stage 2 Billing 開通後提供。
+        </p>
       </div>
 
       {result.state === 'ready' ? (

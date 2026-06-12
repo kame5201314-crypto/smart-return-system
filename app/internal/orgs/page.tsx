@@ -4,7 +4,7 @@ import {
   ArrowRight,
   Bot,
   CreditCard,
-  PauseCircle,
+  Lightbulb,
   PlayCircle,
 } from 'lucide-react';
 
@@ -27,6 +27,7 @@ import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { PlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
 import {
+  formatSuggestedActions,
   PLATFORM_ORG_STATUS_LABEL,
   PLATFORM_RISK_LEVEL_LABEL,
   PLATFORM_RISK_REASON_LABEL,
@@ -39,6 +40,34 @@ function usagePercent(used: number, limit: number | null) {
 
 function formatTwd(value: number): string {
   return `NT$${value.toLocaleString('zh-TW')}`;
+}
+
+function formatTrialEnd(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+}
+
+function TrialCell({
+  org,
+}: {
+  org: PlatformOrganizationListView['organizations'][number];
+}) {
+  if (org.status !== 'trialing' || org.daysUntilTrialEnd === null) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  const days = org.daysUntilTrialEnd;
+  const tone =
+    days <= 3 ? 'text-red-600 font-medium' : days <= 7 ? 'text-amber-700 font-medium' : 'text-muted-foreground';
+  const dateLabel = formatTrialEnd(org.trialEnd);
+
+  return (
+    <span className={`text-xs ${tone}`}>
+      {days <= 0 ? '已到期' : `${dateLabel}（剩 ${days} 天）`}
+    </span>
+  );
 }
 
 function statusVariant(
@@ -166,6 +195,12 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                         ))}
                       </div>
                     ) : null}
+                    {formatSuggestedActions(org.health.riskReasons).length > 0 ? (
+                      <div className="mt-2 flex items-start gap-1.5 text-xs text-amber-800">
+                        <Lightbulb className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                        <span>{formatSuggestedActions(org.health.riskReasons).join('；')}</span>
+                      </div>
+                    ) : null}
                   </div>
                   <Button asChild variant="outline" size="sm" className="shrink-0">
                     <Link href={`/internal/orgs/${org.id}`}>
@@ -189,14 +224,15 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Org</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Seats</TableHead>
-                <TableHead>Returns</TableHead>
+                <TableHead>租戶</TableHead>
+                <TableHead>方案</TableHead>
+                <TableHead>狀態</TableHead>
+                <TableHead>試用到期</TableHead>
+                <TableHead>席次</TableHead>
+                <TableHead>退貨量</TableHead>
                 <TableHead>AI</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead className="text-right">Detail</TableHead>
+                <TableHead>健康度</TableHead>
+                <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -220,6 +256,9 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
                       <Badge variant={statusVariant(org.status)}>
                         {PLATFORM_ORG_STATUS_LABEL[org.status]}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="min-w-24">
+                      <TrialCell org={org} />
                     </TableCell>
                     <TableCell className="min-w-28">
                       <div className="mb-1 text-xs text-muted-foreground">
@@ -289,14 +328,10 @@ export default async function InternalOrgsPage() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-wrap gap-2">
-            <Button disabled variant="outline" title="租戶啟用 / 停用功能上線後開放">
-              <PauseCircle className="size-4" />
-              停用租戶
-            </Button>
-            <ManualBetaOrgForm />
-          </div>
-          <p className="text-xs text-muted-foreground">目前為唯讀檢視，租戶啟用 / 停用功能上線後開放。</p>
+          <ManualBetaOrgForm />
+          <p className="text-xs text-muted-foreground">
+            停用 / 調整方案等寫入操作將於 Stage 2 Billing 開通後提供。
+          </p>
         </div>
       </div>
 

@@ -40,3 +40,22 @@ export const PLATFORM_ALERT_SEVERITY_LABEL: Record<PlatformAtRiskAlertSeverity, 
 export function formatRiskReasons(reasons: readonly PlatformOrganizationRiskReason[]): string[] {
   return reasons.map((reason) => PLATFORM_RISK_REASON_LABEL[reason] ?? reason);
 }
+
+export const PLATFORM_RISK_SUGGESTED_ACTION: Record<PlatformOrganizationRiskReason, string> = {
+  past_due: '建議人工提醒補款',
+  suspended: '確認補繳後協助恢復',
+  cancelled: '了解取消原因，評估挽回',
+  returns_high: '留意旺季用量，必要時建議升級',
+  returns_limit: '建議升級方案（軟限制不擋作業）',
+  ai_high: '留意 AI 用量走勢',
+  ai_limit: '建議聯絡升級方案',
+  seats_full: '建議升級方案以增加席次',
+};
+
+export function formatSuggestedActions(
+  reasons: readonly PlatformOrganizationRiskReason[]
+): string[] {
+  return Array.from(
+    new Set(reasons.map((reason) => PLATFORM_RISK_SUGGESTED_ACTION[reason]).filter(Boolean))
+  );
+}

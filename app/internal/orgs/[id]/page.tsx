@@ -16,10 +16,24 @@ import {
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
 import {
+  formatSuggestedActions,
   PLATFORM_ORG_STATUS_LABEL,
   PLATFORM_RISK_LEVEL_LABEL,
   PLATFORM_RISK_REASON_LABEL,
 } from '@/components/internal/platform-labels';
+
+const MEMBER_ROLE_LABEL: Record<string, string> = {
+  owner: '擁有者',
+  admin: '管理員',
+  staff: '作業成員',
+  viewer: '檢視者',
+};
+
+const MEMBER_STATUS_LABEL: Record<string, string> = {
+  active: '已加入',
+  invited: '邀請中',
+  disabled: '已停用',
+};
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
@@ -67,19 +81,26 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
   const featureFlags = Object.entries(org.featureFlags);
 
+  const statusValue =
+    org.status === 'trialing' && org.daysUntilTrialEnd !== null
+      ? `試用中（剩 ${Math.max(org.daysUntilTrialEnd, 0)} 天）`
+      : PLATFORM_ORG_STATUS_LABEL[org.status];
+
   const summaryCards = [
-    ['Plan', plan.name],
-    ['Status', PLATFORM_ORG_STATUS_LABEL[org.status]],
-    ['Owner', org.ownerEmail ?? '—'],
-    ['MRR', formatTwd(org.health.estimatedMrrTwd)],
+    ['方案', plan.name],
+    ['狀態', statusValue],
+    ['擁有者', org.ownerEmail ?? '—'],
+    ['估算 MRR', formatTwd(org.health.estimatedMrrTwd)],
   ] as const;
 
   const billingRows = [
-    ['Billing Email', org.billingEmail ?? '—'],
-    ['Tax ID', org.taxId ?? '—'],
-    ['Plan', plan.name],
-    ['Created', formatDate(org.createdAt)],
+    ['帳務 Email', org.billingEmail ?? '—'],
+    ['統一編號', org.taxId ?? '—'],
+    ['方案', plan.name],
+    ['建立日期', formatDate(org.createdAt)],
   ] as const;
+
+  const suggestedActions = formatSuggestedActions(org.health.riskReasons);
 
   return (
     <>
@@ -96,6 +117,11 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                   </Badge>
                 ))}
               </div>
+            ) : null}
+            {suggestedActions.length > 0 ? (
+              <p className="mt-2 text-xs font-medium text-amber-900">
+                建議動作：{suggestedActions.join('；')}
+              </p>
             ) : null}
             <p className="mt-2 text-xs text-amber-800">
               「以此租戶身分查看」可立即進入唯讀預覽；停用 / 調整方案等寫入操作上線後開放。
@@ -126,7 +152,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <CardContent className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="rounded-md border p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">Risk</span>
+              <span className="text-sm font-medium">風險等級</span>
               <Badge variant={riskVariant(org.health.riskLevel)}>
                 {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
               </Badge>
@@ -147,7 +173,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           <div className="grid gap-3 text-sm md:grid-cols-3">
             <div className="rounded-md border p-3">
               <div className="mb-2 text-xs text-muted-foreground">
-                Seats {org.memberCount} / {plan.seatLimit ?? '合約'}
+                席次 {org.memberCount} / {plan.seatLimit ?? '合約'}
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.seats)}
@@ -156,7 +182,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
             </div>
             <div className="rounded-md border p-3">
               <div className="mb-2 text-xs text-muted-foreground">
-                Returns {org.usage.returnsThisMonth.toLocaleString('zh-TW')} /{' '}
+                退貨量 {org.usage.returnsThisMonth.toLocaleString('zh-TW')} /{' '}
                 {plan.monthlyReturnSoftLimit?.toLocaleString('zh-TW') ?? '合約'}
               </div>
               <UsageProgress
@@ -194,8 +220,8 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>角色</TableHead>
+                    <TableHead>狀態</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -205,9 +231,11 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                         {member.displayName ? `${member.displayName}（${member.email}）` : member.email}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{member.role}</Badge>
+                        <Badge variant="outline">{MEMBER_ROLE_LABEL[member.role] ?? member.role}</Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{member.status}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {MEMBER_STATUS_LABEL[member.status] ?? member.status}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -279,9 +307,9 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Actor</TableHead>
+                    <TableHead>時間</TableHead>
+                    <TableHead>事件</TableHead>
+                    <TableHead>操作者</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -326,21 +354,15 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-wrap gap-2">
-            {result.state === 'ready' ? (
-              <StartTenantPreviewButton
-                orgId={result.data.organization.id}
-                orgName={result.data.organization.name}
-              />
-            ) : null}
-            <Button disabled variant="outline" title="租戶啟用 / 停用功能上線後開放">
-              調整方案
-            </Button>
-            <Button disabled variant="outline" title="租戶啟用 / 停用功能上線後開放">
-              停用 / 恢復
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">「以此租戶身分查看」進入唯讀預覽 (1 小時)；其他寫入操作上線後開放。</p>
+          {result.state === 'ready' ? (
+            <StartTenantPreviewButton
+              orgId={result.data.organization.id}
+              orgName={result.data.organization.name}
+            />
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            「以此租戶身分查看」進入唯讀預覽（1 小時）；停用 / 調整方案等寫入操作將於 Stage 2 Billing 開通後提供。
+          </p>
         </div>
       </div>
 
