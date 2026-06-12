@@ -13,7 +13,7 @@ vi.mock('@/lib/saas/org-context', () => ({
   getOrgContext: getOrgContextMock,
 }));
 
-import { updateShopeeReturnStatus } from '@/lib/actions/shopee-returns.actions';
+import { getShopeeReturns, updateShopeeReturnStatus } from '@/lib/actions/shopee-returns.actions';
 
 function buildMockClient() {
   const updateSecondEqMock = vi.fn().mockResolvedValue({ error: null });
@@ -108,6 +108,23 @@ describe('shopee status separation', () => {
     const restoreInboundPayload = mock.updateMock.mock.calls[1]?.[0] as Record<string, unknown>;
     expect(restoreInboundPayload.is_inbound).toBe(false);
     expect(restoreInboundPayload.inbound_at).toBeNull();
+  });
+
+  it('returns a merchant-facing message when the account has no workspace', async () => {
+    const orgError = Object.assign(
+      new Error(
+        'A SaaS organization account is required for workspace settings. Sign in with a tenant user to manage an organization.'
+      ),
+      { code: 'membership_required', status: 403 }
+    );
+    getOrgContextMock.mockRejectedValue(orgError);
+
+    const result = await getShopeeReturns();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('目前登入的帳號沒有商家工作區');
+    expect(result.error).not.toContain('SaaS organization account');
+    expect(createUntypedAdminClientMock).not.toHaveBeenCalled();
   });
 
   it('rejects mixed scan and inbound updates in one request', async () => {

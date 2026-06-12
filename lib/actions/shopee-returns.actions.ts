@@ -120,6 +120,56 @@ export interface ShopeeScanDashboardData {
 }
 
 const DUPLICATE_SCAN_WINDOW_MS = 3000;
+const SHOPEE_TENANT_WORKSPACE_ERROR_MESSAGE =
+  '\u76ee\u524d\u767b\u5165\u7684\u5e33\u865f\u6c92\u6709\u5546\u5bb6\u5de5\u4f5c\u5340\uff0c\u8766\u76ae\u9000\u8ca8\u9801\u9700\u8981\u5546\u5bb6\u5e33\u865f\u624d\u80fd\u7ba1\u7406\u8cc7\u6599\u3002\u8acb\u6539\u7528\u5546\u5bb6\u5e33\u865f\u767b\u5165\uff0c\u6216\u5f9e\u5e73\u53f0\u5f8c\u53f0\u9078\u64c7\u79df\u6236\u67e5\u770b\u3002';
+const SHOPEE_AUTH_REQUIRED_ERROR_MESSAGE =
+  '\u8acb\u5148\u767b\u5165\u5546\u5bb6\u5e33\u865f\uff0c\u518d\u7ba1\u7406\u8766\u76ae\u9000\u8ca8\u8cc7\u6599\u3002';
+const SHOPEE_TENANT_WORKSPACE_ERROR_MARKERS = [
+  'SaaS organization account is required',
+  'SaaS organization membership is required',
+  'tenant user to manage an organization',
+  'workspace settings',
+];
+
+function getSaaSOrgContextCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : null;
+}
+
+function getErrorMessage(error: unknown, fallback = '\u672a\u77e5\u932f\u8aa4'): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function getShopeeOrgContextMessage(error: unknown): string | null {
+  const code = getSaaSOrgContextCode(error);
+  const message = getErrorMessage(error, '');
+
+  if (code === 'unauthenticated') {
+    return SHOPEE_AUTH_REQUIRED_ERROR_MESSAGE;
+  }
+
+  if (
+    code === 'membership_required' ||
+    SHOPEE_TENANT_WORKSPACE_ERROR_MARKERS.some((marker) => message.includes(marker))
+  ) {
+    return SHOPEE_TENANT_WORKSPACE_ERROR_MESSAGE;
+  }
+
+  return null;
+}
+
+function formatShopeeActionFailure(prefix: string, error: unknown, fallback = '\u672a\u77e5\u932f\u8aa4'): string {
+  const orgContextMessage = getShopeeOrgContextMessage(error);
+  if (orgContextMessage) return orgContextMessage;
+
+  return `${prefix}: ${getErrorMessage(error, fallback)}`;
+}
+
+function logUnexpectedShopeeActionError(label: string, error: unknown): void {
+  if (getShopeeOrgContextMessage(error)) return;
+  console.error(label, error);
+}
 
 async function getShopeeReadOrgContext(): Promise<SaaSOrgContext> {
   return getOrgContext();
@@ -342,9 +392,8 @@ export async function getShopeeReturns(): Promise<ApiResponse<ShopeeReturn[]>> {
 
     return { success: true, data: (data as ShopeeReturn[]) || [] };
   } catch (error) {
-    console.error('Get shopee returns error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `載入失敗: ${msg}` };
+    logUnexpectedShopeeActionError('Get shopee returns error:', error);
+    return { success: false, error: formatShopeeActionFailure('載入失敗', error) };
   }
 }
 
@@ -369,9 +418,8 @@ export async function getShopeeReturnById(id: string): Promise<ApiResponse<Shope
 
     return { success: true, data: data as ShopeeReturn };
   } catch (error) {
-    console.error('Get shopee return by id error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `載入失敗: ${msg}` };
+    logUnexpectedShopeeActionError('Get shopee return by id error:', error);
+    return { success: false, error: formatShopeeActionFailure('載入失敗', error) };
   }
 }
 
@@ -458,9 +506,8 @@ export async function getShopeeReturnGroupById(id: string): Promise<ApiResponse<
       },
     };
   } catch (error) {
-    console.error('Get shopee return group by id error:', error);
-    const msg = error instanceof Error ? error.message : '\u672a\u77e5\u932f\u8aa4';
-    return { success: false, error: `\u8b80\u53d6\u8766\u76ae\u9000\u8ca8\u8cc7\u6599\u5931\u6557: ${msg}` };
+    logUnexpectedShopeeActionError('Get shopee return group by id error:', error);
+    return { success: false, error: formatShopeeActionFailure('\u8b80\u53d6\u8766\u76ae\u9000\u8ca8\u8cc7\u6599\u5931\u6557', error) };
   }
 }
 
@@ -621,9 +668,8 @@ export async function importShopeeReturns(
       data: { imported: newItems.length, duplicates: totalDuplicates, updated },
     };
   } catch (error) {
-    console.error('Import shopee returns error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `匯入失敗: ${msg}` };
+    logUnexpectedShopeeActionError('Import shopee returns error:', error);
+    return { success: false, error: formatShopeeActionFailure('匯入失敗', error) };
   }
 }
 
@@ -1330,9 +1376,8 @@ export async function updateShopeeReturn(
 
     return { success: true, data: updatedRow as ShopeeReturn };
   } catch (error) {
-    console.error('Update shopee return detail error:', error);
-    const message = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `更新失敗: ${message}` };
+    logUnexpectedShopeeActionError('Update shopee return detail error:', error);
+    return { success: false, error: formatShopeeActionFailure('更新失敗', error) };
   }
 }
 

@@ -173,6 +173,7 @@ const TENANT_WORKSPACE_ERROR_MARKERS = [
   'SaaS organization account is required',
   'tenant user to manage an organization',
   'workspace settings',
+  '\u76ee\u524d\u767b\u5165\u7684\u5e33\u865f\u6c92\u6709\u5546\u5bb6\u5de5\u4f5c\u5340',
 ];
 
 function isTenantWorkspaceError(message?: string): boolean {
