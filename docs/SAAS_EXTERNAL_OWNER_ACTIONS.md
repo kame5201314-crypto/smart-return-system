@@ -34,6 +34,32 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
 
+## 2026-06-12 Post-Rollout Domain/DNS Recheck
+
+- Deployment `dpl_28RhEVo2Nespq7xjTEQvmELag34r` was rechecked and remains
+  Ready.
+- `https://smart-return-system-saas.vercel.app` smoke still passes:
+  - public routes return `200`
+  - unauthenticated merchant routes redirect to `/login`
+  - unauthenticated platform routes redirect to `/admin/login?next=...`
+- Vercel inspect still lists `https://app.smart-return.tw` as an alias for the
+  deployment, but the domain is not usable yet:
+  - `Resolve-DnsName app.smart-return.tw` returns NXDOMAIN.
+  - `Resolve-DnsName smart-return.tw` returns NXDOMAIN.
+  - Direct HTTPS checks fail with host-not-resolved.
+  - `npx vercel domains inspect app.smart-return.tw` returns Vercel 403 for the
+    current scope.
+  - `npx vercel domains ls` reports 0 domains in the current scope.
+  - No TXT ownership verification record was returned by the CLI.
+- Owner action remains required:
+  - Confirm DNS exists at the authoritative DNS provider.
+  - Add or verify `CNAME app -> cname.vercel-dns.com`, or add the exact TXT
+    ownership record shown by the Vercel dashboard if Vercel requires one.
+  - Ask Codex to retry verification only after DNS resolves.
+- No deploy, migration, env/secret edit, DNS mutation, email provider
+  enablement, billing/provider enablement, or internal/live Supabase action was
+  performed during this recheck.
+
 ## 2026-06-06 Next Executable Queue
 
 Codex has started the public multi-tenant isolation hardening because the owner

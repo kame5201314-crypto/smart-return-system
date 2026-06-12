@@ -2,6 +2,52 @@
 
 ## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
 
+Completed the requested post-rollout read-only status check.
+
+Checks:
+
+- Checkout was clean and synced on `develop-saas`.
+- HEAD before this docs-only update:
+  `37ab5b1 docs(saas): record production deploy of 796a02a`.
+- `npm run safety:agent-boundary`: passed.
+- Vercel deployment `dpl_28RhEVo2Nespq7xjTEQvmELag34r`: Ready.
+
+Production smoke for `https://smart-return-system-saas.vercel.app`:
+
+- Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, and `/login` returned `200`.
+- Tenant protected routes `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, and `/settings/usage` returned `307 -> /login`.
+- Platform protected routes `/internal` and `/internal/orgs` returned
+  `307 -> /admin/login?next=...`.
+
+Custom domain check:
+
+- Vercel inspect lists `https://app.smart-return.tw` as an alias for
+  deployment `dpl_28RhEVo2Nespq7xjTEQvmELag34r`.
+- `Resolve-DnsName app.smart-return.tw`: NXDOMAIN /
+  `DNS name does not exist`.
+- `Resolve-DnsName smart-return.tw`: NXDOMAIN.
+- Direct HTTPS checks for `https://app.smart-return.tw` fail because the host
+  cannot be resolved.
+- `npx vercel domains inspect app.smart-return.tw`: Vercel 403 for the current
+  scope.
+- `npx vercel domains ls`: 0 domains.
+- No TXT ownership verification record was returned by the CLI.
+
+Conclusion:
+
+- Production remains usable at
+  `https://smart-return-system-saas.vercel.app`.
+- `app.smart-return.tw` remains owner/DNS-blocked until DNS resolves and Vercel
+  ownership/SSL verification passes.
+
+No deployment, migration, env/secret edit, DNS mutation, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
+## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
+
 Completed the owner-authorized production deployment of `develop-saas` HEAD
 `796a02a docs(saas): record sequential completion blockers`.
 

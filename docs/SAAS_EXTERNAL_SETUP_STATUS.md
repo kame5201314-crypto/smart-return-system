@@ -55,6 +55,50 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: DNS/ownership for `app.smart-return.tw`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`.
 
+## 2026-06-12 Post-Rollout Domain/DNS Recheck
+
+- Scope:
+  - Rechecked the current SaaS production deployment and custom domain state
+    without deploying, changing DNS, editing env/secrets, running migrations, or
+    enabling providers.
+  - Checkout was clean and synced on `develop-saas` at
+    `37ab5b1 docs(saas): record production deploy of 796a02a` before this
+    docs-only update.
+- Production deployment:
+  - Deployment ID: `dpl_28RhEVo2Nespq7xjTEQvmELag34r`.
+  - Vercel status: Ready.
+  - Vercel inspect still lists aliases for:
+    - `https://smart-return-system-saas.vercel.app`
+    - `https://app.smart-return.tw`
+- Smoke test against `https://smart-return-system-saas.vercel.app`:
+  - Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`,
+    `/features/security`, `/contact`, `/signup`, and `/login` returned `200`.
+  - Protected tenant routes `/analytics`, `/returns`, `/pickup/scan`,
+    `/analytics/ai-report`, and `/settings/usage` returned `307 -> /login`.
+  - Protected platform routes `/internal` and `/internal/orgs` returned
+    `307 -> /admin/login?next=...`.
+- Custom domain result:
+  - `Resolve-DnsName app.smart-return.tw` still returns NXDOMAIN /
+    `DNS name does not exist`.
+  - `Resolve-DnsName smart-return.tw` also returns NXDOMAIN.
+  - Direct HTTPS checks for `https://app.smart-return.tw` and
+    `https://app.smart-return.tw/login` fail because the host cannot be
+    resolved.
+  - `npx vercel domains inspect app.smart-return.tw` still returns Vercel 403:
+    `You don't have access to the domain app.smart-return.tw under
+    kaweis-projects.`
+  - `npx vercel domains ls` still reports `0 Domains found under
+    kaweis-projects`.
+  - The CLI did not return a TXT ownership record, so there is no safe TXT value
+    to report from this checkout.
+- Current conclusion:
+  - Production remains usable at
+    `https://smart-return-system-saas.vercel.app`.
+  - `https://app.smart-return.tw` is not customer-ready until owner/DNS action
+    makes the domain resolve and Vercel ownership/SSL verification passes.
+  - No alias, DNS, deployment, migration, env/secret, email provider, billing,
+    or internal/live Supabase change was performed.
+
 ## 2026-06-12 Owner-Authorized Production Deploy of 796a02a
 
 - Scope:
