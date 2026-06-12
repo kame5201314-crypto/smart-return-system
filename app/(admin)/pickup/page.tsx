@@ -582,8 +582,11 @@ export default function PickupPage() {
           <>
             <input
               ref={importFileRef}
+              id="pickup-import-file"
+              name="pickupImportFile"
               type="file"
               accept=".xlsx,.xls"
+              aria-label="匯入派車收件 Excel 檔案"
               onChange={handleImportFile}
               className="hidden"
             />
@@ -626,6 +629,9 @@ export default function PickupPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
+                id="pickup-search"
+                name="pickupSearch"
+                aria-label="搜尋派車收件記錄"
                 placeholder="搜尋訂單編號、收件人姓名..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -821,20 +827,22 @@ export default function PickupPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>處理日期</Label>
+                <Label htmlFor="pickup-process-date">處理日期</Label>
                 <Input
+                  id="pickup-process-date"
+                  name="processDate"
                   type="date"
                   value={formData.processDate}
                   onChange={(e) => setFormData({ ...formData, processDate: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>平台</Label>
+                <Label htmlFor="pickup-platform">平台</Label>
                 <Select
                   value={formData.platform}
                   onValueChange={(value) => setFormData({ ...formData, platform: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="pickup-platform">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -847,8 +855,10 @@ export default function PickupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>訂單編號 *</Label>
+              <Label htmlFor="pickup-order-number">訂單編號 *</Label>
               <Textarea
+                id="pickup-order-number"
+                name="orderNumber"
                 placeholder="輸入訂單編號（可多行，例如訂單號+物流單號）"
                 value={formData.orderNumber}
                 onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
@@ -857,8 +867,10 @@ export default function PickupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>物流單號</Label>
+              <Label htmlFor="pickup-tracking-number">物流單號</Label>
               <Input
+                id="pickup-tracking-number"
+                name="trackingNumber"
                 placeholder="輸入物流單號"
                 value={formData.trackingNumber}
                 onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
@@ -867,12 +879,12 @@ export default function PickupPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>物流平台</Label>
+                <Label htmlFor="pickup-logistics-provider">物流平台</Label>
                 <Select
                   value={formData.logisticsProvider}
                   onValueChange={(value) => setFormData({ ...formData, logisticsProvider: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="pickup-logistics-provider">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -883,12 +895,12 @@ export default function PickupPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>物流狀態</Label>
+                <Label htmlFor="pickup-delivery-status">物流狀態</Label>
                 <Select
                   value={formData.deliveryStatus}
                   onValueChange={(value) => setFormData({ ...formData, deliveryStatus: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="pickup-delivery-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -901,12 +913,12 @@ export default function PickupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>收到/已貼</Label>
+              <Label htmlFor="pickup-received-status">收到/已貼</Label>
               <Select
                 value={formData.receivedStatus}
                 onValueChange={(value) => setFormData({ ...formData, receivedStatus: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="pickup-received-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -918,8 +930,10 @@ export default function PickupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>收件人姓名</Label>
+              <Label htmlFor="pickup-receiver-info">收件人姓名</Label>
               <Input
+                id="pickup-receiver-info"
+                name="receiverInfo"
                 placeholder="輸入收件人姓名"
                 value={formData.receiverInfo}
                 onChange={(e) => setFormData({ ...formData, receiverInfo: e.target.value })}
@@ -927,8 +941,10 @@ export default function PickupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>備註</Label>
+              <Label htmlFor="pickup-notes">備註</Label>
               <Textarea
+                id="pickup-notes"
+                name="notes"
                 placeholder="輸入備註內容"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
