@@ -2,6 +2,39 @@
 
 ## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
 
+Ran the sequential completion readiness check after the owner asked to continue
+the remaining queue in order.
+
+Checks:
+
+- Preflight passed on SaaS checkout `develop-saas`.
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:doctor`: 155 pass, 1 warn, 0 fail.
+  - Warning: local `ENABLE_MULTI_TENANT_ADMIN=true`, expected for local platform
+    admin preview.
+- `npm run saas:rollout-check`: 22 pass, 3 warn, 0 fail.
+  - Local admin password rollout warning.
+  - Local Sentry/logging DSN rollout warning. Production Sentry env was
+    previously configured; do not commit DSN values.
+  - Billing disabled warning, expected for Manual Beta.
+- `Resolve-DnsName app.smart-return.tw`: still NXDOMAIN /
+  `DNS name does not exist`.
+
+Conclusion:
+
+- No unblocked local implementation task remains in the split queue.
+- Domain setup remains blocked until owner/DNS action creates/verifies
+  `app.smart-return.tw`.
+- Email provider, Billing/ECPay, public signup, production deploy, and
+  migrations `033` / `034` / `036` still require explicit owner action or
+  authorization.
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
+## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
+
 Refreshed the split queue after the latest source HEAD `b2fc132`.
 
 Current source / production split:
