@@ -25,6 +25,12 @@ describe('public route allowlist', () => {
     expect(isPublicRoute('/portal/track/demo-id')).toBe(true);
   });
 
+  it('keeps SEO metadata endpoints public', () => {
+    expect(isPublicRoute('/robots.txt')).toBe(true);
+    expect(isPublicRoute('/sitemap.xml')).toBe(true);
+    expect(isPublicRoute('/opengraph-image')).toBe(true);
+  });
+
   it('does not expose app, admin, or internal operations', () => {
     expect(isPublicRoute('/admin')).toBe(false);
     expect(isPublicRoute('/analytics')).toBe(false);
