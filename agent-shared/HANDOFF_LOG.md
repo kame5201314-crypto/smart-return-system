@@ -1,5 +1,33 @@
 # Handoff Log
 
+## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
+
+Refreshed the split queue after the latest source HEAD `b2fc132`.
+
+Current source / production split:
+
+- Latest pushed source HEAD: `b2fc132 fix(saas/ui): refine platform dashboard
+  alerts`.
+- Production still runs the last owner-authorized deployment:
+  `0c9c983 docs(saas): avoid stale latest head wording` /
+  `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+- The latest source UI refinements have not been deployed.
+
+Current work split:
+
+- Claude UI: no unblocked UI task is recorded in `agent-shared/TASK_BOARD.md`.
+- Codex backend/API/docs: no unblocked backend/API/migration task is recorded.
+- External owner-blocked queue remains:
+  - DNS/ownership verification for `app.smart-return.tw`.
+  - Public signup posture decision.
+  - Email provider credentials if owner reopens email delivery.
+  - Stage 2 Billing/ECPay credentials plus explicit billing enablement.
+  - Separately authorized migrations `033`, `034`, and `036`.
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
 ## 2026-06-12 Codex -> Owner / Claude
 
 Completed the `/internal` dashboard alert-copy refinement from the shared

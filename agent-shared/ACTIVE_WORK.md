@@ -25,10 +25,23 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`, on Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected and authorized setup for `app.smart-return.tw`; latest retry still shows DNS NXDOMAIN, Vercel 403 domain access, `vercel domains ls` reports 0 domains in the current scope, and the CLI returned no TXT ownership record. Owner/DNS action is now required before retrying verification or alias. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete. Platform org trial deadline DTO, first platform operations UI simplification, merchant settings secondary-entry gating, and `/internal` alert copy refinement are complete. Remaining external blockers are DNS/ownership verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`, on Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected and authorized setup for `app.smart-return.tw`; latest retry still shows DNS NXDOMAIN, Vercel 403 domain access, `vercel domains ls` reports 0 domains in the current scope, and the CLI returned no TXT ownership record. Owner/DNS action is now required before retrying verification or alias. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete. Platform org trial deadline DTO, first platform operations UI simplification, merchant settings secondary-entry gating, and `/internal` alert copy refinement are complete. Latest pushed source HEAD is `b2fc132`, but production has not been redeployed past `0c9c983`. No unblocked local Claude/Codex task is currently recorded; remaining blockers are DNS/ownership verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Split queue status refresh
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Reconciled the post-`b2fc132` state for future Claude/Codex handoffs. Local implementation work is complete and pushed; production still runs `0c9c983` / `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`; remaining work is external/owner-blocked unless a new local task is explicitly assigned. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+```
 
 ```text
 Owner: Codex

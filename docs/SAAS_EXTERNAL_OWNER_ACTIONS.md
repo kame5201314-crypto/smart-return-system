@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-06-06
+Last updated: 2026-06-12
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -16,6 +16,9 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 - Production status: Ready
 - Latest deployed runtime commit:
   `0c9c983 docs(saas): avoid stale latest head wording`
+- Latest pushed source commit:
+  `b2fc132 fix(saas/ui): refine platform dashboard alerts`
+  (not deployed to production yet)
 - Latest Sentry setup / redeploy: 2026-06-06
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
@@ -34,6 +37,11 @@ Codex has started the public multi-tenant isolation hardening because the owner
 confirmed many customers will be opened. External rollout actions still need
 owner-provided values or per-action authorization. The next actions must stay
 serialized in this order:
+
+Status update on 2026-06-12: local Claude/Codex implementation work recorded in
+`agent-shared/**` is complete. The remaining queue is external/owner-blocked
+unless the owner explicitly authorizes a new local feature, deployment,
+provider setup, or migration.
 
 1. Custom/beta domain:
    - Owner selected `app.smart-return.tw`.

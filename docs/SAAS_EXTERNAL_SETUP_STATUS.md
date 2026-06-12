@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-06-06
+Last updated: 2026-06-12
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -27,7 +27,7 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Platform admin role management backend foundation now includes owner-gated `GET/POST /api/internal/saas/platform-admins` plus a repository/RPC contract for future UI. DB-backed role assignments still require migration `036` to be explicitly applied before UI exposure.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
-- Latest Claude/Codex UI handoffs through the 2026-06-05 public RWD QA are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, and public marketing/legal mobile touch-target QA.
+- Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
 - `npm run saas:migration-plan:strict` passes.
 - `npm run saas:schema-gate:strict` passes.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
@@ -45,6 +45,7 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Latest deployed `develop-saas` HEAD is `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
+- Latest pushed source HEAD is `b2fc132 fix(saas/ui): refine platform dashboard alerts`; it has not been deployed to production yet.
 - Billing/ECPay credentials plus `ENABLE_BILLING`, verified custom domain/DNS, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `0c9c983 docs(saas): avoid stale latest head wording` -> Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
@@ -52,6 +53,32 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Owner selected `app.smart-return.tw` as the app domain. Codex attempted Vercel domain setup after owner authorization, but Vercel returned domain access 403 errors and local DNS does not yet resolve the subdomain.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
+- No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: DNS/ownership for `app.smart-return.tw`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`.
+
+## 2026-06-12 Source Head and Split Queue Refresh
+
+- Scope:
+  - Refreshed the SaaS external status after the latest local UI/backend handoffs were completed and pushed.
+  - Current branch: `develop-saas`.
+  - Latest pushed source HEAD: `b2fc132 fix(saas/ui): refine platform dashboard alerts`.
+  - Production remains on the previous owner-authorized deployment `0c9c983 docs(saas): avoid stale latest head wording` / `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+- Completed since the previous external status snapshot:
+  - Platform organization trial deadline DTO handoff.
+  - Platform operations UI simplification for `/internal/orgs`, `/internal/orgs/[id]`, and `/internal/billing/events`.
+  - Merchant sidebar cleanup plus `/settings` secondary-entry gating for onboarding and backups.
+  - `/internal` alert message/action copy refinement.
+- Current split:
+  - Claude UI: no open unblocked UI task is recorded.
+  - Codex backend/API/docs: no open unblocked backend/API/migration task is recorded.
+  - External operations: blocked until the owner provides DNS/provider/billing values or explicit migration/deploy authorization.
+- Not performed:
+  - No deployment was run.
+  - No migration was run.
+  - No env/secret was edited.
+  - No custom domain/DNS was configured.
+  - No email provider was enabled.
+  - No billing/provider was enabled.
+  - No master/live/internal Supabase action was performed.
 
 ## 2026-06-06 Owner-Authorized Production Deploy of Current HEAD
 
