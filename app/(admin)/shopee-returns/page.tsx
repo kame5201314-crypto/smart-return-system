@@ -167,6 +167,18 @@ type ColorTagFilter = 'all' | 'untagged' | Exclude<ColorTag, null>;
 type PlatformFilter = 'all' | ShopeeReturnPlatform;
 
 const ITEMS_PER_PAGE = 50;
+const TENANT_WORKSPACE_ERROR_MESSAGE =
+  '\u76ee\u524d\u767b\u5165\u7684\u5e33\u865f\u6c92\u6709\u5546\u5bb6\u5de5\u4f5c\u5340\uff0c\u8766\u76ae\u9000\u8ca8\u9801\u9700\u8981\u5546\u5bb6\u5e33\u865f\u624d\u80fd\u7ba1\u7406\u8cc7\u6599\u3002\u8acb\u6539\u7528\u5546\u5bb6\u5e33\u865f\u767b\u5165\uff0c\u6216\u5f9e\u5e73\u53f0\u5f8c\u53f0\u9078\u64c7\u79df\u6236\u67e5\u770b\u3002';
+const TENANT_WORKSPACE_ERROR_MARKERS = [
+  'SaaS organization account is required',
+  'tenant user to manage an organization',
+  'workspace settings',
+];
+
+function isTenantWorkspaceError(message?: string): boolean {
+  if (!message) return false;
+  return TENANT_WORKSPACE_ERROR_MARKERS.some((marker) => message.includes(marker));
+}
 
 function formatShopeeReturnPlatform(platform: ShopeeReturn['platform']): string {
   if (platform === 'mall') return '\u5546\u57ce';
@@ -186,6 +198,7 @@ export default function ShopeeReturnsPage() {
   const [shippingMethodFilter, setShippingMethodFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [listStateReady, setListStateReady] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importPlatform, setImportPlatform] = useState<'shopee' | 'mall'>('shopee');
@@ -216,11 +229,20 @@ export default function ShopeeReturnsPage() {
 
   async function loadReturns() {
     setIsLoading(true);
+    setLoadError(null);
     const result = await getShopeeReturns();
     if (result.success && result.data) {
       setReturns(result.data);
+      setLoadError(null);
     } else {
-      toast.error(result.error || '載入失敗');
+      const errorMessage = result.error || '\u8f09\u5165\u5931\u6557';
+      if (isTenantWorkspaceError(errorMessage)) {
+        setReturns([]);
+        setLoadError(TENANT_WORKSPACE_ERROR_MESSAGE);
+      } else {
+        setLoadError(errorMessage);
+        toast.error(errorMessage);
+      }
     }
     setIsLoading(false);
   }
@@ -1175,7 +1197,23 @@ export default function ShopeeReturnsPage() {
             </div>
           ) : groupedFilteredReturns.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground px-4">
-              {returns.length === 0 ? (
+              {loadError ? (
+                <div>
+                  <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium text-foreground">{'\u7121\u6cd5\u8f09\u5165\u8766\u76ae\u9000\u8ca8\u8cc7\u6599'}</p>
+                  <p className="text-sm mt-2">{loadError}</p>
+                  {loadError === TENANT_WORKSPACE_ERROR_MESSAGE ? (
+                    <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/internal">{'\u524d\u5f80\u5e73\u53f0\u5f8c\u53f0'}</Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/login">{'\u5207\u63db\u5e33\u865f'}</Link>
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : returns.length === 0 ? (
                 <div>
                   <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>{'\u5c1a\u7121\u9000\u8ca8\u8cc7\u6599'}</p>
