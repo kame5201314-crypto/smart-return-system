@@ -25,10 +25,25 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`, on Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected and authorized setup for `app.smart-return.tw`; latest retry still shows DNS NXDOMAIN, Vercel 403 domain access, `vercel domains ls` reports 0 domains in the current scope, and the CLI returned no TXT ownership record. Owner/DNS action is now required before retrying verification or alias. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete. Platform org trial deadline DTO and first platform operations UI simplification are complete for `/internal/orgs` and `/internal/billing/events`. Remaining external blockers are DNS/ownership verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `0c9c983 docs(saas): avoid stale latest head wording`, which includes `27c5ecb fix(saas): gate backup and maintenance cron isolation`, on Vercel deployment `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. 2026-06-06 Sentry setup completed: Sentry org `smart-return-saas` was created, Vercel Production env now has `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and production was redeployed successfully. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected and authorized setup for `app.smart-return.tw`; latest retry still shows DNS NXDOMAIN, Vercel 403 domain access, `vercel domains ls` reports 0 domains in the current scope, and the CLI returned no TXT ownership record. Owner/DNS action is now required before retrying verification or alias. Owner skipped email provider for now. Owner confirmed public multi-tenant will open to many customers, so tenant-isolation hardening is active: Shopee, pickup, customer-return, upload/signed-url P1, backup action / backup cron P2 gating, and non-backup maintenance cron default-disable gates are complete. Platform org trial deadline DTO, first platform operations UI simplification, and merchant settings secondary-entry gating are complete. Remaining external blockers are DNS/ownership verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Merchant settings secondary-entry gating
+Files:
+- app/(admin)/settings/page.tsx
+- app/(admin)/settings/backup/page.tsx
+- components/saas/backup-settings-client.tsx
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Completed the follow-up to the merchant sidebar cleanup. `/settings` now keeps the primary sidebar lean while surfacing `/onboarding` only when onboarding is incomplete and `/settings/backup` only for owner/admin users. `/settings/backup` now has a matching server-side owner/admin plus exportable gate before rendering the client backup tool. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+```
 
 ```text
 Owner: Codex

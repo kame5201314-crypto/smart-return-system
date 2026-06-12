@@ -2,6 +2,25 @@
 
 ## 2026-06-12 Codex -> Owner / Claude
 
+Completed the merchant settings follow-up after removing low-frequency entries
+from the main sidebar.
+
+Completed:
+
+- `/settings` now builds its cards from the tenant org context.
+- `/settings` shows `設定指引` only when onboarding is still incomplete.
+- `/settings` shows `資料與備份` only for owner/admin users.
+- `/settings/backup` now has a server-side owner/admin plus exportable gate
+  before rendering `BackupSettingsClient`.
+- Staff/viewer users keep a simpler settings hub and receive a standard gated
+  state if they navigate directly to `/settings/backup`.
+
+No deployment, migration, env/secret edit, domain/DNS change, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
+## 2026-06-12 Codex -> Owner / Claude
+
 Finalized the first platform operations UI simplification pass from the shared
 working tree.
 
