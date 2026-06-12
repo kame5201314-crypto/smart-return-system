@@ -29,7 +29,11 @@ import type {
   PlatformAtRiskAlertSeverity,
   PlatformTrialConversionLifecycle,
 } from '@/lib/saas/ui-backend-contracts';
-import { PLATFORM_ALERT_SEVERITY_LABEL } from '@/components/internal/platform-labels';
+import {
+  PLATFORM_ALERT_SEVERITY_LABEL,
+  PLATFORM_ALERT_TYPE_ACTION,
+  PLATFORM_ALERT_TYPE_MESSAGE,
+} from '@/components/internal/platform-labels';
 
 const ALERT_CATEGORY_LABEL: Record<PlatformAtRiskAlertCategory, string> = {
   billing: '帳務',
@@ -103,7 +107,7 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
     {
       label: '估算 MRR',
       value: formatTwd(summary.estimatedActiveMrrTwd),
-      helper: `Trial pipeline ${formatTwd(summary.trialPipelineMrrTwd)}`,
+      helper: `試用潛在 ${formatTwd(summary.trialPipelineMrrTwd)}`,
       icon: CreditCard,
       alert: false,
     },
@@ -133,16 +137,17 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
   const billingCells: Array<{
     label: string;
     value: number;
+    dot: string;
   }> = [
-    { label: '已收到', value: billing.summary.receivedEvents },
-    { label: '已處理', value: billing.summary.processedEvents },
-    { label: '失敗', value: billing.summary.failedEvents },
-    { label: '已忽略', value: billing.summary.ignoredEvents },
+    { label: '已收到', value: billing.summary.receivedEvents, dot: 'bg-gray-400' },
+    { label: '已處理', value: billing.summary.processedEvents, dot: 'bg-emerald-500' },
+    { label: '失敗', value: billing.summary.failedEvents, dot: 'bg-red-500' },
+    { label: '已忽略', value: billing.summary.ignoredEvents, dot: 'bg-amber-400' },
   ];
 
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((item) => {
           const Icon = item.icon;
           return (
@@ -150,25 +155,22 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
               key={item.label}
               className={`rounded-lg ${item.alert ? 'border-amber-300 bg-amber-50/60' : ''}`}
             >
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-3">
-                  <CardDescription>{item.label}</CardDescription>
-                  <Icon
-                    className={`size-4 ${item.alert ? 'text-amber-600' : 'text-emerald-700'}`}
-                  />
+              <CardContent className="flex items-start justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className={`text-xs ${item.alert ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                    {item.label}
+                  </p>
+                  <p className={`mt-1 truncate text-2xl font-semibold ${item.alert ? 'text-amber-900' : 'text-gray-950'}`}>
+                    {item.value}
+                  </p>
+                  <p className={`mt-1 text-xs ${item.alert ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                    {item.helper}
+                  </p>
                 </div>
-                <CardTitle
-                  className={`text-2xl ${item.alert ? 'text-amber-900' : ''}`}
-                >
-                  {item.value}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p
-                  className={`text-xs ${item.alert ? 'text-amber-800' : 'text-muted-foreground'}`}
-                >
-                  {item.helper}
-                </p>
+                <Icon
+                  className={`mt-0.5 size-4 shrink-0 ${item.alert ? 'text-amber-600' : 'text-emerald-700'}`}
+                  aria-hidden="true"
+                />
               </CardContent>
             </Card>
           );
@@ -208,10 +210,17 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
                         {ALERT_CATEGORY_LABEL[alert.category]}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-amber-900">{alert.message}</p>
+                    <p className="mt-1 text-sm text-amber-900">
+                      {PLATFORM_ALERT_TYPE_MESSAGE[alert.type] ?? alert.message}
+                    </p>
                     {alert.metric ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         使用 {alert.metric.used.toLocaleString('zh-TW')} / {alert.metric.limit.toLocaleString('zh-TW')}（{alert.metric.percent}%）
+                      </p>
+                    ) : null}
+                    {PLATFORM_ALERT_TYPE_ACTION[alert.type] ? (
+                      <p className="mt-1 text-xs font-medium text-amber-800">
+                        建議動作：{PLATFORM_ALERT_TYPE_ACTION[alert.type]}
                       </p>
                     ) : null}
                   </div>
@@ -236,40 +245,65 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
               試用追蹤
             </CardTitle>
             <CardDescription>
-              即將到期 {trial.summary.trialEndingSoonOrganizations} 個 · 轉換率 {trial.summary.conversionRatePercent}% · 已過期 {trial.summary.expiredTrialOrganizations}
+              即將到期 {trial.summary.trialEndingSoonOrganizations} 個 · 已過期 {trial.summary.expiredTrialOrganizations} 個 · 轉換率 {trial.summary.conversionRatePercent}%
             </CardDescription>
           </CardHeader>
           <CardContent>
             {trial.followUpOrganizations.length > 0 ? (
               <ul className="space-y-2">
-                {trial.followUpOrganizations.map((org) => (
-                  <li
-                    key={org.orgId}
-                    className="flex items-center justify-between gap-3 rounded-md border p-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/internal/orgs/${org.orgId}`}
-                        className="font-medium text-emerald-700 hover:underline"
-                      >
-                        {org.orgName}
-                      </Link>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {org.ownerEmail ?? '—'} · {LIFECYCLE_LABEL[org.lifecycleState]}
-                        {org.daysUntilTrialEnd !== null
-                          ? org.daysUntilTrialEnd >= 0
-                            ? ` · 剩 ${org.daysUntilTrialEnd} 天`
-                            : ` · 已過 ${Math.abs(org.daysUntilTrialEnd)} 天`
-                          : ''}
-                      </p>
-                    </div>
-                    <Button asChild variant="ghost" size="sm" className="shrink-0">
-                      <Link href={`/internal/orgs/${org.orgId}`}>
-                        <ArrowRight className="size-4" />
-                      </Link>
-                    </Button>
-                  </li>
-                ))}
+                {trial.followUpOrganizations.map((org) => {
+                  const isExpired = org.lifecycleState === 'trial_expired';
+                  const isEnding = org.lifecycleState === 'trial_ending';
+                  const dayText =
+                    org.daysUntilTrialEnd !== null
+                      ? org.daysUntilTrialEnd >= 0
+                        ? `剩 ${org.daysUntilTrialEnd} 天`
+                        : `已過 ${Math.abs(org.daysUntilTrialEnd)} 天`
+                      : null;
+
+                  return (
+                    <li
+                      key={org.orgId}
+                      className="flex items-center justify-between gap-3 rounded-md border p-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/internal/orgs/${org.orgId}`}
+                            className="font-medium text-emerald-700 hover:underline"
+                          >
+                            {org.orgName}
+                          </Link>
+                          <Badge
+                            variant={isExpired ? 'destructive' : isEnding ? 'secondary' : 'outline'}
+                            className="text-xs"
+                          >
+                            {LIFECYCLE_LABEL[org.lifecycleState]}
+                          </Badge>
+                          {dayText ? (
+                            <span
+                              className={`text-xs ${
+                                isExpired
+                                  ? 'font-medium text-red-600'
+                                  : isEnding
+                                    ? 'font-medium text-amber-700'
+                                    : 'text-muted-foreground'
+                              }`}
+                            >
+                              {dayText}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{org.ownerEmail ?? '—'}</p>
+                      </div>
+                      <Button asChild variant="ghost" size="sm" className="shrink-0">
+                        <Link href={`/internal/orgs/${org.orgId}`}>
+                          <ArrowRight className="size-4" />
+                        </Link>
+                      </Button>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
@@ -289,18 +323,25 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
               共 {billing.summary.totalEvents} 筆事件，其中 {billing.summary.failedEvents} 筆失敗。
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {billingCells.map((cell) => (
-                <div key={cell.label} className="rounded-md border p-3">
-                  <div className="text-xs text-muted-foreground">{cell.label}</div>
-                  <div className="mt-1 text-xl font-semibold text-gray-950">
-                    {cell.value.toLocaleString('zh-TW')}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+          <CardContent className="flex h-full flex-col gap-3">
+            {billing.summary.totalEvents === 0 ? (
+              <p className="flex-1 rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
+                尚未接收任何金流事件；Stage 2 接上 ECPay 後開始累積。
+              </p>
+            ) : (
+              <div className="flex flex-1 flex-wrap content-start gap-x-5 gap-y-2 text-sm">
+                {billingCells.map((cell) => (
+                  <span key={cell.label} className="flex items-center gap-1.5">
+                    <span className={`size-2 rounded-full ${cell.dot}`} aria-hidden="true" />
+                    <span className="text-muted-foreground">{cell.label}</span>
+                    <span className="font-semibold text-gray-950">
+                      {cell.value.toLocaleString('zh-TW')}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <Button asChild variant="outline" size="sm" className="w-full">
               <Link href="/internal/billing/events">
                 查看所有事件
                 <ArrowRight className="size-4" />

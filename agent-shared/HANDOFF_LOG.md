@@ -2,6 +2,24 @@
 
 ## 2026-06-12 Codex -> Owner / Claude
 
+Completed the `/internal` dashboard alert-copy refinement from the shared
+working tree.
+
+Completed:
+
+- KPI cards on `/internal` are more compact for daily operator scanning.
+- The MRR helper copy now uses Chinese operator wording.
+- At-risk alert messages use `PLATFORM_ALERT_TYPE_MESSAGE` instead of exposing
+  raw backend message strings.
+- At-risk alert rows now show `建議動作` through
+  `PLATFORM_ALERT_TYPE_ACTION`.
+
+No backend DTO, deployment, migration, env/secret edit, domain/DNS change,
+email provider enablement, billing/provider enablement, master/live/internal
+Supabase action, or production setting mutation was performed.
+
+## 2026-06-12 Codex -> Owner / Claude
+
 Completed the merchant settings follow-up after removing low-frequency entries
 from the main sidebar.
 

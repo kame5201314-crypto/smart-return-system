@@ -1,6 +1,7 @@
 import type {
   OrgSubscriptionStatus,
   PlatformAtRiskAlertSeverity,
+  PlatformAtRiskAlertType,
   PlatformOrganizationRiskReason,
 } from '@/lib/saas/ui-backend-contracts';
 
@@ -40,6 +41,32 @@ export const PLATFORM_ALERT_SEVERITY_LABEL: Record<PlatformAtRiskAlertSeverity, 
 export function formatRiskReasons(reasons: readonly PlatformOrganizationRiskReason[]): string[] {
   return reasons.map((reason) => PLATFORM_RISK_REASON_LABEL[reason] ?? reason);
 }
+
+export const PLATFORM_ALERT_TYPE_MESSAGE: Record<PlatformAtRiskAlertType, string> = {
+  past_due: '付款已逾期，寫入、AI 與匯出維持限制中。',
+  suspended: '租戶已暫停，請在資料保留期限前處理。',
+  cancelled: '租戶已取消，支援前請先確認保留與重啟政策。',
+  trial_ending: '試用即將到期。',
+  trial_expired: '試用已到期，但租戶仍停留在試用狀態。',
+  returns_80: '退貨量已達方案軟上限 80%。',
+  returns_100: '退貨量已達方案軟上限（不會阻擋日常作業）。',
+  ai_80: 'AI 用量已達方案上限 80%。',
+  ai_100: 'AI 額度已用完，AI 分析將被阻擋。',
+  seats_full: '席次已滿，無法再邀請新成員。',
+};
+
+export const PLATFORM_ALERT_TYPE_ACTION: Record<PlatformAtRiskAlertType, string> = {
+  past_due: '建議人工提醒補款',
+  suspended: '確認補繳後協助恢復',
+  cancelled: '了解取消原因，評估挽回',
+  trial_ending: '建議安排轉付費溝通',
+  trial_expired: '請聯絡客戶決定轉付費或停用',
+  returns_80: '留意旺季用量走勢',
+  returns_100: '建議升級方案',
+  ai_80: '留意 AI 用量走勢',
+  ai_100: '建議聯絡升級方案',
+  seats_full: '建議升級方案以增加席次',
+};
 
 export const PLATFORM_RISK_SUGGESTED_ACTION: Record<PlatformOrganizationRiskReason, string> = {
   past_due: '建議人工提醒補款',

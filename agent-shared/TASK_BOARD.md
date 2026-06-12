@@ -12,6 +12,7 @@ Status values:
 | Status | Task | Notes |
 |---|---|---|
 | done | Platform admin dashboard visual polish | Claude commit `ee474ed`; `/internal` now renders the Codex dashboard DTO with KPI cards, at-risk alerts, trial follow-up, billing summary, and gated/empty/error states |
+| done | Platform admin dashboard alert copy | This commit; `/internal` KPI cards are denser and at-risk alerts now use localized operator messages plus suggested actions from shared platform label maps |
 | done | Platform admin mode floating indicator | Claude commit `9edf220`; `(admin)` tenant pages now render the Codex `loadPlatformAdminModeView()` contract as a persistent platform-admin indicator |
 | done | Platform admin org page copy polish | Claude commit `f5d8171`; `/internal/orgs` and `/internal/orgs/[id]` now use operator-facing wording without schema/table helper text |
 | done | Platform billing events copy polish | Claude commit `8a5a6dc`; `/internal/billing/events` now removes stage wording and schema-source copy while keeping operator-relevant guard requirements |
