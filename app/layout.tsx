@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://app.smart-return.tw'),
   title: {
     default: 'Smart Return｜台灣電商退貨管理系統',
     template: '%s',
