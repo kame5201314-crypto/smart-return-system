@@ -2,6 +2,49 @@
 
 ## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
 
+Completed the owner-authorized production deployment of `develop-saas` HEAD
+`796a02a docs(saas): record sequential completion blockers`.
+
+Preflight and gates:
+
+- Checkout: `D:\AI專案\AI退貨系統商業版_2026.5.16`
+- Branch: `develop-saas`
+- Vercel project: `smart-return-system-saas`
+- `npm run safety:agent-boundary`: passed
+- `npm run saas:predeploy`: passed
+
+Production:
+
+- Runtime source commit: `796a02a`
+- Deployment ID: `dpl_28RhEVo2Nespq7xjTEQvmELag34r`
+- Deployment URL:
+  `https://smart-return-system-saas-a0vn28pwk-kaweis-projects.vercel.app`
+- Production alias: `https://smart-return-system-saas.vercel.app`
+- Status: Ready
+
+Smoke test:
+
+- Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, and `/login` returned `200`.
+- Tenant protected routes `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, and `/settings/usage` returned `307 -> /login`.
+- Platform protected routes `/internal` and `/internal/orgs` returned
+  `307 -> /admin/login?next=...`.
+
+Domain note:
+
+- Vercel CLI auto-listed `https://app.smart-return.tw` as an alias and started
+  asynchronous SSL creation during the production deployment.
+- Codex did not run a separate domain/DNS setup command in this deployment.
+- Local DNS still does not resolve `app.smart-return.tw`, so the custom domain
+  remains not ready for customer use.
+
+No migration, env/secret edit, separate domain/DNS command, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or unrelated production setting mutation was performed.
+
+## 2026-06-12 Codex -> Owner / Codex for Windows / Claude
+
 Ran the sequential completion readiness check after the owner asked to continue
 the remaining queue in order.
 

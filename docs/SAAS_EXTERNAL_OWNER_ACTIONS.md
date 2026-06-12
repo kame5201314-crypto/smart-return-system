@@ -9,24 +9,27 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Current production includes `27c5ecb fix(saas): gate backup and maintenance
-  cron isolation`.
+- Current production runs `796a02a docs(saas): record sequential completion
+  blockers`, which includes the post-`0c9c983` UI/docs handoffs and the
+  earlier `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
 - Production URL: `https://smart-return-system-saas.vercel.app`
-- Production deployment: `dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`
+- Production deployment: `dpl_28RhEVo2Nespq7xjTEQvmELag34r`
 - Production status: Ready
 - Latest deployed runtime commit:
-  `0c9c983 docs(saas): avoid stale latest head wording`
-- Latest pushed source commit:
-  `b2fc132 fix(saas/ui): refine platform dashboard alerts`
-  (not deployed to production yet)
+  `796a02a docs(saas): record sequential completion blockers`
+- Latest pushed source commit after this runbook update may be newer than the
+  runtime commit because deployment documentation is committed after smoke
+  testing.
 - Latest Sentry setup / redeploy: 2026-06-06
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
   - email delivery remains dry-run
-  - owner selected custom app domain `app.smart-return.tw`; Codex attempted
-    Vercel setup after owner authorization, but Vercel domain access is still
-    blocked until DNS/ownership is verified
+  - owner selected custom app domain `app.smart-return.tw`; the latest
+    production deploy auto-listed it as a Vercel alias, but DNS still does not
+    resolve and SSL was reported as asynchronous, so customer traffic should
+    continue using `https://smart-return-system-saas.vercel.app` until
+    DNS/SSL verification passes
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
@@ -149,6 +152,29 @@ Latest verification:
 - `npm run typecheck`: passed.
 - `npm run test:all`: passed.
 
+## 2026-06-12 Completed Owner Action: Production Deploy of 796a02a
+
+- Owner authorized deploying `develop-saas` latest HEAD
+  `796a02a docs(saas): record sequential completion blockers` to Vercel
+  Production project `smart-return-system-saas`.
+- Exclusions in the authorization were honored:
+  - no migration
+  - no env/secret edit
+  - no separate domain/DNS setup command
+  - no email provider enablement
+  - no billing/provider enablement
+  - no master/live/internal Supabase action
+- `npm run safety:agent-boundary` and `npm run saas:predeploy` passed before
+  deployment.
+- Vercel deployment ID: `dpl_28RhEVo2Nespq7xjTEQvmELag34r`.
+- Production alias: `https://smart-return-system-saas.vercel.app`.
+- Vercel status: Ready.
+- Vercel CLI reported existing alias `https://app.smart-return.tw` and
+  asynchronous SSL creation during deploy. DNS lookup still does not resolve
+  `app.smart-return.tw`, so the custom domain remains not ready for use.
+- Smoke test passed for public `200`, tenant `307 -> /login`, and platform
+  `307 -> /admin/login?next=...` routes.
+
 ## 2026-06-06 Completed Owner Action: Current HEAD Production Deploy
 
 - Owner authorized deploying current `origin/develop-saas` HEAD to Vercel
@@ -167,7 +193,7 @@ Latest verification:
 
 ## Latest Smoke Snapshot
 
-Verified on 2026-06-06:
+Verified on 2026-06-12 after deployment `dpl_28RhEVo2Nespq7xjTEQvmELag34r`:
 
 - Public routes returned `200`:
   - `/`
@@ -199,8 +225,8 @@ Verified on 2026-06-06:
 
 ## Current Head Deployment Handoff
 
-Status: completed on 2026-06-06 for `0c9c983` /
-`dpl_EwmXZXdxNAYHZdoBNRHN5kQnW7yu`.
+Status: completed on 2026-06-12 for `796a02a` /
+`dpl_28RhEVo2Nespq7xjTEQvmELag34r`.
 
 Use this pattern only for a future new remote `develop-saas` HEAD:
 
@@ -271,20 +297,20 @@ Owner selected:
 
 Latest attempt:
 
-- `npx vercel domains add app.smart-return.tw` printed a success message for
+- Earlier `npx vercel domains add app.smart-return.tw` printed a success message for
   project `smart-return-system-saas`, but the CLI then failed to fetch the
   domain with Vercel 403 access errors.
-- `npx vercel domains inspect app.smart-return.tw` failed with "You don't have
+- Earlier `npx vercel domains inspect app.smart-return.tw` failed with "You don't have
   access to the domain".
-- `npx vercel alias set <current-production-deployment> app.smart-return.tw`
+- Earlier `npx vercel alias set <current-production-deployment> app.smart-return.tw`
   failed with the same Vercel 403 domain access error.
-- `npx vercel domains ls` reports 0 domains under the current Vercel scope.
-- Local DNS lookup does not resolve `app.smart-return.tw`.
-- Retry after the latest owner request confirmed the blocker is unchanged:
-  `Resolve-DnsName app.smart-return.tw` still returns NXDOMAIN, `vercel domains
-  inspect` still returns 403, and `vercel domains ls` still shows 0 domains.
-- No TXT ownership verification record was returned by the Vercel CLI, so there
-  is no TXT value to copy from this checkout yet.
+- During the 2026-06-12 production deployment, Vercel CLI auto-listed
+  `https://app.smart-return.tw` as an alias for deployment
+  `dpl_28RhEVo2Nespq7xjTEQvmELag34r` and reported asynchronous SSL creation.
+- Local DNS lookup still does not resolve `app.smart-return.tw`.
+- Because DNS is still unresolved and SSL is asynchronous, treat
+  `https://app.smart-return.tw` as not ready until a direct DNS/HTTPS smoke test
+  passes.
 
 Owner must still provide or perform:
 
