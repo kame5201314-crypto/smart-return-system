@@ -35,6 +35,55 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
 
+## 2026-06-13 Domain Ownership and Resend Planning
+
+- Current Vercel/domain result:
+  - Local `.vercel/project.json` points to project `smart-return-system-saas`
+    (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+  - Current CLI scope reports no projects from `npx vercel project ls`.
+  - `npx vercel domains ls` reports 0 domains.
+  - `npx vercel domains inspect smart-return.tw` returns 403.
+  - `npx vercel domains inspect app.smart-return.tw` returns 403.
+  - DNS for `smart-return.tw` and `app.smart-return.tw` is NXDOMAIN.
+  - No TXT ownership challenge was returned by the CLI.
+- Owner must complete domain setup in Vercel/DNS:
+  1. In Vercel Dashboard, open project `smart-return-system-saas`.
+  2. Go to Settings -> Domains.
+  3. Add `app.smart-return.tw`.
+  4. If Vercel shows a TXT ownership challenge, add the exact TXT name/value
+     shown in the dashboard. Do not guess the TXT value.
+  5. Add DNS record:
+     - Type: `CNAME`
+     - Name/Host: `app`
+     - Value/Target: `cname.vercel-dns.com`
+     - TTL: Auto or 300
+  6. After DNS resolves, ask Codex to retry verification and HTTPS smoke. Codex
+     should not alias while DNS is NXDOMAIN or Vercel domain inspect is 403.
+- Recommended email provider for first production delivery: Resend.
+  - Reason: low setup overhead for Next.js, Vercel Marketplace can generate
+    `RESEND_API_KEY`, and it covers Beta invite, trial, AI quota, and billing
+    notification use cases.
+  - Owner must provide:
+    - Resend account.
+    - Verified sender domain, preferably `smart-return.tw`.
+    - `RESEND_API_KEY` out of band.
+    - Sender address, for example `no-reply@smart-return.tw` or
+      `support@smart-return.tw`.
+    - First-scope decision: invite email only, or invite + trial/quota/billing
+      notifications.
+  - Current backend is not ready to send real email without a small provider
+    adapter pass. Queue creation and dry-run inspection exist, but
+    `dryRun=false` is intentionally rejected.
+  - Minimal Codex implementation after credentials/authorization:
+    - Env contract: `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`,
+      `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `ENABLE_EMAIL_DELIVERY=true`.
+    - Keep dry-run fallback.
+    - Add Resend adapter and template rendering for current `template_key`
+      values.
+    - Update queue rows after send success/failure and preserve retry limits.
+    - Add tests for dry-run, provider disabled, successful send, failed send,
+      retry cutoff, and cron authorization.
+
 ## 2026-06-13 Read-Only Owner-Blocked Status Check
 
 - Production alias `https://smart-return-system-saas.vercel.app` currently

@@ -2,6 +2,60 @@
 
 ## 2026-06-13 Codex -> Owner / Codex for Windows / Claude
 
+Completed the requested domain ownership / 403 review and email provider
+planning pass.
+
+Preflight:
+
+- Checkout: `D:\AI專案\AI退貨系統商業版_2026.5.16`
+- Branch: `develop-saas`
+- HEAD at start: `f46dd54 docs(saas): refresh rollout blocker status`
+- Working tree was clean.
+- `npm run safety:agent-boundary`: passed.
+
+Domain/Vercel checks:
+
+- Local `.vercel/project.json` points to project `smart-return-system-saas`
+  (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+- `npx vercel project ls`: no projects found under the current CLI scope.
+- `npx vercel domains ls`: 0 domains.
+- `npx vercel domains inspect smart-return.tw`: 403.
+- `npx vercel domains inspect app.smart-return.tw`: 403.
+- `Resolve-DnsName smart-return.tw`: NXDOMAIN.
+- `Resolve-DnsName app.smart-return.tw`: NXDOMAIN.
+- Because DNS is NXDOMAIN and Vercel domain inspect is 403, no alias or
+  verification command was attempted.
+
+Owner domain action:
+
+- In Vercel Dashboard project `smart-return-system-saas`, add
+  `app.smart-return.tw` under Settings -> Domains.
+- If Vercel shows a TXT ownership challenge, owner must add that exact TXT
+  record. Codex cannot infer it because the CLI did not return one.
+- At DNS provider, set `CNAME app -> cname.vercel-dns.com` with TTL Auto or
+  300.
+- After DNS resolves, retry DNS, Vercel domain inspect, and HTTPS smoke.
+
+Email provider planning:
+
+- Recommended first provider: Resend.
+- Owner must prepare Resend account, verified `smart-return.tw` sender domain,
+  `RESEND_API_KEY`, sender address such as `no-reply@smart-return.tw` or
+  `support@smart-return.tw`, and decide whether initial scope is invite-only or
+  invite + trial/quota/billing notifications.
+- Current code supports notification/email queue creation and
+  `CRON_SECRET`-gated dry-run inspection only.
+- `dryRun=false` is intentionally rejected with `delivery_not_enabled`.
+- Future Codex implementation needs a Resend adapter, env contract, provider
+  send path, sent/failed queue updates, retry/audit behavior, and tests before
+  enabling delivery.
+
+No deploy, migration, env/secret edit, DNS mutation, email provider enablement,
+billing/provider enablement, master/live/internal Supabase action, or production
+DB change was performed.
+
+## 2026-06-13 Codex -> Owner / Codex for Windows / Claude
+
 Completed the requested read-only SaaS rollout status check.
 
 Preflight:

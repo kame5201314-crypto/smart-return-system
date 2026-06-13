@@ -55,6 +55,85 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: DNS/ownership for `app.smart-return.tw`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`.
 
+## 2026-06-13 Domain Ownership and Email Provider Planning
+
+- Scope:
+  - Owner requested a Vercel domain ownership / 403 review plus email provider
+    launch planning.
+  - No deployment, migration, env/secret edit, DNS/domain mutation, email
+    provider enablement, billing/provider enablement, or internal/live Supabase
+    action was performed.
+  - Preflight confirmed checkout path, `develop-saas`, clean working tree,
+    origin remote, and `npm run safety:agent-boundary` passed.
+- Vercel project/domain state:
+  - Local Vercel project link points to project `smart-return-system-saas`
+    (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`) under org/team
+    `team_mvnv2WpA6quFmDiFhwMRM3Dz`.
+  - `npx vercel project ls` under the current CLI scope returned no projects.
+    This conflicts with the local project link and indicates the current CLI
+    identity/scope cannot manage the domain ownership state.
+  - `npx vercel domains ls` returned `0 Domains found under kaweis-projects`.
+  - `npx vercel domains inspect smart-return.tw` and
+    `npx vercel domains inspect app.smart-return.tw` both returned Vercel 403
+    access errors.
+  - `Resolve-DnsName smart-return.tw` and
+    `Resolve-DnsName app.smart-return.tw` both returned NXDOMAIN /
+    `DNS name does not exist`.
+  - No TXT ownership challenge was returned by the CLI. Codex did not attempt
+    alias or verification while DNS is NXDOMAIN and Vercel domain inspect is
+    403.
+- Owner domain action required:
+  - In Vercel Dashboard, open project `smart-return-system-saas` ->
+    Settings -> Domains.
+  - Add `app.smart-return.tw`.
+  - If Vercel shows an ownership TXT challenge, copy the exact TXT name/value
+    from the dashboard and add it at the DNS provider. Codex cannot safely
+    infer this value.
+  - At the DNS provider, add:
+    - Type: `CNAME`
+    - Name/Host: `app`
+    - Value/Target: `cname.vercel-dns.com`
+    - TTL: Auto or 300
+  - After DNS propagation, retry DNS, Vercel inspect, and HTTPS smoke for
+    `https://app.smart-return.tw` and `/login`.
+- Email provider recommendation:
+  - Recommended first provider: Resend.
+  - Rationale: simple Next.js integration, Vercel Marketplace can generate a
+    `RESEND_API_KEY`, and it is suitable for Beta invite email, trial
+    reminders, AI quota reminders, and billing notices.
+  - Owner must prepare:
+    - Resend account.
+    - Verified sender domain, recommended `smart-return.tw`.
+    - `RESEND_API_KEY` stored only in Vercel/project env, never in git.
+    - Sender address such as `no-reply@smart-return.tw` or
+      `support@smart-return.tw`.
+    - Decision whether first rollout sends only invite email or also trial,
+      quota, and billing notifications.
+- Current email backend readiness:
+  - `lib/saas/notifications.ts` can build in-app notifications and
+    `email_queue` rows for billing failure, AI quota, trial ending, and platform
+    announcement events.
+  - `lib/saas/email-queue-worker.ts` can inspect queued/due records and compute
+    send eligibility, but it is dry-run only.
+  - `app/api/cron/saas/email-queue/route.ts` is `CRON_SECRET` gated and rejects
+    `dryRun=false` with `delivery_not_enabled`.
+  - No provider adapter, provider send call, sent/failed status update,
+    provider message id storage, retry mutation, or audit-log write is enabled.
+- Minimal future implementation plan after owner provides credentials and
+  authorizes email delivery:
+  - Add env contract: `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`,
+    `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `ENABLE_EMAIL_DELIVERY=true`.
+  - Keep `dryRun=true` as the default safe mode and require an explicit flag for
+    provider sends.
+  - Add a Resend adapter with template rendering for existing `template_key`
+    values.
+  - On success, update `email_queue.status='sent'` and store provider metadata
+    if the schema supports it.
+  - On failure, increment `attempt_count`, mark transient/permanent failures,
+    keep retry limits, and write audit/logging for operator review.
+  - Add tests for provider selection, dry-run behavior, success status update,
+    failure retry, and route authorization.
+
 ## 2026-06-13 Read-Only Rollout Status Check
 
 - Scope:
