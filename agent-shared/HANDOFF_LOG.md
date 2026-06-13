@@ -2,6 +2,38 @@
 
 ## 2026-06-13 Codex -> Owner / Codex for Windows
 
+Recorded the owner's decision to defer custom domain work.
+
+Decision:
+
+- Owner confirmed `smart-return.tw` has not been purchased.
+- Owner chose to continue Closed Manual Beta on:
+  `https://smart-return-system-saas.vercel.app`.
+- Custom domain work is no longer an active blocker for the current Beta.
+- Future agents should not keep retrying `app.smart-return.tw` verification
+  until the owner buys/registers a domain and explicitly reauthorizes
+  DNS/Vercel verification.
+
+Still pending:
+
+- Public signup posture.
+- Resend/email provider credentials and delivery authorization.
+- Stage 2 Billing/ECPay plus `ENABLE_BILLING`.
+- Separately authorized migrations `033`, `034`, and `036`.
+
+Not performed:
+
+- No deploy.
+- No migration.
+- No env/secret edit.
+- No DNS/domain mutation.
+- No email provider enablement.
+- No billing/provider enablement.
+- No master/live/internal Supabase action.
+- No production DB mutation.
+
+## 2026-06-13 Codex -> Owner / Codex for Windows
+
 Followed up after the owner opened the Vercel Dashboard for project
 `smart-return-system-saas`.
 

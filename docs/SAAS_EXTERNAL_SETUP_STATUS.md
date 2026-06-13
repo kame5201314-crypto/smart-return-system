@@ -46,14 +46,27 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
 - Latest deployed runtime source is `f634bc0 fix(saas): keep SEO metadata routes public`.
 - This post-deploy documentation update is expected to create a newer docs-only Git commit than the production runtime source.
-- Billing/ECPay credentials plus `ENABLE_BILLING`, verified custom domain/DNS, and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
+- Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `f634bc0 fix(saas): keep SEO metadata routes public` -> Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `f634bc0`, including Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`.
 - Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
-- Owner selected `app.smart-return.tw` as the app domain. The 2026-06-12 production deploy auto-listed it as a Vercel alias for the new deployment, but `Resolve-DnsName smart-return.tw` / `app.smart-return.tw` still return no records and the CLI reported asynchronous SSL creation. The Vercel Dashboard now shows `app.smart-return.tw` under project `smart-return-system-saas` with `Invalid Configuration`; no TXT ownership challenge is visible, and the required DNS record is `CNAME app -> 64ed959ebaa2a805.vercel-dns-016.com.`. Treat the custom domain as not usable until DNS/SSL are verified.
+- Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
-- No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: DNS/ownership for `app.smart-return.tw`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`.
+- No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-06-13 Custom Domain Deferred
+
+- Owner decided to continue Closed Manual Beta on the Vercel production URL:
+  `https://smart-return-system-saas.vercel.app`.
+- `smart-return.tw` has not been purchased/registered yet, so Codex must not
+  keep retrying DNS/Vercel alias verification as an active blocker.
+- If the owner later buys/registers a custom domain, resume from the Vercel
+  dashboard DNS target recorded below and re-run DNS/HTTPS smoke only after the
+  authoritative DNS provider has records.
+- No deployment, DNS edit, env/secret edit, migration, email provider
+  enablement, billing/provider enablement, or internal/live Supabase action was
+  performed for this decision.
 
 ## 2026-06-13 Domain Ownership and Email Provider Planning
 

@@ -26,18 +26,27 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
   - email delivery remains dry-run
-  - owner selected custom app domain `app.smart-return.tw`; the latest
-    production deploy auto-listed it as a Vercel alias, but DNS still does not
-    resolve and SSL was reported as asynchronous. A direct Vercel Dashboard
-    check now shows `app.smart-return.tw` exists under project
-    `smart-return-system-saas` with `Invalid Configuration`; no TXT challenge
-    is visible, and the required DNS record is
-    `CNAME app -> 64ed959ebaa2a805.vercel-dns-016.com.`. Customer traffic
-    should continue using `https://smart-return-system-saas.vercel.app` until
-    DNS/SSL verification passes.
+  - owner deferred custom domain purchase/setup and chose to use
+    `https://smart-return-system-saas.vercel.app` for Closed Manual Beta.
+    Historical `app.smart-return.tw` DNS notes remain below for future use only;
+    do not keep retrying domain verification until the owner buys/registers a
+    domain and reauthorizes DNS/Vercel work.
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
+
+## 2026-06-13 Custom Domain Deferred
+
+- Owner confirmed `smart-return.tw` has not been purchased yet.
+- Closed Manual Beta will continue on the Vercel production URL:
+  `https://smart-return-system-saas.vercel.app`.
+- Custom domain work is no longer an active blocker for Beta operation.
+- If the owner later purchases a domain, resume with the Vercel dashboard DNS
+  target recorded in the historical section below and re-run DNS/HTTPS smoke
+  after records are visible.
+- Codex did not purchase a domain, edit DNS, alias the deployment, deploy, run
+  migrations, edit env/secrets, enable email delivery, enable billing/provider,
+  or touch internal/live Supabase.
 
 ## 2026-06-13 Domain Ownership and Resend Planning
 
