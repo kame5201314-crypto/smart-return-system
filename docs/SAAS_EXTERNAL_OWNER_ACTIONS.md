@@ -35,6 +35,33 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
 
+## 2026-06-13 Read-Only Owner-Blocked Status Check
+
+- Production alias `https://smart-return-system-saas.vercel.app` currently
+  resolves to Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot`, status
+  Ready.
+- Public production smoke returned `200` for `/`, `/pricing`,
+  `/features/returns`, `/features/ai`, `/features/security`, `/contact`,
+  `/signup`, and `/login`.
+- Unauthenticated protected tenant/platform routes returned `307` redirects.
+- Custom domain remains blocked:
+  - `app.smart-return.tw` is still NXDOMAIN.
+  - `smart-return.tw` is still NXDOMAIN.
+  - HTTPS checks for `app.smart-return.tw` fail because the host cannot be
+    resolved.
+  - Vercel domain inspect still returns 403 for the current scope.
+  - `vercel domains ls` still reports 0 domains.
+- Vercel Production env names include `SENTRY_DSN` and
+  `NEXT_PUBLIC_SENTRY_DSN`.
+- Vercel Production env names do not show email provider credentials or
+  ECPay/provider credential names; email delivery and Billing/ECPay remain
+  owner-blocked.
+- Draft migrations `033`, `034`, and `036` remain separate owner-authorization
+  items. Do not apply them as a bundle.
+- No deploy, migration, env/secret edit, DNS/domain mutation, email provider
+  enablement, billing/provider enablement, or internal/live Supabase action was
+  performed.
+
 ## 2026-06-12 Post-Rollout Domain/DNS Recheck
 
 - Deployment `dpl_28RhEVo2Nespq7xjTEQvmELag34r` was rechecked and remains

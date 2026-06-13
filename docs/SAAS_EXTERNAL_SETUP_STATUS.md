@@ -55,6 +55,56 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: DNS/ownership for `app.smart-return.tw`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`.
 
+## 2026-06-13 Read-Only Rollout Status Check
+
+- Scope:
+  - Owner requested a read-only SaaS rollout check.
+  - No deployment, migration, env/secret edit, DNS/domain mutation, email
+    provider enablement, billing/provider enablement, or internal/live Supabase
+    action was performed.
+  - Preflight confirmed checkout path, `develop-saas`, origin remote, clean
+    working tree, and `npm run safety:agent-boundary` passed.
+  - HEAD at the start of the check:
+    `b73bdd6 test(saas): add platform admin dashboard e2e flow`.
+- Production deployment:
+  - `npx vercel inspect https://smart-return-system-saas.vercel.app` reports
+    deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` as Production / Ready.
+  - Current production deployment URL:
+    `https://smart-return-system-saas-pji1crs57-kaweis-projects.vercel.app`.
+  - Aliases still include:
+    - `https://smart-return-system-saas.vercel.app`
+    - `https://app.smart-return.tw`
+- Smoke test against `https://smart-return-system-saas.vercel.app`:
+  - Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`,
+    `/features/security`, `/contact`, `/signup`, and `/login` returned `200`.
+  - Protected tenant routes `/analytics`, `/returns`, `/pickup/scan`,
+    `/analytics/ai-report`, and `/settings/usage` returned `307`.
+  - Protected platform routes `/internal` and `/internal/orgs` returned `307`.
+- Custom domain result:
+  - `Resolve-DnsName app.smart-return.tw` returns NXDOMAIN /
+    `DNS name does not exist`.
+  - `Resolve-DnsName smart-return.tw` also returns NXDOMAIN.
+  - `https://app.smart-return.tw` and `https://app.smart-return.tw/login`
+    cannot be opened because the host cannot be resolved.
+  - `npx vercel domains inspect app.smart-return.tw` still returns Vercel 403
+    for the current scope.
+  - `npx vercel domains ls` still reports `0 Domains found under
+    kaweis-projects`.
+  - No TXT ownership record was returned by the CLI.
+- External blockers:
+  - Vercel Production env names include `SENTRY_DSN` and
+    `NEXT_PUBLIC_SENTRY_DSN`, so Sentry remains configured.
+  - No visible email provider credential names were listed in Vercel Production
+    env; email delivery remains owner/provider-blocked.
+  - No visible ECPay/Billing provider credential names were listed in Vercel
+    Production env; Billing/ECPay remains Stage 2 owner-blocked.
+  - Draft migrations `033`, `034`, and `036` are present in the repo and still
+    require separate owner authorization before any apply.
+- Verification:
+  - `npm run saas:doctor`: 155 pass, 1 expected local
+    `ENABLE_MULTI_TENANT_ADMIN=true` warning, 0 fail.
+  - `npm run lint`: passed.
+
 ## 2026-06-13 Owner-Authorized Production Deploy of f634bc0
 
 - Scope:

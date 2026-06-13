@@ -25,10 +25,24 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `f634bc0 fix(saas): keep SEO metadata routes public` on Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. This deployment includes the post-`796a02a` Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`. 2026-06-06 Sentry setup completed and Vercel Production env has `SENTRY_DSN` plus `NEXT_PUBLIC_SENTRY_DSN`. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected `app.smart-return.tw`; the 2026-06-13 production deploy auto-listed it as a Vercel alias and started asynchronous SSL, but the latest check still shows `app.smart-return.tw` as DNS unresolved. Customer traffic should continue using `https://smart-return-system-saas.vercel.app` until DNS/SSL/ownership verification passes. Owner skipped email provider for now. Public multi-tenant hardening/gating is complete for the reviewed Shopee, pickup, customer-return, upload/signed-url, backup, and maintenance cron paths. No unblocked local Claude/Codex task is currently recorded; remaining blockers are DNS/SSL verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `f634bc0 fix(saas): keep SEO metadata routes public` on Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. This deployment includes the post-`796a02a` Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`. 2026-06-06 Sentry setup completed and Vercel Production env has `SENTRY_DSN` plus `NEXT_PUBLIC_SENTRY_DSN`. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner selected `app.smart-return.tw`; Vercel lists it as an alias, but the latest read-only check still shows `app.smart-return.tw` and `smart-return.tw` as NXDOMAIN, HTTPS host resolution failing, Vercel domain inspect returning 403, and `vercel domains ls` returning 0 domains for the current scope. Customer traffic should continue using `https://smart-return-system-saas.vercel.app` until DNS/SSL/ownership verification passes. Owner skipped email provider for now, and no email/ECPay provider credential names are visible in Vercel Production env. Public multi-tenant hardening/gating is complete for the reviewed Shopee, pickup, customer-return, upload/signed-url, backup, and maintenance cron paths. No unblocked local Claude/Codex task is currently recorded; remaining blockers are DNS/SSL verification for `app.smart-return.tw`, public signup posture, email provider decision, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider, configure unrelated domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Read-only SaaS rollout status check
+Files:
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Rechecked production and owner-blocked rollout items without deploy/migration/env/DNS/provider changes. Vercel production alias remains on `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready). `https://smart-return-system-saas.vercel.app` public smoke returned 200 and protected routes returned 307 redirects. `app.smart-return.tw` remains blocked because DNS is NXDOMAIN, HTTPS cannot resolve host, Vercel domain inspect returns 403, and `vercel domains ls` shows 0 domains. Sentry env names are present; email provider and ECPay credential names are not visible. Draft migrations `033`, `034`, and `036` still require separate owner authorization.
+```
 
 ```text
 Owner: Codex

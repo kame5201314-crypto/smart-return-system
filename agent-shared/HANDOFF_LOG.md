@@ -2,6 +2,67 @@
 
 ## 2026-06-13 Codex -> Owner / Codex for Windows / Claude
 
+Completed the requested read-only SaaS rollout status check.
+
+Preflight:
+
+- Checkout: `D:\AI專案\AI退貨系統商業版_2026.5.16`
+- Branch: `develop-saas`
+- HEAD at start: `b73bdd6 test(saas): add platform admin dashboard e2e flow`
+- Working tree was clean.
+- `npm run safety:agent-boundary`: passed.
+
+Production:
+
+- `npx vercel inspect https://smart-return-system-saas.vercel.app` reports
+  deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` as Production / Ready.
+- Current deployment URL:
+  `https://smart-return-system-saas-pji1crs57-kaweis-projects.vercel.app`.
+- Aliases include `https://smart-return-system-saas.vercel.app` and
+  `https://app.smart-return.tw`.
+
+Smoke:
+
+- Public routes `/`, `/pricing`, `/features/returns`, `/features/ai`,
+  `/features/security`, `/contact`, `/signup`, and `/login` returned `200`.
+- Tenant protected routes `/analytics`, `/returns`, `/pickup/scan`,
+  `/analytics/ai-report`, and `/settings/usage` returned `307`.
+- Platform protected routes `/internal` and `/internal/orgs` returned `307`.
+
+Custom domain:
+
+- `Resolve-DnsName app.smart-return.tw`: NXDOMAIN /
+  `DNS name does not exist`.
+- `Resolve-DnsName smart-return.tw`: NXDOMAIN.
+- `https://app.smart-return.tw` and `/login` fail because the host cannot be
+  resolved.
+- `npx vercel domains inspect app.smart-return.tw`: Vercel 403 for the current
+  scope.
+- `npx vercel domains ls`: 0 domains.
+- No TXT ownership record was returned by the CLI.
+
+Owner-blocked items:
+
+- Sentry env names are present in Vercel Production.
+- Email provider credentials are not visible in Vercel Production env names;
+  email delivery remains owner/provider-blocked.
+- ECPay/Billing provider credential names are not visible in Vercel Production
+  env names; Billing/ECPay remains Stage 2 owner-blocked.
+- Draft migrations `033`, `034`, and `036` remain separate owner-authorization
+  items.
+
+Verification:
+
+- `npm run saas:doctor`: 155 pass, 1 expected local
+  `ENABLE_MULTI_TENANT_ADMIN=true` warning, 0 fail.
+- `npm run lint`: passed.
+
+No deploy, migration, env/secret edit, DNS/domain mutation, email provider
+enablement, billing/provider enablement, master/live/internal Supabase action,
+or production setting mutation was performed.
+
+## 2026-06-13 Codex -> Owner / Codex for Windows / Claude
+
 Completed the owner-authorized production deployment of `develop-saas` HEAD
 `f634bc0 fix(saas): keep SEO metadata routes public`.
 
