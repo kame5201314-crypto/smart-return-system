@@ -28,9 +28,13 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - email delivery remains dry-run
   - owner selected custom app domain `app.smart-return.tw`; the latest
     production deploy auto-listed it as a Vercel alias, but DNS still does not
-    resolve and SSL was reported as asynchronous, so customer traffic should
-    continue using `https://smart-return-system-saas.vercel.app` until
-    DNS/SSL verification passes
+    resolve and SSL was reported as asynchronous. A direct Vercel Dashboard
+    check now shows `app.smart-return.tw` exists under project
+    `smart-return-system-saas` with `Invalid Configuration`; no TXT challenge
+    is visible, and the required DNS record is
+    `CNAME app -> 64ed959ebaa2a805.vercel-dns-016.com.`. Customer traffic
+    should continue using `https://smart-return-system-saas.vercel.app` until
+    DNS/SSL verification passes.
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
@@ -40,6 +44,20 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 - Current Vercel/domain result:
   - Local `.vercel/project.json` points to project `smart-return-system-saas`
     (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+  - Vercel Dashboard access confirms `app.smart-return.tw` is listed on the
+    `smart-return-system-saas` Domains page, but it is still `Invalid
+    Configuration`.
+  - The dashboard detail panel does not show a TXT ownership challenge at this
+    time. It shows the required DNS record:
+    - Type: `CNAME`
+    - Name/Host: `app`
+    - Value/Target: `64ed959ebaa2a805.vercel-dns-016.com.`
+    - TTL: Auto or 300
+  - If the DNS provider rejects the trailing dot, use
+    `64ed959ebaa2a805.vercel-dns-016.com`.
+  - A direct TWNIC RDAP check for `smart-return.tw` returned 404 while
+    `twnic.tw` returns active; owner should confirm the root domain is
+    registered and delegated before expecting the app subdomain to resolve.
   - Current CLI scope reports no projects from `npx vercel project ls`.
   - `npx vercel domains ls` reports 0 domains.
   - `npx vercel domains inspect smart-return.tw` returns 403.
@@ -55,7 +73,7 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   5. Add DNS record:
      - Type: `CNAME`
      - Name/Host: `app`
-     - Value/Target: `cname.vercel-dns.com`
+     - Value/Target: `64ed959ebaa2a805.vercel-dns-016.com.`
      - TTL: Auto or 300
   6. After DNS resolves, ask Codex to retry verification and HTTPS smoke. Codex
      should not alias while DNS is NXDOMAIN or Vercel domain inspect is 403.

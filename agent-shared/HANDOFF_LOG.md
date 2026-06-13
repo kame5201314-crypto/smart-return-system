@@ -1,5 +1,42 @@
 # Handoff Log
 
+## 2026-06-13 Codex -> Owner / Codex for Windows
+
+Followed up after the owner opened the Vercel Dashboard for project
+`smart-return-system-saas`.
+
+Observed in Vercel Dashboard:
+
+- `app.smart-return.tw` exists under Settings -> Domains.
+- Status is `Invalid Configuration`.
+- No TXT ownership challenge is visible in the domain detail panel.
+- Required DNS record shown by Vercel:
+  - Type: `CNAME`
+  - Name/Host: `app`
+  - Value/Target: `64ed959ebaa2a805.vercel-dns-016.com.`
+  - TTL: Auto or 300
+- If the DNS provider rejects the trailing dot, use
+  `64ed959ebaa2a805.vercel-dns-016.com`.
+- Vercel notes old records such as `cname.vercel-dns.com` continue to work, but
+  the current dashboard recommends the project-specific value above.
+
+Additional checks:
+
+- `Resolve-DnsName smart-return.tw`: no records.
+- `Resolve-DnsName app.smart-return.tw`: no records.
+- TWNIC RDAP for `smart-return.tw` returned 404 while `twnic.tw` returns active,
+  so the owner must confirm the root domain is registered and delegated at the
+  authoritative DNS provider before the app subdomain can resolve.
+
+Outcome:
+
+- Codex did not buy/register a domain, edit DNS, alias the deployment, deploy,
+  run migrations, edit env/secrets, enable email/provider/billing, touch
+  master/live/internal Supabase, or mutate production DB.
+- Next owner action is outside the repo/Vercel project UI: confirm
+  `smart-return.tw` ownership/registration and add the dashboard CNAME at the
+  authoritative DNS provider.
+
 ## 2026-06-13 Codex -> Owner / Codex for Windows / Claude
 
 Completed the requested domain ownership / 403 review and email provider
