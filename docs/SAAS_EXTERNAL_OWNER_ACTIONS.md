@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-06-12
+Last updated: 2026-06-13
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -9,14 +9,15 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Current production runs `796a02a docs(saas): record sequential completion
-  blockers`, which includes the post-`0c9c983` UI/docs handoffs and the
-  earlier `27c5ecb fix(saas): gate backup and maintenance cron isolation`.
+- Current production runs `f634bc0 fix(saas): keep SEO metadata routes public`,
+  which includes the post-`796a02a` Shopee workspace-error localization, SEO
+  infrastructure, and public access for `robots.txt`, `sitemap.xml`, and
+  `opengraph-image`.
 - Production URL: `https://smart-return-system-saas.vercel.app`
-- Production deployment: `dpl_28RhEVo2Nespq7xjTEQvmELag34r`
+- Production deployment: `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot`
 - Production status: Ready
 - Latest deployed runtime commit:
-  `796a02a docs(saas): record sequential completion blockers`
+  `f634bc0 fix(saas): keep SEO metadata routes public`
 - Latest pushed source commit after this runbook update may be newer than the
   runtime commit because deployment documentation is committed after smoke
   testing.
@@ -148,6 +149,35 @@ placeholder env values, migrations, provider activation, or domain changes.
 - No deployment, env/secret edit, domain/DNS change, email provider enablement,
   billing/provider enablement, master/live/internal Supabase action, or
   migrations `033`, `034`, `036` apply was performed.
+
+## 2026-06-13 Completed Owner Action: Production Deploy of f634bc0
+
+- Owner authorized deploying `develop-saas` latest HEAD
+  `f634bc0 fix(saas): keep SEO metadata routes public` to Vercel Production
+  project `smart-return-system-saas`.
+- Exclusions in the authorization were honored:
+  - no migration
+  - no env/secret edit
+  - no separate domain/DNS setup command
+  - no email provider enablement
+  - no billing/provider enablement
+  - no master/live/internal Supabase action
+- `npm run safety:agent-boundary` and `npm run saas:predeploy` passed before
+  deployment.
+- Vercel deployment ID: `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot`.
+- Deployment URL:
+  `https://smart-return-system-saas-pji1crs57-kaweis-projects.vercel.app`.
+- Production alias: `https://smart-return-system-saas.vercel.app`.
+- Vercel status: Ready.
+- Smoke test passed:
+  - public routes `/`, `/pricing`, `/features/returns`, `/features/ai`,
+    `/features/security`, `/contact`, `/signup`, `/login`, `/robots.txt`, and
+    `/sitemap.xml` returned `200`
+  - tenant protected routes redirected to `/login`
+  - platform protected routes redirected to `/admin/login?next=...`
+- Vercel CLI again listed `https://app.smart-return.tw` as an alias and
+  attempted asynchronous SSL creation. DNS still does not resolve
+  `app.smart-return.tw`, so the custom domain remains not ready for use.
 
 ## 2026-06-06 Owner-Blocked Audit Result
 
