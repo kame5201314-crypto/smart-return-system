@@ -944,6 +944,13 @@ export async function updateReturnInfo(
     adminNote?: string;
     returnReasonNote?: string;
     invoiceStatus?: string;
+    items?: Array<{
+      id?: string;
+      productName: string;
+      productSku?: string;
+      quantity?: number;
+      unitPrice?: number;
+    }>;
     itemResolutionTypes?: Record<string, ReturnItemResolutionType | string>;
   }
 ): Promise<ApiResponse> {
@@ -982,7 +989,7 @@ export async function updateReturnInfo(
     }
 
     // Update product info in return_items
-    if (data.productName !== undefined || data.productSku !== undefined) {
+    if (!data.items && (data.productName !== undefined || data.productSku !== undefined)) {
       const itemUpdateData: Record<string, unknown> = {};
       if (data.productName !== undefined) {
         itemUpdateData.product_name = data.productName;
@@ -999,6 +1006,89 @@ export async function updateReturnInfo(
       if (itemError) {
         console.error('Update return items error:', itemError);
         return { success: false, error: ERROR_MESSAGES.GENERIC };
+      }
+    }
+
+    if (data.items) {
+      const normalizedItems = data.items
+        .map((item) => ({
+          id: item.id,
+          productName: item.productName.trim(),
+          productSku: item.productSku?.trim() || '',
+          quantity: item.quantity && item.quantity > 0 ? item.quantity : 1,
+          unitPrice: item.unitPrice ?? null,
+        }))
+        .filter((item) => item.productName);
+
+      if (normalizedItems.length === 0) {
+        return { success: false, error: '請至少保留 1 個退貨商品' };
+      }
+
+      const { data: existingItems, error: existingItemsError } = await adminClient
+        .from('return_items')
+        .select('id')
+        .eq('return_request_id', returnRequestId) as { data: Array<{ id: string }> | null; error: Error | null };
+
+      if (existingItemsError) {
+        console.error('Fetch existing return items error:', existingItemsError);
+        return { success: false, error: ERROR_MESSAGES.GENERIC };
+      }
+
+      const existingIds = new Set((existingItems || []).map((item) => item.id));
+      const keptExistingIds = new Set<string>();
+
+      for (const item of normalizedItems) {
+        const itemPayload: Record<string, unknown> = {
+          product_name: item.productName,
+          product_sku: item.productSku,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+        };
+
+        if (item.id && existingIds.has(item.id)) {
+          keptExistingIds.add(item.id);
+          const { error: updateItemError } = await adminClient
+            .from('return_items')
+            .update(itemPayload as never)
+            .eq('id', item.id)
+            .eq('return_request_id', returnRequestId);
+
+          if (updateItemError) {
+            console.error('Update return item error:', updateItemError);
+            return { success: false, error: ERROR_MESSAGES.GENERIC };
+          }
+          continue;
+        }
+
+        const { error: insertItemError } = await insertReturnItemsWithResolutionFallback(
+          adminClient,
+          [{
+            return_request_id: returnRequestId,
+            ...itemPayload,
+            resolution_type: RETURN_ITEM_RESOLUTION_TYPES.FULL.key,
+          }],
+          'return.actions.updateReturnInfo.insertItem',
+          { returnRequestId }
+        );
+
+        if (insertItemError) {
+          console.error('Insert return item error:', insertItemError);
+          return { success: false, error: ERROR_MESSAGES.GENERIC };
+        }
+      }
+
+      const itemIdsToDelete = [...existingIds].filter((id) => !keptExistingIds.has(id));
+      if (itemIdsToDelete.length > 0) {
+        const { error: deleteItemsError } = await adminClient
+          .from('return_items')
+          .delete()
+          .eq('return_request_id', returnRequestId)
+          .in('id', itemIdsToDelete);
+
+        if (deleteItemsError) {
+          console.error('Delete removed return items error:', deleteItemsError);
+          return { success: false, error: ERROR_MESSAGES.GENERIC };
+        }
       }
     }
 
