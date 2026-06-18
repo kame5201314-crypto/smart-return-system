@@ -15,6 +15,7 @@ import {
   XCircle,
   Image as ImageIcon,
   Trash2,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -145,6 +146,15 @@ interface ReturnDetail {
 
 type ItemRefundOption = 'full' | 'partial' | 'exchange' | 'round_trip';
 
+type EditableReturnItem = {
+  clientId: string;
+  id?: string;
+  productName: string;
+  productSku: string;
+  quantity: string;
+  unitPrice: string;
+};
+
 const ITEM_REFUND_OPTIONS: Array<{ key: ItemRefundOption; label: string }> = [
   { key: RETURN_ITEM_RESOLUTION_TYPES.FULL.key, label: RETURN_ITEM_RESOLUTION_TYPES.FULL.label },
   { key: RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.key, label: RETURN_ITEM_RESOLUTION_TYPES.PARTIAL.label },
@@ -169,8 +179,7 @@ export default function ReturnDetailPage() {
   const [editInfoDialogOpen, setEditInfoDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [notes, setNotes] = useState('');
-  const [editProductName, setEditProductName] = useState('');
-  const [editProductSku, setEditProductSku] = useState('');
+  const [editItems, setEditItems] = useState<EditableReturnItem[]>([]);
   const [editRefundAmount, setEditRefundAmount] = useState('');
   const [editAdminNote, setEditAdminNote] = useState('');
   const [editReturnReasonNote, setEditReturnReasonNote] = useState('');
@@ -194,6 +203,39 @@ export default function ReturnDetailPage() {
       inspectorComment: '',
     },
   });
+
+  const createEditableItem = useCallback((item?: NonNullable<ReturnDetail['return_items']>[number]): EditableReturnItem => ({
+    clientId: item?.id || `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: item?.id,
+    productName: item?.product_name || '',
+    productSku: item?.product_sku || '',
+    quantity: item?.quantity != null ? String(item.quantity) : '1',
+    unitPrice: item?.unit_price != null ? String(item.unit_price) : '',
+  }), []);
+
+  const updateEditItem = useCallback((
+    clientId: string,
+    field: keyof Omit<EditableReturnItem, 'clientId' | 'id'>,
+    value: string
+  ) => {
+    setEditItems((items) =>
+      items.map((item) => (item.clientId === clientId ? { ...item, [field]: value } : item))
+    );
+  }, []);
+
+  const addEditItem = useCallback(() => {
+    setEditItems((items) => [...items, createEditableItem()]);
+  }, [createEditableItem]);
+
+  const removeEditItem = useCallback((clientId: string) => {
+    setEditItems((items) => {
+      if (items.length <= 1) {
+        toast.error('至少保留 1 個退貨商品');
+        return items;
+      }
+      return items.filter((item) => item.clientId !== clientId);
+    });
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     if (!returnRequestId) {
@@ -231,14 +273,15 @@ export default function ReturnDetailPage() {
   }, [fetchDetail]);
 
   const openEditInfoDialog = useCallback(() => {
-    const firstItem = returnData?.return_items?.[0];
-    setEditProductName(firstItem?.product_name || '');
-    setEditProductSku(firstItem?.product_sku || '');
+    const items = returnData?.return_items?.length
+      ? returnData.return_items.map((item) => createEditableItem(item))
+      : [createEditableItem()];
+    setEditItems(items);
     setEditRefundAmount(returnData?.refund_amount?.toString() || '');
     setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
     setEditReturnReasonNote(returnData?.return_reason_note || '');
     setEditInfoDialogOpen(true);
-  }, [returnData]);
+  }, [createEditableItem, returnData]);
 
   // Auto-open edit dialog if ?edit=true in URL
   useEffect(() => {
@@ -285,12 +328,56 @@ export default function ReturnDetailPage() {
   async function handleInfoUpdate() {
     if (!returnData) return;
 
+    const normalizedItems = editItems
+      .map((item) => ({
+        ...item,
+        productName: item.productName.trim(),
+        productSku: item.productSku.trim(),
+        quantity: item.quantity.trim(),
+        unitPrice: item.unitPrice.trim(),
+      }))
+      .filter((item) => item.productName || item.productSku || item.unitPrice);
+
+    if (normalizedItems.length === 0 || normalizedItems.some((item) => !item.productName)) {
+      toast.error('請至少輸入 1 個商品名稱');
+      return;
+    }
+
+    const parsedRefundAmount = editRefundAmount.trim() ? Number(editRefundAmount) : undefined;
+    if (parsedRefundAmount !== undefined && (!Number.isFinite(parsedRefundAmount) || parsedRefundAmount < 0)) {
+      toast.error('退款金額不可為負數');
+      return;
+    }
+
+    const parsedItems = normalizedItems.map((item) => {
+      const quantity = item.quantity ? Number(item.quantity) : 1;
+      const unitPrice = item.unitPrice ? Number(item.unitPrice) : undefined;
+      return { ...item, parsedQuantity: quantity, parsedUnitPrice: unitPrice };
+    });
+
+    if (parsedItems.some((item) => !Number.isFinite(item.parsedQuantity) || item.parsedQuantity <= 0)) {
+      toast.error('商品數量需大於 0');
+      return;
+    }
+
+    if (parsedItems.some((item) =>
+      item.parsedUnitPrice !== undefined && (!Number.isFinite(item.parsedUnitPrice) || item.parsedUnitPrice < 0)
+    )) {
+      toast.error('單項退款金額不可為負數');
+      return;
+    }
+
     try {
       setUpdating(true);
       const result = await updateReturnInfo(returnData.id, {
-        productName: editProductName || undefined,
-        productSku: editProductSku || undefined,
-        refundAmount: editRefundAmount ? parseFloat(editRefundAmount) : undefined,
+        refundAmount: parsedRefundAmount,
+        items: parsedItems.map((item) => ({
+          id: item.id,
+          productName: item.productName,
+          productSku: item.productSku,
+          quantity: item.parsedQuantity,
+          unitPrice: item.parsedUnitPrice,
+        })),
         adminNote: editAdminNote,
         returnReasonNote: editReturnReasonNote,
         invoiceStatus,
@@ -748,29 +835,79 @@ export default function ReturnDetailPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                <div className="space-y-2">
-                  <Label>商品名稱</Label>
-                  <Input
-                    value={editProductName}
-                    onChange={(e) => setEditProductName(e.target.value)}
-                    placeholder="輸入商品名稱"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>退貨商品</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addEditItem}>
+                      <Plus className="mr-1 h-4 w-4" />
+                      新增商品
+                    </Button>
+                  </div>
+                  {editItems.map((item, index) => (
+                    <div key={item.clientId} className="space-y-3 rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">第 {index + 1} 項商品</p>
+                        {editItems.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => removeEditItem(item.clientId)}
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            刪除
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>商品名稱</Label>
+                        <Input
+                          value={item.productName}
+                          onChange={(e) => updateEditItem(item.clientId, 'productName', e.target.value)}
+                          placeholder="輸入商品名稱"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>商品貨號</Label>
+                        <Input
+                          value={item.productSku}
+                          onChange={(e) => updateEditItem(item.clientId, 'productSku', e.target.value)}
+                          placeholder="輸入商品貨號"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>數量</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateEditItem(item.clientId, 'quantity', e.target.value)}
+                            placeholder="1"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>單項退款金額</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.unitPrice}
+                            onChange={(e) => updateEditItem(item.clientId, 'unitPrice', e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 <div className="space-y-2">
-                  <Label>商品貨號</Label>
-                  <Input
-                    value={editProductSku}
-                    onChange={(e) => setEditProductSku(e.target.value)}
-                    placeholder="輸入商品貨號"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>退款金額 (NT$)</Label>
+                  <Label>總退款金額 (NT$)</Label>
                   <Input
                     type="number"
                     value={editRefundAmount}
                     onChange={(e) => setEditRefundAmount(e.target.value)}
-                    placeholder="輸入退款金額"
+                    placeholder="輸入總退款金額"
                   />
                 </div>
                 <div className="space-y-2">
