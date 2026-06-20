@@ -1508,6 +1508,28 @@ export async function getShopeeUnmatchedScans(
   }
 }
 
+function escapeShopeeLikePattern(value: string): string {
+  // Escape PostgREST/SQL LIKE wildcards so user input is matched literally and
+  // can never widen or alter the filter shape.
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+function mergeScanCandidateGroups(
+  groups: Array<ShopeeReturnScanCandidate[] | null | undefined>,
+  limit: number
+): ShopeeReturnScanCandidate[] {
+  const byId = new Map<string, ShopeeReturnScanCandidate>();
+  for (const group of groups) {
+    if (!group) continue;
+    for (const row of group) {
+      if (!byId.has(row.id)) byId.set(row.id, row);
+      if (byId.size >= limit) break;
+    }
+    if (byId.size >= limit) break;
+  }
+  return [...byId.values()].slice(0, limit);
+}
+
 export async function searchShopeeReturnScanCandidates(
   keyword: string,
   limit = 20
@@ -1520,33 +1542,60 @@ export async function searchShopeeReturnScanCandidates(
     const supabase = createUntypedAdminClient();
     const normalized = normalizeCodeToken(q);
 
+    const baseSelect = () =>
+      supabase
+        .from('shopee_returns')
+        .select('id, order_number, tracking_number, platform, is_scanned')
+        .eq('org_id', orgContext.orgId);
+
     let rows: ShopeeReturnScanCandidate[] = [];
 
-    const fastLookup = await supabase
-      .from('shopee_returns')
-      .select('id, order_number, tracking_number, platform, is_scanned')
-      .eq('org_id', orgContext.orgId)
-      .or(`order_number_norm.eq.${normalized},tracking_number_norm.eq.${normalized}`)
-      .limit(limit);
+    // Exact-normalized lookup. This previously used a single `.or()` filter
+    // string with interpolated user input, which lets a crafted keyword inject
+    // extra PostgREST filter expressions. Split it into two parameterized
+    // `.eq()` queries (order + tracking) and merge the results instead.
+    if (normalized) {
+      const [orderExact, trackingExact] = await Promise.all([
+        baseSelect().eq('order_number_norm', normalized).limit(limit),
+        baseSelect().eq('tracking_number_norm', normalized).limit(limit),
+      ]);
 
-    if (!fastLookup.error && fastLookup.data) {
-      rows = fastLookup.data as ShopeeReturnScanCandidate[];
-    } else if (fastLookup.error && !isRelationMissingError(fastLookup.error)) {
-      return { success: false, error: `搜尋候選訂單失敗: ${fastLookup.error.message}` };
+      const exactError = orderExact.error || trackingExact.error;
+      if (exactError && !isRelationMissingError(exactError)) {
+        return { success: false, error: `搜尋候選訂單失敗: ${exactError.message}` };
+      }
+
+      rows = mergeScanCandidateGroups(
+        [
+          orderExact.data as ShopeeReturnScanCandidate[] | null,
+          trackingExact.data as ShopeeReturnScanCandidate[] | null,
+        ],
+        limit
+      );
     }
 
     if (rows.length === 0) {
-      const fallback = await supabase
-        .from('shopee_returns')
-        .select('id, order_number, tracking_number, platform, is_scanned')
-        .eq('org_id', orgContext.orgId)
-        .or(`order_number.ilike.%${q}%,tracking_number.ilike.%${q}%`)
-        .limit(limit);
+      // Partial-match fallback. Escape LIKE wildcards in the user keyword and
+      // run two parameterized `.ilike()` queries rather than interpolating the
+      // raw keyword into an `.or()` filter string.
+      const pattern = `%${escapeShopeeLikePattern(q)}%`;
+      const [orderLike, trackingLike] = await Promise.all([
+        baseSelect().ilike('order_number', pattern).limit(limit),
+        baseSelect().ilike('tracking_number', pattern).limit(limit),
+      ]);
 
-      if (fallback.error) {
-        return { success: false, error: `搜尋候選訂單失敗: ${fallback.error.message}` };
+      const likeError = orderLike.error || trackingLike.error;
+      if (likeError) {
+        return { success: false, error: `搜尋候選訂單失敗: ${likeError.message}` };
       }
-      rows = (fallback.data as ShopeeReturnScanCandidate[]) || [];
+
+      rows = mergeScanCandidateGroups(
+        [
+          orderLike.data as ShopeeReturnScanCandidate[] | null,
+          trackingLike.data as ShopeeReturnScanCandidate[] | null,
+        ],
+        limit
+      );
     }
 
     return { success: true, data: rows };
