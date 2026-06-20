@@ -89,7 +89,10 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain("from '@/lib/saas/org-context'");
     expect(source).toContain('await getUploadReadOrgContext()');
     expect(source).toContain('await getUploadWritableOrgContext()');
-    expect(source).toContain('returns/${orgContext.orgId}/${data.returnRequestId}');
+    // Upload paths are org-scoped via the shared storage helper (org id is
+    // threaded into the path builder, which prefixes objects with orgs/{orgId}/).
+    expect(source).toContain('buildReturnImageStoragePath({');
+    expect(source).toContain('orgId: orgContext.orgId');
     expect(source).toContain(".eq('org_id', orgContext.orgId)");
     expect(source).toContain('org_id: orgContext.orgId');
   });

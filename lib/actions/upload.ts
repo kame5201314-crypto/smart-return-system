@@ -4,6 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext, type SaaSOrgContext } from '@/lib/saas/org-context';
 import type { ReturnImage } from '@/types/database.types';
+import {
+  RETURN_IMAGES_BUCKET,
+  buildReturnImageStoragePath,
+  createReturnImageSignedUrl,
+  attachReturnImageSignedUrls,
+  removeReturnImageObjects,
+} from '@/lib/storage/return-images';
 
 export interface UploadResult {
   success: boolean;
@@ -43,15 +50,17 @@ export async function uploadImage(data: ImageUploadData): Promise<UploadResult> 
     const base64Content = data.base64Data.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Content, 'base64');
 
-    // 生成唯一檔名
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
-    const extension = data.fileName.split('.').pop() || 'jpg';
-    const storagePath = `returns/${orgContext.orgId}/${data.returnRequestId}/${data.imageType}_${timestamp}_${randomId}.${extension}`;
+    // 生成唯一檔名（org 前綴；舊資料仍可由 storage_path 相容讀取）
+    const storagePath = buildReturnImageStoragePath({
+      orgId: orgContext.orgId,
+      returnRequestId: data.returnRequestId,
+      imageType: data.imageType,
+      extension: data.fileName.split('.').pop(),
+    });
 
     // 上傳到 Supabase Storage
     const { error: uploadError } = await supabase.storage
-      .from('return-images')
+      .from(RETURN_IMAGES_BUCKET)
       .upload(storagePath, buffer, {
         contentType: data.contentType,
         upsert: false,
@@ -65,14 +74,12 @@ export async function uploadImage(data: ImageUploadData): Promise<UploadResult> 
       };
     }
 
-    // 獲取公開 URL
-    const { data: publicUrl } = supabase.storage
-      .from('return-images')
-      .getPublicUrl(storagePath);
+    // 以 storage_path 為主，回傳短效 signed URL 供即時預覽，不再依賴永久 public URL
+    const signedUrl = await createReturnImageSignedUrl(storagePath);
 
     return {
       success: true,
-      url: publicUrl.publicUrl,
+      url: signedUrl ?? undefined,
       path: storagePath,
     };
   } catch (error) {
@@ -163,25 +170,33 @@ export async function saveImageRecord(data: {
   }
 }
 
-// 刪除圖片（從 Storage 和資料庫）
+// 刪除圖片（org-scoped；storage path 一律從 DB 推導，不接受 caller 傳入路徑）
 export async function deleteImage(
-  imageId: string,
-  storagePath: string
+  imageId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const orgContext = await getUploadWritableOrgContext();
     const supabase = createAdminClient();
 
-    // 從 Storage 刪除
-    const { error: storageError } = await supabase.storage
-      .from('return-images')
-      .remove([storagePath]);
+    // 先用 imageId + org_id 取出實際 storage_path / image_url，不採信外部路徑
+    const { data: row, error: fetchError } = await supabase
+      .from('return_images')
+      .select('storage_path, image_url')
+      .eq('id', imageId)
+      .eq('org_id', orgContext.orgId)
+      .single() as {
+        data: { storage_path: string | null; image_url: string | null } | null;
+        error: Error | null;
+      };
 
-    if (storageError) {
-      console.error('Delete from storage error:', storageError);
+    if (fetchError || !row) {
+      return {
+        success: false,
+        error: '刪除圖片記錄失敗',
+      };
     }
 
-    // 從資料庫刪除記錄
+    // 先刪 DB 記錄（org-scoped），成功後再 best-effort 移除 Storage 檔案
     const { error: dbError } = await supabase
       .from('return_images')
       .delete()
@@ -194,6 +209,11 @@ export async function deleteImage(
         success: false,
         error: '刪除圖片記錄失敗',
       };
+    }
+
+    const storageCleanup = await removeReturnImageObjects([row]);
+    if (storageCleanup.error) {
+      console.error('Delete from storage error (best-effort):', storageCleanup.error);
     }
 
     return { success: true };
@@ -228,6 +248,9 @@ export async function getReturnImages(
         error: '取得圖片失敗',
       };
     }
+
+    // 以短效 signed URL 取代永久 public URL（rows 已 org-scoped）
+    await attachReturnImageSignedUrls(images as ReturnImage[] | null);
 
     return {
       success: true,

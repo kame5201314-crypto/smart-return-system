@@ -5,6 +5,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // `server-only` / `client-only` throw when imported outside their runtime;
+      // alias them to an empty stub so server-only modules are unit-testable.
+      'server-only': path.resolve(__dirname, 'tests/stubs/empty.ts'),
+      'client-only': path.resolve(__dirname, 'tests/stubs/empty.ts'),
     },
   },
   test: {

@@ -22,6 +22,10 @@ import {
   isReturnItemResolutionType,
   type ReturnItemResolutionType,
 } from '@/lib/utils/resolution-fallback';
+import {
+  attachReturnImageSignedUrls,
+  removeReturnImageObjects,
+} from '@/lib/storage/return-images';
 
 function mapChannelToPickupPlatform(channelSource: string | null): string {
   if (channelSource === 'official') return '官網';
@@ -497,6 +501,7 @@ export async function getReturnStatus(
       return_images (
         id,
         image_url,
+        storage_path,
         image_type
       )
     `;
@@ -517,6 +522,7 @@ export async function getReturnStatus(
       return_images (
         id,
         image_url,
+        storage_path,
         image_type
       )
     `;
@@ -564,6 +570,13 @@ export async function getReturnStatus(
     if (data.order?.customer_phone !== phone) {
       return { success: false, error: ERROR_MESSAGES.UNAUTHORIZED };
     }
+
+    // Serve return images via short-lived signed URLs instead of permanent
+    // public URLs (rows are already org-scoped by the query above).
+    await attachReturnImageSignedUrls(
+      (data as unknown as { return_images?: Array<{ image_url?: string | null; storage_path?: string | null }> })
+        .return_images
+    );
 
     return { success: true, data: data as ReturnRequestWithRelations };
   } catch (error) {
@@ -1307,6 +1320,7 @@ export async function getReturnRequestDetail(id: string) {
           return_images (
             id,
             image_url,
+            storage_path,
             image_type,
             uploaded_by,
             created_at
@@ -1356,6 +1370,12 @@ export async function getReturnRequestDetail(id: string) {
         row.refund_method
       );
     }
+
+    // Serve return images via short-lived signed URLs (rows already org-scoped).
+    await attachReturnImageSignedUrls(
+      (data as unknown as { return_images?: Array<{ image_url?: string | null; storage_path?: string | null }> })
+        .return_images
+    );
 
     return { success: true, data };
   } catch (error) {
@@ -1511,6 +1531,18 @@ export async function deleteReturnRequest(
       return { success: false, error: ERROR_MESSAGES.NOT_FOUND };
     }
 
+    // Collect the backing storage objects from the org-scoped DB rows BEFORE
+    // deleting them, so we can clean up Storage afterwards. Paths are derived
+    // from our own query, never from caller-supplied input.
+    const { data: imageRows } = await adminClient
+      .from('return_images')
+      .select('storage_path, image_url')
+      .eq('return_request_id', returnRequestId)
+      .eq('org_id', orgContext.orgId) as {
+        data: Array<{ storage_path: string | null; image_url: string | null }> | null;
+        error: Error | null;
+      };
+
     // Delete related data first (foreign key constraints)
     // Delete return images
     const { error: deleteImagesError } = await adminClient
@@ -1571,6 +1603,14 @@ export async function deleteReturnRequest(
     if (deleteError) {
       console.error('Delete return request error:', deleteError);
       return { success: false, error: '刪除退貨單失敗' };
+    }
+
+    // Best-effort: remove the now-orphaned Storage objects after the DB rows are
+    // gone, so deleted returns do not leave PII-bearing images behind. A storage
+    // failure here does not fail the delete (the DB state is already consistent).
+    const storageCleanup = await removeReturnImageObjects(imageRows ?? []);
+    if (storageCleanup.error) {
+      console.error('Delete return request storage cleanup failed (best-effort):', storageCleanup.error);
     }
 
     // Log deletion (to a general log, not entity-specific)
