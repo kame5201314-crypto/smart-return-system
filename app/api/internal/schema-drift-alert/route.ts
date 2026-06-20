@@ -1,27 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 
 function normalizeEnvValue(value: string | null | undefined): string {
   if (!value) return '';
   return String(value).replace(/\\n/g, '').trim();
 }
 
-function isAuthorized(request: NextRequest): boolean {
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
+}
+
+type AuthResult = 'ok' | 'unauthorized' | 'not_configured';
+
+function authorize(request: NextRequest): AuthResult {
   const expectedToken = normalizeEnvValue(process.env.SCHEMA_DRIFT_ALERT_TOKEN);
+  // Fail closed: without a configured token the endpoint stays disabled instead
+  // of authorizing every caller.
   if (!expectedToken) {
-    return true;
+    return 'not_configured';
   }
 
+  // Header token only. The query-string token path was removed so the secret is
+  // never placed in URLs, access logs, or referrers. Compared in constant time.
   const headerToken = normalizeEnvValue(request.headers.get('x-schema-drift-token'));
-  if (headerToken && headerToken === expectedToken) {
-    return true;
+  if (headerToken && safeEqual(headerToken, expectedToken)) {
+    return 'ok';
   }
 
-  const tokenFromQuery = normalizeEnvValue(new URL(request.url).searchParams.get('token'));
-  return tokenFromQuery === expectedToken;
+  return 'unauthorized';
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  const auth = authorize(request);
+  if (auth === 'not_configured') {
+    return NextResponse.json(
+      { success: false, error: 'Schema drift alert endpoint is not configured' },
+      { status: 503 }
+    );
+  }
+  if (auth === 'unauthorized') {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 }

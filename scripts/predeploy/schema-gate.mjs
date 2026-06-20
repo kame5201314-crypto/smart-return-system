@@ -77,7 +77,11 @@ async function checkRequiredColumn(supabase, table, column) {
 async function main() {
   const strict = isStrictMode();
   if (isBypassed()) {
-    console.warn('[schema-gate] Bypassed by SCHEMA_GATE_BYPASS');
+    if (strict) {
+      console.error('[schema-gate] SCHEMA_GATE_BYPASS is not allowed in production/strict mode; failing closed.');
+      return 1;
+    }
+    console.warn('[schema-gate] Bypassed by SCHEMA_GATE_BYPASS (allowed in local/dev only)');
     return 0;
   }
 

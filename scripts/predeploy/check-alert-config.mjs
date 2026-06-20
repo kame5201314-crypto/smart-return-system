@@ -28,7 +28,12 @@ function isValidHttpUrl(value) {
 
 function main() {
   if (isBypassed()) {
-    console.warn('[alert-config] Bypassed by ALERT_CONFIG_BYPASS');
+    if (isProductionDeployment()) {
+      console.error('[alert-config] ALERT_CONFIG_BYPASS is not allowed in production; failing closed.');
+      process.exitCode = 1;
+      return;
+    }
+    console.warn('[alert-config] Bypassed by ALERT_CONFIG_BYPASS (allowed in local/dev only)');
     return;
   }
 

@@ -59,8 +59,5 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SCHEMA_DRIFT_ALERT_WEBHOOK_URL: ${{ secrets.SCHEMA_DRIFT_ALERT_WEBHOOK_URL }}
           SCHEMA_DRIFT_ALERT_TOKEN: ${{ secrets.SCHEMA_DRIFT_ALERT_TOKEN }}
-          SUPABASE_PROJECT_CHECK_BYPASS: "1"
-          SCHEMA_GATE_BYPASS: "1"
-          ALERT_CONFIG_BYPASS: "1"
           CONSISTENCY_CHECK_STRICT: "0"
         run: npm run build

@@ -52,7 +52,13 @@ function failOrWarn(message, strict) {
 
 function main() {
   if (parseBool(process.env.BRANCH_POLICY_BYPASS, false)) {
-    console.warn('[branch-policy] Bypassed by BRANCH_POLICY_BYPASS');
+    const strict = parseBool(process.env.BRANCH_POLICY_STRICT, false) || isProductionDeployment();
+    if (strict) {
+      console.error('[branch-policy] BRANCH_POLICY_BYPASS is not allowed in production/strict mode; failing closed.');
+      process.exitCode = 1;
+      return;
+    }
+    console.warn('[branch-policy] Bypassed by BRANCH_POLICY_BYPASS (allowed in local/dev only)');
     return;
   }
 

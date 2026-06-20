@@ -29,12 +29,17 @@ function isBypassed() {
 }
 
 function main() {
+  const strict = isStrictMode();
   if (isBypassed()) {
-    console.warn('[supabase-project-check] Bypassed by SUPABASE_PROJECT_CHECK_BYPASS');
+    if (strict) {
+      console.error('[supabase-project-check] SUPABASE_PROJECT_CHECK_BYPASS is not allowed in production/strict mode; failing closed.');
+      process.exitCode = 1;
+      return;
+    }
+    console.warn('[supabase-project-check] Bypassed by SUPABASE_PROJECT_CHECK_BYPASS (allowed in local/dev only)');
     return;
   }
 
-  const strict = isStrictMode();
   const appMode = normalizeEnvValue(process.env.APP_MODE).toLowerCase();
   const defaultProjectId =
     appMode === 'saas'
