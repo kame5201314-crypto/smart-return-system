@@ -76,7 +76,10 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain(".select('id, org_id, customer_id, metadata')");
     expect(source).toContain(".eq('order_number', formData.orderNumber)");
     expect(source).toContain(".eq('customer_phone', formData.phone)");
-    expect(source).toContain("const orgId = orderOrgIds[0] as string");
+    // Tenant is bound by the portal org slug (resolved server-side), not by a
+    // cross-tenant global order search.
+    expect(source).toContain('resolvePortalOrg(orgSlug)');
+    expect(source).toContain('const orgId = portalOrg.orgId');
     expect(source).toContain(".eq('org_id', orgId)");
     expect(source).toContain('org_id: orgId');
     expect(source).toContain('returns/${orgId}/${returnRequest.id}');

@@ -11,6 +11,8 @@ import {
   UPLOAD_MAX_FILE_SIZE_BYTES,
 } from '@/lib/upload/security';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import { resolvePortalOrg } from '@/lib/saas/portal-tenant';
+import { attachReturnImageSignedUrls } from '@/lib/storage/return-images';
 
 const customerReturnSchema = z.object({
   channelSource: z.string().min(1, '請選擇購買通路').max(50),
@@ -28,6 +30,9 @@ const customerReturnSchema = z.object({
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 5;
+// Coarse per-IP cap to bound unauthenticated organization lookups before the
+// finer (org, phone, IP) portal-search check can run.
+const PORTAL_SEARCH_IP_RATE_LIMIT = 30;
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -56,21 +61,24 @@ function toRecord(value: unknown): Record<string, unknown> {
   return {};
 }
 
-function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
+function checkRateLimit(
+  identifier: string,
+  maxRequests: number = RATE_LIMIT_MAX_REQUESTS
+): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = rateLimitMap.get(identifier);
 
   if (!record || now > record.resetTime) {
     rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+    return { allowed: true, remaining: maxRequests - 1 };
   }
 
-  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+  if (record.count >= maxRequests) {
     return { allowed: false, remaining: 0 };
   }
 
   record.count += 1;
-  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count };
+  return { allowed: true, remaining: maxRequests - record.count };
 }
 
 setInterval(() => {
@@ -222,7 +230,8 @@ async function validatePreUploadedImages(
 export async function submitCustomerReturn(
   formData: CustomerReturnFormData,
   imageFiles: Base64ImageInput[] | PreUploadedImageInput[],
-  uploadSession?: UploadSessionInput
+  uploadSession?: UploadSessionInput,
+  orgSlug?: string
 ): Promise<ApiResponse<{ requestNumber: string }>> {
   try {
     const validationResult = customerReturnSchema.safeParse(formData);
@@ -249,11 +258,21 @@ export async function submitCustomerReturn(
       return { success: false, error: '伺服器設定錯誤，請稍後再試' };
     }
 
+    // Tenant is identified by the store's org slug from the portal URL, never by
+    // a client-supplied org id nor by a cross-tenant global order search. Fail
+    // closed when the slug is missing or unknown.
+    const portalOrg = await resolvePortalOrg(orgSlug);
+    if (!portalOrg) {
+      return { success: false, error: '查無此商店，請使用商店提供的退貨連結' };
+    }
+    const orgId = portalOrg.orgId;
+
     let orderResult;
     try {
       orderResult = await adminClient
         .from('orders')
         .select('id, org_id, customer_id, metadata')
+        .eq('org_id', orgId)
         .eq('order_number', formData.orderNumber)
         .eq('customer_phone', formData.phone)
         .limit(2)
@@ -275,16 +294,11 @@ export async function submitCustomerReturn(
     }
 
     const orderRows = orderResult.data || [];
-    const orderOrgIds = [...new Set(orderRows.map((row) => row.org_id).filter(Boolean))];
-    if (orderRows.length === 0 || orderOrgIds.length !== 1) {
+    if (orderRows.length === 0) {
       return { success: false, error: '找不到符合的訂單資料，請確認訂單編號與手機或聯絡客服' };
     }
 
-    const orgId = orderOrgIds[0] as string;
-    const orderRow = orderRows.find((row) => row.org_id === orgId);
-    if (!orderRow) {
-      return { success: false, error: '訂單資料需要人工確認，請聯絡客服' };
-    }
+    const orderRow = orderRows[0];
 
     let customerId: string | null = orderRow.customer_id || null;
     const orderId: string = orderRow.id;
@@ -637,39 +651,62 @@ interface ReturnListResult {
   return_images?: {
     id: string;
     image_url: string;
+    storage_path?: string | null;
     image_type: string | null;
   }[];
 }
 
+export interface PortalReturnQuery {
+  orgSlug: string;
+  phone: string;
+  requestNumber: string;
+}
+
 /**
- * Search return requests by phone number
+ * Secure portal lookup. Requires THREE matching factors:
+ *   1. orgSlug resolves to a real org (tenant is fixed server-side),
+ *   2. the request number exists within that org,
+ *   3. the phone on the matched order matches.
+ * Every query is org-scoped; images come back as short-lived signed URLs and
+ * the order phone is never echoed back. Any mismatch returns a generic empty
+ * result so the endpoint cannot enumerate returns across tenants.
  */
-export async function searchReturnsByPhone(phone: string): Promise<{ success: boolean; data?: ReturnListResult[]; error?: string }> {
+export async function searchReturnForPortal(
+  query: PortalReturnQuery
+): Promise<{ success: boolean; data?: ReturnListResult[]; error?: string }> {
   try {
+    const phone = String(query?.phone ?? '').trim();
+    const requestNumber = String(query?.requestNumber ?? '').trim();
+
+    if (!/^09\d{8}$/.test(phone)) {
+      return { success: false, error: '請輸入有效的手機號碼' };
+    }
+    if (!requestNumber) {
+      return { success: false, error: '請輸入退貨單號' };
+    }
+
+    // Coarse per-IP throttle BEFORE the organizations lookup, so an unknown or
+    // spammed slug cannot drive unlimited unauthenticated DB round-trips.
+    const headersList = await headers();
+    const clientIP = headersList.get('x-forwarded-for')?.split(',')[0]
+      || headersList.get('x-real-ip')
+      || 'unknown';
+    const ipRateCheck = checkRateLimit(`portal-search-ip-${clientIP}`, PORTAL_SEARCH_IP_RATE_LIMIT);
+    if (!ipRateCheck.allowed) {
+      return { success: false, error: '查詢次數過多，請稍後再試' };
+    }
+
+    const org = await resolvePortalOrg(query?.orgSlug);
+    if (!org) {
+      return { success: false, error: '無效的商店連結，請使用商店提供的查詢連結' };
+    }
+
+    const rateCheck = checkRateLimit(`portal-search-${org.orgId}-${phone}-${clientIP}`);
+    if (!rateCheck.allowed) {
+      return { success: false, error: '查詢次數過多，請稍後再試' };
+    }
+
     const adminClient = createAdminClient();
-
-    // First find orders with this phone number
-    const { data: orders, error: ordersError } = await adminClient
-      .from('orders')
-      .select('id, org_id')
-      .eq('customer_phone', phone)
-      .limit(100) as { data: { id: string; org_id?: string | null }[] | null; error: Error | null };
-
-    if (ordersError || !orders || orders.length === 0) {
-      return { success: true, data: [] };
-    }
-
-    const orgIds = [...new Set(orders.map((order) => order.org_id).filter(Boolean))];
-    if (orgIds.length !== 1) {
-      return { success: false, error: '查詢條件需要人工確認，請聯絡客服' };
-    }
-
-    const orgId = orgIds[0] as string;
-    const orderIds = orders
-      .filter((order) => order.org_id === orgId)
-      .map(o => o.id);
-
-    // Then find return requests for these orders
     const { data, error } = await adminClient
       .from('return_requests')
       .select(`
@@ -684,28 +721,61 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
         received_at,
         refund_processed_at,
         closed_at,
-        order:orders (
+        order:orders!inner (
           order_number,
-          customer_name
+          customer_name,
+          customer_phone
         ),
         return_images (
           id,
           image_url,
+          storage_path,
           image_type
         )
       `)
-      .eq('org_id', orgId)
-      .in('order_id', orderIds)
-      .order('created_at', { ascending: false }) as { data: ReturnListResult[] | null; error: Error | null };
+      .eq('org_id', org.orgId)
+      .eq('request_number', requestNumber)
+      .maybeSingle() as {
+        data: (ReturnListResult & { order?: { customer_phone?: string | null } | null }) | null;
+        error: Error | null;
+      };
 
     if (error) {
-      return { success: false, error: '鏌ヨ澶辨晽' };
+      return { success: false, error: '查詢失敗，請稍後再試' };
     }
 
-    return { success: true, data: data || [] };
+    // Second factor: the phone on the matched order must match. Return a generic
+    // empty result for any mismatch (no enumeration signal).
+    if (!data || (data.order?.customer_phone ?? '') !== phone) {
+      return { success: true, data: [] };
+    }
+
+    // Serve images via short-lived signed URLs derived from storage_path.
+    await attachReturnImageSignedUrls(data.return_images);
+
+    // Never expose the order phone back to the client.
+    const { order, ...rest } = data;
+    const safeOrder = order
+      ? { order_number: order.order_number, customer_name: order.customer_name }
+      : null;
+
+    return { success: true, data: [{ ...rest, order: safeOrder } as ReturnListResult] };
   } catch {
-    return { success: false, error: '绯荤当閷' };
+    return { success: false, error: '查詢失敗，請稍後再試' };
   }
+}
+
+/**
+ * @deprecated Phone-only lookup leaked return PII within an org. Permanently
+ * disabled and fail-closed. Use searchReturnForPortal({ orgSlug, phone,
+ * requestNumber }) instead.
+ */
+export async function searchReturnsByPhone(phone: string): Promise<{ success: boolean; data?: ReturnListResult[]; error?: string }> {
+  void phone;
+  return {
+    success: false,
+    error: '此查詢方式已停用，請使用商店專屬退貨查詢連結（需退貨單號 + 手機號碼）',
+  };
 }
 
 interface ReturnSearchResult {
@@ -727,68 +797,20 @@ interface ReturnSearchResult {
   return_images?: {
     id: string;
     image_url: string;
+    storage_path?: string | null;
     image_type: string | null;
   }[];
 }
 
 /**
- * Search return request by request number
+ * @deprecated Single-factor lookup by request number alone. Permanently
+ * disabled and fail-closed. Use searchReturnForPortal({ orgSlug, phone,
+ * requestNumber }) instead.
  */
 export async function searchReturnByNumber(requestNumber: string): Promise<{ success: boolean; data?: ReturnSearchResult; error?: string }> {
-  try {
-    const adminClient = createAdminClient();
-
-    const { data: requestRefs, error: refError } = await adminClient
-      .from('return_requests')
-      .select('id, org_id')
-      .eq('request_number', requestNumber)
-      .limit(2) as { data: { id: string; org_id?: string | null }[] | null; error: Error | null };
-
-    if (refError || !requestRefs || requestRefs.length === 0) {
-      return { success: false, error: '找不到此退貨單號' };
-    }
-
-    const orgIds = [...new Set(requestRefs.map((row) => row.org_id).filter(Boolean))];
-    if (orgIds.length !== 1) {
-      return { success: false, error: '退貨單資料需要人工確認，請聯絡客服' };
-    }
-
-    const orgId = orgIds[0] as string;
-
-    const { data, error } = await adminClient
-      .from('return_requests')
-      .select(`
-        id,
-        request_number,
-        status,
-        channel_source,
-        reason_detail,
-        created_at,
-        approved_at,
-        shipped_at,
-        received_at,
-        refund_processed_at,
-        closed_at,
-        order:orders (
-          order_number,
-          customer_name
-        ),
-        return_images (
-          id,
-          image_url,
-          image_type
-        )
-      `)
-      .eq('org_id', orgId)
-      .eq('request_number', requestNumber)
-      .single() as { data: ReturnSearchResult | null; error: Error | null };
-
-    if (error || !data) {
-      return { success: false, error: '找不到此退貨單號' };
-    }
-
-    return { success: true, data };
-  } catch {
-    return { success: false, error: '绯荤当閷' };
-  }
+  void requestNumber;
+  return {
+    success: false,
+    error: '此查詢方式已停用，請使用商店專屬退貨查詢連結（需退貨單號 + 手機號碼）',
+  };
 }
