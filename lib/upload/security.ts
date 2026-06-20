@@ -35,14 +35,14 @@ interface UploadSessionVerificationResult {
   error?: string;
 }
 
-function getUploadSessionSecret(): string | null {
-  const secret =
-    process.env.UPLOAD_SESSION_SECRET ||
-    process.env.ADMIN_SESSION_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    null;
+const UPLOAD_SESSION_SECRET_MIN_LENGTH = 32;
 
-  if (!secret || secret.length < 32) {
+function getUploadSessionSecret(): string | null {
+  // Fail closed: only a dedicated UPLOAD_SESSION_SECRET is accepted. There is no
+  // fallback to ADMIN_SESSION_SECRET or the service-role key, so a single leaked
+  // secret can never be reused to forge upload sessions.
+  const secret = (process.env.UPLOAD_SESSION_SECRET || '').trim();
+  if (!secret || secret.length < UPLOAD_SESSION_SECRET_MIN_LENGTH) {
     return null;
   }
   return secret;

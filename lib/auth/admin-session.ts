@@ -13,10 +13,20 @@ interface AdminSessionPayload {
   nonce: string;
 }
 
+const ADMIN_SESSION_SECRET_MIN_LENGTH = 32;
+
 function getSessionSecret(): string {
-  const secret = (process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  // Fail closed: require a dedicated ADMIN_SESSION_SECRET. The service-role key
+  // must never double as the session-signing secret — a leak of one would
+  // otherwise compromise both database access and admin sessions.
+  const secret = (process.env.ADMIN_SESSION_SECRET || '').trim();
   if (!secret) {
-    throw new Error('Missing admin session secret');
+    throw new Error('Missing ADMIN_SESSION_SECRET');
+  }
+  if (secret.length < ADMIN_SESSION_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `ADMIN_SESSION_SECRET must be at least ${ADMIN_SESSION_SECRET_MIN_LENGTH} characters`
+    );
   }
   return secret;
 }
@@ -103,24 +113,30 @@ export async function verifyAdminSessionToken(
 ): Promise<AdminSessionPayload | null> {
   if (!token) return null;
 
-  const parts = token.split('.');
-  if (parts.length !== 2) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
 
-  const [encodedPayload, signature] = parts;
-  if (!encodedPayload || !signature) return null;
+    const [encodedPayload, signature] = parts;
+    if (!encodedPayload || !signature) return null;
 
-  const expectedSignature = await signPayload(encodedPayload);
-  if (!safeEqual(signature, expectedSignature)) return null;
+    const expectedSignature = await signPayload(encodedPayload);
+    if (!safeEqual(signature, expectedSignature)) return null;
 
-  const payload = decodePayload(encodedPayload);
-  if (!payload) return null;
+    const payload = decodePayload(encodedPayload);
+    if (!payload) return null;
 
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.role !== 'admin') return null;
-  if (payload.exp <= now) return null;
-  if (!payload.sub || !payload.nonce) return null;
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.role !== 'admin') return null;
+    if (payload.exp <= now) return null;
+    if (!payload.sub || !payload.nonce) return null;
 
-  return payload;
+    return payload;
+  } catch {
+    // A missing/invalid signing secret (or any unexpected error) must reject the
+    // session rather than surface as a 500 — fail closed.
+    return null;
+  }
 }
 
 export const ADMIN_SESSION_COOKIE_OPTIONS = {
