@@ -183,7 +183,11 @@ async function main() {
   const strict = isStrictMode();
 
   if (isBypassed()) {
-    console.warn('[saas-schema-gate] Bypassed by SAAS_SCHEMA_GATE_BYPASS');
+    if (strict) {
+      console.error('[saas-schema-gate] SAAS_SCHEMA_GATE_BYPASS is not allowed in production/strict mode; failing closed.');
+      return 1;
+    }
+    console.warn('[saas-schema-gate] Bypassed by SAAS_SCHEMA_GATE_BYPASS (allowed in local/dev only)');
     return 0;
   }
 
