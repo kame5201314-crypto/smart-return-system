@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
-import { getOrgContext } from '@/lib/saas/org-context';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -283,30 +282,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // The upload session MUST be bound to a tenant. A token without an org id is
+    // rejected outright — we never fall back to an unauthenticated context nor to
+    // a non-org-scoped staging path.
+    const orgId = typeof sessionVerification.payload.orgId === 'string'
+      ? sessionVerification.payload.orgId.trim()
+      : '';
+    if (!orgId) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'MISSING_ORG',
+          error: 'Upload session is not bound to a store.',
+        },
+        { status: 401 }
+      );
+    }
+
     const adminClient = createAdminClient();
     const timestamp = Date.now();
     const randomId = crypto.randomUUID().split('-')[0];
     const fileExt = getExtensionFromFileName(fileName);
-    const tokenOrgId = typeof sessionVerification.payload.orgId === 'string'
-      ? sessionVerification.payload.orgId.trim()
-      : '';
-    let orgId = tokenOrgId || null;
-
-    if (!orgId) {
-      try {
-        const orgContext = await getOrgContext({
-          requirements: {
-            roles: ['owner', 'admin', 'staff'],
-            writable: true,
-          },
-        });
-        orgId = orgContext.orgId;
-      } catch {
-        orgId = null;
-      }
-    }
-
-    const stagingRoot = orgId ? `staging/${orgId}/${draftId}` : `staging/${draftId}`;
+    const stagingRoot = `staging/${orgId}/${draftId}`;
     const filePath = `${stagingRoot}/${safeFolder}/${timestamp}_${randomId}.${fileExt}`;
 
     const { data, error } = await adminClient.storage

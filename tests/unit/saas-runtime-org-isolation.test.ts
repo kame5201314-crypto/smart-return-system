@@ -100,15 +100,27 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain('org_id: orgContext.orgId');
   });
 
-  it('supports org-scoped upload sessions in signed-url route', () => {
+  it('binds upload sessions to a tenant and rejects unbound tokens', () => {
     const securitySource = readProjectFile('lib/upload/security.ts');
-    const routeSource = readProjectFile('app/api/v1/upload/signed-url/route.ts');
+    const signedUrlSource = readProjectFile('app/api/v1/upload/signed-url/route.ts');
+    const sessionSource = readProjectFile('app/api/v1/upload/session/route.ts');
 
     expect(securitySource).toContain('orgId?: string');
     expect(securitySource).toContain("...(input.orgId ? { orgId: input.orgId } : {})");
-    expect(routeSource).toContain("from '@/lib/saas/org-context'");
-    expect(routeSource).toContain('sessionVerification.payload.orgId');
-    expect(routeSource).toContain('staging/${orgId}/${draftId}');
+
+    // The session route binds the token to a slug-resolved tenant, failing
+    // closed for a missing/unknown store.
+    expect(sessionSource).toContain('resolvePortalOrg(body.orgSlug)');
+    expect(sessionSource).toContain("code: 'INVALID_STORE'");
+    expect(sessionSource).toContain('createUploadSessionToken({ draftId, orgId: org.orgId })');
+
+    // The signed-url route requires an org-bound token (no getOrgContext
+    // fallback) and only ever writes to an org-scoped staging path.
+    expect(signedUrlSource).not.toContain("from '@/lib/saas/org-context'");
+    expect(signedUrlSource).toContain('sessionVerification.payload.orgId');
+    expect(signedUrlSource).toContain("code: 'MISSING_ORG'");
+    expect(signedUrlSource).toContain('staging/${orgId}/${draftId}');
+    expect(signedUrlSource).not.toContain('staging/${draftId}');
   });
 
   it('requires org context and org-scoped storage paths in backup actions', () => {

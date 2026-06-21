@@ -179,10 +179,9 @@ async function validatePreUploadedImages(
   draftId: string,
   orgId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const stagingPrefixes = [
-    `staging/${orgId}/${draftId}/`,
-    `staging/${draftId}/`,
-  ];
+  // Only accept objects staged under this tenant's org-scoped draft prefix. A
+  // non-org-prefixed or cross-tenant staging path is rejected.
+  const requiredPrefix = `staging/${orgId}/${draftId}/`;
 
   for (const [index, image] of images.entries()) {
     if (!image.storagePath || typeof image.storagePath !== 'string') {
@@ -192,10 +191,19 @@ async function validatePreUploadedImages(
       };
     }
 
-    if (!stagingPrefixes.some((prefix) => image.storagePath.startsWith(prefix))) {
+    if (!image.storagePath.startsWith(requiredPrefix)) {
       return {
         success: false,
         error: `第 ${index + 1} 張圖片驗證失敗（來源）：圖片不屬於本次上傳草稿`,
+      };
+    }
+
+    // Reject path-traversal segments so isolation does not rely on how the
+    // storage backend happens to treat `..` in object keys.
+    if (image.storagePath.includes('..') || image.storagePath.includes('\\')) {
+      return {
+        success: false,
+        error: `第 ${index + 1} 張圖片驗證失敗（路徑）：路徑格式不正確`,
       };
     }
 
@@ -372,6 +380,13 @@ export async function submitCustomerReturn(
 
       if (sessionVerification.payload.draftId !== uploadSession.draftId) {
         return { success: false, error: '上傳草稿與工作階段不一致，請重新上傳照片' };
+      }
+
+      // Defense-in-depth: assert the (HMAC-signed) upload token is bound to the
+      // same tenant we resolved from the store slug, rather than relying solely
+      // on the org-scoped staging-path check below.
+      if ((sessionVerification.payload.orgId ?? '').trim() !== orgId) {
+        return { success: false, error: '上傳工作階段與商店不一致，請重新上傳照片' };
       }
 
       const imageValidation = await validatePreUploadedImages(adminClient, imageFiles, uploadSession.draftId, orgId);

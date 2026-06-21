@@ -6,6 +6,7 @@ import { createUploadSessionToken } from '@/lib/upload/security';
 const createSignedUploadUrlMock = vi.fn();
 const getPublicUrlMock = vi.fn();
 const TEST_SECRET = 'upload-session-secret-for-tests-1234567890';
+const ORG_ID = '11111111-1111-4111-8111-111111111111';
 
 process.env.UPLOAD_SESSION_SECRET = TEST_SECRET;
 
@@ -20,18 +21,9 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }));
 
-vi.mock('@/lib/saas/org-context', () => ({
-  getOrgContext: vi.fn(async () => {
-    throw new Error('No authenticated org context in anonymous upload tests');
-  }),
-}));
-
 import { POST } from '@/app/api/v1/upload/signed-url/route';
 
-function buildRequest(
-  body: Record<string, unknown>,
-  ip = '10.0.0.1'
-): Request {
+function buildRequest(body: Record<string, unknown>, ip = '10.0.0.1'): Request {
   return new Request('http://localhost/api/v1/upload/signed-url', {
     method: 'POST',
     headers: {
@@ -50,7 +42,7 @@ function buildSession(draftId: string, orgId?: string): string {
   return tokenResult.token;
 }
 
-describe('POST /api/v1/upload/signed-url', () => {
+describe('POST /api/v1/upload/signed-url (org-bound session required)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSignedUploadUrlMock.mockResolvedValue({
@@ -62,9 +54,9 @@ describe('POST /api/v1/upload/signed-url', () => {
     });
   });
 
-  it('allows anonymous upload sign-url requests for supported image types', async () => {
-    const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f5c';
-    const sessionToken = buildSession(draftId);
+  it('issues a signed URL under the token org-scoped staging path', async () => {
+    const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f60';
+    const sessionToken = buildSession(draftId, ORG_ID);
     const response = await POST(buildRequest({
       fileName: 'product.jpg',
       fileType: 'image/jpeg',
@@ -72,23 +64,20 @@ describe('POST /api/v1/upload/signed-url', () => {
       folder: 'product-photos',
       draftId,
       sessionToken,
-    }) as never);
+    }, '10.0.0.6') as never);
 
     expect(response.status).toBe(200);
     const payload = await response.json();
-
     expect(payload.success).toBe(true);
-    expect(payload.signedUrl).toBe('https://storage.example/signed-url');
-    expect(payload.publicUrl).toBe('https://storage.example/public.jpg');
     expect(createSignedUploadUrlMock).toHaveBeenCalledTimes(1);
     expect(createSignedUploadUrlMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^staging\/d7f16050-16d8-4d7f-ae4c-ec89b6a31f5c\/product-photos\/\d+_[a-f0-9]+\.(jpg|jpeg)$/)
+      expect.stringMatching(new RegExp(`^staging/${ORG_ID}/${draftId}/product-photos/\\d+_[a-f0-9]+\\.(jpg|jpeg)$`))
     );
   });
 
-  it('accepts HEIC uploads to match customer portal constraints', async () => {
+  it('accepts HEIC uploads when the session is org-bound', async () => {
     const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f5d';
-    const sessionToken = buildSession(draftId);
+    const sessionToken = buildSession(draftId, ORG_ID);
     const response = await POST(buildRequest({
       fileName: 'phone.heic',
       fileType: 'image/heic',
@@ -102,10 +91,9 @@ describe('POST /api/v1/upload/signed-url', () => {
     expect(createSignedUploadUrlMock).toHaveBeenCalledTimes(1);
   });
 
-  it('scopes staging upload paths by org when the session carries org context', async () => {
-    const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f60';
-    const orgId = '11111111-1111-4111-8111-111111111111';
-    const sessionToken = buildSession(draftId, orgId);
+  it('rejects a session token that is not bound to an org (no fallback)', async () => {
+    const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f5c';
+    const sessionToken = buildSession(draftId); // no orgId
     const response = await POST(buildRequest({
       fileName: 'product.jpg',
       fileType: 'image/jpeg',
@@ -113,18 +101,17 @@ describe('POST /api/v1/upload/signed-url', () => {
       folder: 'product-photos',
       draftId,
       sessionToken,
-    }, '10.0.0.6') as never);
+    }) as never);
 
-    expect(response.status).toBe(200);
-    expect(createSignedUploadUrlMock).toHaveBeenCalledTimes(1);
-    expect(createSignedUploadUrlMock).toHaveBeenCalledWith(
-      expect.stringMatching(new RegExp(`^staging/${orgId}/${draftId}/product-photos/\\d+_[a-f0-9]+\\.(jpg|jpeg)$`))
-    );
+    expect(response.status).toBe(401);
+    const payload = await response.json();
+    expect(payload.code).toBe('MISSING_ORG');
+    expect(createSignedUploadUrlMock).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported file types', async () => {
     const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f5e';
-    const sessionToken = buildSession(draftId);
+    const sessionToken = buildSession(draftId, ORG_ID);
     const response = await POST(buildRequest({
       fileName: 'script.svg',
       fileType: 'image/svg+xml',
@@ -142,7 +129,7 @@ describe('POST /api/v1/upload/signed-url', () => {
 
   it('rejects invalid folder traversal attempts', async () => {
     const draftId = 'd7f16050-16d8-4d7f-ae4c-ec89b6a31f5f';
-    const sessionToken = buildSession(draftId);
+    const sessionToken = buildSession(draftId, ORG_ID);
     const response = await POST(buildRequest({
       fileName: 'a.jpg',
       fileType: 'image/jpeg',
@@ -158,7 +145,7 @@ describe('POST /api/v1/upload/signed-url', () => {
     expect(createSignedUploadUrlMock).not.toHaveBeenCalled();
   });
 
-  it('rejects request without upload session token', async () => {
+  it('rejects request without an upload session token', async () => {
     const response = await POST(buildRequest({
       fileName: 'a.jpg',
       fileType: 'image/jpeg',

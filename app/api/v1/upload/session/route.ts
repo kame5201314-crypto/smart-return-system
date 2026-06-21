@@ -6,6 +6,7 @@ import {
   UPLOAD_MAX_FILE_SIZE_BYTES,
   UPLOAD_MAX_TOTAL_FILES,
 } from '@/lib/upload/security';
+import { resolvePortalOrg } from '@/lib/saas/portal-tenant';
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -80,17 +81,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let body: { draftId?: string } = {};
+    let body: { draftId?: string; orgSlug?: string } = {};
     try {
-      body = await request.json() as { draftId?: string };
+      body = await request.json() as { draftId?: string; orgSlug?: string };
     } catch {
       // Allow empty body for easier client integration
       body = {};
     }
 
+    // Bind the upload session to a tenant resolved from the store slug (never
+    // trust a client-supplied org id). Fail closed for a missing/unknown store.
+    const org = await resolvePortalOrg(body.orgSlug);
+    if (!org) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'INVALID_STORE',
+          error: 'Invalid or missing store. Please use your store-specific return link.',
+        },
+        { status: 400 }
+      );
+    }
+
     const requestedDraftId = normalizeDraftId(body.draftId);
     const draftId = requestedDraftId || crypto.randomUUID();
-    const tokenResult = createUploadSessionToken({ draftId });
+    const tokenResult = createUploadSessionToken({ draftId, orgId: org.orgId });
 
     if (!tokenResult.token || !tokenResult.payload) {
       return NextResponse.json(

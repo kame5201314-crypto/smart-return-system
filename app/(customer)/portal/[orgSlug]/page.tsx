@@ -132,7 +132,7 @@ export default function CustomerPortalPage() {
       const response = await fetch('/api/v1/upload/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(draftId ? { draftId } : {}),
+        body: JSON.stringify({ ...(draftId ? { draftId } : {}), orgSlug }),
       });
 
       const payload = await response.json() as {
@@ -153,7 +153,7 @@ export default function CustomerPortalPage() {
         expiresAt: payload.expiresAt,
       };
     },
-    []
+    [orgSlug]
   );
 
   const getUploadSession = useCallback(async (): Promise<UploadSession> => {
