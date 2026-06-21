@@ -12,7 +12,10 @@ import {
 } from '@/lib/upload/security';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { resolvePortalOrg } from '@/lib/saas/portal-tenant';
-import { attachReturnImageSignedUrls } from '@/lib/storage/return-images';
+import {
+  attachReturnImageSignedUrls,
+  createReturnImageSignedUrl,
+} from '@/lib/storage/return-images';
 
 const customerReturnSchema = z.object({
   channelSource: z.string().min(1, '請選擇購買通路').max(50),
@@ -469,12 +472,13 @@ export async function submitCustomerReturn(
 
             movedPaths.push(targetPath);
 
-            const { data: urlData } = adminClient.storage
-              .from('return-images')
-              .getPublicUrl(targetPath);
+            // Persist storage_path as the source of truth; store a short-lived
+            // signed URL (not a permanent public URL) in image_url. Reads always
+            // re-sign from storage_path, so the bucket can be made private.
+            const signedUrl = await createReturnImageSignedUrl(targetPath);
 
             return {
-              url: urlData.publicUrl,
+              url: signedUrl ?? '',
               storagePath: targetPath,
               imageType: inferImageTypeFromPath(image.storagePath),
             } as PreparedImageRecord;
@@ -516,12 +520,13 @@ export async function submitCustomerReturn(
           }
         });
 
-        const { data: urlData } = adminClient.storage
-          .from('return-images')
-          .getPublicUrl(fileName);
+        // Persist storage_path as the source of truth; store a short-lived
+        // signed URL (not a permanent public URL) in image_url. Reads always
+        // re-sign from storage_path, so the bucket can be made private.
+        const signedUrl = await createReturnImageSignedUrl(fileName);
 
         return {
-          url: urlData.publicUrl,
+          url: signedUrl ?? '',
           storagePath: fileName,
           imageType: 'product_damage' as const,
         };

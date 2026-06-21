@@ -84,6 +84,13 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain('org_id: orgId');
     expect(source).toContain('returns/${orgId}/${returnRequest.id}');
     expect(source).not.toContain('.insert({\n          order_number: formData.orderNumber');
+    // Customer-submitted images must not persist a permanent public URL into
+    // image_url (P0-3). The write path stores a short-lived signed URL and keeps
+    // storage_path as the read source-of-truth, so reads re-sign and the bucket
+    // can be made private.
+    expect(source).toContain('createReturnImageSignedUrl(');
+    expect(source).not.toContain('getPublicUrl');
+    expect(source).toContain('storage_path: img.storagePath');
   });
 
   it('requires org context and org filters in upload image actions', () => {
