@@ -1,6 +1,6 @@
 /* @vitest-environment node */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   handleStartPlatformTenantPreview,
@@ -76,7 +76,7 @@ function createAuditRepository(): PlatformTenantPreviewAuditRepository {
 
 describe('SaaS platform tenant preview', () => {
   it('creates and verifies a signed tenant preview token', async () => {
-    vi.stubEnv('ADMIN_SESSION_SECRET', 'tenant-preview-secret');
+    vi.stubEnv('ADMIN_SESSION_SECRET', 'platform-tenant-preview-secret-0123456789');
 
     const { token, payload } = await createPlatformTenantPreviewToken({
       access: platformAdminContext,
@@ -102,7 +102,7 @@ describe('SaaS platform tenant preview', () => {
   });
 
   it('starts preview only after platform admin access and organization lookup pass', async () => {
-    vi.stubEnv('ADMIN_SESSION_SECRET', 'tenant-preview-secret');
+    vi.stubEnv('ADMIN_SESSION_SECRET', 'platform-tenant-preview-secret-0123456789');
     const repository = createRepository();
     const auditRepository = createAuditRepository();
 
@@ -162,7 +162,7 @@ describe('SaaS platform tenant preview', () => {
   });
 
   it('loads ready preview mode for signed cookies after admin access passes', async () => {
-    vi.stubEnv('ADMIN_SESSION_SECRET', 'tenant-preview-secret');
+    vi.stubEnv('ADMIN_SESSION_SECRET', 'platform-tenant-preview-secret-0123456789');
     const { token } = await createPlatformTenantPreviewToken({
       access: platformAdminContext,
       organization: {
@@ -212,7 +212,7 @@ describe('SaaS platform tenant preview', () => {
   });
 
   it('exposes guarded preview state and clear handlers for future UI', async () => {
-    vi.stubEnv('ADMIN_SESSION_SECRET', 'tenant-preview-secret');
+    vi.stubEnv('ADMIN_SESSION_SECRET', 'platform-tenant-preview-secret-0123456789');
     const auditRepository = createAuditRepository();
     const { token } = await createPlatformTenantPreviewToken({
       access: platformAdminContext,
@@ -310,5 +310,91 @@ describe('SaaS platform tenant preview', () => {
       }),
     }));
     expect(insertedRows).toHaveLength(1);
+  });
+});
+
+describe('platform tenant preview secret (no service-role fallback, fail-closed)', () => {
+  const VALID_SECRET = 'platform-tenant-preview-secret-0123456789'; // >= 32 chars
+  const SHORT_SECRET = 'too-short-secret';
+  const SERVICE_ROLE_KEY = 'service-role-key-value-abcdefghijklmnopqrstuv';
+
+  let originalAdmin: string | undefined;
+  let originalServiceRole: string | undefined;
+
+  beforeEach(() => {
+    // Clear any env stubs left by sibling tests so these control the env explicitly.
+    vi.unstubAllEnvs();
+    originalAdmin = process.env.ADMIN_SESSION_SECRET;
+    originalServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterEach(() => {
+    if (originalAdmin === undefined) delete process.env.ADMIN_SESSION_SECRET;
+    else process.env.ADMIN_SESSION_SECRET = originalAdmin;
+    if (originalServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRole;
+  });
+
+  function buildInput() {
+    return {
+      access: platformAdminContext,
+      organization: { id: 'org-1', name: 'Demo Store', slug: 'demo-store' },
+      now: new Date('2026-05-26T00:00:00.000Z'),
+    };
+  }
+
+  it('signs and verifies a preview token with a valid dedicated secret', async () => {
+    process.env.ADMIN_SESSION_SECRET = VALID_SECRET;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const { token } = await createPlatformTenantPreviewToken(buildInput());
+
+    await expect(
+      verifyPlatformTenantPreviewToken(token, new Date('2026-05-26T00:10:00.000Z'))
+    ).resolves.toMatchObject({ orgId: 'org-1', orgName: 'Demo Store' });
+  });
+
+  it('refuses to issue a preview token when the secret is missing', async () => {
+    delete process.env.ADMIN_SESSION_SECRET;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    await expect(createPlatformTenantPreviewToken(buildInput())).rejects.toThrow(
+      /ADMIN_SESSION_SECRET/
+    );
+  });
+
+  it('refuses to issue a preview token when the secret is too short', async () => {
+    process.env.ADMIN_SESSION_SECRET = SHORT_SECRET;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    await expect(createPlatformTenantPreviewToken(buildInput())).rejects.toThrow(/at least 32/);
+  });
+
+  it('does not fall back to SUPABASE_SERVICE_ROLE_KEY', async () => {
+    process.env.ADMIN_SESSION_SECRET = VALID_SECRET;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const { token } = await createPlatformTenantPreviewToken(buildInput());
+
+    // Drop the dedicated secret but leave a >=32 service-role key present.
+    // The cookie must NOT verify via the (now removed) fallback.
+    delete process.env.ADMIN_SESSION_SECRET;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_ROLE_KEY;
+
+    await expect(
+      verifyPlatformTenantPreviewToken(token, new Date('2026-05-26T00:10:00.000Z'))
+    ).resolves.toBeNull();
+  });
+
+  it('verify fails closed (resolves null, does not throw) when the secret is absent', async () => {
+    process.env.ADMIN_SESSION_SECRET = VALID_SECRET;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const { token } = await createPlatformTenantPreviewToken(buildInput());
+
+    delete process.env.ADMIN_SESSION_SECRET;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    await expect(
+      verifyPlatformTenantPreviewToken(token, new Date('2026-05-26T00:10:00.000Z'))
+    ).resolves.toBeNull();
   });
 });

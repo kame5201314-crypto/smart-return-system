@@ -114,10 +114,21 @@ export interface PlatformTenantPreviewAuditQueryClient {
   from(table: string): SupabasePreviewAuditTableBuilder;
 }
 
+const PLATFORM_TENANT_PREVIEW_SECRET_MIN_LENGTH = 32;
+
 function getSessionSecret(): string {
-  const secret = (process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  // Fail closed: require a dedicated ADMIN_SESSION_SECRET. The service-role key
+  // must never double as the preview-cookie signing secret — a leak of one
+  // would otherwise let an attacker forge a signed platform_tenant_preview
+  // cookie for an arbitrary org. Mirrors lib/auth/admin-session.ts.
+  const secret = (process.env.ADMIN_SESSION_SECRET || '').trim();
   if (!secret) {
-    throw new Error('Missing platform tenant preview session secret.');
+    throw new Error('Missing ADMIN_SESSION_SECRET');
+  }
+  if (secret.length < PLATFORM_TENANT_PREVIEW_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `ADMIN_SESSION_SECRET must be at least ${PLATFORM_TENANT_PREVIEW_SECRET_MIN_LENGTH} characters`
+    );
   }
   return secret;
 }
@@ -288,22 +299,28 @@ export async function verifyPlatformTenantPreviewToken(
 ): Promise<PlatformTenantPreviewPayload | null> {
   if (!token) return null;
 
-  const parts = token.split('.');
-  if (parts.length !== 2) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
 
-  const [encodedPayload, signature] = parts;
-  if (!encodedPayload || !signature) return null;
+    const [encodedPayload, signature] = parts;
+    if (!encodedPayload || !signature) return null;
 
-  const expectedSignature = await signPayload(encodedPayload);
-  if (!safeEqual(signature, expectedSignature)) return null;
+    const expectedSignature = await signPayload(encodedPayload);
+    if (!safeEqual(signature, expectedSignature)) return null;
 
-  const payload = decodePayload(encodedPayload);
-  if (!isValidPayload(payload)) return null;
+    const payload = decodePayload(encodedPayload);
+    if (!isValidPayload(payload)) return null;
 
-  const nowSeconds = Math.floor(now.getTime() / 1000);
-  if (payload.exp <= nowSeconds) return null;
+    const nowSeconds = Math.floor(now.getTime() / 1000);
+    if (payload.exp <= nowSeconds) return null;
 
-  return payload;
+    return payload;
+  } catch {
+    // A missing/invalid signing secret (or any unexpected error) must reject the
+    // token rather than surface as a 500 — fail closed.
+    return null;
+  }
 }
 
 async function getDefaultPreviewToken(): Promise<string | undefined> {
