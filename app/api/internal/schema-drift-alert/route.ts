@@ -5,22 +5,31 @@ function normalizeEnvValue(value: string | null | undefined): string {
   return String(value).replace(/\\n/g, '').trim();
 }
 
+function isConfigured(): boolean {
+  return normalizeEnvValue(process.env.SCHEMA_DRIFT_ALERT_TOKEN).length > 0;
+}
+
+// Fail-closed: a token must be configured, and it is only accepted from the
+// x-schema-drift-token header (never a query param, which would leak into
+// logs / referrers).
 function isAuthorized(request: NextRequest): boolean {
   const expectedToken = normalizeEnvValue(process.env.SCHEMA_DRIFT_ALERT_TOKEN);
   if (!expectedToken) {
-    return true;
+    return false;
   }
 
   const headerToken = normalizeEnvValue(request.headers.get('x-schema-drift-token'));
-  if (headerToken && headerToken === expectedToken) {
-    return true;
-  }
-
-  const tokenFromQuery = normalizeEnvValue(new URL(request.url).searchParams.get('token'));
-  return tokenFromQuery === expectedToken;
+  return headerToken.length > 0 && headerToken === expectedToken;
 }
 
 export async function POST(request: NextRequest) {
+  if (!isConfigured()) {
+    return NextResponse.json(
+      { success: false, error: 'Alert endpoint not configured' },
+      { status: 503 }
+    );
+  }
+
   if (!isAuthorized(request)) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
