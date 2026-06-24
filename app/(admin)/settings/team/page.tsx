@@ -1,6 +1,5 @@
-import { Inbox, ShieldCheck, UserRoundCog, UsersRound } from 'lucide-react';
+import { ShieldCheck, UserRoundCog, UsersRound } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -13,28 +12,10 @@ import {
 import { PageHeader } from '@/components/saas/page-header';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { TeamInviteForm } from '@/components/saas/team-invite-form';
+import { TeamInvitesTable } from '@/components/saas/team-invites-table';
+import { TeamMembersTable } from '@/components/saas/team-members-table';
 import { loadTeamSettingsView } from '@/lib/saas/settings-live-data';
 import type { TeamSettingsView } from '@/lib/saas/ui-backend-contracts';
-
-const ROLE_LABEL: Record<TeamSettingsView['members'][number]['role'], string> = {
-  owner: '擁有者',
-  admin: '管理員',
-  staff: '作業成員',
-  viewer: '檢視者',
-};
-
-const MEMBER_STATUS_LABEL: Record<TeamSettingsView['members'][number]['status'], string> = {
-  active: '已加入',
-  invited: '邀請中',
-  disabled: '已停用',
-};
-
-const INVITE_STATUS_LABEL: Record<TeamSettingsView['invites'][number]['status'], string> = {
-  pending: '待接受',
-  accepted: '已接受',
-  expired: '已過期',
-  revoked: '已撤銷',
-};
 
 const roleRows = [
   ['擁有者', '方案、帳務、成員管理與資料安全設定。'],
@@ -42,13 +23,6 @@ const roleRows = [
   ['作業成員', '處理退貨、驗貨、掃描、備註與日常作業。'],
   ['檢視者', '查看退貨與報表，不可新增、修改或匯出。'],
 ] as const;
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-}
 
 function TeamContent({ data }: { data: TeamSettingsView }) {
   const activeSeats = data.members.filter((member) => member.status !== 'disabled').length;
@@ -77,42 +51,10 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
             <UsersRound className="size-5 text-emerald-700" />
             成員清單
           </CardTitle>
-          <CardDescription>組織內所有成員及其狀態。</CardDescription>
+          <CardDescription>管理組織成員的角色與存取權限。</CardDescription>
         </CardHeader>
         <CardContent>
-          {data.members.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
-              <Inbox className="size-6" aria-hidden="true" />
-              尚無成員資料。
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>角色</TableHead>
-                  <TableHead>狀態</TableHead>
-                  <TableHead>加入時間</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      {member.displayName ? `${member.displayName}（${member.email}）` : member.email}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{ROLE_LABEL[member.role]}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {MEMBER_STATUS_LABEL[member.status]}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(member.joinedAt)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <TeamMembersTable members={data.members} />
         </CardContent>
       </Card>
 
@@ -121,35 +63,12 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserRoundCog className="size-5 text-cyan-700" />
-              邀請中
+              邀請紀錄
             </CardTitle>
-            <CardDescription>尚未接受的邀請會在此列出。</CardDescription>
+            <CardDescription>管理尚未接受的邀請：撤銷或重新產生邀請連結。</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>角色</TableHead>
-                  <TableHead>狀態</TableHead>
-                  <TableHead>到期</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.invites.map((invite) => (
-                  <TableRow key={invite.id}>
-                    <TableCell className="font-medium">{invite.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{ROLE_LABEL[invite.role]}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {INVITE_STATUS_LABEL[invite.status]}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(invite.expiresAt)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <TeamInvitesTable invites={data.invites} />
           </CardContent>
         </Card>
       ) : null}

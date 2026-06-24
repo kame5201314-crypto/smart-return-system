@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { translateTeamReason } from '@/components/saas/team-reason-text';
 
 type InviteRole = 'admin' | 'staff' | 'viewer';
 
@@ -126,7 +127,11 @@ export function TeamInviteForm({ canInvite, disabledReason }: TeamInviteFormProp
             </SelectContent>
           </Select>
         </div>
-        <Button type="submit" disabled={disabled} title={!canInvite ? disabledReason : undefined}>
+        <Button
+          type="submit"
+          disabled={disabled}
+          title={!canInvite ? translateTeamReason(disabledReason) : undefined}
+        >
           {submitting ? (
             <Loader2 className="mr-2 size-4 animate-spin" />
           ) : (
@@ -137,7 +142,7 @@ export function TeamInviteForm({ canInvite, disabledReason }: TeamInviteFormProp
       </form>
 
       {!canInvite && disabledReason ? (
-        <p className="text-xs text-muted-foreground">{disabledReason}</p>
+        <p className="text-xs text-muted-foreground">{translateTeamReason(disabledReason)}</p>
       ) : null}
 
       {result ? (
