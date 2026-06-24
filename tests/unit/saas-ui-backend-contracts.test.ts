@@ -241,19 +241,31 @@ describe('SaaS UI/backend contracts', () => {
       members: [
         {
           id: 'member-1',
+          userId: null,
           email: 'owner@example.com',
           displayName: 'Owner',
           role: 'owner',
           status: 'active',
           joinedAt: '2026-05-01T00:00:00.000Z',
+          actions: {
+            canChangeRole: false,
+            canDisable: false,
+            disabledReason: 'Team management action flags were not provided.',
+          },
         },
         {
           id: 'member-2',
+          userId: null,
           email: 'viewer@example.com',
           displayName: null,
           role: 'viewer',
           status: 'disabled',
           joinedAt: null,
+          actions: {
+            canChangeRole: false,
+            canDisable: false,
+            disabledReason: 'Team management action flags were not provided.',
+          },
         },
       ],
       invites: [
@@ -263,6 +275,11 @@ describe('SaaS UI/backend contracts', () => {
           role: 'staff',
           status: 'pending',
           expiresAt: '2026-05-28T00:00:00.000Z',
+          actions: {
+            canRevoke: false,
+            canResend: false,
+            disabledReason: 'Invite management action flags were not provided.',
+          },
         },
       ],
       actions: {

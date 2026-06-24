@@ -74,7 +74,7 @@ describe('SaaS invite token data repository', () => {
     });
     expect(from).toHaveBeenCalledWith('organization_invites');
     expect(chain.select).toHaveBeenCalledWith(
-      'id, org_id, email, role, token, expires_at, accepted_at, organizations(id, name, slug, plan, status)'
+      'id, org_id, email, role, token, status, expires_at, accepted_at, organizations(id, name, slug, plan, status)'
     );
     expect(chain.eq).toHaveBeenCalledWith('token', 'token-1');
   });

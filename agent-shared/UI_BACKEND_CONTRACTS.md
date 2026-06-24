@@ -430,11 +430,17 @@ interface TeamSettingsView {
   seatLimit: number | null;
   members: Array<{
     id: string;
+    userId: string | null;
     email: string;
     displayName: string | null;
     role: 'owner' | 'admin' | 'staff' | 'viewer';
     status: 'active' | 'invited' | 'disabled';
     joinedAt: string | null;
+    actions: {
+      canChangeRole: boolean;
+      canDisable: boolean;
+      disabledReason?: string;
+    };
   }>;
   invites: Array<{
     id: string;
@@ -442,6 +448,11 @@ interface TeamSettingsView {
     role: 'admin' | 'staff' | 'viewer';
     status: 'pending' | 'accepted' | 'expired' | 'revoked';
     expiresAt: string;
+    actions: {
+      canRevoke: boolean;
+      canResend: boolean;
+      disabledReason?: string;
+    };
   }>;
   actions: {
     canInvite: boolean;
@@ -508,8 +519,85 @@ Backend rules:
 - Requires owner/admin role and writable subscription status.
 - Counts active/non-disabled members plus pending invites before write.
 - Rejects owner/member invite roles.
+- Admin users may invite only staff/viewer roles; owner users may invite
+  admin/staff/viewer roles.
 - Uses the `create_organization_invite` RPC through the invite creation service.
 - Does not send email; Claude UI may show/copy the returned invite token/link after user action.
+
+Team management P1 mutation routes:
+
+```text
+PATCH /api/saas/team/members/[id]
+POST /api/saas/team/members/[id]/disable
+POST /api/saas/team/invites/[id]/revoke
+POST /api/saas/team/invites/[id]/resend
+```
+
+Request contracts:
+
+```ts
+// PATCH /api/saas/team/members/[id]
+{ role: 'admin' | 'staff' | 'viewer' }
+
+// Other routes
+{}
+```
+
+Success response:
+
+```ts
+{
+  success: true;
+  data: {
+    member?: TeamSettingsView['members'][number];
+    invite?: TeamSettingsView['invites'][number] & { token?: string };
+    actions:
+      | TeamSettingsView['members'][number]['actions']
+      | TeamSettingsView['invites'][number]['actions'];
+  };
+}
+```
+
+Failure response:
+
+```ts
+{
+  success: false;
+  error: string;
+  code:
+    | 'invalid_request'
+    | 'not_found'
+    | 'role_forbidden'
+    | 'self_demotion'
+    | 'self_disable'
+    | 'last_owner'
+    | 'seat_limit'
+    | 'invalid_state'
+    | 'update_failed';
+}
+```
+
+Backend rules:
+
+- All P1 team management routes call
+  `getOrgContext({ requirements: { roles: ['owner','admin'], writable: true } })`.
+- Every member/invite lookup and write is scoped by both `org_id` and the
+  member/invite id to avoid IDOR.
+- Owner users can manage admin/staff/viewer members and invites.
+- Admin users can manage staff/viewer members and invites only; they cannot
+  manage owner/admin subjects.
+- Staff/viewer users cannot call these routes because the org-context guard
+  rejects them before write logic runs.
+- A user cannot disable or demote their own membership.
+- The final active owner cannot be demoted or disabled.
+- Member removal is represented as a non-destructive disable in P1.
+- Revoked invites are written as `status='revoked'`; invite lookup/acceptance
+  now reads invite status so revoked invites cannot be accepted.
+- Mutations write `audit_logs` actions:
+  `member.role_changed`, `member.disabled`, `invite.revoked`, and
+  `invite.resent`.
+- Claude UI should render controls from the row-level `actions` flags only and
+  should not duplicate role/ownership rules client-side.
 
 ## Platform Organization List
 

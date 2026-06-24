@@ -115,6 +115,7 @@ function normalizeInvite(row: unknown, now: Date): SaaSInviteTokenData | null {
   const expiresAt = stringOrNull(row.expires_at);
   const role = isSaaSInviteRole(row.role) ? row.role : null;
   const status = resolveSaaSInviteStatus({
+    status: stringOrNull(row.status),
     acceptedAt,
     expiresAt,
     now,
@@ -131,6 +132,7 @@ function normalizeInvite(row: unknown, now: Date): SaaSInviteTokenData | null {
     status,
     canAccept: canAcceptSaaSInvite({
       role,
+      status: stringOrNull(row.status),
       acceptedAt,
       expiresAt,
       now,
@@ -152,7 +154,7 @@ export function createInviteTokenDataRepository(
       const { data, error } = await client
         .from('organization_invites')
         .select(
-          'id, org_id, email, role, token, expires_at, accepted_at, organizations(id, name, slug, plan, status)'
+          'id, org_id, email, role, token, status, expires_at, accepted_at, organizations(id, name, slug, plan, status)'
         )
         .eq('token', token)
         .maybeSingle();

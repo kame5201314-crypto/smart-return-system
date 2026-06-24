@@ -124,11 +124,17 @@ export interface TeamSettingsView {
   seatLimit: number | null;
   members: Array<{
     id: string;
+    userId: string | null;
     email: string;
     displayName: string | null;
     role: TeamMemberRole;
     status: TeamMemberStatus;
     joinedAt: string | null;
+    actions: {
+      canChangeRole: boolean;
+      canDisable: boolean;
+      disabledReason?: string;
+    };
   }>;
   invites: Array<{
     id: string;
@@ -136,6 +142,11 @@ export interface TeamSettingsView {
     role: Exclude<TeamMemberRole, 'owner'>;
     status: InviteStatus;
     expiresAt: string;
+    actions: {
+      canRevoke: boolean;
+      canResend: boolean;
+      disabledReason?: string;
+    };
   }>;
   actions: {
     canInvite: boolean;
@@ -149,11 +160,13 @@ export interface TeamSettingsViewInput {
   plan: unknown;
   members: Array<{
     id: string;
+    userId?: string | null;
     email: string;
     displayName: string | null;
     role: string;
     status: string;
     joinedAt: string | null;
+    actions?: TeamSettingsView['members'][number]['actions'];
   }>;
   invites: Array<{
     id: string;
@@ -161,6 +174,7 @@ export interface TeamSettingsViewInput {
     role: string;
     status: string;
     expiresAt: string;
+    actions?: TeamSettingsView['invites'][number]['actions'];
   }>;
   actions: TeamSettingsView['actions'];
 }
@@ -464,6 +478,46 @@ function requireBoolean(value: boolean | undefined, fieldName: string): boolean 
   return value;
 }
 
+function buildDefaultMemberActions(): TeamSettingsView['members'][number]['actions'] {
+  return {
+    canChangeRole: false,
+    canDisable: false,
+    disabledReason: 'Team management action flags were not provided.',
+  };
+}
+
+function normalizeMemberActions(
+  actions: TeamSettingsView['members'][number]['actions'] | undefined,
+  fieldName: string
+): TeamSettingsView['members'][number]['actions'] {
+  const normalized = actions ?? buildDefaultMemberActions();
+  return {
+    canChangeRole: requireBoolean(normalized.canChangeRole, `${fieldName}.canChangeRole`),
+    canDisable: requireBoolean(normalized.canDisable, `${fieldName}.canDisable`),
+    ...(normalized.disabledReason ? { disabledReason: normalized.disabledReason } : {}),
+  };
+}
+
+function buildDefaultInviteActions(): TeamSettingsView['invites'][number]['actions'] {
+  return {
+    canRevoke: false,
+    canResend: false,
+    disabledReason: 'Invite management action flags were not provided.',
+  };
+}
+
+function normalizeInviteActions(
+  actions: TeamSettingsView['invites'][number]['actions'] | undefined,
+  fieldName: string
+): TeamSettingsView['invites'][number]['actions'] {
+  const normalized = actions ?? buildDefaultInviteActions();
+  return {
+    canRevoke: requireBoolean(normalized.canRevoke, `${fieldName}.canRevoke`),
+    canResend: requireBoolean(normalized.canResend, `${fieldName}.canResend`),
+    ...(normalized.disabledReason ? { disabledReason: normalized.disabledReason } : {}),
+  };
+}
+
 function booleanFlagsOnly(flags: Record<string, unknown>): Record<string, boolean> {
   return Object.fromEntries(
     Object.entries(flags).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean')
@@ -622,11 +676,13 @@ export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSetting
   const plan = getSaaSPlanDefinition(input.plan);
   const members = input.members.map((member) => ({
     id: requireString(member.id, 'team.member.id'),
+    userId: member.userId ?? null,
     email: requireString(member.email, 'team.member.email'),
     displayName: member.displayName,
     role: normalizeTeamMemberRole(member.role),
     status: normalizeTeamMemberStatus(member.status),
     joinedAt: member.joinedAt,
+    actions: normalizeMemberActions(member.actions, 'team.member.actions'),
   }));
   const invites = input.invites.map((invite) => ({
     id: requireString(invite.id, 'team.invite.id'),
@@ -634,6 +690,7 @@ export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSetting
     role: normalizeInviteRole(invite.role),
     status: normalizeInviteStatus(invite.status),
     expiresAt: requireString(invite.expiresAt, 'team.invite.expiresAt'),
+    actions: normalizeInviteActions(invite.actions, 'team.invite.actions'),
   }));
   const seatUsage = resolveSaaSTeamSeatUsage({
     seatLimit: plan.seatLimit,
@@ -708,11 +765,13 @@ export function buildPlatformOrganizationDetailView(
     },
     members: organization.members.map((member) => ({
       id: requireString(member.id, 'member.id'),
+      userId: null,
       email: requireString(member.email, 'member.email'),
       displayName: null,
       role: normalizeTeamMemberRole(member.role),
       status: normalizeTeamMemberStatus(member.status),
       joinedAt: null,
+      actions: buildDefaultMemberActions(),
     })),
     recentAuditLogs: input.recentAuditLogs.map((log) => ({
       id: requireString(log.id, 'auditLog.id'),

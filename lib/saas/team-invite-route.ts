@@ -78,6 +78,16 @@ function getInviteRepository(
   );
 }
 
+function assertCanInviteRole(context: SaaSOrgContext, role: unknown): void {
+  if (context.role === 'admin' && role === 'admin') {
+    throw new SaaSInviteCreationError(
+      'role_forbidden',
+      403,
+      'Admins can invite staff or viewer users only.'
+    );
+  }
+}
+
 export async function createSaaSTeamInviteFromRequest(
   payload: unknown,
   deps: SaaSTeamInviteRouteDependencies = {}
@@ -89,6 +99,7 @@ export async function createSaaSTeamInviteFromRequest(
       writable: true,
     },
   });
+  assertCanInviteRole(context, input.role);
   const now = deps.now ?? new Date();
   const teamRepository = await getTeamRepository(deps);
   const [members, invites] = await Promise.all([

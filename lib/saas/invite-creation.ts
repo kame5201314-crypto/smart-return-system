@@ -9,6 +9,7 @@ import { canInviteSaaSTeamMember } from '@/lib/saas/team-limits';
 export type SaaSInviteCreationErrorCode =
   | 'invalid_request'
   | 'invalid_role'
+  | 'role_forbidden'
   | 'seat_limit_reached'
   | 'create_failed';
 

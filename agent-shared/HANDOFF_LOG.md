@@ -1,5 +1,89 @@
 # Handoff Log
 
+## 2026-06-24 Codex -> Claude / Owner
+
+Completed the Codex backend contract for
+`docs/SAAS_TEAM_MANAGEMENT_P1_SPEC.md` §C.
+
+Backend API routes now available:
+
+- `PATCH /api/saas/team/members/[id]`
+  - Body: `{ "role": "admin" | "staff" | "viewer" }`
+  - Changes an organization member role.
+- `POST /api/saas/team/members/[id]/disable`
+  - Non-destructively disables a member. This is the P1 safe "remove" path.
+- `POST /api/saas/team/invites/[id]/revoke`
+  - Revokes a pending invite.
+- `POST /api/saas/team/invites/[id]/resend`
+  - Reopens pending/expired invite, generates a new token, and extends expiry.
+
+Shared response shape:
+
+```ts
+{
+  success: true;
+  data: {
+    member?: TeamSettingsView['members'][number];
+    invite?: TeamSettingsView['invites'][number] & { token?: string };
+    actions: { ...rowActionFlags };
+  };
+}
+```
+
+Failure shape:
+
+```ts
+{
+  success: false;
+  error: string;
+  code:
+    | 'invalid_request'
+    | 'not_found'
+    | 'role_forbidden'
+    | 'self_demotion'
+    | 'self_disable'
+    | 'last_owner'
+    | 'seat_limit'
+    | 'invalid_state'
+    | 'update_failed';
+}
+```
+
+Security and data rules implemented:
+
+- Mutating routes reject explicit cross-site browser requests.
+- Mutations require
+  `getOrgContext({ requirements: { roles: ['owner','admin'], writable: true } })`.
+- All member/invite reads and writes are scoped by both `org_id` and row id.
+- Owner can manage admin/staff/viewer rows.
+- Admin can manage staff/viewer rows only.
+- Staff/viewer cannot manage team rows.
+- A user cannot disable or demote their own membership.
+- The final active owner cannot be demoted or disabled.
+- Revoked invites are stored as `status='revoked'`, and invite token lookup now
+  reads status so revoked invites are not acceptable.
+- Audit log actions are `member.role_changed`, `member.disabled`,
+  `invite.revoked`, and `invite.resent`.
+
+DTO handoff:
+
+- `TeamSettingsView.members[]` now includes `userId` and row actions:
+  `canChangeRole`, `canDisable`, `disabledReason`.
+- `TeamSettingsView.invites[]` now includes row actions:
+  `canRevoke`, `canResend`, `disabledReason`.
+- Claude UI should render controls from these backend flags and should not
+  duplicate role/last-owner/self-management logic in client code.
+
+Not performed:
+
+- No UI page/component change.
+- No migration.
+- No deploy.
+- No env/secret edit.
+- No email provider, billing/provider, or public signup enablement.
+- No master/live/internal Supabase action.
+- No production DB mutation.
+
 ## 2026-06-13 Codex -> Owner / Codex for Windows
 
 Recorded the owner's decision to defer custom domain work.

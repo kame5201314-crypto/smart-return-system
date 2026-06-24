@@ -1,4 +1,11 @@
 import { resolveSaaSInviteStatus } from '@/lib/saas/invite-policy';
+import {
+  buildTeamInviteActionFlags,
+  buildTeamMemberActionFlags,
+  type TeamInviteManagementRecord,
+  type TeamMemberManagementRecord,
+} from '@/lib/saas/team-management';
+import type { SaaSOrgRole } from '@/lib/saas/org-context';
 import type { TeamSettingsView, TeamSettingsViewInput } from '@/lib/saas/ui-backend-contracts';
 
 interface SupabaseQueryError {
@@ -34,6 +41,7 @@ export interface SettingsTeamOrgData {
 
 export interface SettingsTeamMemberData {
   id: string;
+  userId?: string | null;
   email: string;
   displayName: string | null;
   role: string;
@@ -46,7 +54,9 @@ export interface SettingsTeamInviteData {
   email: string;
   role: string;
   status: string;
+  token?: string | null;
   expiresAt: string;
+  acceptedAt?: string | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,6 +100,7 @@ function normalizeOrganization(row: unknown): SettingsTeamOrgData | null {
 function normalizeMember(row: Record<string, unknown>): SettingsTeamMemberData {
   return {
     id: stringOrFallback(row.id, ''),
+    userId: stringOrNull(row.user_id),
     email: stringOrFallback(row.email, ''),
     displayName: stringOrNull(row.display_name),
     role: stringOrFallback(row.role, 'staff'),
@@ -99,16 +110,21 @@ function normalizeMember(row: Record<string, unknown>): SettingsTeamMemberData {
 }
 
 function normalizeInvite(row: Record<string, unknown>, now: Date): SettingsTeamInviteData {
+  const acceptedAt = stringOrNull(row.accepted_at);
+  const expiresAt = stringOrNull(row.expires_at);
   return {
     id: stringOrFallback(row.id, ''),
     email: stringOrFallback(row.email, ''),
     role: stringOrFallback(row.role, 'staff'),
     status: resolveSaaSInviteStatus({
-      acceptedAt: stringOrNull(row.accepted_at),
-      expiresAt: stringOrNull(row.expires_at),
+      acceptedAt,
+      expiresAt,
+      status: stringOrNull(row.status),
       now,
     }),
-    expiresAt: stringOrFallback(row.expires_at, ''),
+    token: stringOrNull(row.token),
+    expiresAt: stringOrFallback(expiresAt, ''),
+    acceptedAt,
   };
 }
 
@@ -130,7 +146,7 @@ export function createSettingsTeamDataRepository(
     async listMembers(input) {
       const { data, error } = await client
         .from('organization_members')
-        .select('id, email, role, status, created_at')
+        .select('id, user_id, email, role, status, created_at')
         .eq('org_id', input.orgId)
         .order('created_at', { ascending: true });
 
@@ -142,7 +158,7 @@ export function createSettingsTeamDataRepository(
       const now = input.now ?? new Date();
       const { data, error } = await client
         .from('organization_invites')
-        .select('id, email, role, expires_at, accepted_at, created_at')
+        .select('id, email, role, token, status, expires_at, accepted_at, created_at')
         .eq('org_id', input.orgId)
         .order('created_at', { ascending: false });
 
@@ -157,6 +173,10 @@ export async function buildTeamSettingsViewInput(
   input: {
     orgId: string;
     actions: TeamSettingsView['actions'];
+    actor?: {
+      userId: string;
+      role: SaaSOrgRole;
+    };
     now?: Date;
   }
 ): Promise<TeamSettingsViewInput | null> {
@@ -170,11 +190,40 @@ export async function buildTeamSettingsViewInput(
     return null;
   }
 
+  const activeOwnerCount = members.filter(
+    (member) => member.role === 'owner' && member.status === 'active'
+  ).length;
+
   return {
     orgId: org.id,
     plan: org.plan,
-    members,
-    invites,
+    members: members.map((member) => ({
+      ...member,
+      actions: input.actor
+        ? buildTeamMemberActionFlags({
+            actorUserId: input.actor.userId,
+            actorRole: input.actor.role,
+            target: {
+              userId: member.userId ?? null,
+              role: member.role as TeamMemberManagementRecord['role'],
+              status: member.status as TeamMemberManagementRecord['status'],
+            },
+            activeOwnerCount,
+          })
+        : undefined,
+    })),
+    invites: invites.map((invite) => ({
+      ...invite,
+      actions: input.actor
+        ? buildTeamInviteActionFlags({
+            actorRole: input.actor.role,
+            invite: {
+              role: invite.role as TeamInviteManagementRecord['role'],
+              status: invite.status as TeamInviteManagementRecord['status'],
+            },
+          })
+        : undefined,
+    })),
     actions: input.actions,
   };
 }

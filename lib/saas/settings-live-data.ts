@@ -272,6 +272,10 @@ export async function loadTeamSettingsView(
     const input = await buildTeamSettingsViewInput(repository, {
       orgId: context.orgId,
       actions: buildTeamActions(context),
+      actor: {
+        userId: context.userId,
+        role: context.role,
+      },
       now: deps.now,
     });
     const liveContext = toLiveDataContext(context);

@@ -33,6 +33,32 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Team management P1 backend contract
+Files:
+- lib/saas/team-management.ts
+- app/api/saas/team/members/[id]/route.ts
+- app/api/saas/team/members/[id]/disable/route.ts
+- app/api/saas/team/invites/[id]/revoke/route.ts
+- app/api/saas/team/invites/[id]/resend/route.ts
+- lib/saas/settings-team-data.ts
+- lib/saas/settings-live-data.ts
+- lib/saas/ui-backend-contracts.ts
+- lib/saas/invite-token-data.ts
+- lib/saas/team-invite-route.ts
+- tests/unit/saas-team-management.test.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- scripts/saas/readiness-check.mjs
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Implemented the Codex backend contract from `docs/SAAS_TEAM_MANAGEMENT_P1_SPEC.md` §C for merchant team management: role changes, non-destructive member disable, pending invite revoke, and pending/expired invite resend/regenerate link. Mutations require owner/admin writable org context, scope by `org_id` plus member/invite id, enforce owner/admin management boundaries, block self and last-active-owner unsafe changes, write audit logs, and expose per-row member/invite action flags for Claude UI. No UI page/component, migration, deployment, env/secret edit, email provider, billing/provider, master/live/internal Supabase, or production DB change was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Custom domain deferral documentation
 Files:
 - docs/SAAS_EXTERNAL_SETUP_STATUS.md

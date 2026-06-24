@@ -221,6 +221,7 @@ function checkCommercialFoundation() {
     'lib/saas/settings-usage-data.ts',
     'lib/saas/settings-live-data.ts',
     'lib/saas/team-invite-route.ts',
+    'lib/saas/team-management.ts',
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
@@ -228,6 +229,10 @@ function checkCommercialFoundation() {
     'app/api/saas/invite/accept/route.ts',
     'app/api/saas/onboarding/complete/route.ts',
     'app/api/saas/team/invites/route.ts',
+    'app/api/saas/team/members/[id]/route.ts',
+    'app/api/saas/team/members/[id]/disable/route.ts',
+    'app/api/saas/team/invites/[id]/revoke/route.ts',
+    'app/api/saas/team/invites/[id]/resend/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
     'scripts/saas/check-migration-plan.mjs',
     'scripts/saas/check-saas-schema-readiness.mjs',
@@ -402,6 +407,10 @@ function checkCommercialFoundation() {
       'app/api/saas/invite/accept/route.ts',
       'app/api/saas/onboarding/complete/route.ts',
       'app/api/saas/team/invites/route.ts',
+      'app/api/saas/team/members/[id]/route.ts',
+      'app/api/saas/team/members/[id]/disable/route.ts',
+      'app/api/saas/team/invites/[id]/revoke/route.ts',
+      'app/api/saas/team/invites/[id]/resend/route.ts',
       'app/api/internal/saas/orgs/route.ts',
       'app/api/internal/saas/orgs/[id]/preview/route.ts',
       'app/api/internal/saas/tenant-preview/route.ts',
@@ -811,6 +820,7 @@ function checkCommercialFoundation() {
   );
   const inviteCreationPath = path.resolve(process.cwd(), 'lib/saas/invite-creation.ts');
   const teamInviteRoutePath = path.resolve(process.cwd(), 'lib/saas/team-invite-route.ts');
+  const teamManagementPath = path.resolve(process.cwd(), 'lib/saas/team-management.ts');
   if (fs.existsSync(invitePolicyPath)) {
     const source = fs.readFileSync(invitePolicyPath, 'utf8');
     if (
@@ -925,6 +935,55 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS team invite API foundation', 'team invite route is owner/admin gated and reuses seat-limited invite creation service');
     } else {
       record('fail', 'SaaS team invite API foundation', 'team invite route must require org context, owner/admin role, writable status, seat counts, and invite creation service');
+    }
+  }
+
+  if (fs.existsSync(teamManagementPath)) {
+    const source = fs.readFileSync(teamManagementPath, 'utf8');
+    const memberRoutePath = path.resolve(process.cwd(), 'app/api/saas/team/members/[id]/route.ts');
+    const disableRoutePath = path.resolve(process.cwd(), 'app/api/saas/team/members/[id]/disable/route.ts');
+    const revokeRoutePath = path.resolve(process.cwd(), 'app/api/saas/team/invites/[id]/revoke/route.ts');
+    const resendRoutePath = path.resolve(process.cwd(), 'app/api/saas/team/invites/[id]/resend/route.ts');
+    const uiContractSource = fs.existsSync(uiBackendContractsPath)
+      ? fs.readFileSync(uiBackendContractsPath, 'utf8')
+      : '';
+    const routeSources = [memberRoutePath, disableRoutePath, revokeRoutePath, resendRoutePath]
+      .map((routePath) => (fs.existsSync(routePath) ? fs.readFileSync(routePath, 'utf8') : ''))
+      .join('\n');
+
+    if (
+      source.includes('changeTeamMemberRole') &&
+      source.includes('disableTeamMember') &&
+      source.includes('revokeTeamInvite') &&
+      source.includes('resendTeamInvite') &&
+      source.includes('getOrgContext') &&
+      source.includes("roles: ['owner', 'admin']") &&
+      source.includes('writable: true') &&
+      source.includes(".eq('org_id', input.orgId)") &&
+      source.includes(".eq('id', input.memberId)") &&
+      source.includes(".eq('id', input.inviteId)") &&
+      source.includes('self_disable') &&
+      source.includes('self_demotion') &&
+      source.includes('last_owner') &&
+      source.includes('activeOwnerCount') &&
+      source.includes('member.role_changed') &&
+      source.includes('member.disabled') &&
+      source.includes('invite.revoked') &&
+      source.includes('invite.resent') &&
+      source.includes("status: 'revoked'") &&
+      routeSources.includes('rejectCrossSiteRequest(request)') &&
+      routeSources.includes('handlePatchSaaSTeamMemberRequest') &&
+      routeSources.includes('handleDisableSaaSTeamMemberRequest') &&
+      routeSources.includes('handleRevokeSaaSTeamInviteRequest') &&
+      routeSources.includes('handleResendSaaSTeamInviteRequest') &&
+      uiContractSource.includes('canChangeRole') &&
+      uiContractSource.includes('canDisable') &&
+      uiContractSource.includes('canRevoke') &&
+      uiContractSource.includes('canResend')
+    ) {
+      record('pass', 'SaaS team management P1 API foundation', 'team member and invite mutations are owner/admin gated, org-scoped, audited, and expose row action flags');
+    } else {
+      record('fail', 'SaaS team management P1 API foundation', 'team management routes must require writable owner/admin org context, org_id scoped member/invite writes, audit logs, revoked invite handling, and row action flags');
     }
   }
 
