@@ -2,7 +2,7 @@
 
 - 日期：2026-06-13
 - 分支：`develop-saas`
-- 狀態：Backend/UI 已實作；QA 發現 `organization_invites.status` schema 缺口，需 draft migration `037` 後才能啟用完整撤銷/重送驗收。
+- 狀態：Backend/UI 已實作；migration `037_saas_team_invite_status.sql` 已於 2026-06-26 套用到 SaaS project `auyznbwtjvemyamujmgt`，`organization_invites.status` schema 缺口已解除；剩餘驗收為 `/settings/team` 瀏覽器 QA。
 - 範圍：商家組織內成員管理的四項操作。**不含**平台管理員 DB 自助（P2）、MFA（P3）、email provider、public signup、billing。
 
 ## 範圍（4 項操作）
@@ -12,14 +12,14 @@
 3. pending invite 撤銷
 4. invite 重送 / 重新產生邀請連結
 
-## 2026-06 QA 修正：P1 需要 `037` 補齊 invite status schema
+## 2026-06 QA 修正：P1 已由 `037` 補齊 invite status schema
 
 - `organization_members` 已有 `role` 欄位（`024`）→ 改角色為 UPDATE。
 - `organization_members` 已有 `status` 欄位，`'disabled'` 已是合法值（`032` 席次計算用 `COALESCE(status,'active') <> 'disabled'` 排除停用成員）→ 停用為 UPDATE。
 - `organization_invites` 在程式層 / invite-policy 已支援 `pending/accepted/expired/revoked`，但實際 `024` DB schema 沒有 `status` 欄位。
 - `audit_logs` 表已存在，既有 action 範例 `member.invited`（`032`）。
 
-→ P1 的 member role / disable 可用既有 schema；invite revoke / resend 需要 `supabase/migrations/037_saas_team_invite_status.sql` 補 `organization_invites.status`，並在欄位存在後刷新 invite accept/create RPC。`037` 是 repo draft；套到 SaaS Supabase 仍需 owner 明確授權。
+→ P1 的 member role / disable 可用既有 schema；invite revoke / resend 需要 `supabase/migrations/037_saas_team_invite_status.sql` 補 `organization_invites.status`，並在欄位存在後刷新 invite accept/create RPC。`037` 已於 2026-06-26 在 owner 明確授權後套用到 SaaS Supabase project `auyznbwtjvemyamujmgt`，可重新進行真實 DB 的邀請撤銷/重送 QA。
 
 ---
 
@@ -122,7 +122,7 @@
 
 **明確不做**：migration `036`、平台管理員 DB 自助（P2）、MFA（P3）、email provider、public signup、billing/ECPay。
 
-**需另行 owner 授權才做**：將 migration `037_saas_team_invite_status.sql` 套用到 SaaS Supabase project `auyznbwtjvemyamujmgt`。
+**已完成**：migration `037_saas_team_invite_status.sql` 已套用到 SaaS Supabase project `auyznbwtjvemyamujmgt`。後續若要部署包含此功能的 runtime，仍需 owner 另行授權部署。
 
 ## 建議實作順序
 

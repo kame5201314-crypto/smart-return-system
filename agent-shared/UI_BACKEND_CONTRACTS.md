@@ -535,11 +535,13 @@ POST /api/saas/team/invites/[id]/resend
 
 Schema prerequisite:
 
-- Full invite revoke/resend validation against the real SaaS DB requires
-  `supabase/migrations/037_saas_team_invite_status.sql` to be applied after
-  explicit owner authorization. Without `037`, `organization_invites.status`
-  is missing in the applied SaaS schema and `/settings/team` invite operations
-  will fail before UI QA can complete.
+- `supabase/migrations/037_saas_team_invite_status.sql` was applied to SaaS
+  project `auyznbwtjvemyamujmgt` on 2026-06-26 after explicit owner
+  authorization.
+- `organization_invites.status` now exists in the applied SaaS schema, so real
+  DB QA for `/settings/team` invite revoke/resend can proceed.
+- Migrations `033`, `034`, and `036` remain unapplied and still require
+  separate owner authorization.
 
 Request contracts:
 

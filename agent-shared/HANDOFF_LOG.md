@@ -2,6 +2,42 @@
 
 ## 2026-06-26 Codex -> Owner / Claude
 
+Applied the owner-authorized team invite status migration to the SaaS project.
+
+Completed:
+
+- Owner authorized applying only `037_saas_team_invite_status.sql` to SaaS
+  Supabase project `auyznbwtjvemyamujmgt`.
+- Preflight and `npm run safety:agent-boundary` passed before mutation.
+- Remote migration list before apply showed `035` applied and `033`, `034`,
+  `036`, and `037` pending.
+- Applied only `supabase/migrations/037_saas_team_invite_status.sql` through
+  the linked SaaS DB query path.
+- Repaired remote migration history for version `037` to `applied`.
+- Remote migration list after apply shows `035` and `037` applied while `033`,
+  `034`, and `036` remain unapplied.
+- `npm run saas:schema-gate:strict`, `npm run saas:migration-plan:strict`,
+  `npm run saas:doctor`, `npm run lint`, `npm run typecheck`, and
+  `npm run test:all` passed.
+
+Not performed:
+
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No migrations `033`, `034`, or `036`.
+- No master/live/internal Supabase action.
+
+Next:
+
+- Claude/browser QA can resume the `/settings/team` 1-9 point test because
+  `organization_invites.status` now exists in the SaaS DB.
+- Do not deploy the team-management UI to production unless the owner
+  separately authorizes deployment.
+
+## 2026-06-26 Codex -> Owner / Claude
+
 Fixed the repo/schema contract blocker found by Claude QA for merchant team
 management P1.
 
