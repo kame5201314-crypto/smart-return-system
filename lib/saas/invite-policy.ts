@@ -31,8 +31,12 @@ export function resolveSaaSInviteStatus(input: {
     return 'revoked';
   }
 
-  if (hasValue(input.acceptedAt)) {
+  if (input.status === 'accepted' || hasValue(input.acceptedAt)) {
     return 'accepted';
+  }
+
+  if (input.status === 'expired') {
+    return 'expired';
   }
 
   const expiresAt = timestamp(input.expiresAt);

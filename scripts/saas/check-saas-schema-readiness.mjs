@@ -105,6 +105,7 @@ const requiredColumns = [
   ['organization_invites', 'email'],
   ['organization_invites', 'role'],
   ['organization_invites', 'token'],
+  ['organization_invites', 'status'],
   ['organization_invites', 'expires_at'],
   ['organization_invites', 'accepted_at'],
   ['invoices', 'org_id'],

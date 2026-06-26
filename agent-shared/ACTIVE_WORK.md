@@ -25,10 +25,33 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `f634bc0 fix(saas): keep SEO metadata routes public` on Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. This deployment includes the post-`796a02a` Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`. 2026-06-06 Sentry setup completed and Vercel Production env has `SENTRY_DSN` plus `NEXT_PUBLIC_SENTRY_DSN`. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, and `036` remain unapplied. Owner confirmed `smart-return.tw` has not been purchased and chose to continue Closed Manual Beta on `https://smart-return-system-saas.vercel.app`; custom domain work is deferred and should not be retried until the owner buys/registers a domain and explicitly reauthorizes DNS/Vercel verification. Email provider remains disabled; Resend is the recommended first provider after owner prepares a Resend account, verified sender domain, `RESEND_API_KEY`, sender address, and delivery scope decision. Current email backend supports queue creation and dry-run inspection only; provider adapter/status-update/retry-audit work is still a future authorized Codex task. Public multi-tenant hardening/gating is complete for the reviewed Shopee, pickup, customer-return, upload/signed-url, backup, and maintenance cron paths. No unblocked local Claude/Codex task is currently recorded; remaining blockers are public signup posture, Resend/email provider credentials and enablement authorization, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider/email, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `f634bc0 fix(saas): keep SEO metadata routes public` on Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. This deployment includes the post-`796a02a` Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`. 2026-06-06 Sentry setup completed and Vercel Production env has `SENTRY_DSN` plus `NEXT_PUBLIC_SENTRY_DSN`. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; `033`, `034`, `036`, and `037` remain unapplied. Owner confirmed `smart-return.tw` has not been purchased and chose to continue Closed Manual Beta on `https://smart-return-system-saas.vercel.app`; custom domain work is deferred and should not be retried until the owner buys/registers a domain and explicitly reauthorizes DNS/Vercel verification. Email provider remains disabled; Resend is the recommended first provider after owner prepares a Resend account, verified sender domain, `RESEND_API_KEY`, sender address, and delivery scope decision. Current email backend supports queue creation and dry-run inspection only; provider adapter/status-update/retry-audit work is still a future authorized Codex task. Public multi-tenant hardening/gating is complete for the reviewed Shopee, pickup, customer-return, upload/signed-url, backup, and maintenance cron paths. Team management P1 backend/UI is implemented in repo, but complete invite revoke/resend QA against the real SaaS DB requires owner-authorized migration `037_saas_team_invite_status.sql` apply. No unblocked local Claude/Codex task is currently recorded; remaining blockers are public signup posture, Resend/email provider credentials and enablement authorization, Billing/ECPay, and draft migrations `033`/`034`/`036`/`037`. Do not deploy again, run migrations, edit env/secrets, enable billing/provider/email, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: Team management P1 invite status schema draft
+Files:
+- supabase/migrations/037_saas_team_invite_status.sql
+- lib/saas/invite-policy.ts
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/check-saas-schema-readiness.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-invite-policy.test.ts
+- tests/unit/saas-schema-readiness.test.ts
+- tests/unit/saas-migration-plan.test.ts
+- docs/SAAS_TEAM_MANAGEMENT_P1_SPEC.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added draft migration `037_saas_team_invite_status.sql` to align the real SaaS DB schema with the implemented team-management P1 backend/UI. It adds `organization_invites.status`, backfills accepted/expired states, adds an org/status index, and refreshes invite accept/create RPCs after the column exists. Updated invite status policy and readiness/migration/schema gates. No migration was applied, no deployment/env/provider/billing/domain change was performed, and production/internal Supabase was not touched.
+```
 
 ```text
 Owner: Codex

@@ -33,7 +33,7 @@ environment changes, billing/provider enablement, or DNS changes by itself.
     domain and reauthorizes DNS/Vercel work.
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
-  - draft migrations `033`, `034`, and `036` remain unapplied
+  - draft migrations `033`, `034`, `036`, and `037` remain unapplied
 
 ## 2026-06-13 Custom Domain Deferred
 
@@ -570,7 +570,7 @@ Scope:
 - Update docs and push develop-saas.
 ```
 
-## Draft Migrations 033-036
+## Draft Migrations 033-037
 
 These require explicit per-migration authorization. Do not apply them as a
 bundle.
@@ -643,7 +643,7 @@ Risk:
 
 Recommendation:
 
-- Completed. Next migration actions remain `033`, `034`, and `036`, each only
+- Completed. Next migration actions remain `033`, `034`, `036`, and `037`, each only
   after separate owner authorization.
 
 ### `036_saas_platform_admin_roles.sql`
@@ -667,12 +667,37 @@ Recommendation:
 
 - Do not apply until a seed/owner role plan and rollback path are written.
 
+### `037_saas_team_invite_status.sql`
+
+Purpose:
+
+- Adds `organization_invites.status` for `pending`, `accepted`, `expired`, and
+  `revoked`.
+- Backfills accepted and expired invite rows.
+- Refreshes invite accept/create RPCs after the column exists so merchant team
+  invite revoke/resend works against the real SaaS DB.
+
+Recommended timing:
+
+- Before validating or deploying merchant team management P1 invite
+  revoke/resend against the SaaS production database.
+
+Risk:
+
+- Low to medium. It changes invite lifecycle persistence and RPC behavior, but
+  only inside `organization_invites` and invite accept/create flows.
+
+Recommendation:
+
+- Apply only after explicit owner authorization and a pre/post smoke plan for
+  `/settings/team` invite revoke/resend.
+
 ## Migration Authorization Template
 
 Use this only after choosing one migration:
 
 ```text
-I authorize applying migration <033|034|035|036> to the SaaS Supabase project
+I authorize applying migration <033|034|035|036|037> to the SaaS Supabase project
 auyznbwtjvemyamujmgt only.
 
 Scope:
@@ -691,7 +716,7 @@ Scope:
   safe to use that way.
 - Do not commit DSN, API keys, ECPay credentials, SMTP credentials, or DNS
   tokens.
-- Do not apply migrations `033`-`036` as a bundle.
+- Do not apply migrations `033`-`037` as a bundle.
 - Do not enable `ENABLE_PUBLIC_SIGNUP=true` as part of these actions.
 - Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
 - Do not change `master`.

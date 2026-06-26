@@ -678,9 +678,9 @@ function checkCommercialFoundation() {
       source.includes('036_saas_platform_admin_roles.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-036 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-037 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-036 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-037 migration chain without applying migrations');
     }
   }
 
@@ -1544,6 +1544,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/036_saas_platform_admin_roles.sql'
   );
+  const teamInviteStatusMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/037_saas_team_invite_status.sql'
+  );
   if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
     const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
@@ -1589,6 +1593,25 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS invite creation RPC draft', 'invite creation RPC draft matches the repository wrapper');
     } else {
       record('fail', 'SaaS invite creation RPC draft', 'invite creation must have an atomic RPC draft and matching repository wrapper');
+    }
+  }
+
+  if (fs.existsSync(teamInviteStatusMigrationPath)) {
+    const migrationSource = fs.readFileSync(teamInviteStatusMigrationPath, 'utf8');
+    if (
+      migrationSource.includes('ADD COLUMN IF NOT EXISTS status') &&
+      migrationSource.includes('organization_invites_status_check') &&
+      migrationSource.includes("'pending', 'accepted', 'expired', 'revoked'") &&
+      migrationSource.includes('idx_organization_invites_org_status_created') &&
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.accept_organization_invite') &&
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.create_organization_invite') &&
+      migrationSource.includes("status = 'accepted'") &&
+      migrationSource.includes("status = 'pending'") &&
+      migrationSource.includes("status = 'revoked'")
+    ) {
+      record('pass', 'SaaS team invite status schema draft', 'organization_invites.status draft supports revoke/resend UI and invite lifecycle persistence');
+    } else {
+      record('fail', 'SaaS team invite status schema draft', 'organization_invites.status draft must support pending/accepted/expired/revoked and refresh invite RPCs after the column exists');
     }
   }
 

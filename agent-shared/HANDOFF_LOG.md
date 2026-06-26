@@ -1,5 +1,52 @@
 # Handoff Log
 
+## 2026-06-26 Codex -> Owner / Claude
+
+Fixed the repo/schema contract blocker found by Claude QA for merchant team
+management P1.
+
+Problem:
+
+- `/settings/team` reads and writes `organization_invites.status`.
+- The applied SaaS DB schema through `032` does not include that column.
+- Real SaaS DB QA therefore fails before the 1-9 point-test can exercise
+  invite revoke/resend.
+
+Completed in this repo:
+
+- Added draft migration `037_saas_team_invite_status.sql`.
+- `037` adds `organization_invites.status` with
+  `pending/accepted/expired/revoked`.
+- `037` backfills accepted and expired states.
+- `037` adds `idx_organization_invites_org_status_created`.
+- `037` refreshes `accept_organization_invite()` and
+  `create_organization_invite()` after the status column exists.
+- Updated invite status policy so persisted `accepted` / `expired` statuses are
+  respected before timestamp fallback.
+- Updated migration plan, schema gate, SaaS doctor coverage, unit tests, and
+  rollout docs.
+
+Not performed:
+
+- No Supabase migration was applied.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+Next owner action if full real-DB QA is desired:
+
+```text
+I authorize applying only migration 037_saas_team_invite_status.sql to the SaaS
+Supabase project auyznbwtjvemyamujmgt.
+Do not apply migrations 033, 034, or 036.
+Do not deploy, change env/secrets, enable email/billing/provider, or touch
+master/live/internal Supabase.
+After applying, run /settings/team owner QA for invite revoke/resend and update
+docs, commit, and push develop-saas.
+```
+
 ## 2026-06-24 Codex -> Claude / Owner
 
 Completed the Codex backend contract for

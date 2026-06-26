@@ -533,6 +533,14 @@ POST /api/saas/team/invites/[id]/revoke
 POST /api/saas/team/invites/[id]/resend
 ```
 
+Schema prerequisite:
+
+- Full invite revoke/resend validation against the real SaaS DB requires
+  `supabase/migrations/037_saas_team_invite_status.sql` to be applied after
+  explicit owner authorization. Without `037`, `organization_invites.status`
+  is missing in the applied SaaS schema and `/settings/team` invite operations
+  will fail before UI QA can complete.
+
 Request contracts:
 
 ```ts

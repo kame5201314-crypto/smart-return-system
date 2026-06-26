@@ -31,6 +31,15 @@ describe('SaaS invite policy', () => {
 
     expect(
       resolveSaaSInviteStatus({
+        status: 'accepted',
+        acceptedAt: null,
+        expiresAt: '2026-05-01T00:00:00.000Z',
+        now,
+      })
+    ).toBe('accepted');
+
+    expect(
+      resolveSaaSInviteStatus({
         acceptedAt: '2026-05-20T00:00:00.000Z',
         expiresAt: '2026-05-01T00:00:00.000Z',
         now,
@@ -39,6 +48,15 @@ describe('SaaS invite policy', () => {
   });
 
   it('expires invites at or after the expiration timestamp', () => {
+    expect(
+      resolveSaaSInviteStatus({
+        status: 'expired',
+        acceptedAt: null,
+        expiresAt: '2026-05-28T00:00:00.000Z',
+        now,
+      })
+    ).toBe('expired');
+
     expect(
       resolveSaaSInviteStatus({
         acceptedAt: null,

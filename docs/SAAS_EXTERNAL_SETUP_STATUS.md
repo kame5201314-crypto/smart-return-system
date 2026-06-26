@@ -6,7 +6,8 @@ This file tracks external SaaS setup work that must stay separate from the live 
 
 See also: [`SAAS_EXTERNAL_OWNER_ACTIONS.md`](./SAAS_EXTERNAL_OWNER_ACTIONS.md)
 for owner-provided values, handoff templates, and the recommended order for
-Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
+Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
+`036`, and `037`.
 
 ## Current Status Snapshot
 
@@ -17,6 +18,7 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
 - Migration `035_saas_onboarding_completion_rpc.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `035` as applied.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
+- Draft migration `037_saas_team_invite_status.sql` exists to add `organization_invites.status` and refresh invite accept/create RPCs after the column exists; it has not been applied. Until `037` is explicitly applied to the SaaS project, `/settings/team` invite revoke/resend UI may fail on the real SaaS DB with `organization_invites.status` missing.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
@@ -28,8 +30,11 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
-- `npm run saas:migration-plan:strict` passes.
-- `npm run saas:schema-gate:strict` passes.
+- `npm run saas:migration-plan:strict` passes and the local draft chain now
+  ends at `037_saas_team_invite_status.sql`.
+- `npm run saas:schema-gate:strict` intentionally fails until owner-authorized
+  migration `037` is applied, because the real SaaS DB still lacks
+  `organization_invites.status`.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
@@ -49,11 +54,26 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`-`036`.
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `f634bc0 fix(saas): keep SEO metadata routes public` -> Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `f634bc0`, including Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`.
-- Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, and `036` remain unapplied.
+- Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migration `035` is applied, and draft migrations `033`, `034`, `036`, and `037` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
-- No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+- No unblocked local Claude/Codex implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`/`037`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-06-26 Team Invite Status Draft Migration
+
+- Claude QA for `/settings/team` found the real SaaS DB lacks
+  `organization_invites.status`, while the P1 team management backend/UI reads
+  and writes that column for invite revoke/resend.
+- Added draft migration `037_saas_team_invite_status.sql` to:
+  - add `organization_invites.status` with `pending/accepted/expired/revoked`;
+  - backfill accepted and expired invite states;
+  - add an org/status/created index for team settings reads;
+  - refresh `accept_organization_invite()` and `create_organization_invite()`
+    only after the column exists.
+- This was a repo/schema-contract update only. It was not applied to Supabase.
+- Owner authorization is required before applying `037` to SaaS project
+  `auyznbwtjvemyamujmgt`.
 
 ## 2026-06-13 Custom Domain Deferred
 
