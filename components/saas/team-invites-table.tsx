@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Copy, RefreshCw, XCircle } from 'lucide-react';
+import { Check, Copy, Inbox, RefreshCw, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { TeamSettingsView } from '@/lib/saas/ui-backend-contracts';
@@ -146,6 +146,15 @@ export function TeamInvitesTable({ invites }: { invites: Invite[] }) {
     } catch {
       toast.error('複製失敗，請手動選取連結複製');
     }
+  }
+
+  if (invites.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+        <Inbox className="size-6" aria-hidden="true" />
+        尚無邀請紀錄。
+      </div>
+    );
   }
 
   const confirmTitle = pending?.type === 'revoke' ? '撤銷邀請' : '重新產生邀請連結';

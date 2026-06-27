@@ -25,7 +25,10 @@ const roleRows = [
 ] as const;
 
 function TeamContent({ data }: { data: TeamSettingsView }) {
-  const activeSeats = data.members.filter((member) => member.status !== 'disabled').length;
+  // 席次用量＝未停用成員 ＋ 待接受邀請，與 canInvite 的限額判斷（resolveSaaSTeamSeatUsage）一致。
+  const usedSeats =
+    data.members.filter((member) => member.status !== 'disabled').length +
+    data.invites.filter((invite) => invite.status === 'pending').length;
   const seatLabel = data.seatLimit === null ? '合約' : data.seatLimit.toLocaleString('zh-TW');
 
   return (
@@ -37,7 +40,7 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
             邀請成員
           </CardTitle>
           <CardDescription>
-            已使用席次 {activeSeats} / {seatLabel}。建立邀請後，可複製邀請連結傳送給對方。
+            已使用席次 {usedSeats} / {seatLabel}（含待接受邀請）。建立邀請後，可複製邀請連結傳送給對方。
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -58,20 +61,18 @@ function TeamContent({ data }: { data: TeamSettingsView }) {
         </CardContent>
       </Card>
 
-      {data.invites.length > 0 ? (
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserRoundCog className="size-5 text-cyan-700" />
-              邀請紀錄
-            </CardTitle>
-            <CardDescription>管理尚未接受的邀請：撤銷或重新產生邀請連結。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TeamInvitesTable invites={data.invites} />
-          </CardContent>
-        </Card>
-      ) : null}
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserRoundCog className="size-5 text-cyan-700" />
+            邀請紀錄
+          </CardTitle>
+          <CardDescription>管理尚未接受的邀請：撤銷或重新產生邀請連結。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TeamInvitesTable invites={data.invites} />
+        </CardContent>
+      </Card>
 
       <Card className="rounded-lg">
         <CardHeader>
