@@ -136,13 +136,13 @@ export default async function InternalBillingEventsPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-semibold">Billing Events</h2>
+          <h2 className="text-2xl font-semibold">金流紀錄</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             金流 webhook 與電子發票事件的接收、處理與失敗紀錄。
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          目前為唯讀檢視；事件重送將於 Stage 2 Billing 開通後提供。
+          目前為唯讀檢視；事件重送將於第二階段收費功能開通後提供。
         </p>
       </div>
 

@@ -94,21 +94,21 @@ function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
 
   const summaryItems = [
     {
-      label: '估算 MRR',
+      label: '預估月營收',
       value: formatTwd(summary.estimatedActiveMrrTwd),
-      helper: `Trial pipeline ${formatTwd(summary.trialPipelineMrrTwd)}`,
+      helper: `試用潛在 ${formatTwd(summary.trialPipelineMrrTwd)}`,
       icon: CreditCard,
       alert: false,
     },
     {
       label: '使用中 / 試用',
       value: summary.activeOrTrialingOrganizations.toLocaleString('zh-TW'),
-      helper: `${summary.trialingOrganizations.toLocaleString('zh-TW')} 個 trialing`,
+      helper: `${summary.trialingOrganizations.toLocaleString('zh-TW')} 個試用中`,
       icon: PlayCircle,
       alert: false,
     },
     {
-      label: 'At-risk 租戶',
+      label: '需關注租戶',
       value: summary.atRiskOrganizations.toLocaleString('zh-TW'),
       helper: `${summary.pausedOrPastDueOrganizations.toLocaleString('zh-TW')} 個停用或逾期`,
       icon: AlertTriangle,
@@ -322,7 +322,7 @@ export default async function InternalOrgsPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-semibold">Organizations</h2>
+          <h2 className="text-2xl font-semibold">租戶管理</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             平台所有租戶的方案、狀態、用量與健康度。
           </p>
@@ -330,7 +330,7 @@ export default async function InternalOrgsPage() {
         <div className="flex flex-col items-end gap-1">
           <ManualBetaOrgForm />
           <p className="text-xs text-muted-foreground">
-            停用 / 調整方案等寫入操作將於 Stage 2 Billing 開通後提供。
+            停用 / 調整方案等寫入操作將於第二階段收費功能開通後提供。
           </p>
         </div>
       </div>

@@ -2,32 +2,19 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   ArrowRight,
-  Bot,
-  CreditCard,
   LogOut,
-  PlayCircle,
   ShieldCheck,
-  Timer,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { getCurrentUser, signOut } from '@/lib/actions/auth';
 import { loadPlatformAdminDashboardView } from '@/lib/saas/platform-admin-live-data';
 import type {
   PlatformAdminDashboardView,
   PlatformAtRiskAlertCategory,
   PlatformAtRiskAlertSeverity,
-  PlatformTrialConversionLifecycle,
 } from '@/lib/saas/ui-backend-contracts';
 import {
   PLATFORM_ALERT_SEVERITY_LABEL,
@@ -41,25 +28,6 @@ const ALERT_CATEGORY_LABEL: Record<PlatformAtRiskAlertCategory, string> = {
   quota: '額度',
   team: '團隊',
 };
-
-const BILLING_EVENT_STATUS_LABEL = {
-  received: '已收到',
-  processed: '已處理',
-  failed: '失敗',
-  ignored: '已忽略',
-} as const;
-
-const LIFECYCLE_LABEL: Record<PlatformTrialConversionLifecycle, string> = {
-  trialing: '試用中',
-  trial_ending: '試用即將到期',
-  trial_expired: '試用已到期',
-  converted_active: '已轉付費',
-  not_trial: '—',
-};
-
-function formatTwd(value: number): string {
-  return `NT$${value.toLocaleString('zh-TW')}`;
-}
 
 function formatDateTime(value: string | null): string {
   if (!value) return '—';
@@ -82,100 +50,52 @@ function severityVariant(
   return 'outline';
 }
 
-function billingEventVariant(
-  status: 'received' | 'processed' | 'failed' | 'ignored'
-): 'default' | 'destructive' | 'secondary' | 'outline' {
-  if (status === 'failed') return 'destructive';
-  if (status === 'processed') return 'default';
-  if (status === 'ignored') return 'secondary';
-  return 'outline';
-}
-
 function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
   const summary = data.organizations;
   const atRisk = data.atRisk;
-  const trial = data.trialConversion;
-  const billing = data.billingEvents;
-
-  const kpis: Array<{
-    label: string;
-    value: string;
-    helper: string;
-    icon: typeof CreditCard;
-    alert: boolean;
-  }> = [
-    {
-      label: '估算 MRR',
-      value: formatTwd(summary.estimatedActiveMrrTwd),
-      helper: `試用潛在 ${formatTwd(summary.trialPipelineMrrTwd)}`,
-      icon: CreditCard,
-      alert: false,
-    },
-    {
-      label: '使用中 / 試用',
-      value: summary.activeOrTrialingOrganizations.toLocaleString('zh-TW'),
-      helper: `${summary.trialingOrganizations.toLocaleString('zh-TW')} 個試用中`,
-      icon: PlayCircle,
-      alert: false,
-    },
-    {
-      label: 'At-risk 租戶',
-      value: summary.atRiskOrganizations.toLocaleString('zh-TW'),
-      helper: `${summary.pausedOrPastDueOrganizations.toLocaleString('zh-TW')} 個停用或逾期`,
-      icon: AlertTriangle,
-      alert: summary.atRiskOrganizations > 0,
-    },
-    {
-      label: 'AI 額度用完',
-      value: summary.aiLimitReachedOrganizations.toLocaleString('zh-TW'),
-      helper: '需客服或升級介入',
-      icon: Bot,
-      alert: summary.aiLimitReachedOrganizations > 0,
-    },
-  ];
-
-  const billingCells: Array<{
-    label: string;
-    value: number;
-    dot: string;
-  }> = [
-    { label: '已收到', value: billing.summary.receivedEvents, dot: 'bg-gray-400' },
-    { label: '已處理', value: billing.summary.processedEvents, dot: 'bg-emerald-500' },
-    { label: '失敗', value: billing.summary.failedEvents, dot: 'bg-red-500' },
-    { label: '已忽略', value: billing.summary.ignoredEvents, dot: 'bg-amber-400' },
-  ];
+  const totalOrganizations = summary.totalOrganizations.toLocaleString('zh-TW');
+  const activeOrTrialing = summary.activeOrTrialingOrganizations.toLocaleString('zh-TW');
+  const trialing = summary.trialingOrganizations.toLocaleString('zh-TW');
+  const needsAttention = atRisk.summary.affectedOrganizations.toLocaleString('zh-TW');
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Card
-              key={item.label}
-              className={`rounded-lg ${item.alert ? 'border-amber-300 bg-amber-50/60' : ''}`}
-            >
-              <CardContent className="flex items-start justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className={`text-xs ${item.alert ? 'text-amber-800' : 'text-muted-foreground'}`}>
-                    {item.label}
-                  </p>
-                  <p className={`mt-1 truncate text-2xl font-semibold ${item.alert ? 'text-amber-900' : 'text-gray-950'}`}>
-                    {item.value}
-                  </p>
-                  <p className={`mt-1 text-xs ${item.alert ? 'text-amber-800' : 'text-muted-foreground'}`}>
-                    {item.helper}
-                  </p>
-                </div>
-                <Icon
-                  className={`mt-0.5 size-4 shrink-0 ${item.alert ? 'text-amber-600' : 'text-emerald-700'}`}
-                  aria-hidden="true"
-                />
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle>租戶總覽</CardTitle>
+          <CardDescription>
+            目前共有 {totalOrganizations} 個租戶，其中 {activeOrTrialing} 個使用中或試用中。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border bg-neutral-50 p-4">
+              <p className="text-sm text-muted-foreground">全部租戶</p>
+              <p className="mt-1 text-3xl font-semibold text-gray-950">{totalOrganizations}</p>
+            </div>
+            <div className="rounded-md border bg-neutral-50 p-4">
+              <p className="text-sm text-muted-foreground">試用中</p>
+              <p className="mt-1 text-3xl font-semibold text-gray-950">{trialing}</p>
+            </div>
+            <div className={`rounded-md border p-4 ${atRisk.summary.affectedOrganizations > 0 ? 'border-amber-300 bg-amber-50' : 'bg-neutral-50'}`}>
+              <p className={atRisk.summary.affectedOrganizations > 0 ? 'text-sm text-amber-800' : 'text-sm text-muted-foreground'}>
+                需關注租戶
+              </p>
+              <p className={`mt-1 text-3xl font-semibold ${atRisk.summary.affectedOrganizations > 0 ? 'text-amber-900' : 'text-gray-950'}`}>
+                {needsAttention}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/internal/orgs">
+                查看所有租戶
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {atRisk.topAlerts.length > 0 ? (
         <Card className="rounded-lg border-amber-300 bg-amber-50/40">
@@ -235,162 +155,19 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
             </ul>
           </CardContent>
         </Card>
-      ) : null}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-lg">
+      ) : (
+        <Card className="rounded-lg border-emerald-200 bg-emerald-50/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Timer className="size-5 text-cyan-700" />
-              試用追蹤
+            <CardTitle className="flex items-center gap-2 text-emerald-950">
+              <ShieldCheck className="size-5 text-emerald-700" />
+              目前無待辦
             </CardTitle>
-            <CardDescription>
-              即將到期 {trial.summary.trialEndingSoonOrganizations} 個 · 已過期 {trial.summary.expiredTrialOrganizations} 個 · 轉換率 {trial.summary.conversionRatePercent}%
+            <CardDescription className="text-emerald-900">
+              沒有試用到期、付款異常、額度爆量或席次滿額的租戶。
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {trial.followUpOrganizations.length > 0 ? (
-              <ul className="space-y-2">
-                {trial.followUpOrganizations.map((org) => {
-                  const isExpired = org.lifecycleState === 'trial_expired';
-                  const isEnding = org.lifecycleState === 'trial_ending';
-                  const dayText =
-                    org.daysUntilTrialEnd !== null
-                      ? org.daysUntilTrialEnd >= 0
-                        ? `剩 ${org.daysUntilTrialEnd} 天`
-                        : `已過 ${Math.abs(org.daysUntilTrialEnd)} 天`
-                      : null;
-
-                  return (
-                    <li
-                      key={org.orgId}
-                      className="flex items-center justify-between gap-3 rounded-md border p-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/internal/orgs/${org.orgId}`}
-                            className="font-medium text-emerald-700 hover:underline"
-                          >
-                            {org.orgName}
-                          </Link>
-                          <Badge
-                            variant={isExpired ? 'destructive' : isEnding ? 'secondary' : 'outline'}
-                            className="text-xs"
-                          >
-                            {LIFECYCLE_LABEL[org.lifecycleState]}
-                          </Badge>
-                          {dayText ? (
-                            <span
-                              className={`text-xs ${
-                                isExpired
-                                  ? 'font-medium text-red-600'
-                                  : isEnding
-                                    ? 'font-medium text-amber-700'
-                                    : 'text-muted-foreground'
-                              }`}
-                            >
-                              {dayText}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{org.ownerEmail ?? '—'}</p>
-                      </div>
-                      <Button asChild variant="ghost" size="sm" className="shrink-0">
-                        <Link href={`/internal/orgs/${org.orgId}`}>
-                          <ArrowRight className="size-4" />
-                        </Link>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
-                目前沒有需要跟進的試用客戶。
-              </p>
-            )}
-          </CardContent>
         </Card>
-
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="size-5 text-emerald-700" />
-              金流事件
-            </CardTitle>
-            <CardDescription>
-              共 {billing.summary.totalEvents} 筆事件，其中 {billing.summary.failedEvents} 筆失敗。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex h-full flex-col gap-3">
-            {billing.summary.totalEvents === 0 ? (
-              <p className="flex-1 rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
-                尚未接收任何金流事件；Stage 2 接上 ECPay 後開始累積。
-              </p>
-            ) : (
-              <div className="flex flex-1 flex-wrap content-start gap-x-5 gap-y-2 text-sm">
-                {billingCells.map((cell) => (
-                  <span key={cell.label} className="flex items-center gap-1.5">
-                    <span className={`size-2 rounded-full ${cell.dot}`} aria-hidden="true" />
-                    <span className="text-muted-foreground">{cell.label}</span>
-                    <span className="font-semibold text-gray-950">
-                      {cell.value.toLocaleString('zh-TW')}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-            <Button asChild variant="outline" size="sm" className="w-full">
-              <Link href="/internal/billing/events">
-                查看所有事件
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {billing.recentEvents.length > 0 ? (
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>最近的金流事件</CardTitle>
-            <CardDescription>
-              最新 {billing.recentEvents.length} 筆事件。
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>時間</TableHead>
-                  <TableHead>租戶</TableHead>
-                  <TableHead>事件</TableHead>
-                  <TableHead>狀態</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {billing.recentEvents.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatDateTime(event.createdAt)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {event.orgName ?? '—'}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{event.eventType}</TableCell>
-                    <TableCell>
-                      <Badge variant={billingEventVariant(event.status)}>
-                        {BILLING_EVENT_STATUS_LABEL[event.status]}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ) : null}
+      )}
     </>
   );
 }

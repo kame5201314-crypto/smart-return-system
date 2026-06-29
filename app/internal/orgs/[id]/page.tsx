@@ -90,7 +90,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
     ['方案', plan.name],
     ['狀態', statusValue],
     ['擁有者', org.ownerEmail ?? '—'],
-    ['估算 MRR', formatTwd(org.health.estimatedMrrTwd)],
+    ['預估月營收', formatTwd(org.health.estimatedMrrTwd)],
   ] as const;
 
   const billingRows = [
@@ -361,7 +361,7 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             />
           ) : null}
           <p className="text-xs text-muted-foreground">
-            「以此租戶身分查看」進入唯讀預覽（1 小時）；停用 / 調整方案等寫入操作將於 Stage 2 Billing 開通後提供。
+            「以此租戶身分查看」進入唯讀預覽（1 小時）；停用 / 調整方案等寫入操作將於第二階段收費功能開通後提供。
           </p>
         </div>
       </div>
