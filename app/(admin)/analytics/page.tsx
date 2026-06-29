@@ -53,6 +53,13 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 const PRODUCT_RANKING_COMPACT_LIMIT = 10;
 const PRODUCT_RANKING_PAGE_SIZE = 30;
 const PRODUCT_RANKING_MAX = 60;
+const CHANNEL_PIE_LABEL_MIN_PERCENT = 0.04;
+
+function renderChannelPieLabel({ name, percent }: { name?: string; percent?: number }) {
+  const safePercent = percent ?? 0;
+  if (safePercent < CHANNEL_PIE_LABEL_MIN_PERCENT) return null;
+  return `${name ?? ''} ${(safePercent * 100).toFixed(0)}%`;
+}
 
 function getReturnChannelLabel(channelSource: string | null): string {
   if (channelSource === 'other') return '其他';
@@ -619,26 +626,48 @@ export default function AnalyticsPage() {
                 無數據
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={stats.byChannel}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
-                    }
-                  >
-                    {stats.byChannel.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={stats.byChannel}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={96}
+                      label={renderChannelPieLabel}
+                    >
+                      {stats.byChannel.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                  {stats.byChannel.map((channel, index) => {
+                    const percent = stats.totalReturns > 0
+                      ? (channel.value / stats.totalReturns) * 100
+                      : 0;
+
+                    return (
+                      <div key={channel.name} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="truncate">{channel.name}</span>
+                        </div>
+                        <span className="shrink-0 font-medium text-muted-foreground">
+                          {percent.toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
