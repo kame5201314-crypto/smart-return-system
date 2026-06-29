@@ -478,19 +478,6 @@ export default function AIReportPage() {
                         </div>
                       </div>
 
-                      {sku.main_issues?.length > 0 && (
-                        <div className="text-sm space-y-1">
-                          <p className="font-medium">群組主要問題</p>
-                          <p className="text-muted-foreground">{sku.main_issues.join('、')}</p>
-                        </div>
-                      )}
-
-                      {sku.suggestion && (
-                        <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                          群組建議：{sku.suggestion}
-                        </p>
-                      )}
-
                       {sku.variants?.length ? (
                         <div className="space-y-3">
                           {sku.variants.map((variant, variantIndex) => (
