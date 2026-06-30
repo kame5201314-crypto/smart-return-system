@@ -216,7 +216,7 @@ export default function PricingPage() {
               </Link>
             </Button>
             <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white">
-              <Link href="/contact">預約 Demo</Link>
+              <Link href="/contact">預約導入</Link>
             </Button>
           </div>
         </div>

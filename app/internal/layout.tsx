@@ -32,7 +32,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold">平台營運後台</h1>
+                <h1 className="text-lg font-semibold">商業營運後台</h1>
               </div>
               <p className="text-sm text-muted-foreground">
                 查看租戶狀態、用量與需跟進事項；不顯示任何客戶的退貨明細。
@@ -42,7 +42,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
           <Button asChild variant="outline" size="sm">
             <Link href="/analytics">
               <ArrowLeft className="size-4" />
-              切換到商家工作台
+              切換到 AI 退貨管理系統
             </Link>
           </Button>
         </div>

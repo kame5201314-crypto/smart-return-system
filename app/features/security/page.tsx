@@ -115,7 +115,7 @@ export default function SecurityFeaturePage() {
                 需要更嚴格的資安與合約條件？
               </h2>
               <p className="mt-2 text-sm leading-6 text-neutral-600">
-                Enterprise 方案可洽談導入檢核表、客製權限矩陣、資料保留政策與 SLA 條款。
+                大量需求方案可洽談導入檢核表、客製權限矩陣、資料保留政策與 SLA 條款。
               </p>
             </div>
           </div>
