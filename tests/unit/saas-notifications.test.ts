@@ -22,7 +22,7 @@ describe('SaaS notification queue foundation', () => {
       orgId,
       invoiceId: '44444444-4444-4444-8444-444444444444',
       provider: 'ecpay',
-      amountTwd: 2990,
+      amountTwd: 699,
       failedAt: '2026-05-25T02:30:00.000Z',
       actionUrl: '/settings/billing',
       recipients: [
@@ -59,7 +59,7 @@ describe('SaaS notification queue foundation', () => {
       status: 'queued',
       payload: {
         provider: 'ecpay',
-        amountTwd: 2990,
+        amountTwd: 699,
         action_url: '/settings/billing',
       },
     });

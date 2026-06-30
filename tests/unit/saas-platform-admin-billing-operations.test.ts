@@ -78,7 +78,7 @@ describe('SaaS platform admin billing operations', () => {
       {
         operation: 'mark_manual_payment',
         orgId,
-        amountTwd: 2990,
+        amountTwd: 699,
         periodStart: '2026-05-01T00:00:00.000Z',
         periodEnd: '2026-06-01T00:00:00.000Z',
         paidAt: '2026-05-25T02:30:00.000Z',
@@ -97,7 +97,7 @@ describe('SaaS platform admin billing operations', () => {
       orgId,
       actorUserId,
       reason: null,
-      amountTwd: 2990,
+      amountTwd: 699,
       periodStart: '2026-05-01T00:00:00.000Z',
       periodEnd: '2026-06-01T00:00:00.000Z',
       effectiveAt: '2026-05-25T02:30:00.000Z',
@@ -112,7 +112,7 @@ describe('SaaS platform admin billing operations', () => {
       p_org_id: orgId,
       p_actor_user_id: actorUserId,
       p_reason: null,
-      p_amount_twd: 2990,
+      p_amount_twd: 699,
       p_period_start: '2026-05-01T00:00:00.000Z',
       p_period_end: '2026-06-01T00:00:00.000Z',
       p_effective_at: '2026-05-25T02:30:00.000Z',
@@ -164,7 +164,7 @@ describe('SaaS platform admin billing operations', () => {
         {
           operation: 'request_refund',
           orgId,
-          amountTwd: 1490,
+          amountTwd: 499,
           reason: '7-day refund policy review',
           invoiceId,
           idempotencyKey: 'refund-demo-202605',
@@ -174,7 +174,7 @@ describe('SaaS platform admin billing operations', () => {
       )
     ).toMatchObject({
       operation: 'request_refund',
-      amountTwd: 1490,
+      amountTwd: 499,
       invoiceId,
       idempotencyKey: 'refund-demo-202605',
       reason: '7-day refund policy review',
@@ -197,7 +197,7 @@ describe('SaaS platform admin billing operations', () => {
         {
           operation: 'mark_manual_payment',
           orgId,
-          amountTwd: 2990,
+          amountTwd: 699,
           periodStart: '2026-06-01T00:00:00.000Z',
           periodEnd: '2026-05-01T00:00:00.000Z',
         },
@@ -239,7 +239,7 @@ describe('SaaS platform admin billing operations', () => {
       buildJsonRequest({
         operation: 'mark_manual_payment',
         orgId,
-        amountTwd: 2990,
+        amountTwd: 699,
         periodEnd: '2026-06-01T00:00:00.000Z',
       }),
       {
@@ -265,7 +265,7 @@ describe('SaaS platform admin billing operations', () => {
         operation: 'mark_manual_payment',
         orgId,
         actorUserId,
-        amountTwd: 2990,
+        amountTwd: 699,
         periodEnd: '2026-06-01T00:00:00.000Z',
       })
     );
@@ -292,7 +292,7 @@ describe('SaaS platform admin billing operations', () => {
         orgId,
         actorUserId,
         reason: '7-day refund policy review',
-        amountTwd: 1490,
+        amountTwd: 499,
         periodStart: null,
         periodEnd: null,
         effectiveAt: '2026-05-25T00:00:00.000Z',
@@ -314,7 +314,7 @@ describe('SaaS platform admin billing operations', () => {
       p_org_id: orgId,
       p_actor_user_id: actorUserId,
       p_reason: '7-day refund policy review',
-      p_amount_twd: 1490,
+      p_amount_twd: 499,
       p_period_start: null,
       p_period_end: null,
       p_effective_at: '2026-05-25T00:00:00.000Z',

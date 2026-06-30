@@ -78,7 +78,7 @@ describe('SaaS org context', () => {
       plan: 'growth',
       isPlatformAdmin: false,
     });
-    expect(context.planDefinition.aiMonthlyLimit).toBe(30);
+    expect(context.planDefinition.aiMonthlyLimit).toBe(25);
     expect(context.featureFlags).toMatchObject({
       advanced_analytics: true,
       billing: true,
@@ -104,7 +104,7 @@ describe('SaaS org context', () => {
       env: {},
     });
 
-    expect(context.planDefinition.name).toBe('Basic');
+    expect(context.planDefinition.name).toBe('入門版');
     expect(context.featureFlags.advanced_analytics).toBe(false);
   });
 
@@ -358,7 +358,7 @@ describe('SaaS org context', () => {
         organizations: [
           {
             id: 'org-1',
-            plan: 'pro',
+            plan: 'enterprise',
             status: 'active',
           },
         ],
@@ -368,7 +368,7 @@ describe('SaaS org context', () => {
       role: 'staff',
       organization: {
         id: 'org-1',
-        plan: 'pro',
+        plan: 'enterprise',
         status: 'active',
       },
     });
@@ -383,7 +383,7 @@ describe('SaaS org context', () => {
         role: 'owner',
         organizations: {
           id: 'org-1',
-          plan: 'pro',
+          plan: 'enterprise',
           status: 'active',
         },
       },

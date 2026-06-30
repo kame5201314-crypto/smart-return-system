@@ -16,7 +16,7 @@ import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 export const metadata: Metadata = {
   title: '價格方案｜固定月費、不需信用卡試用 | Smart Return',
   description:
-    'Basic、Growth、Pro、Enterprise 四種固定月費方案。退貨量是軟提醒不擋作業、AI 額度有上限不怕成本失控。14 天免費試用，不需信用卡。',
+    '入門版 NT$499、成長版 NT$699，退貨量是軟提醒不擋作業、AI 額度有上限不怕成本失控。14 天免費試用，不需信用卡。',
 };
 
 const comparisonRows = [
@@ -26,10 +26,9 @@ const comparisonRows = [
 ] as const;
 
 const planRecommendation = [
-  ['每月退貨 50–500 筆、1–3 人', 'Basic', '剛開始整理退貨流程的小型品牌'],
-  ['多人客服 / 倉庫協作、多通路', 'Growth', '最多人選的方案，AI 額度與分析夠用'],
-  ['月退貨 2,000+ 筆、多平台多倉', 'Pro', '高退貨量、需要進階分析的營運團隊'],
-  ['集團、客製、SLA 需求', 'Enterprise', '需要合約、客製權限或多品牌'],
+  ['每月退貨 30–300 筆、1–3 人', '入門版', '剛開始整理退貨流程的小型品牌'],
+  ['每月退貨 300–800 筆、多人協作', '成長版', '最多人選的方案，AI 額度與進階分析夠用'],
+  ['代營運、多倉、API 或 SLA 需求', '大量需求', '需要合約、客製權限或多品牌'],
 ] as const;
 
 const pricingFaq = [
@@ -63,7 +62,7 @@ const pricingFaq = [
   },
   {
     q: '需要多收的 AI 額度怎麼辦？',
-    a: 'Pro 以下建議升級方案；Enterprise 可洽談客製額度。AI 加購方案會在後續推出。',
+    a: '入門版可升級成長版；若成長版仍不夠，請洽談大量需求方案。AI 加購方案會在後續推出。',
   },
 ] as const;
 
@@ -83,7 +82,7 @@ export default function PricingPage() {
             <Sparkles className="mt-1 size-5 shrink-0 text-emerald-700" />
             <div>
               <h2 className="text-base font-semibold text-neutral-900">不知道選哪個？</h2>
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <ul className="mt-3 grid gap-2 md:grid-cols-3">
                 {planRecommendation.map(([who, plan, why]) => (
                   <li key={plan} className="rounded-md border border-emerald-200 bg-white p-3">
                     <div className="text-xs text-emerald-700">{who}</div>
@@ -99,7 +98,7 @@ export default function PricingPage() {
 
       {/* Plan cards */}
       <section className="bg-white py-14">
-        <div className="mx-auto grid max-w-7xl gap-5 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-5 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
           {planOrder.map((code) => {
             const plan = SAAS_PLAN_DEFINITIONS[code];
             const copy = planCopy[code];
@@ -147,7 +146,7 @@ export default function PricingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-semibold text-neutral-950">方案比較</h2>
           <div className="mt-6 overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-            <div className="grid min-w-[760px] grid-cols-5 border-b border-neutral-200 bg-neutral-100 text-sm font-semibold text-neutral-700">
+            <div className="grid min-w-[720px] grid-cols-4 border-b border-neutral-200 bg-neutral-100 text-sm font-semibold text-neutral-700">
               <div className="p-4">方案限制</div>
               {planOrder.map((code) => (
                 <div key={code} className="p-4">
@@ -156,7 +155,7 @@ export default function PricingPage() {
               ))}
             </div>
             {comparisonRows.map(([label, key]) => (
-              <div key={label} className="grid min-w-[760px] grid-cols-5 border-b border-neutral-200 text-sm last:border-b-0">
+              <div key={label} className="grid min-w-[720px] grid-cols-4 border-b border-neutral-200 text-sm last:border-b-0">
                 <div className="p-4 font-medium text-neutral-950">{label}</div>
                 {planOrder.map((code) => (
                   <div key={`${code}-${key}`} className="p-4 text-neutral-700">
@@ -165,7 +164,7 @@ export default function PricingPage() {
                 ))}
               </div>
             ))}
-            <div className="grid min-w-[760px] grid-cols-5 text-sm">
+            <div className="grid min-w-[720px] grid-cols-4 text-sm">
               <div className="p-4 font-medium text-neutral-950">進階分析儀表板</div>
               {planOrder.map((code) => (
                 <div key={`${code}-analytics`} className="p-4 text-neutral-700">

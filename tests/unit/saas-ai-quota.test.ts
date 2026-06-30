@@ -14,7 +14,7 @@ import {
 import type { SaaSOrgContext } from '@/lib/saas/org-context';
 
 function buildContext(input: {
-  plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+  plan: 'basic' | 'growth' | 'enterprise';
   aiUsageLimitEnabled?: boolean;
 }): SaaSOrgContext {
   return {
@@ -117,12 +117,12 @@ describe('SaaS AI quota', () => {
     expect(
       resolveAIQuotaDecision({
         context: buildContext({ plan: 'basic' }),
-        used: 5,
+        used: 10,
       })
     ).toMatchObject({
       allowed: false,
-      limit: 5,
-      used: 5,
+      limit: 10,
+      used: 10,
       remaining: 0,
       reason: 'limit_reached',
     });
@@ -159,7 +159,7 @@ describe('SaaS AI quota', () => {
   it('throws a typed quota error when the current plan limit is exhausted', async () => {
     const { client } = createQuotaClient({
       data: null,
-      count: 5,
+      count: 10,
       error: null,
     });
 

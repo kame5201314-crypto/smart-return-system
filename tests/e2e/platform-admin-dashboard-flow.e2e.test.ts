@@ -31,10 +31,10 @@ function platformAdminContext(): PlatformAdminContext {
 
 /**
  * A realistic mixed-tenant platform:
- * - org-active:    Growth, active            -> MRR 2990, healthy
- * - org-trial:     Pro, trialing, 2 days left -> pipeline 7990, trial_ending
+ * - org-active:    Growth, active            -> MRR 699, healthy
+ * - org-trial:     Growth, trialing, 2 days left -> pipeline 699, trial_ending
  * - org-pastdue:   Basic, past_due           -> riskLevel at_risk (billing)
- * - org-aifull:    Growth, active, AI 30/30  -> riskLevel at_risk (ai quota), still MRR 2990
+ * - org-aifull:    Growth, active, AI limit  -> riskLevel at_risk (ai quota), still MRR 699
  * - org-expired:   Basic, trialing, expired  -> trial_expired (tracked by the trial
  *                  conversion funnel, NOT by subscription riskLevel — a still-trialing
  *                  org is not yet a billing/usage risk)
@@ -55,7 +55,7 @@ function createMixedTenantRepository(): PlatformAdminDataRepository {
       id: 'org-trial',
       name: 'Trial Brand',
       slug: 'trial-brand',
-      plan: 'pro' as const,
+      plan: 'growth' as const,
       status: 'trialing' as const,
       ownerEmail: 'trial@example.com',
       memberCount: 2,
@@ -190,11 +190,11 @@ describe('Platform admin dashboard e2e flow', () => {
     const data = result.data;
     const summary = data.organizations;
 
-    // --- MRR: only active orgs count (growth 2990 + growth 2990) ---
-    expect(summary.estimatedActiveMrrTwd).toBe(2990 * 2);
+    // --- MRR: only active orgs count (growth 699 + growth 699) ---
+    expect(summary.estimatedActiveMrrTwd).toBe(699 * 2);
 
-    // --- Trial pipeline: only trialing orgs (pro 7990 + basic 1490) ---
-    expect(summary.trialPipelineMrrTwd).toBe(7990 + 1490);
+    // --- Trial pipeline: only trialing orgs (growth 699 + basic 499) ---
+    expect(summary.trialPipelineMrrTwd).toBe(699 + 499);
 
     // --- Active/trialing count: active(2) + trialing(2) = 4 of 5 ---
     expect(summary.activeOrTrialingOrganizations).toBe(4);
@@ -205,7 +205,7 @@ describe('Platform admin dashboard e2e flow', () => {
     // by the trial conversion funnel below. ---
     expect(summary.atRiskOrganizations).toBe(2);
 
-    // --- AI limit reached: only org-aifull (30/30) ---
+    // --- AI limit reached: only org-aifull ---
     expect(summary.aiLimitReachedOrganizations).toBe(1);
 
     // --- Paused/past_due: only org-pastdue ---

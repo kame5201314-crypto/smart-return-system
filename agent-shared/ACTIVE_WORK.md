@@ -33,6 +33,40 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Pricing plan contract refresh
+Files:
+- lib/config/saas-plans.ts
+- components/marketing/commercial-data.ts
+- app/pricing/page.tsx
+- app/page.tsx
+- app/features/ai/page.tsx
+- app/legal/terms/page.tsx
+- components/internal/manual-beta-org-form.tsx
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-commercial-config.test.ts
+- tests/unit/saas-ai-quota.test.ts
+- tests/unit/saas-ui-backend-contracts.test.ts
+- tests/unit/saas-platform-admin-live-data.test.ts
+- tests/unit/saas-platform-admin-routes.test.ts
+- tests/unit/saas-public-signup-request.test.ts
+- tests/unit/saas-notifications.test.ts
+- tests/unit/saas-org-context.test.ts
+- tests/unit/saas-platform-admin-billing-operations.test.ts
+- tests/e2e/platform-admin-dashboard-flow.e2e.test.ts
+- docs/SAAS_PRODUCT_SPEC.md
+- docs/SAAS_ARCHITECTURE_DECISION.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/UI_BACKEND_CONTRACTS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Updated the commercial SaaS pricing contract to two public plans plus quote-only enterprise: `basic` NT$499 / 3 seats / 300 monthly return soft limit / 10 AI, `growth` NT$699 / 5 seats / 800 monthly return soft limit / 25 AI with advanced analytics, and `enterprise` quote-only with unlimited contract limits and API access. Removed runtime `pro` from plan definitions and UI/backend contracts, updated readiness coverage and plan-sensitive tests, and kept migration history untouched. Ran focused plan/contract tests, lint, typecheck, test:all, saas:doctor, and build successfully. No deployment, migration, env/secret edit, billing/provider enablement, domain/DNS change, or master/live/internal Supabase operation was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: Owner-authorized migration 037 apply
 Files:
 - docs/SAAS_EXTERNAL_SETUP_STATUS.md

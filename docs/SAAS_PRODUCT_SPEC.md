@@ -21,7 +21,7 @@
 - **退費政策量化**：首次付款後 7 天內，且 AI <= 20%、退貨單 <= 5%、未匯出、未邀請成員，才可申請人工審核退費。
 - **狀態機寬限**：past_due → 7 天 → suspended → 30 天 → cancelled（§8）。
 - **service_role 只能在 server route handler 使用**，client / server component 一律 anon key + RLS。
-- **報表匯出**：Basic 限 CSV 單檔 / 月 5 次、Growth+ 不限（軟性提示，避免擋作業）。
+- **報表匯出**：入門版限 CSV 單檔 / 月 5 次、成長版以上不限（軟性提示，避免擋作業）。
 
 里程碑 §15 已重排為 Stage 1（封閉 Beta）→ Stage 2（付費 Beta）→ Stage 3（正式上線）三大段，對齊外部規格的階段語意。
 
@@ -29,7 +29,7 @@
 
 ## 1. 商業模式總結
 
-- 每月固定費用、依方案分四級（Basic / Growth / Pro / Enterprise）。
+- 每月固定費用、依方案分兩個公開方案（入門版 / 成長版）與大量需求洽談。
 - 計費幣別：TWD。
 - 計費週期：每月，自動續訂。
 - 試用期：新註冊組織 14 天 trial，期間功能完整可用、不需信用卡。
@@ -44,10 +44,9 @@
 
 | 方案 | 月費 (TWD) | 帳號數上限 | 月處理退貨筆數 | AI 退貨分析/月 | 進階分析 | API | Multi-tenant Admin | 客服 SLA |
 |---|---:|---:|---:|---:|---|---|---|---|
-| Basic | 1,490 | 3 | 500 | 5 | — | — | — | Email、48h |
-| Growth | 2,990 | 10 | 2,000 | 30 | ✓ | — | — | Email、24h |
-| Pro | 7,990 | 30 | 8,000 | 100 | ✓ | Stage 4+ | — | Email + Line、4h |
-| Enterprise | 報價 | 不限 | 合約 | 合約 | ✓ | ✓ | ✓ | SLA 合約 |
+| 入門版 (`basic`) | 499 | 3 | 300 | 10 | — | — | — | Email |
+| 成長版 (`growth`) | 699 | 5 | 800 | 25 | ✓ | — | — | Email、優先回覆 |
+| 大量需求 (`enterprise`) | 報價 | 合約 | 合約 | 合約 | ✓ | ✓ | ✓ | SLA 合約 |
 
 額外差異：
 
@@ -56,7 +55,7 @@
 - 連續 2 個月超量才在月結後寄信給 Owner 建議升級。
 - AI 分析是硬上限：超出 `aiMonthlyLimit` 直接阻擋 + 提示升級方案。
 - AI Pack 加購延到 Stage 4+，MVP 不實作。
-- 資料保留：Basic/Growth 12 個月、Pro 24 個月、Enterprise 合約定義。
+- 資料保留：入門版 / 成長版 12 個月，大量需求依合約定義。
 
 > AI 額度與帳號數採硬上限，退貨筆數採軟超量（避免擋住倉庫工作）。
 
@@ -97,11 +96,11 @@
 | Route | 用途 | 主要區塊 |
 |---|---|---|
 | `/` | 行銷首頁（landing） | hero、痛點、產品三大模組、客戶案例、CTA |
-| `/pricing` | 方案比較 | 四方案卡 + 完整功能對照表 + FAQ |
+| `/pricing` | 方案比較 | 兩個公開方案 + 大量需求洽談 + FAQ |
 | `/features/returns` | 退貨模組 | 蝦皮匯入、掃描、AI 分析 demo |
 | `/features/ai` | AI 模組 | 文字 AI 退貨原因分群、報告示意 |
 | `/features/security` | 資安與資料 | 多租戶 RLS、備份、保留 |
-| `/contact` | 聯絡（Enterprise 報價） | 表單 → email + Slack |
+| `/contact` | 聯絡（大量需求報價） | 表單 → email + Slack |
 | `/legal/terms` | 服務條款 | 必備 |
 | `/legal/privacy` | 隱私權政策 | 必備 |
 | `/legal/refund` | 退費政策 | 7 天內人工審核退費條件 |
@@ -175,7 +174,7 @@ App router group `(app)` 取代既有 `(admin)`，多租戶版本。
 | `/app/logistics` | 物流 | 既有 |
 | `/app/analytics` | 分析（基本） | 既有 |
 | `/app/analytics/ai-report` | AI 報告 | 既有 |
-| `/app/analytics/advanced` | 進階分析（Pro+） | 新增，受 `advanced_analytics` 旗標 |
+| `/app/analytics/advanced` | 進階分析（成長版以上） | 新增，受 `advanced_analytics` 旗標 |
 | `/app/portal` | 給客戶用的對外連結（C 端） | 既有 |
 | **新增（商業版專屬）** | | |
 | `/app/settings/organization` | 組織資訊 | 新 |
@@ -183,7 +182,7 @@ App router group `(app)` 取代既有 `(admin)`，多租戶版本。
 | `/app/settings/billing` | 訂閱與付款 | 新 |
 | `/app/settings/billing/invoices` | 發票歷史 | 新 |
 | `/app/settings/usage` | AI 用量 + 升級提示 | 新 |
-| `/app/settings/api` | API key（Pro+，Stage 4+） | 新，MVP 不開 |
+| `/app/settings/api` | API key（大量需求，Stage 4+） | 新，MVP 不開 |
 | `/app/settings/notifications` | 通知偏好 | 新 |
 | `/app/settings/security` | 登入紀錄、雙因子 | 新 |
 | **平台內部** | 受 `multi_tenant_admin` 旗標 | |
@@ -239,11 +238,11 @@ Stage 判斷：
 ### 7.1 啟用付費（trial 結束或 Owner 主動升級）
 
 ```
-/app/settings/billing 點 [升級到 Growth]
+/app/settings/billing 點 [升級到成長版]
   → 顯示方案、月費、首月起算日
   → 建立 ECPay 定期定額授權 session
       provider=ecpay
-      amount=2990
+      amount=699
       period=Month
       frequency=1
       execTimes=99
@@ -282,7 +281,7 @@ ECPay 每月扣款日自動扣款
 
 | 動作 | 生效時間 | 計費處理 |
 |---|---|---|
-| 升級（Basic → Growth/Pro） | 下一個 billing cycle | MVP 不做 proration；封閉 Beta 可由 Platform Admin 手動即時調整 |
+| 升級（入門版 → 成長版 / 大量需求） | 下一個 billing cycle | MVP 不做 proration；封閉 Beta 可由 Platform Admin 手動即時調整 |
 | 降級 | 下一個 billing cycle | 本期維持原方案額度，下期起套新方案 |
 | 取消 | 期末取消 | 本期到期日仍可用，到期後 cancelled |
 | 立即取消 + 退費 | 首次付款後 7 天內人工審核 | 需符合退費政策的低使用量條件；超過 7 天不退月費 |
@@ -503,7 +502,7 @@ internal (multi-tenant admin):
 | Stage 0 內部測試 | `ai_usage_limit` | 公司測試帳號 |
 | Stage 1 封閉 Beta | + `subscription_plan` | 2–5 個 Beta 客戶（手動開通） |
 | Stage 2 付費 Beta | + `billing` | 同上，串接 ECPay 正式環境 |
-| Stage 3 受限公開 | + `public_signup` | 開放公開註冊但只送 Basic |
+| Stage 3 受限公開 | + `public_signup` | 開放公開註冊，預設建立入門版申請 |
 | Stage 4 完整公開 | + `advanced_analytics` | 全方案、全功能 |
 | Stage 5 國際 | + Stripe path enable | 海外客戶 |
 | Stage 6 平台化 | + `multi_tenant_admin` | 內部運營後台完整 |
@@ -561,14 +560,14 @@ internal (multi-tenant admin):
 |---|---|
 | S3.1 公開註冊 | 開 `public_signup` 旗標；14 天 trial；onboarding 精靈 |
 | S3.2 Landing + 行銷頁 | `/`、`/features/*`、`/contact`、FAQ |
-| S3.3 Viewer 角色 + 進階分析 | `advanced_analytics` 旗標、Pro+ 才可用 |
+| S3.3 Viewer 角色 + 進階分析 | `advanced_analytics` 旗標、成長版以上才可用 |
 | S3.4 自助升降級 | 升級下個 cycle 生效（MVP 不做 proration）|
 | S3.5 監控 + 備份 | Sentry、Vercel cron drill、SaaS DB 備份 SOP |
 
 ### 延後（Stage 4+）
 
 - AI Pack 加購（50 次 / 200 次）
-- API key（Pro+）
+- API key（大量需求）
 - Stripe / 國際金流
 - 退貨筆數超額計費
 - 升降級 proration

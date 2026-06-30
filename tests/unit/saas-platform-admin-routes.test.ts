@@ -406,7 +406,7 @@ describe('SaaS platform admin API routes', () => {
         slug: 'demo-store',
         ownerEmail: 'Owner@Example.com',
         ownerUserId: '11111111-1111-4111-8111-111111111111',
-        plan: 'pro',
+        plan: 'enterprise',
         billingEmail: 'Billing@Example.com',
         taxId: '12345678',
         trialEnd: '2026-06-04',
@@ -417,7 +417,7 @@ describe('SaaS platform admin API routes', () => {
     expect(buildManualBetaOrganizationRpcArgs(input)).toEqual({
       p_org_name: 'Demo Store',
       p_slug: 'demo-store',
-      p_plan: 'pro',
+      p_plan: 'enterprise',
       p_owner_email: 'owner@example.com',
       p_owner_user_id: '11111111-1111-4111-8111-111111111111',
       p_billing_email: 'billing@example.com',

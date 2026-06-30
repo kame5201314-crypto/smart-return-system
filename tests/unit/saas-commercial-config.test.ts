@@ -16,14 +16,14 @@ describe('SaaS commercial configuration', () => {
     expect(SAAS_PLAN_DEFINITIONS).toMatchInlineSnapshot(`
       {
         "basic": {
-          "aiMonthlyLimit": 5,
+          "aiMonthlyLimit": 10,
           "billingRequired": true,
           "code": "basic",
           "hasAdvancedAnalytics": false,
           "hasApiAccess": false,
-          "monthlyPriceTwd": 1490,
-          "monthlyReturnSoftLimit": 500,
-          "name": "Basic",
+          "monthlyPriceTwd": 499,
+          "monthlyReturnSoftLimit": 300,
+          "name": "入門版",
           "seatLimit": 3,
         },
         "enterprise": {
@@ -34,51 +34,37 @@ describe('SaaS commercial configuration', () => {
           "hasApiAccess": true,
           "monthlyPriceTwd": null,
           "monthlyReturnSoftLimit": null,
-          "name": "Enterprise",
+          "name": "大量需求",
           "seatLimit": null,
         },
         "growth": {
-          "aiMonthlyLimit": 30,
+          "aiMonthlyLimit": 25,
           "billingRequired": true,
           "code": "growth",
           "hasAdvancedAnalytics": true,
           "hasApiAccess": false,
-          "monthlyPriceTwd": 2990,
-          "monthlyReturnSoftLimit": 2000,
-          "name": "Growth",
-          "seatLimit": 10,
-        },
-        "pro": {
-          "aiMonthlyLimit": 100,
-          "billingRequired": true,
-          "code": "pro",
-          "hasAdvancedAnalytics": true,
-          "hasApiAccess": true,
-          "monthlyPriceTwd": 7990,
-          "monthlyReturnSoftLimit": 8000,
-          "name": "Pro",
-          "seatLimit": 30,
+          "monthlyPriceTwd": 699,
+          "monthlyReturnSoftLimit": 800,
+          "name": "成長版",
+          "seatLimit": 5,
         },
       }
     `);
   });
 
   it('resolves quotas and commercial limits from org.plan instead of APP_MODE', () => {
-    expect(getOrgAIUsageLimit({ plan: 'basic' })).toBe(5);
-    expect(getOrgAIUsageLimit({ plan: 'growth' })).toBe(30);
-    expect(getOrgAIUsageLimit({ plan: 'pro' })).toBe(100);
+    expect(getOrgAIUsageLimit({ plan: 'basic' })).toBe(10);
+    expect(getOrgAIUsageLimit({ plan: 'growth' })).toBe(25);
     expect(getOrgAIUsageLimit({ plan: 'enterprise' })).toBeNull();
     expect(getOrgSeatLimit({ plan: 'basic' })).toBe(3);
-    expect(getOrgSeatLimit({ plan: 'growth' })).toBe(10);
-    expect(getOrgSeatLimit({ plan: 'pro' })).toBe(30);
+    expect(getOrgSeatLimit({ plan: 'growth' })).toBe(5);
     expect(getOrgSeatLimit({ plan: 'enterprise' })).toBeNull();
-    expect(getOrgMonthlyReturnSoftLimit({ plan: 'basic' })).toBe(500);
-    expect(getOrgMonthlyReturnSoftLimit({ plan: 'growth' })).toBe(2000);
-    expect(getOrgMonthlyReturnSoftLimit({ plan: 'pro' })).toBe(8000);
+    expect(getOrgMonthlyReturnSoftLimit({ plan: 'basic' })).toBe(300);
+    expect(getOrgMonthlyReturnSoftLimit({ plan: 'growth' })).toBe(800);
     expect(getOrgMonthlyReturnSoftLimit({ plan: 'enterprise' })).toBeNull();
     expect(orgHasAdvancedAnalytics({ plan: 'growth' })).toBe(true);
     expect(orgHasApiAccess({ plan: 'growth' })).toBe(false);
-    expect(orgHasApiAccess({ plan: 'pro' })).toBe(true);
+    expect(orgHasApiAccess({ plan: 'enterprise' })).toBe(true);
   });
 
   it('falls back to the Basic plan for unknown plan values', () => {
@@ -149,7 +135,7 @@ describe('SaaS commercial configuration', () => {
         env: {
           ENABLE_IMAGE_AI: 'false',
         },
-        orgPlan: 'pro',
+        orgPlan: 'growth',
         orgFeatureFlags: {
           image_ai: true,
         },

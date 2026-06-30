@@ -428,14 +428,14 @@ describe('SaaS platform admin live data loaders', () => {
         plan: 'growth',
         status: 'trialing',
         ownerEmail: 'owner@example.com',
-        memberCount: 10,
+        memberCount: 5,
         createdAt: '2026-05-20T00:00:00.000Z',
       },
     ]);
     vi.mocked(repository.listOrganizationUsage).mockResolvedValueOnce({
       'org-1': {
-        returnsThisMonth: 2000,
-        aiUsedThisMonth: 30,
+        returnsThisMonth: 800,
+        aiUsedThisMonth: 25,
       },
     });
     vi.mocked(repository.listOrganizationSubscriptions).mockResolvedValueOnce({
@@ -510,7 +510,7 @@ describe('SaaS platform admin live data loaders', () => {
         id: 'org-2',
         name: 'Active Org',
         slug: 'active-org',
-        plan: 'pro',
+        plan: 'enterprise',
         status: 'active',
         ownerEmail: 'active@example.com',
         memberCount: 4,

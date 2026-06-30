@@ -27,10 +27,9 @@ import {
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 
 const PLAN_OPTIONS: Array<{ value: SaaSPlanCode; label: string }> = [
-  { value: 'basic', label: 'Basic' },
-  { value: 'growth', label: 'Growth' },
-  { value: 'pro', label: 'Pro' },
-  { value: 'enterprise', label: 'Enterprise' },
+  { value: 'basic', label: '入門版' },
+  { value: 'growth', label: '成長版' },
+  { value: 'enterprise', label: '大量需求' },
 ];
 
 function slugify(value: string): string {

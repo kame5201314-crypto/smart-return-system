@@ -1,4 +1,4 @@
-export type SaaSPlanCode = 'basic' | 'growth' | 'pro' | 'enterprise';
+export type SaaSPlanCode = 'basic' | 'growth' | 'enterprise';
 
 export interface SaaSPlanDefinition {
   code: SaaSPlanCode;
@@ -15,40 +15,29 @@ export interface SaaSPlanDefinition {
 export const SAAS_PLAN_DEFINITIONS: Record<SaaSPlanCode, SaaSPlanDefinition> = {
   basic: {
     code: 'basic',
-    name: 'Basic',
-    monthlyPriceTwd: 1490,
+    name: '入門版',
+    monthlyPriceTwd: 499,
     seatLimit: 3,
-    monthlyReturnSoftLimit: 500,
-    aiMonthlyLimit: 5,
+    monthlyReturnSoftLimit: 300,
+    aiMonthlyLimit: 10,
     hasAdvancedAnalytics: false,
     hasApiAccess: false,
     billingRequired: true,
   },
   growth: {
     code: 'growth',
-    name: 'Growth',
-    monthlyPriceTwd: 2990,
-    seatLimit: 10,
-    monthlyReturnSoftLimit: 2000,
-    aiMonthlyLimit: 30,
+    name: '成長版',
+    monthlyPriceTwd: 699,
+    seatLimit: 5,
+    monthlyReturnSoftLimit: 800,
+    aiMonthlyLimit: 25,
     hasAdvancedAnalytics: true,
     hasApiAccess: false,
     billingRequired: true,
   },
-  pro: {
-    code: 'pro',
-    name: 'Pro',
-    monthlyPriceTwd: 7990,
-    seatLimit: 30,
-    monthlyReturnSoftLimit: 8000,
-    aiMonthlyLimit: 100,
-    hasAdvancedAnalytics: true,
-    hasApiAccess: true,
-    billingRequired: true,
-  },
   enterprise: {
     code: 'enterprise',
-    name: 'Enterprise',
+    name: '大量需求',
     monthlyPriceTwd: null,
     seatLimit: null,
     monthlyReturnSoftLimit: null,

@@ -145,7 +145,7 @@ function normalizePlan(value: unknown): SaaSPlanCode {
     throw new PlatformOrgProvisioningError(
       'invalid_request',
       400,
-      'plan must be one of basic, growth, pro, enterprise.'
+      'plan must be one of basic, growth, enterprise.'
     );
   }
   return plan;

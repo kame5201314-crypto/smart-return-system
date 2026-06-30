@@ -187,16 +187,15 @@ SaaS 新功能應以 feature flag 漸進開放：
 即使未來 SaaS 功能穩定，也不可一次全員開啟。
 先開給 1-2 個 Beta 客戶，確認無問題後再擴大。
 
-### 2026-05-19 補充：方案與旗標基準
+### 2026-06-30 補充：方案與旗標基準
 
 商業版方案基準已固定在程式碼設定，不用 `APP_MODE` 寫死產品邏輯：
 
 | Plan | Monthly price | AI monthly limit | Billing |
 |---|---:|---:|---|
-| Basic | NT$ 1,490 | 5 | required |
-| Growth | NT$ 2,990 | 30 | required |
-| Pro | NT$ 7,990 | 100 | required |
-| Enterprise | quote | contract-based | optional |
+| 入門版 (`basic`) | NT$ 499 | 10 | required |
+| 成長版 (`growth`) | NT$ 699 | 25 | required |
+| 大量需求 (`enterprise`) | quote | contract-based | optional |
 
 目前新增的 feature flag 名稱：
 

@@ -130,7 +130,7 @@ describe('SaaS public signup API', () => {
         contactName: 'Owner',
         email: 'OWNER@EXAMPLE.COM',
         phone: '0912-345-678',
-        plan: 'pro',
+        plan: 'growth',
         monthlyReturnVolume: '1200',
         message: 'Need a trial workspace.',
       }),

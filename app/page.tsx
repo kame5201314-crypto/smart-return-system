@@ -3,16 +3,17 @@ import Link from 'next/link';
 import {
   ArrowRight,
   BadgeCheck,
+  Boxes,
+  Brain,
   CalendarClock,
   CheckCircle2,
-  Clock3,
   CreditCard,
-  Headphones,
-  LineChart,
   MessageSquareWarning,
-  PackageCheck,
   ShieldCheck,
   Sparkles,
+  Truck,
+  Upload,
+  Users,
   XCircle,
 } from 'lucide-react';
 
@@ -36,24 +37,24 @@ export const metadata: Metadata = {
 const trustItems = [
   ['14 天', '免費試用'],
   ['免信用卡', '註冊不綁卡'],
-  ['Beta 限額', '前 5 家免費導入'],
+  ['限額 5 家', '免費協助導入'],
   ['台灣設計', '蝦皮欄位內建'],
 ] as const;
 
 const painPoints = [
-  '客服每天用 LINE 問倉庫：「這筆退貨收到了沒？」',
-  '倉庫收到包裹卻找不到對應訂單',
-  '退款狀態散在蝦皮後台、Excel、客服 LINE 群',
-  '月底才發現某幾個 SKU 一直被退，但講不出原因',
-  '想用 AI 分析退貨原因，但怕成本失控',
-  '客服、倉庫、老闆各看一份 Excel，數字對不起來',
+  '退貨資料散在 Excel、LINE 群組和各平台後台，要對帳得一個一個翻',
+  '蝦皮退貨和官網退貨分開看，沒有一個地方看得到全部',
+  '客服問倉庫「收到了沒」、倉庫問客服「這筆退多少」，一直來回確認',
+  '不知道哪些商品一直被退，月底才發現某幾個 SKU 退貨特別多',
+  '退貨原因看不出趨勢，只能憑感覺，講不清楚到底為什麼被退',
 ] as const;
 
 const outcomes = [
-  [Clock3, '減少客服查單時間', '每筆退貨從手動查 5 分鐘變 30 秒，退貨狀態一打開就看到。'],
-  [PackageCheck, '降低漏掃、漏退款', '倉庫掃描入庫對單，誰寄回、誰已退款一目了然。'],
-  [LineChart, '找出高退貨 SKU', 'AI 自動整理退貨原因排名，每週看得到哪個商品是地雷。'],
-  [Headphones, '客服 / 倉庫 / 老闆同步', '同一份退貨資料，4 種角色看自己關心的視角。'],
+  [Upload, '蝦皮退貨匯入', '蝦皮退貨一鍵匯入，倉庫掃條碼就找到對應退貨單與訂單，不必再手動翻。'],
+  [Boxes, '退貨集中管理', '蝦皮、官網等通路的退貨集中在同一個工作台，處理狀態即時同步。'],
+  [Truck, '派車收件 / 取件紀錄', '誰寄回、誰已收、誰已退款，掃描入庫對單一目了然。'],
+  [Brain, 'AI 退貨分析', 'AI 自動整理退貨原因與高退貨商品排名，每週看得到哪個 SKU 是地雷。'],
+  [Users, '團隊權限與用量控管', '客服、倉庫、老闆分權，各看關心的視角；用量與 AI 額度有上限，不怕成本失控。'],
 ] as const;
 
 const audienceFit = {
@@ -84,12 +85,12 @@ const comparisonRows = [
 const onboardingSteps = [
   [
     CalendarClock,
-    '1. 申請 Beta 試用',
+    '1. 申請試用',
     '留下品牌名稱、聯絡方式、平台與每月退貨量。1 個工作天內回覆。',
   ],
   [
     MessageSquareWarning,
-    '2. 30 分鐘 Demo',
+    '2. 30 分鐘導入諮詢',
     '一起看你目前的退貨流程，確認導入順序與資料匯入方式。',
   ],
   [
@@ -110,7 +111,7 @@ const faqItems = [
   },
   {
     q: '我每月退貨 200 筆 / 800 筆 / 3000 筆夠用嗎？',
-    a: 'Basic 500 筆、Growth 2,000 筆、Pro 8,000 筆。如果預估會超過，建議直接選大一階方案，免得月中觸發提醒。',
+    a: '入門版含每月 300 筆、成長版含每月 800 筆。若長期超過 800 筆，建議直接洽談大量需求方案，避免月中頻繁觸發提醒。',
   },
   {
     q: '退貨量臨時爆量會被擋嗎？',
@@ -134,18 +135,18 @@ const faqItems = [
   },
   {
     q: '需要技術人員才能用嗎？',
-    a: '不需要。Beta 期我們會協助你導入第一批資料，客服與倉庫只要會用瀏覽器就能上手。',
+    a: '不需要。導入時我們會協助你匯入第一批資料，客服與倉庫只要會用瀏覽器就能上手。',
   },
   {
     q: '多久能上線？',
-    a: '申請 → Demo → 開通通常在 3–5 個工作天內完成。資料匯入依品牌的退貨量大小，多數品牌一週內可進入日常使用。',
+    a: '申請 → 導入諮詢 → 開通通常在 3–5 個工作天內完成。資料匯入依品牌的退貨量大小，多數品牌一週內可進入日常使用。',
   },
 ] as const;
 
 const ctaPrimary = (
   <Button asChild size="lg" className="bg-white text-neutral-950 hover:bg-neutral-100">
     <Link href="/signup">
-      14 天免費試用，不需信用卡
+      申請試用
       <ArrowRight className="size-4" />
     </Link>
   </Button>
@@ -158,7 +159,7 @@ const ctaSecondary = (
     variant="outline"
     className="border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white"
   >
-    <Link href="/contact">預約 30 分鐘 Demo</Link>
+    <Link href="/contact">預約導入</Link>
   </Button>
 );
 
@@ -191,16 +192,16 @@ export default function HomePage() {
         <div className="relative z-10 mx-auto flex min-h-[640px] max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <Badge className="border-amber-300/40 bg-amber-300/15 text-amber-100 hover:bg-amber-300/15">
-              Beta 限額 5 家 · 免費協助導入第一批退貨資料
+              限額 5 家 · 免費協助導入第一批退貨資料
             </Badge>
             <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-              蝦皮 + 官網 + momo 退貨同時湧進，<br className="hidden sm:inline" />
-              客服一團亂、Excel 對不上？
+              把蝦皮退貨、人工整理與 AI 分析，<br className="hidden sm:inline" />
+              集中在同一個工作台。
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-neutral-200 sm:text-lg">
-              Smart Return 幫你把退貨登記、倉庫掃描、退款狀態與 AI 原因分析
-              <span className="font-semibold text-white"> 集中到同一個工作台</span>
-              ，客服、倉庫、老闆看同一份資料，月底不用再手動拉 Excel。
+              Smart Return 幫台灣電商品牌匯入退貨資料、追蹤處理狀態，並用 AI
+              <span className="font-semibold text-white"> 找出高退貨商品與主要原因</span>
+              ，減少客服與倉庫來回確認。
             </p>
             <p className="mt-4 text-sm text-neutral-300">
               專為每月 50 筆以上退貨、需要客服 / 倉庫協作的台灣電商品牌設計。
@@ -210,7 +211,7 @@ export default function HomePage() {
               {ctaSecondary}
             </div>
             <p className="mt-4 text-xs text-neutral-400">
-              不需綁卡 · 隨時取消 · Beta 期手動協助開通
+              不需綁卡 · 隨時取消 · 專人協助導入
             </p>
           </div>
         </div>
@@ -261,12 +262,12 @@ export default function HomePage() {
       <section className="bg-white py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-emerald-700">用 Smart Return 之後</p>
+            <p className="text-sm font-semibold text-emerald-700">核心功能</p>
             <h2 className="mt-3 text-3xl font-semibold leading-tight text-neutral-950">
-              不是多一套系統，而是把每天浪費在退貨上的時間還給你。
+              你需要的退貨管理，集中在同一個工作台。
             </h2>
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {outcomes.map(([Icon, title, body]) => (
               <div key={title} className="rounded-lg border border-neutral-200 bg-white p-5">
                 <Icon className="size-5 text-emerald-700" />
@@ -381,7 +382,7 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {planOrder.map((code) => (
               <div
                 key={code}
@@ -421,10 +422,10 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <p className="text-sm font-semibold text-emerald-300">3 步開始使用</p>
             <h2 className="mt-3 text-3xl font-semibold leading-tight">
-              不需要你寫 IT 文件、不需要你 DIY 匯入。
+              不需要你寫技術文件、不需要你自己摸索匯入。
             </h2>
             <p className="mt-4 text-base leading-7 text-neutral-300">
-              Beta 期我們手動協助每一家品牌完成導入，確保你第一週就用得起來。
+              我們會手動協助每一家品牌完成導入，確保你第一週就用得起來。
             </p>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -489,18 +490,18 @@ export default function HomePage() {
       <section className="bg-neutral-950 py-20 text-white">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <Badge className="border-amber-300/40 bg-amber-300/15 text-amber-100 hover:bg-amber-300/15">
-            Beta 限額 5 家 · 免費協助導入
+            限額 5 家 · 免費協助導入
           </Badge>
           <h2 className="mt-6 text-3xl font-semibold leading-tight sm:text-4xl">
             讓退貨流程從本月底開始穩定下來。
           </h2>
           <p className="mt-4 text-base leading-7 text-neutral-300">
-            申請後 1 個工作天內回覆，30 分鐘 Demo 用你自己的退貨資料當場跑。
+            申請後 1 個工作天內回覆，30 分鐘導入諮詢用你自己的退貨資料當場跑。
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="bg-white text-neutral-950 hover:bg-neutral-100">
               <Link href="/signup">
-                14 天免費試用，不需信用卡
+                申請試用
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -510,11 +511,11 @@ export default function HomePage() {
               variant="outline"
               className="border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white"
             >
-              <Link href="/contact">預約 30 分鐘 Demo</Link>
+              <Link href="/contact">預約導入</Link>
             </Button>
           </div>
           <p className="mt-4 text-xs text-neutral-400">
-            不需綁卡 · 隨時取消 · Beta 期前 5 家品牌免費協助導入第一批退貨資料
+            不需綁卡 · 隨時取消 · 前 5 家品牌免費協助導入第一批退貨資料
           </p>
         </div>
       </section>

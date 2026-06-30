@@ -1323,7 +1323,7 @@ and `036`.
   - `.env.saas.local`: missing
   - Supabase CLI: not installed; required only when migration operations are authorized.
 - `npm run saas:doctor` now checks the commercial foundation:
-  - SaaS plan definitions are present and match Basic/Growth/Pro/Enterprise baseline.
+  - SaaS plan definitions are present and match the Basic/Growth/Enterprise baseline.
   - AI quota source is `org.plan` configuration, not `APP_MODE`.
   - Required feature flags are present.
   - Billing provider stays disabled until credentials are configured.
@@ -1335,7 +1335,7 @@ and `036`.
   - AI usage event recording exists in `supabase/migrations/022_ai_usage_events.sql`.
   - AI report cache/fingerprint reuse exists in `lib/utils/ai-analysis-cache.ts`.
 - SaaS commercial foundation added locally:
-  - Plan definitions: Basic, Growth, Pro, Enterprise in `lib/config/saas-plans.ts`.
+  - Plan definitions: Basic, Growth, Enterprise in `lib/config/saas-plans.ts`.
   - Feature flag definitions: public signup, billing, subscription plan, AI usage limit, advanced analytics, multi-tenant admin, image AI in `lib/config/feature-flags.ts`.
   - Billing env placeholders expanded for ECPay, Stripe, and TapPay in `.env.saas.example`.
   - SaaS-only migration draft added in `supabase/migrations/023_saas_commercial_foundation.sql`.

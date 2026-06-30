@@ -354,7 +354,7 @@ interface BillingSettingsView {
   org: {
     id: string;
     name: string;
-    plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+    plan: 'basic' | 'growth' | 'enterprise';
     status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   };
   subscription: {
@@ -390,7 +390,7 @@ Backend owner: Codex.
 ```ts
 interface UsageSettingsView {
   plan: {
-    code: 'basic' | 'growth' | 'pro' | 'enterprise';
+    code: 'basic' | 'growth' | 'enterprise';
     seatLimit: number | null;
     monthlyReturnSoftLimit: number | null;
     aiMonthlyLimit: number | null;
@@ -635,7 +635,7 @@ interface PlatformOrganizationListView {
     id: string;
     name: string;
     slug: string;
-    plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+    plan: 'basic' | 'growth' | 'enterprise';
     status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
     ownerEmail: string | null;
     memberCount: number;
@@ -697,7 +697,7 @@ interface PlatformAtRiskAlertsView {
     orgId: string;
     orgName: string;
     ownerEmail: string | null;
-    plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+    plan: 'basic' | 'growth' | 'enterprise';
     status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
     type:
       | 'past_due'
@@ -757,7 +757,7 @@ interface PlatformTrialConversionView {
     orgId: string;
     orgName: string;
     ownerEmail: string | null;
-    plan: 'basic' | 'growth' | 'pro' | 'enterprise';
+    plan: 'basic' | 'growth' | 'enterprise';
     status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
     lifecycleState:
       | 'trialing'

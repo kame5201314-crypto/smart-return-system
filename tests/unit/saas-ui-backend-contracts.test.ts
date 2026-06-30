@@ -33,9 +33,9 @@ describe('SaaS UI/backend contracts', () => {
       buildUsageSettingsView({
         plan: 'growth',
         usage: {
-          seatsUsed: 10,
-          returnsThisMonth: 1600,
-          aiUsedThisMonth: 30,
+          seatsUsed: 5,
+          returnsThisMonth: 640,
+          aiUsedThisMonth: 25,
           periodStart: '2026-05-01',
           periodEnd: '2026-05-31',
         },
@@ -43,9 +43,9 @@ describe('SaaS UI/backend contracts', () => {
     ).toMatchObject({
       plan: {
         code: 'growth',
-        seatLimit: 10,
-        monthlyReturnSoftLimit: 2000,
-        aiMonthlyLimit: 30,
+        seatLimit: 5,
+        monthlyReturnSoftLimit: 800,
+        aiMonthlyLimit: 25,
       },
       warnings: [
         {
@@ -82,7 +82,7 @@ describe('SaaS UI/backend contracts', () => {
         plan: 'basic',
         usage: {
           seatsUsed: 1,
-          returnsThisMonth: 500,
+          returnsThisMonth: 300,
           aiUsedThisMonth: 0,
           periodStart: '2026-05-01',
           periodEnd: '2026-05-31',
@@ -102,7 +102,7 @@ describe('SaaS UI/backend contracts', () => {
         org: {
           id: 'org-1',
           name: 'Demo Org',
-          plan: 'pro',
+          plan: 'growth',
           status: 'trialing',
         },
         subscription: {
@@ -127,7 +127,7 @@ describe('SaaS UI/backend contracts', () => {
       org: {
         id: 'org-1',
         name: 'Demo Org',
-        plan: 'pro',
+        plan: 'growth',
         status: 'trialing',
       },
       subscription: {
@@ -237,7 +237,7 @@ describe('SaaS UI/backend contracts', () => {
       })
     ).toEqual({
       orgId: 'org-1',
-      seatLimit: 10,
+      seatLimit: 5,
       members: [
         {
           id: 'member-1',
@@ -372,8 +372,8 @@ describe('SaaS UI/backend contracts', () => {
     expect(
       buildPlatformOrganizationListView([orgSummary], {
         'org-1': {
-          returnsThisMonth: 1700,
-          aiUsedThisMonth: 30,
+          returnsThisMonth: 680,
+          aiUsedThisMonth: 25,
         },
       })
     ).toEqual({
@@ -382,7 +382,7 @@ describe('SaaS UI/backend contracts', () => {
         activeOrTrialingOrganizations: 1,
         pausedOrPastDueOrganizations: 0,
         trialingOrganizations: 0,
-        estimatedActiveMrrTwd: 2990,
+        estimatedActiveMrrTwd: 699,
         trialPipelineMrrTwd: 0,
         atRiskOrganizations: 1,
         aiLimitReachedOrganizations: 1,
@@ -400,16 +400,16 @@ describe('SaaS UI/backend contracts', () => {
           trialEnd: null,
           daysUntilTrialEnd: null,
           usage: {
-            returnsThisMonth: 1700,
-            aiUsedThisMonth: 30,
+            returnsThisMonth: 680,
+            aiUsedThisMonth: 25,
           },
           health: {
             riskLevel: 'at_risk',
             riskReasons: ['returns_high', 'ai_limit'],
-            estimatedMrrTwd: 2990,
+            estimatedMrrTwd: 699,
             trialPipelineMrrTwd: 0,
             usagePercentages: {
-              seats: 30,
+              seats: 60,
               returns: 85,
               ai: 100,
             },
@@ -475,7 +475,7 @@ describe('SaaS UI/backend contracts', () => {
       id: 'org-3',
       name: 'Past Due Store',
       slug: 'past-due-store',
-      plan: 'pro',
+      plan: 'enterprise',
       status: 'past_due',
       ownerEmail: 'billing@example.com',
       memberCount: 2,
@@ -487,8 +487,8 @@ describe('SaaS UI/backend contracts', () => {
         [orgSummary, trialOrg, pastDueOrg],
         {
           'org-1': {
-            returnsThisMonth: 1700,
-            aiUsedThisMonth: 30,
+            returnsThisMonth: 680,
+            aiUsedThisMonth: 25,
           },
           'org-2': {
             returnsThisMonth: 10,
@@ -543,8 +543,8 @@ describe('SaaS UI/backend contracts', () => {
           severity: 'critical',
           category: 'quota',
           metric: {
-            used: 30,
-            limit: 30,
+            used: 25,
+            limit: 25,
             percent: 100,
           },
         }),
@@ -603,7 +603,7 @@ describe('SaaS UI/backend contracts', () => {
       id: 'org-4',
       name: 'Fresh Trial Store',
       slug: 'fresh-trial-store',
-      plan: 'pro',
+      plan: 'enterprise',
       status: 'trialing',
       ownerEmail: 'fresh@example.com',
       memberCount: 2,
@@ -729,7 +729,7 @@ describe('SaaS UI/backend contracts', () => {
         },
         health: {
           riskLevel: 'healthy',
-          estimatedMrrTwd: 2990,
+          estimatedMrrTwd: 699,
         },
       },
       members: [

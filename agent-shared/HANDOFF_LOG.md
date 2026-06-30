@@ -1,5 +1,43 @@
 # Handoff Log
 
+## 2026-06-30 Codex -> Owner / Claude
+
+Refreshed the SaaS pricing contract to the finalized 499 / 699 model.
+
+Completed:
+
+- Updated runtime plan definitions to:
+  - `basic`: NT$499, 3 seats, 300 monthly return soft limit, 10 AI analyses.
+  - `growth`: NT$699, 5 seats, 800 monthly return soft limit, 25 AI analyses,
+    and advanced analytics enabled.
+  - `enterprise`: quote-only, contract limits, API access enabled.
+- Retired runtime `pro` from the TypeScript plan union and marketing plan
+  order.
+- Updated public pricing/home/AI copy, manual Beta provisioning options,
+  readiness checks, UI/backend contracts, tests, and product/architecture docs.
+- Kept existing migration history untouched; historical migrations still contain
+  legacy `pro` checks and should only be changed through an owner-authorized
+  migration strategy if needed.
+- Ran focused plan/contract tests, `npm run lint`, `npm run typecheck`,
+  `npm run test:all`, `npm run saas:doctor`, and `npm run build`.
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No billing/provider enablement.
+- No domain/DNS change.
+- No master/live/internal Supabase action.
+
+Next:
+
+- Claude can continue the introduction/marketing-page copy work on top of this
+  contract.
+- Before broad public rollout, owner/Codex should separately decide whether any
+  real database rows still use legacy `pro` and, if so, authorize a migration or
+  data repair plan.
+
 ## 2026-06-26 Codex -> Owner / Claude
 
 Applied the owner-authorized team invite status migration to the SaaS project.

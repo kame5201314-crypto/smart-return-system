@@ -46,6 +46,7 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
+| done | Pricing plan contract refresh | This commit; SaaS public plan contract now uses `basic` NT$499 / 3 seats / 300 returns / 10 AI, `growth` NT$699 / 5 seats / 800 returns / 25 AI with advanced analytics, and `enterprise` quote-only. Retired `pro` from runtime plan definitions and UI/backend contracts; no migration, deploy, env, billing, or provider change was performed |
 | done | Platform tenant preview audit trail | This commit; start/clear preview routes now write platform tenant preview audit events to `audit_logs`, with clear using best-effort audit so admins can always exit preview mode |
 | done | Platform tenant preview backend contract | This commit; added signed, one-hour platform tenant preview cookie contract and guarded start/get/clear API routes for future Claude UI; not wired into `getOrgContext()` or tenant write permissions |
 | done | Platform admin role management backend foundation | This commit; added owner-gated `GET/POST /api/internal/saas/platform-admins`, repository/RPC contract, tests, and draft `036`; migration not applied and guard still uses current env/profile role source until owner approves DB role rollout |
