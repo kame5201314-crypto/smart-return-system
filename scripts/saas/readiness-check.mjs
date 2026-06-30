@@ -261,6 +261,8 @@ function checkCommercialFoundation() {
     'supabase/migrations/034_saas_notification_email_queue.sql',
     'supabase/migrations/035_saas_onboarding_completion_rpc.sql',
     'supabase/migrations/036_saas_platform_admin_roles.sql',
+    'supabase/migrations/037_saas_team_invite_status.sql',
+    'supabase/migrations/038_saas_org_member_visibility.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -674,9 +676,9 @@ function checkCommercialFoundation() {
       source.includes('036_saas_platform_admin_roles.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-037 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-038 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-037 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-038 migration chain without applying migrations');
     }
   }
 
@@ -1544,6 +1546,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'supabase/migrations/037_saas_team_invite_status.sql'
   );
+  const orgMemberVisibilityMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/038_saas_org_member_visibility.sql'
+  );
   if (fs.existsSync(invoiceStatusMigrationPath) && fs.existsSync(uiBackendContractsPath)) {
     const migrationSource = fs.readFileSync(invoiceStatusMigrationPath, 'utf8');
     const uiContractSource = fs.readFileSync(uiBackendContractsPath, 'utf8');
@@ -1608,6 +1614,23 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS team invite status schema draft', 'organization_invites.status draft supports revoke/resend UI and invite lifecycle persistence');
     } else {
       record('fail', 'SaaS team invite status schema draft', 'organization_invites.status draft must support pending/accepted/expired/revoked and refresh invite RPCs after the column exists');
+    }
+  }
+
+  if (fs.existsSync(orgMemberVisibilityMigrationPath)) {
+    const migrationSource = fs.readFileSync(orgMemberVisibilityMigrationPath, 'utf8');
+    if (
+      migrationSource.includes('CREATE OR REPLACE FUNCTION public.is_organization_member') &&
+      migrationSource.includes('SECURITY DEFINER') &&
+      migrationSource.includes('COALESCE(member.status') &&
+      migrationSource.includes('DROP POLICY IF EXISTS "members_select_org_memberships"') &&
+      migrationSource.includes('CREATE POLICY "members_select_org_memberships"') &&
+      migrationSource.includes('USING (public.is_organization_member(org_id))') &&
+      migrationSource.includes('GRANT EXECUTE ON FUNCTION public.is_organization_member')
+    ) {
+      record('pass', 'SaaS org member visibility schema draft', 'organization_members same-org SELECT policy is helper-backed and avoids recursive RLS');
+    } else {
+      record('fail', 'SaaS org member visibility schema draft', 'organization_members team visibility must use a SECURITY DEFINER helper-backed SELECT policy');
     }
   }
 

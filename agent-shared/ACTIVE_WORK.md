@@ -25,10 +25,30 @@ Started:
 Scope:
 Files:
 Status:
-Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `f634bc0 fix(saas): keep SEO metadata routes public` on Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. This deployment includes the post-`796a02a` Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`. 2026-06-06 Sentry setup completed and Vercel Production env has `SENTRY_DSN` plus `NEXT_PUBLIC_SENTRY_DSN`. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; 2026-06-26 owner-authorized migration `037_saas_team_invite_status.sql` was also applied only to the same SaaS project; `033`, `034`, and `036` remain unapplied. Owner confirmed `smart-return.tw` has not been purchased and chose to continue Closed Manual Beta on `https://smart-return-system-saas.vercel.app`; custom domain work is deferred and should not be retried until the owner buys/registers a domain and explicitly reauthorizes DNS/Vercel verification. Email provider remains disabled; Resend is the recommended first provider after owner prepares a Resend account, verified sender domain, `RESEND_API_KEY`, sender address, and delivery scope decision. Current email backend supports queue creation and dry-run inspection only; provider adapter/status-update/retry-audit work is still a future authorized Codex task. Public multi-tenant hardening/gating is complete for the reviewed Shopee, pickup, customer-return, upload/signed-url, backup, and maintenance cron paths. Team management P1 backend/UI schema blocker is resolved by migration `037`; remaining QA is UI/browser validation only. No unblocked local Codex backend task is currently recorded; remaining blockers are public signup posture, Resend/email provider credentials and enablement authorization, Billing/ECPay, and draft migrations `033`/`034`/`036`. Do not deploy again, run additional migrations, edit env/secrets, enable billing/provider/email, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
+Notes: Closed Manual Beta is live and the first Beta customer has been provisioned. Production now runs `f634bc0 fix(saas): keep SEO metadata routes public` on Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. This deployment includes the post-`796a02a` Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`. 2026-06-06 Sentry setup completed and Vercel Production env has `SENTRY_DSN` plus `NEXT_PUBLIC_SENTRY_DSN`. 2026-06-06 owner-authorized migration `035_saas_onboarding_completion_rpc.sql` was applied only to SaaS project `auyznbwtjvemyamujmgt`; 2026-06-26 owner-authorized migration `037_saas_team_invite_status.sql` was also applied only to the same SaaS project; `033`, `034`, `036`, and `038` remain unapplied. Owner confirmed `smart-return.tw` has not been purchased and chose to continue Closed Manual Beta on `https://smart-return-system-saas.vercel.app`; custom domain work is deferred and should not be retried until the owner buys/registers a domain and explicitly reauthorizes DNS/Vercel verification. Email provider remains disabled; Resend is the recommended first provider after owner prepares a Resend account, verified sender domain, `RESEND_API_KEY`, sender address, and delivery scope decision. Current email backend supports queue creation and dry-run inspection only; provider adapter/status-update/retry-audit work is still a future authorized Codex task. Public multi-tenant hardening/gating is complete for the reviewed Shopee, pickup, customer-return, upload/signed-url, backup, and maintenance cron paths. Team management P1 invite schema blocker is resolved by migration `037`; full owner/admin member-list QA still needs owner-authorized migration `038_saas_org_member_visibility.sql` because current SaaS RLS only exposes a user's own membership row to normal authenticated clients. No unblocked local Codex backend task is currently recorded; remaining blockers are public signup posture, Resend/email provider credentials and enablement authorization, Billing/ECPay, and draft migrations `033`/`034`/`036`/`038`. Do not deploy again, run additional migrations, edit env/secrets, enable billing/provider/email, configure domain/DNS, touch master/live/prod, or use production/internal Supabase without explicit owner authorization and real values.
 ```
 
 ## Recent Completed
+
+```text
+Owner: Codex
+Commit: this commit
+Scope: AI returns to platform admin QA contract
+Files:
+- supabase/migrations/038_saas_org_member_visibility.sql
+- scripts/saas/check-migration-plan.mjs
+- scripts/saas/readiness-check.mjs
+- tests/unit/saas-migration-plan.test.ts
+- tests/unit/saas-platform-admin-data.test.ts
+- docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- docs/SAAS_EXTERNAL_OWNER_ACTIONS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added a repo-only QA contract for the AI return system and commercial platform admin connection. Platform admin usage aggregation now has direct unit coverage proving return and AI usage summaries are sourced from org-scoped `return_requests` and non-cached successful `ai_usage_events`. Added a full manual QA plan for merchant `/analytics` to `/internal` verification and drafted migration `038_saas_org_member_visibility.sql` to let owner/admin users read same-org `organization_members` rows through a helper-backed, non-recursive RLS policy. Updated migration-plan/readiness coverage. No migration was applied, no deployment was performed, no env/secrets/domain/provider/billing setting was changed, and no master/live/internal Supabase operation was performed.
+```
 
 ```text
 Owner: Codex

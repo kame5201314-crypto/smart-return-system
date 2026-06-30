@@ -2,6 +2,41 @@
 
 ## 2026-06-30 Codex -> Owner / Claude
 
+Added the AI return system to commercial platform admin QA contract.
+
+Completed:
+
+- Added `tests/unit/saas-platform-admin-data.test.ts` to assert platform admin
+  usage summaries are built from tenant-scoped `return_requests` and
+  non-cached successful `ai_usage_events`.
+- Added draft migration `038_saas_org_member_visibility.sql` so owner/admin
+  users can read same-org `organization_members` rows through
+  `public.is_organization_member(...)` without recursive RLS.
+- Updated migration-plan and SaaS doctor readiness coverage so the local draft
+  migration chain now ends at `038`.
+- Added `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` with merchant workspace to
+  platform admin data-flow checks, commercial admin QA steps, and the exact
+  owner authorization text required before applying `038`.
+
+Not performed:
+
+- No Supabase migration was applied.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- If owner wants full real-DB `/settings/team` browser QA, owner must
+  separately authorize applying only `038_saas_org_member_visibility.sql` to
+  SaaS project `auyznbwtjvemyamujmgt`.
+- Continue keeping merchant workspace entry `/login -> /analytics` separate
+  from platform admin entry `/admin -> /internal`.
+
+## 2026-06-30 Codex -> Owner / Claude
+
 Refreshed the SaaS pricing contract to the finalized 499 / 699 model.
 
 Completed:

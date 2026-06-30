@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-06-26
+Last updated: 2026-06-30
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -34,7 +34,7 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - migration `037_saas_team_invite_status.sql` is applied
-  - draft migrations `033`, `034`, and `036` remain unapplied
+  - draft migrations `033`, `034`, `036`, and `038` remain unapplied
 
 ## 2026-06-13 Custom Domain Deferred
 
@@ -133,7 +133,7 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 - Vercel Production env names do not show email provider credentials or
   ECPay/provider credential names; email delivery and Billing/ECPay remain
   owner-blocked.
-- Draft migrations `033`, `034`, and `036` remain separate owner-authorization
+- Draft migrations `033`, `034`, `036`, and `038` remain separate owner-authorization
   items. Do not apply them as a bundle.
 - No deploy, migration, env/secret edit, DNS/domain mutation, email provider
   enablement, billing/provider enablement, or internal/live Supabase action was
@@ -571,12 +571,12 @@ Scope:
 - Update docs and push develop-saas.
 ```
 
-## Draft Migrations 033-037
+## Draft Migrations 033-038
 
 These require explicit per-migration authorization. Do not apply them as a
 bundle. Migrations `035` and `037` have already been applied to the SaaS
 project after explicit owner authorization; the remaining unapplied drafts are
-`033`, `034`, and `036`.
+`033`, `034`, `036`, and `038`.
 
 ### `033_saas_platform_billing_operations.sql`
 
@@ -646,7 +646,7 @@ Risk:
 
 Recommendation:
 
-- Completed. Next migration actions remain `033`, `034`, and `036`, each only
+- Completed. Next migration actions remain `033`, `034`, `036`, and `038`, each only
   after separate owner authorization.
 
 ### `036_saas_platform_admin_roles.sql`
@@ -702,12 +702,41 @@ Recommendation:
 - Completed. Run `/settings/team` browser QA before any production deploy that
   depends on the P1 team-management UI.
 
+### `038_saas_org_member_visibility.sql`
+
+Purpose:
+
+- Adds `public.is_organization_member(...)` as a helper-backed,
+  `SECURITY DEFINER` membership check.
+- Adds a non-recursive `organization_members` SELECT policy so authenticated
+  active members can read same-org member rows.
+- Unblocks owner/admin `/settings/team` QA where the normal authenticated RLS
+  client must list staff/viewer/admin rows in the same organization.
+
+Recommended timing:
+
+- Before the next full real-DB `/settings/team` browser QA run.
+- Before deploying or broadly validating team-management P1 member role-change
+  and disable flows against production data.
+
+Risk:
+
+- Low to medium. It broadens authenticated reads from "own membership row" to
+  "same organization membership rows." This is required for owner/admin team
+  management, but should be applied only to the SaaS project and verified with
+  cross-org negative tests.
+
+Recommendation:
+
+- Apply only after explicit owner authorization for `038`; do not bundle with
+  `033`, `034`, or `036`.
+
 ## Migration Authorization Template
 
 Use this only after choosing one migration:
 
 ```text
-I authorize applying migration <033|034|036> to the SaaS Supabase project
+I authorize applying migration <033|034|036|038> to the SaaS Supabase project
 auyznbwtjvemyamujmgt only.
 
 Scope:
@@ -726,8 +755,8 @@ Scope:
   safe to use that way.
 - Do not commit DSN, API keys, ECPay credentials, SMTP credentials, or DNS
   tokens.
-- Do not apply migrations `033`-`037` as a bundle. `035` and `037` are already
-  applied; the remaining unapplied drafts are `033`, `034`, and `036`.
+- Do not apply migrations `033`-`038` as a bundle. `035` and `037` are already
+  applied; the remaining unapplied drafts are `033`, `034`, `036`, and `038`.
 - Do not enable `ENABLE_PUBLIC_SIGNUP=true` as part of these actions.
 - Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
 - Do not change `master`.
