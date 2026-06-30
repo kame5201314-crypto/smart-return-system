@@ -18,6 +18,14 @@ import {
   loadPlatformTrialConversionView,
 } from '@/lib/saas/platform-admin-live-data';
 
+const CUSTOMER_DETAIL_TOKENS = [
+  'ORDER-PRIVATE-1',
+  'Buyer Private Name',
+  '0911222333',
+  'Private Shipping Address',
+  'Private return reason',
+] as const;
+
 const platformAdminContext: PlatformAdminContext = {
   userId: 'admin-1',
   isPlatformAdmin: true,
@@ -107,6 +115,20 @@ function createRepository(): PlatformAdminDataRepository {
   };
 }
 
+function assertNoCustomerReturnDetailPayload(payload: unknown): void {
+  const serialized = JSON.stringify(payload);
+  expect(serialized).not.toContain('order_number');
+  expect(serialized).not.toContain('customer_name');
+  expect(serialized).not.toContain('buyer_phone');
+  expect(serialized).not.toContain('shipping_address');
+  expect(serialized).not.toContain('returnReason');
+  expect(serialized).not.toContain('return_requests');
+
+  for (const token of CUSTOMER_DETAIL_TOKENS) {
+    expect(serialized).not.toContain(token);
+  }
+}
+
 describe('SaaS platform admin live data loaders', () => {
   it('loads the platform admin dashboard contract in one guarded data pass', async () => {
     const repository = createRepository();
@@ -172,6 +194,75 @@ describe('SaaS platform admin live data loaders', () => {
     });
     expect(repository.listBillingEvents).toHaveBeenCalledWith({ limit: 10 });
     expect(repository.listOrganizationNames).toHaveBeenCalledWith({ orgIds: ['org-1'] });
+  });
+
+  it('keeps platform admin views free of customer return detail payloads', async () => {
+    const pollutedOrganization = {
+      id: 'org-1',
+      name: 'Demo Org',
+      slug: 'demo-org',
+      plan: 'growth',
+      status: 'active',
+      ownerEmail: 'owner@example.com',
+      memberCount: 3,
+      createdAt: '2026-05-20T00:00:00.000Z',
+      order_number: 'ORDER-PRIVATE-1',
+      customer_name: 'Buyer Private Name',
+      buyer_phone: '0911222333',
+      shipping_address: 'Private Shipping Address',
+      returnReason: 'Private return reason',
+      return_requests: [
+        {
+          order_number: 'ORDER-PRIVATE-1',
+          customer_name: 'Buyer Private Name',
+        },
+      ],
+    };
+    const pollutedOrganizationDetail = {
+      ...pollutedOrganization,
+      featureFlags: {
+        billing: true,
+      },
+      billingEmail: 'billing@example.com',
+      taxId: '12345678',
+      members: [
+        {
+          id: 'member-1',
+          email: 'owner@example.com',
+          role: 'owner',
+          status: 'active',
+        },
+      ],
+    };
+    const repository = {
+      ...createRepository(),
+      listOrganizations: vi.fn(async () => [pollutedOrganization]),
+      getOrganization: vi.fn(async () => pollutedOrganizationDetail),
+    };
+    const now = new Date('2026-05-25T00:00:00.000Z');
+
+    const dashboard = await loadPlatformAdminDashboardView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now,
+    });
+    const organizationList = await loadPlatformOrganizationsView({
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now,
+    });
+    const organizationDetail = await loadPlatformOrganizationDetailView('org-1', {
+      requireAccess: async () => platformAdminContext,
+      repository,
+      now,
+    });
+
+    expect(dashboard.state).toBe('ready');
+    expect(organizationList.state).toBe('ready');
+    expect(organizationDetail.state).toBe('ready');
+    assertNoCustomerReturnDetailPayload(dashboard);
+    assertNoCustomerReturnDetailPayload(organizationList);
+    assertNoCustomerReturnDetailPayload(organizationDetail);
   });
 
   it('returns empty dashboard state before querying dependent snapshots', async () => {

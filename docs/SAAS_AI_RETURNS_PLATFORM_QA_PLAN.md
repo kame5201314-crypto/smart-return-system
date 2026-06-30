@@ -26,6 +26,7 @@ Expected separation:
 | AI analyze route requires org context and writes usage events | `tests/unit/saas-runtime-org-isolation.test.ts` |
 | Platform usage reads by org id from returns and AI usage tables | `tests/unit/saas-platform-admin-data.test.ts` |
 | `/internal` dashboard and org list receive usage snapshots | `tests/unit/saas-platform-admin-live-data.test.ts`, `tests/e2e/platform-admin-dashboard-flow.e2e.test.ts` |
+| Platform admin privacy boundary | `tests/unit/saas-platform-admin-live-data.test.ts` asserts platform admin DTOs do not leak customer return detail payloads such as order numbers, buyer names, phone numbers, addresses, or return reasons. |
 | Merchant mutation safety and auth redirects | `tests/unit/same-origin-request.test.ts`, `tests/unit/proxy-login-redirect.test.ts`, `tests/unit/internal-login-redirect.test.ts` |
 
 ## 3. Manual QA Path

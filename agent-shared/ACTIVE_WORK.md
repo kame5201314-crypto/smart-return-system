@@ -33,6 +33,20 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Platform admin privacy-boundary regression
+Files:
+- tests/unit/saas-platform-admin-live-data.test.ts
+- docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added a regression test that injects customer return detail fields into the platform admin repository fixture and asserts dashboard, org list, and org detail DTO payloads do not contain order numbers, buyer names, phone numbers, addresses, return reasons, or nested return detail arrays. This keeps `/internal` focused on tenant health/usage rather than customer return detail data. No migration, deployment, env/secret edit, provider/billing/domain change, or master/live/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: this commit
 Scope: AI returns to platform admin QA contract
 Files:
 - supabase/migrations/038_saas_org_member_visibility.sql

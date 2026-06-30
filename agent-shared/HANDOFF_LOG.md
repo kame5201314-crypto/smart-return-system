@@ -2,6 +2,29 @@
 
 ## 2026-06-30 Codex -> Owner / Claude
 
+Added a platform admin privacy-boundary regression test.
+
+Completed:
+
+- Updated `tests/unit/saas-platform-admin-live-data.test.ts` with a fixture
+  that includes extra customer return detail fields such as order number, buyer
+  name, phone, address, return reason, and nested return request rows.
+- Asserted the platform dashboard, organization list, and organization detail
+  DTO payloads do not contain those customer detail fields or values.
+- Updated the AI returns platform QA plan to record this automated privacy
+  boundary check.
+
+Not performed:
+
+- No migration.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-06-30 Codex -> Owner / Claude
+
 Added the AI return system to commercial platform admin QA contract.
 
 Completed:
