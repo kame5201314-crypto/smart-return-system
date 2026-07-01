@@ -45,6 +45,10 @@ for the current ordered launch, subscription, and service risk plan.
 See also [`SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`](./SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md)
 for the manual payment, refund, support, and Beta onboarding SOP that applies
 before automated billing/email is enabled.
+See also
+[`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md)
+for the controlled customer account handoff, first-session walkthrough, and
+platform operator follow-up script for Closed Manual Beta.
 See also [`SAAS_PRIVACY_DPA_DELETION_SOP.md`](./SAAS_PRIVACY_DPA_DELETION_SOP.md)
 for the privacy, DPA, data deletion, retention, subprocessor, and incident
 handling SOP that should be reviewed before paid/public rollout.
@@ -71,7 +75,10 @@ The next owner-authorized technical actions, in order, are:
 5. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
    refund review, support SLA, and onboarding until ECPay/email automation is
    explicitly authorized and implemented.
-6. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
+6. Use `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md` for every first-session
+   Beta onboarding so account handoff, Shopee/manual-channel scope, AI
+   walkthrough, and `/internal` follow-up stay consistent.
+7. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
    support before promising DPA, deletion, retention, or incident-notice terms
    to paying customers.
 

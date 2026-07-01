@@ -2,6 +2,45 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Added the Closed Manual Beta onboarding runbook.
+
+Completed:
+
+- Added `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`.
+- Linked it from:
+  - `docs/SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`
+  - `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`
+  - `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+  - `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+  - `agent-shared/TASK_BOARD.md`
+  - `agent-shared/ACTIVE_WORK.md`
+
+The runbook covers:
+
+- Production entry points for prospects, merchants, and platform operators.
+- Account handoff rules that avoid storing temporary passwords in docs, chat,
+  or Git.
+- First-session walkthrough across merchant login, dashboard, Shopee returns,
+  manual returns, AI report, and usage settings.
+- Beta scope language: Shopee automated import; official website/momo manual
+  entry; email/billing/custom domain/public signup disabled.
+- Platform operator follow-up in `/internal`.
+- Daily Beta tracking fields, escalation rules, and acceptance criteria.
+
+Not performed:
+
+- No account was provisioned.
+- No password was generated or stored.
+- No customer data was imported.
+- No migration.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Completed owner-authorized production deploy of latest `develop-saas` HEAD
 `3fadd75 docs(saas): record production deployment gap`.
 

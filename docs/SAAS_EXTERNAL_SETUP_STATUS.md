@@ -8,6 +8,9 @@ See also: [`SAAS_EXTERNAL_OWNER_ACTIONS.md`](./SAAS_EXTERNAL_OWNER_ACTIONS.md)
 for owner-provided values, handoff templates, and the recommended order for
 Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
 `036`, and `038`.
+See also:
+[`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md)
+for the controlled customer handoff and first-session walkthrough.
 
 ## Current Status Snapshot
 
@@ -115,6 +118,34 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
 - Not performed:
   - No payment was collected.
   - No invoice was issued.
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
+
+## 2026-07-01 Closed Beta Onboarding Runbook
+
+- Added `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`.
+- The runbook covers:
+  - Production entry points for prospects, merchants, and platform operators.
+  - Beta account handoff rules that avoid storing temporary passwords in
+    docs/chat/Git.
+  - First-session walkthrough across merchant login, dashboard, Shopee returns,
+    manual returns, AI report, and usage settings.
+  - Clear Beta scope language: Shopee automated import; official website/momo
+    manual entry; email/billing/custom domain/public signup still disabled.
+  - Platform operator follow-up in `/internal`.
+  - Daily Beta follow-up fields, escalation rules, and first Beta acceptance
+    criteria.
+- This completes the repo-side customer onboarding script for Closed Manual
+  Beta.
+- Not performed:
+  - No account was provisioned.
+  - No password was generated or stored.
+  - No customer data was imported.
   - No deployment.
   - No migration.
   - No env/secret edit.

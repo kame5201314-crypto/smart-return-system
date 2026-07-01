@@ -61,6 +61,25 @@ This SOP does not collect money, issue invoices, apply migrations, enable
 billing, or change provider state. Owner/legal/accounting still must confirm
 invoice/receipt capability before collecting payment.
 
+## 2026-07-01 Closed Beta Onboarding Runbook
+
+Added
+[`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md)
+as the operator-facing walkthrough for the first closed Beta merchants.
+
+This completes the repo-side draft for:
+
+- Merchant account handoff rules without storing passwords in docs/chat/Git.
+- First-session walkthrough from `/login` to `/analytics`,
+  `/shopee-returns`, `/returns`, `/analytics/ai-report`, and `/settings/usage`.
+- Manual explanation of Shopee automated import versus official website/momo
+  manual entry.
+- Platform operator follow-up in `/internal`.
+- Daily Beta follow-up fields and escalation rules.
+
+This runbook does not provision accounts, apply migrations, change production
+env, collect money, enable email/billing, or alter provider state.
+
 ## 2026-07-01 Privacy, DPA, And Data Deletion SOP
 
 Added [`SAAS_PRIVACY_DPA_DELETION_SOP.md`](./SAAS_PRIVACY_DPA_DELETION_SOP.md)
@@ -143,6 +162,7 @@ merchant or platform backends.
 | A1 | Apply `038_saas_org_member_visibility.sql` if testing team management | 499/699 plans include seats; owner/admin must be able to see same-org members for role changes and disable flows. | Draft migration exists; not applied. | Requires explicit owner authorization before touching SaaS Supabase. |
 | A2 | Confirm production `/internal` access for platform operators | Platform operations backend must be usable to follow tenant health and usage. | Code supports `/admin` -> `/internal`; production env must be verified separately. | Owner/Codex must verify Vercel env and platform admin identity source before relying on production `/internal`. |
 | A3 | Run merchant-to-platform QA on a disposable org | Confirms merchant usage and AI analysis aggregate into `/internal` without exposing return detail/PII. | QA plan exists in `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md`; automated privacy-boundary tests exist. | Use QA org only; do not use real customers. |
+| A4 | Use the closed Beta onboarding runbook for the first merchant session | Keeps customer handoff, scope promises, AI walkthrough, and operator follow-up consistent. | Runbook exists in `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`. | Use it for every first-session onboarding; do not store passwords in docs/chat/Git. |
 
 ### Acceptable Temporary Limits
 

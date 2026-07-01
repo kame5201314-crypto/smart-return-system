@@ -129,6 +129,10 @@ Support rules:
 
 ## Beta Onboarding Checklist
 
+For the detailed first-session script, account handoff message, and operator
+follow-up workflow, use
+[`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md).
+
 Run this checklist for each manually provisioned Beta organization:
 
 1. Confirm organization name, owner email, plan, trial/payment status, and
