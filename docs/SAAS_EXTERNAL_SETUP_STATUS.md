@@ -53,6 +53,7 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Latest owner-authorized production deployment: `f634bc0 fix(saas): keep SEO metadata routes public` -> Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `f634bc0`, including Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`.
+- Latest pushed source is now `8ae2aa7 fix(saas/ui): make multi-channel honesty explicit on homepage`, but production still runs the older `f634bc0` runtime. A 2026-07-01 read-only production check shows `/pricing` still exposes the old `1,490` / `2,990` pricing markers, so production needs a separately owner-authorized deployment before customers see the 499/699 pricing contract and the multi-channel honesty copy.
 - Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migrations `035` and `037` are applied, and draft migrations `033`, `034`, `036`, and `038` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
@@ -140,6 +141,34 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
 - Not performed:
   - No customer data was exported or deleted.
   - No legal page was finalized.
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
+
+## 2026-07-01 Production Deployment Gap After Multi-Channel Copy
+
+- Latest pushed source: `8ae2aa7 fix(saas/ui): make multi-channel honesty explicit on homepage`.
+- Current production runtime remains the earlier owner-authorized deployment
+  from `f634bc0 fix(saas): keep SEO metadata routes public`.
+- Read-only production smoke:
+  - `/`: `200`
+  - `/pricing`: `200`
+  - `/login`: `200`
+  - unauthenticated `/internal`: `307` to `/admin/login?next=%2Finternal`
+- `/pricing` still contains old pricing markers:
+  - `1,490`
+  - `2,990`
+  - `Basic`
+  - `Growth`
+- Therefore, the 499/699 public pricing copy and the multi-channel honesty copy
+  are in Git but not yet visible on production.
+- Required next action: owner must explicitly authorize a Vercel Production
+  deploy of latest `develop-saas` before Beta prospects use the public site.
+- Not performed:
   - No deployment.
   - No migration.
   - No env/secret edit.

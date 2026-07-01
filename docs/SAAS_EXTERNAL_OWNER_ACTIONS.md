@@ -18,9 +18,12 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 - Production status: Ready
 - Latest deployed runtime commit:
   `f634bc0 fix(saas): keep SEO metadata routes public`
-- Latest pushed source commit after this runbook update may be newer than the
-  runtime commit because deployment documentation is committed after smoke
-  testing.
+- Latest pushed source commit is currently newer than the runtime commit:
+  `8ae2aa7 fix(saas/ui): make multi-channel honesty explicit on homepage`.
+- Read-only production smoke on 2026-07-01 shows `/pricing` still contains old
+  `1,490` / `2,990` pricing markers. The 499/699 pricing and multi-channel
+  honesty copy are in Git but require a separate owner-authorized production
+  deploy before prospects see them.
 - Latest Sentry setup / redeploy: 2026-06-06
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
@@ -59,17 +62,19 @@ Current decision:
 
 The next owner-authorized technical actions, in order, are:
 
-1. Apply only `038_saas_org_member_visibility.sql` if multi-member team
+1. Deploy latest `develop-saas` to production if the public site should show
+   499/699 pricing and the multi-channel honesty copy.
+2. Apply only `038_saas_org_member_visibility.sql` if multi-member team
    management QA is required.
-2. Verify production `/admin` and `/internal` env/identity access read-only.
-3. Run the merchant-to-platform QA plan in
+3. Verify production `/admin` and `/internal` env/identity access read-only.
+4. Run the merchant-to-platform QA plan in
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
-4. Before any paid customer, confirm invoice/receipt capability and finalize
+5. Before any paid customer, confirm invoice/receipt capability and finalize
    public legal pages for paid use.
-5. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
+6. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
    refund review, support SLA, and onboarding until ECPay/email automation is
    explicitly authorized and implemented.
-6. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
+7. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
    support before promising DPA, deletion, retention, or incident-notice terms
    to paying customers.
 

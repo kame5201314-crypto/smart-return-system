@@ -2,6 +2,44 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Recorded the production deployment gap after the multi-channel honesty copy
+landed in Git.
+
+Read-only production result:
+
+- `/`: `200`
+- `/pricing`: `200`
+- `/login`: `200`
+- unauthenticated `/internal`: `307` to `/admin/login?next=%2Finternal`
+- `/pricing` still exposes old pricing markers:
+  - `1,490`
+  - `2,990`
+  - `Basic`
+  - `Growth`
+
+Current source/runtime split:
+
+- Latest pushed source: `8ae2aa7 fix(saas/ui): make multi-channel honesty explicit on homepage`
+- Current production runtime: `f634bc0 fix(saas): keep SEO metadata routes public`
+
+Conclusion:
+
+- 499/699 pricing and the multi-channel honesty copy are in Git but not yet
+  visible on production.
+- Owner must explicitly authorize a Vercel Production deployment before Beta
+  prospects use the public site as the current source of truth.
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Added the privacy, DPA, and data deletion SOP for paid/public rollout
 readiness.
 

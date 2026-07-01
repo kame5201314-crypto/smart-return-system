@@ -81,6 +81,26 @@ apply migrations, enable providers, or change production settings. Owner/legal
 must still review and approve the public legal wording before paid customers are
 accepted.
 
+## 2026-07-01 Production Deployment Gap
+
+Latest pushed source is `8ae2aa7 fix(saas/ui): make multi-channel honesty
+explicit on homepage`, but production still runs the older `f634bc0` runtime.
+
+Read-only production check:
+
+- `/`, `/pricing`, and `/login` return `200`.
+- unauthenticated `/internal` redirects to `/admin/login?next=%2Finternal`.
+- `/pricing` still contains old `1,490` / `2,990` pricing markers.
+
+Result:
+
+- The 499/699 pricing contract and multi-channel honesty copy are present in
+  Git but not visible to prospects yet.
+- Before inviting Beta prospects to review the public site, owner should
+  authorize a production deploy of latest `develop-saas` and run smoke tests.
+- No deployment, migration, env/secret edit, provider enablement, DNS change,
+  or live/internal Supabase action was performed by this check.
+
 ## Executive Decision
 
 | Stage | Decision | Reason |
@@ -216,29 +236,31 @@ signals and account state, not customer PII.
 
 ### Ready To Execute With Owner Authorization
 
-1. Apply only `038_saas_org_member_visibility.sql` to SaaS Supabase if
+1. Deploy latest `develop-saas` to production if prospects should see the
+   499/699 pricing and multi-channel honesty copy.
+2. Apply only `038_saas_org_member_visibility.sql` to SaaS Supabase if
    multi-member team QA is required.
-2. Verify production `/internal` has the correct Vercel env and platform admin
+3. Verify production `/internal` has the correct Vercel env and platform admin
    identity.
-3. Run the manual QA path in
+4. Run the manual QA path in
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 
 ### Prepare Before First Paid Customer
 
-4. Confirm invoice/receipt capability.
-5. Finalize terms/privacy/refund pages for paying customers.
-6. Decide whether invoice rows will be stored in-app; if yes, authorize only
+5. Confirm invoice/receipt capability.
+6. Finalize terms/privacy/refund pages for paying customers.
+7. Decide whether invoice rows will be stored in-app; if yes, authorize only
    migration `030`.
-7. Use the manual payment/refund/support SOP.
-8. Review the privacy/DPA/deletion SOP with legal/accounting support.
+8. Use the manual payment/refund/support SOP.
+9. Review the privacy/DPA/deletion SOP with legal/accounting support.
 
 ### Defer Until Public Paid Launch
 
-9. Resend/email delivery.
-10. ECPay recurring billing and invoice integration.
-11. Public self-serve signup.
-12. DB-backed platform admin role migration `036`.
-13. Automated lifecycle and operations alerts.
+10. Resend/email delivery.
+11. ECPay recurring billing and invoice integration.
+12. Public self-serve signup.
+13. DB-backed platform admin role migration `036`.
+14. Automated lifecycle and operations alerts.
 
 ## Authorization Templates
 
