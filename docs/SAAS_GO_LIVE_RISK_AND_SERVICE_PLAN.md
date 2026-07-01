@@ -61,6 +61,26 @@ This SOP does not collect money, issue invoices, apply migrations, enable
 billing, or change provider state. Owner/legal/accounting still must confirm
 invoice/receipt capability before collecting payment.
 
+## 2026-07-01 Privacy, DPA, And Data Deletion SOP
+
+Added [`SAAS_PRIVACY_DPA_DELETION_SOP.md`](./SAAS_PRIVACY_DPA_DELETION_SOP.md)
+to cover the repo-side privacy operating plan required before paid/public
+rollout.
+
+This completes the repo-side draft for:
+
+- Data categories and draft retention defaults.
+- Subprocessor register draft.
+- Merchant data deletion request workflow.
+- DPA checklist for merchant customers.
+- Security incident workflow.
+- Cookie/analytics tracking checklist.
+
+This SOP does not finalize legal terms, change public legal pages, delete data,
+apply migrations, enable providers, or change production settings. Owner/legal
+must still review and approve the public legal wording before paid customers are
+accepted.
+
 ## Executive Decision
 
 | Stage | Decision | Reason |
@@ -113,6 +133,7 @@ merchant or platform backends.
 | B3 | Invoice status alignment if storing invoices in-app | If invoice rows are written to the SaaS DB, apply `030_saas_invoice_status_alignment.sql` first so DB status values match billing UI/backend DTOs. | Owner authorization + Codex |
 | B4 | Manual payment tracking SOP | Record who paid, period covered, invoice/receipt number, refund decisions, and any manual account status changes. | Repo-side SOP drafted in `SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`; future platform billing ops use `033` |
 | B5 | Support SLA and onboarding checklist | Low-price plans only work if support load is controlled. Define response channel, response window, and self-serve onboarding steps. | Repo-side SOP drafted in `SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`; owner still confirms real support policy |
+| B6 | Privacy, DPA, retention, and deletion SOP | Paid customers may ask how buyer data is retained, deleted, processed by subprocessors, and handled during incidents. | Repo-side SOP drafted in `SAAS_PRIVACY_DPA_DELETION_SOP.md`; owner/legal still finalizes public legal wording |
 
 ### Do Not Enable Yet
 
@@ -208,15 +229,16 @@ signals and account state, not customer PII.
 5. Finalize terms/privacy/refund pages for paying customers.
 6. Decide whether invoice rows will be stored in-app; if yes, authorize only
    migration `030`.
-7. Create a manual payment and refund SOP.
+7. Use the manual payment/refund/support SOP.
+8. Review the privacy/DPA/deletion SOP with legal/accounting support.
 
 ### Defer Until Public Paid Launch
 
-8. Resend/email delivery.
-9. ECPay recurring billing and invoice integration.
-10. Public self-serve signup.
-11. DB-backed platform admin role migration `036`.
-12. Automated lifecycle and operations alerts.
+9. Resend/email delivery.
+10. ECPay recurring billing and invoice integration.
+11. Public self-serve signup.
+12. DB-backed platform admin role migration `036`.
+13. Automated lifecycle and operations alerts.
 
 ## Authorization Templates
 

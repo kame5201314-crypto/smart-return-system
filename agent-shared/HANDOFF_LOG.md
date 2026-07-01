@@ -2,6 +2,46 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Added the privacy, DPA, and data deletion SOP for paid/public rollout
+readiness.
+
+Completed:
+
+- Added `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md`.
+- Linked it from `docs/SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`,
+  `docs/SAAS_EXTERNAL_SETUP_STATUS.md`, and
+  `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`.
+- Updated `agent-shared/TASK_BOARD.md` and `agent-shared/ACTIVE_WORK.md`.
+
+The SOP covers:
+
+- SaaS privacy roles and platform-admin privacy boundary.
+- Data categories and draft retention defaults.
+- Subprocessor register draft.
+- Merchant data deletion request workflow.
+- DPA checklist for merchant customers.
+- Security incident workflow.
+- Cookie/analytics tracking checklist.
+
+Still required before paid/public rollout:
+
+- Owner/legal reviews and approves public legal wording.
+- Owner confirms company/tax/invoice details for terms and invoice handling.
+- Owner confirms exact retention/deletion windows and support contacts.
+
+Not performed:
+
+- No customer data was exported or deleted.
+- No legal page was finalized.
+- No migration.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Added the manual payment and support SOP for early paid/manual Beta operations.
 
 Completed:

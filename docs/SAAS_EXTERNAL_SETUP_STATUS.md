@@ -122,6 +122,32 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
   - No billing/provider enablement.
   - No master/live/internal Supabase action.
 
+## 2026-07-01 Privacy, DPA, And Data Deletion SOP
+
+- Added `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md`.
+- The SOP covers:
+  - SaaS privacy roles and platform-admin privacy boundary.
+  - Data categories and draft retention defaults.
+  - Subprocessor register draft.
+  - Merchant data deletion request workflow.
+  - DPA checklist for merchant customers.
+  - Security incident workflow.
+  - Cookie/analytics tracking checklist.
+- This completes the repo-side operating draft for privacy/DPA/deletion
+  readiness before paid/public rollout.
+- Owner/legal must still review and approve public legal wording before paid
+  customers are accepted.
+- Not performed:
+  - No customer data was exported or deleted.
+  - No legal page was finalized.
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
+
 ## 2026-06-30 AI Return Data Flow and Team Member Visibility Draft
 
 - Added `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` to define the intended
