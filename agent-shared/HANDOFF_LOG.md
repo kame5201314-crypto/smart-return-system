@@ -2,6 +2,53 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Completed owner-authorized production deploy of latest `develop-saas` HEAD
+`3fadd75 docs(saas): record production deployment gap`.
+
+Deployment:
+
+- Vercel project: `smart-return-system-saas`
+- Runtime source: `3fadd75`
+- Deployment ID: `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76`
+- Deployment URL:
+  `https://smart-return-system-saas-jq1nrrc1k-kaweis-projects.vercel.app`
+- Production alias: `https://smart-return-system-saas.vercel.app`
+- Status: Ready
+
+Pre-deploy gate:
+
+- Preflight and `npm run safety:agent-boundary` passed.
+- `npm run saas:predeploy` passed, including lint, typecheck, unit tests, e2e
+  tests, integration tests, and production build.
+
+Production smoke:
+
+- Public routes returned `200`: `/`, `/pricing`, `/signup`, `/login`,
+  `/robots.txt`, `/sitemap.xml`.
+- `/pricing` shows 499/699 markers and the multi-channel honesty copy.
+- Checked `/pricing` response no longer exposes old `1,490` / `2,990`
+  pricing markers.
+- Tenant protected routes redirect to `/login`.
+- Platform protected routes redirect to `/admin/login?next=...`.
+
+Notes:
+
+- Vercel still lists historical `app.smart-return.tw`; owner has deferred
+  domain purchase/setup, and no DNS/domain command was run.
+- `npx vercel logs` filtered scan was not completed because the current CLI
+  rejected the `--level` / `--since` filter combination. Inspect and smoke
+  passed.
+
+Not performed:
+
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Recorded the production deployment gap after the multi-channel honesty copy
 landed in Git.
 

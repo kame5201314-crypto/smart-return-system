@@ -48,12 +48,12 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest deployed runtime source is `f634bc0 fix(saas): keep SEO metadata routes public`.
+- Latest deployed runtime source is `3fadd75 docs(saas): record production deployment gap`.
 - This post-deploy documentation update is expected to create a newer docs-only Git commit than the production runtime source.
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Latest owner-authorized production deployment: `f634bc0 fix(saas): keep SEO metadata routes public` -> Vercel deployment `dpl_2YWna1ojcAQQ5YbQ2SByKxd5oJot` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
-- Production now includes the post-`796a02a` fixes through `f634bc0`, including Shopee workspace-error localization, SEO infrastructure, and public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`.
-- Latest pushed source is now `8ae2aa7 fix(saas/ui): make multi-channel honesty explicit on homepage`, but production still runs the older `f634bc0` runtime. A 2026-07-01 read-only production check shows `/pricing` still exposes the old `1,490` / `2,990` pricing markers, so production needs a separately owner-authorized deployment before customers see the 499/699 pricing contract and the multi-channel honesty copy.
+- Latest owner-authorized production deployment: `3fadd75 docs(saas): record production deployment gap` -> Vercel deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
+- Production now includes the post-`796a02a` fixes through `3fadd75`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, and the multi-channel honesty copy.
+- A 2026-07-01 production smoke test after deployment confirms `/pricing` now exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
 - Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migrations `035` and `037` are applied, and draft migrations `033`, `034`, `036`, and `038` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
@@ -149,27 +149,46 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
   - No billing/provider enablement.
   - No master/live/internal Supabase action.
 
-## 2026-07-01 Production Deployment Gap After Multi-Channel Copy
+## 2026-07-01 Owner-Authorized Production Deploy Of 3fadd75
 
-- Latest pushed source: `8ae2aa7 fix(saas/ui): make multi-channel honesty explicit on homepage`.
-- Current production runtime remains the earlier owner-authorized deployment
-  from `f634bc0 fix(saas): keep SEO metadata routes public`.
-- Read-only production smoke:
+- Owner explicitly authorized deploying latest `develop-saas` HEAD
+  `3fadd75 docs(saas): record production deployment gap` to Vercel Production
+  project `smart-return-system-saas`.
+- Preflight and `npm run safety:agent-boundary` passed.
+- `npm run saas:predeploy` passed before deployment, including lint,
+  typecheck, unit tests, e2e tests, integration tests, and production build.
+- Vercel deployment:
+  - ID: `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76`
+  - Deployment URL:
+    `https://smart-return-system-saas-jq1nrrc1k-kaweis-projects.vercel.app`
+  - Production alias: `https://smart-return-system-saas.vercel.app`
+  - Status: Ready
+- Production smoke after deployment:
   - `/`: `200`
   - `/pricing`: `200`
+  - `/signup`: `200`
   - `/login`: `200`
+  - `/robots.txt`: `200`
+  - `/sitemap.xml`: `200`
   - unauthenticated `/internal`: `307` to `/admin/login?next=%2Finternal`
-- `/pricing` still contains old pricing markers:
-  - `1,490`
-  - `2,990`
-  - `Basic`
-  - `Growth`
-- Therefore, the 499/699 public pricing copy and the multi-channel honesty copy
-  are in Git but not yet visible on production.
-- Required next action: owner must explicitly authorize a Vercel Production
-  deploy of latest `develop-saas` before Beta prospects use the public site.
+  - tenant protected routes such as `/analytics`, `/shopee-returns`,
+    `/analytics/ai-report`, and `/settings/team`: `307` to `/login`
+  - platform entry routes `/admin` and `/admin/login`: redirect to the
+    expected platform-admin login path.
+- `/pricing` verification:
+  - `499` marker present.
+  - `699` marker present.
+  - `basic` and `growth` plan markers present.
+  - `蝦皮`, `官網`, and `momo` multi-channel honesty markers present.
+  - checked response no longer exposes the old `1,490` / `2,990` pricing
+    markers.
+- Vercel still lists the historical `app.smart-return.tw` alias and SSL work
+  may remain asynchronous, but the owner has deferred domain purchase/setup and
+  no DNS/domain mutation was performed.
+- `npx vercel logs` filtered scan was not completed because the current CLI
+  rejected the `--level` / `--since` filter combination. Deployment inspect and
+  smoke tests passed.
 - Not performed:
-  - No deployment.
   - No migration.
   - No env/secret edit.
   - No domain/DNS change.

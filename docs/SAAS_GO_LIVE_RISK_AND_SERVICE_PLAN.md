@@ -81,25 +81,35 @@ apply migrations, enable providers, or change production settings. Owner/legal
 must still review and approve the public legal wording before paid customers are
 accepted.
 
-## 2026-07-01 Production Deployment Gap
+## 2026-07-01 Production Deployment Completed
 
-Latest pushed source is `8ae2aa7 fix(saas/ui): make multi-channel honesty
-explicit on homepage`, but production still runs the older `f634bc0` runtime.
+Owner authorized deploying latest `develop-saas` HEAD
+`3fadd75 docs(saas): record production deployment gap` to Vercel Production
+project `smart-return-system-saas`.
 
-Read-only production check:
+Deployment result:
 
-- `/`, `/pricing`, and `/login` return `200`.
+- Vercel deployment: `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76`
+- Production alias: `https://smart-return-system-saas.vercel.app`
+- Deployment status: Ready
+- Deployment URL:
+  `https://smart-return-system-saas-jq1nrrc1k-kaweis-projects.vercel.app`
+
+Production smoke:
+
+- `/`, `/pricing`, `/signup`, `/login`, `/robots.txt`, and `/sitemap.xml`
+  return `200`.
 - unauthenticated `/internal` redirects to `/admin/login?next=%2Finternal`.
-- `/pricing` still contains old `1,490` / `2,990` pricing markers.
+- tenant protected routes redirect to `/login`.
+- `/pricing` shows the 499/699 pricing markers and no longer exposes the old
+  `1,490` / `2,990` markers in the checked response.
 
 Result:
 
-- The 499/699 pricing contract and multi-channel honesty copy are present in
-  Git but not visible to prospects yet.
-- Before inviting Beta prospects to review the public site, owner should
-  authorize a production deploy of latest `develop-saas` and run smoke tests.
-- No deployment, migration, env/secret edit, provider enablement, DNS change,
-  or live/internal Supabase action was performed by this check.
+- The 499/699 pricing contract and multi-channel honesty copy are now visible
+  on production.
+- No migration, env/secret edit, provider enablement, DNS change, billing
+  enablement, or live/internal Supabase action was performed by this deploy.
 
 ## Executive Decision
 
