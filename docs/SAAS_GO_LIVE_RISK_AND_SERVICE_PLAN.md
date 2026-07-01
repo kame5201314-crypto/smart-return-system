@@ -41,6 +41,26 @@ credentials/state:
 - Any deployment, env change, provider enablement, billing change, DNS change,
   or live/internal Supabase action.
 
+## 2026-07-01 Manual Payment And Support SOP
+
+Added [`SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`](./SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md)
+to cover the non-external operating work that can be prepared before automated
+billing/email is enabled.
+
+This completes the repo-side draft for:
+
+- Manual payment tracking fields.
+- Manual payment workflow.
+- Manual refund review workflow.
+- Low-touch support SLA for Basic/Growth.
+- Beta onboarding checklist.
+- Escalation triggers for overage, high support demand, legal/privacy, and
+  enterprise needs.
+
+This SOP does not collect money, issue invoices, apply migrations, enable
+billing, or change provider state. Owner/legal/accounting still must confirm
+invoice/receipt capability before collecting payment.
+
 ## Executive Decision
 
 | Stage | Decision | Reason |
@@ -91,8 +111,8 @@ merchant or platform backends.
 | B1 | Invoice/receipt capability | Confirm the business can legally issue an invoice or receipt before collecting the first payment. Manual ECPay invoice console or accountant-issued invoice is acceptable for Stage 2. | Owner/legal/accounting |
 | B2 | Legal pages no longer say draft for paying customers | Terms, privacy, and refund pages currently describe Beta/draft posture. Before paid launch, finalize company entity, tax/invoice handling, data retention, subprocessors, and refund rules. | Owner/legal plus UI/docs update |
 | B3 | Invoice status alignment if storing invoices in-app | If invoice rows are written to the SaaS DB, apply `030_saas_invoice_status_alignment.sql` first so DB status values match billing UI/backend DTOs. | Owner authorization + Codex |
-| B4 | Manual payment tracking SOP | Record who paid, period covered, invoice/receipt number, refund decisions, and any manual account status changes. | Owner/Codex docs; future platform billing ops use `033` |
-| B5 | Support SLA and onboarding checklist | Low-price plans only work if support load is controlled. Define response channel, response window, and self-serve onboarding steps. | Owner + docs/UI |
+| B4 | Manual payment tracking SOP | Record who paid, period covered, invoice/receipt number, refund decisions, and any manual account status changes. | Repo-side SOP drafted in `SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`; future platform billing ops use `033` |
+| B5 | Support SLA and onboarding checklist | Low-price plans only work if support load is controlled. Define response channel, response window, and self-serve onboarding steps. | Repo-side SOP drafted in `SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`; owner still confirms real support policy |
 
 ### Do Not Enable Yet
 

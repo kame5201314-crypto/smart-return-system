@@ -2,6 +2,44 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Added the manual payment and support SOP for early paid/manual Beta operations.
+
+Completed:
+
+- Added `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`.
+- Linked it from `docs/SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`,
+  `docs/SAAS_EXTERNAL_SETUP_STATUS.md`, and
+  `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`.
+- Updated `agent-shared/TASK_BOARD.md` and `agent-shared/ACTIVE_WORK.md`.
+
+The SOP covers:
+
+- Manual payment record fields.
+- Manual payment workflow.
+- Manual refund review workflow.
+- Low-touch support SLA for Basic/Growth.
+- Beta onboarding checklist.
+- Escalation triggers for overage, high support demand, legal/privacy, and
+  enterprise needs.
+
+Still required before collecting money:
+
+- Owner/legal/accounting confirms invoice or receipt capability.
+- Owner finalizes public legal/refund wording for paid use.
+
+Not performed:
+
+- No payment was collected.
+- No invoice was issued.
+- No migration.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Completed the local, non-external go-live execution pass.
 
 Completed:

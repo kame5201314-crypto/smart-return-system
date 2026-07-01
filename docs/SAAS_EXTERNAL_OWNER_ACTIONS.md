@@ -40,6 +40,9 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 
 See [`SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`](./SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md)
 for the current ordered launch, subscription, and service risk plan.
+See also [`SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`](./SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md)
+for the manual payment, refund, support, and Beta onboarding SOP that applies
+before automated billing/email is enabled.
 
 Current decision:
 
@@ -60,6 +63,9 @@ The next owner-authorized technical actions, in order, are:
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 4. Before any paid customer, confirm invoice/receipt capability and finalize
    public legal pages for paid use.
+5. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
+   refund review, support SLA, and onboarding until ECPay/email automation is
+   explicitly authorized and implemented.
 
 ## 2026-06-13 Custom Domain Deferred
 

@@ -96,6 +96,32 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
   - No billing/provider enablement.
   - No master/live/internal Supabase action.
 
+## 2026-07-01 Manual Payment And Support SOP
+
+- Added `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`.
+- The SOP covers:
+  - Manual payment record fields.
+  - Manual payment workflow.
+  - Manual refund review workflow.
+  - Low-touch Basic/Growth support SLA.
+  - Manual Beta onboarding checklist.
+  - Escalation triggers for overage, high support demand, legal/privacy, and
+    enterprise needs.
+- This completes the repo-side draft for the go-live plan's manual payment
+  tracking and support/onboarding checklist items.
+- Owner/legal/accounting must still confirm invoice/receipt capability before
+  collecting money.
+- Not performed:
+  - No payment was collected.
+  - No invoice was issued.
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
+
 ## 2026-06-30 AI Return Data Flow and Team Member Visibility Draft
 
 - Added `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` to define the intended
