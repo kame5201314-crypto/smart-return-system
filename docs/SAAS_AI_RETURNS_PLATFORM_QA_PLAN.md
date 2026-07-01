@@ -98,6 +98,12 @@ npm run saas:doctor
 npm run build
 ```
 
+Run this read-only smoke check after an owner-authorized production deploy:
+
+```powershell
+npm run saas:production-smoke
+```
+
 Only run predeploy after explicit owner deployment authorization:
 
 ```powershell

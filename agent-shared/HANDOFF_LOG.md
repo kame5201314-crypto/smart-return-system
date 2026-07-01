@@ -2,6 +2,46 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Added the read-only production smoke script.
+
+Completed:
+
+- Added `scripts/saas/production-smoke.mjs`.
+- Added npm script `saas:production-smoke`.
+- Linked the script from `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md`.
+- Updated `docs/SAAS_EXTERNAL_SETUP_STATUS.md` and `agent-shared/**`.
+
+The script checks:
+
+- public route `200` responses for `/`, `/pricing`, `/signup`, `/login`,
+  `/robots.txt`, and `/sitemap.xml`;
+- `/pricing` contains 499/699 markers and not old 1490/2990 markers;
+- unauthenticated merchant protected routes redirect to `/login`;
+- unauthenticated platform routes redirect to the platform-admin login path.
+
+Usage:
+
+```powershell
+npm run saas:production-smoke
+```
+
+Optional target override:
+
+```powershell
+npm run saas:production-smoke -- --url=https://example.vercel.app
+```
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Added the Closed Manual Beta onboarding runbook.
 
 Completed:

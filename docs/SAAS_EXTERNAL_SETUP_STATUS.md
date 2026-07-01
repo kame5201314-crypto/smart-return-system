@@ -154,6 +154,27 @@ for the controlled customer handoff and first-session walkthrough.
   - No billing/provider enablement.
   - No master/live/internal Supabase action.
 
+## 2026-07-01 Production Smoke Script
+
+- Added `scripts/saas/production-smoke.mjs`.
+- Added npm script `saas:production-smoke`.
+- The script is read-only and checks:
+  - public routes `/`, `/pricing`, `/signup`, `/login`, `/robots.txt`, and
+    `/sitemap.xml`;
+  - `/pricing` contains 499/699 and does not contain old 1490/2990 markers;
+  - unauthenticated merchant protected routes redirect to `/login`;
+  - unauthenticated platform routes redirect to the platform-admin login path.
+- It defaults to `https://smart-return-system-saas.vercel.app` and can be
+  pointed elsewhere with `SAAS_PRODUCTION_URL` or `--url=...`.
+- Not performed:
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
+
 ## 2026-07-01 Privacy, DPA, And Data Deletion SOP
 
 - Added `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md`.

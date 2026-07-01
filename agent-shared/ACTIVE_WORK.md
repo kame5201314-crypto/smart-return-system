@@ -33,6 +33,22 @@ Notes: Closed Manual Beta is live and the first Beta customer has been provision
 ```text
 Owner: Codex
 Commit: this commit
+Scope: Production smoke script
+Files:
+- scripts/saas/production-smoke.mjs
+- package.json
+- docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md
+- docs/SAAS_EXTERNAL_SETUP_STATUS.md
+- agent-shared/TASK_BOARD.md
+- agent-shared/HANDOFF_LOG.md
+- agent-shared/ACTIVE_WORK.md
+Status: done
+Notes: Added read-only `npm run saas:production-smoke` for post-deploy public route, pricing marker, and unauthenticated redirect checks against `https://smart-return-system-saas.vercel.app` by default, with override support through `SAAS_PRODUCTION_URL` or `--url=`. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, or master/live/internal Supabase action was performed.
+```
+
+```text
+Owner: Codex
+Commit: 82b51c5
 Scope: Closed Beta onboarding runbook
 Files:
 - docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md
