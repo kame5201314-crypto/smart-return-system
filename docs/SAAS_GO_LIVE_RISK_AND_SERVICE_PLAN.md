@@ -34,7 +34,6 @@ Result:
 Not executed because they require explicit owner authorization or external
 credentials/state:
 
-- Applying `038_saas_org_member_visibility.sql` to SaaS Supabase.
 - Read-only Vercel Production `/admin` and `/internal` env/route verification.
 - Disposable-org browser QA that writes test return/team data.
 - Invoice/legal/payment collection actions.
@@ -159,7 +158,7 @@ merchant or platform backends.
 
 | ID | Item | Why it matters | Current repo state | Action |
 |---|---|---|---|---|
-| A1 | Apply `038_saas_org_member_visibility.sql` if testing team management | 499/699 plans include seats; owner/admin must be able to see same-org members for role changes and disable flows. | Draft migration exists; not applied. | Requires explicit owner authorization before touching SaaS Supabase. |
+| A1 | Team member visibility schema for team management | 499/699 plans include seats; owner/admin must be able to see same-org members for role changes and disable flows. | Migration `038` is applied to SaaS project `auyznbwtjvemyamujmgt`; same-org `organization_members` SELECT is helper-backed and non-recursive. | Run disposable-org `/settings/team` QA before inviting real multi-member merchants. |
 | A2 | Confirm production `/internal` access for platform operators | Platform operations backend must be usable to follow tenant health and usage. | Code supports `/admin` -> `/internal`; production env must be verified separately. | Owner/Codex must verify Vercel env and platform admin identity source before relying on production `/internal`. |
 | A3 | Run merchant-to-platform QA on a disposable org | Confirms merchant usage and AI analysis aggregate into `/internal` without exposing return detail/PII. | QA plan exists in `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md`; automated privacy-boundary tests exist. | Use QA org only; do not use real customers. |
 | A4 | Use the closed Beta onboarding runbook for the first merchant session | Keeps customer handoff, scope promises, AI walkthrough, and operator follow-up consistent. | Runbook exists in `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`. | Use it for every first-session onboarding; do not store passwords in docs/chat/Git. |
@@ -169,8 +168,8 @@ merchant or platform backends.
 - Billing stays disabled: `ENABLE_BILLING=false`.
 - Email delivery stays dry-run; invite links may be copied manually.
 - Custom domain stays deferred; use `https://smart-return-system-saas.vercel.app`.
-- Team management can be postponed only if early Beta tenants use one owner
-  account and do not need multi-member testing.
+- Team management schema is no longer blocked by `038`, but browser QA should
+  still use a disposable org before real staff are invited.
 
 ## Stage 2: First Paid Manual Customers
 
@@ -269,33 +268,31 @@ signals and account state, not customer PII.
 1. Re-run the read-only production smoke check when you need to confirm the
    public site is still current:
    `npm run saas:production-smoke`.
-2. Apply only `038_saas_org_member_visibility.sql` to SaaS Supabase if
-   multi-member team QA is required.
-3. Verify production `/internal` has the correct Vercel env and platform admin
-   identity.
-4. Run the manual QA path in
+2. Set or confirm production `PLATFORM_ADMIN_ROLES`, then verify
+   `/internal` has the correct platform admin identity.
+3. Run the manual QA path in
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 
 ### Prepare Before First Paid Customer
 
-5. Confirm invoice/receipt capability.
-6. Finalize terms/privacy/refund pages for paying customers.
-7. Decide whether invoice rows will be stored in-app; if yes, authorize only
+4. Confirm invoice/receipt capability.
+5. Finalize terms/privacy/refund pages for paying customers.
+6. Decide whether invoice rows will be stored in-app; if yes, authorize only
    migration `030`.
-8. Use the manual payment/refund/support SOP.
-9. Review the privacy/DPA/deletion SOP with legal/accounting support.
+7. Use the manual payment/refund/support SOP.
+8. Review the privacy/DPA/deletion SOP with legal/accounting support.
 
 ### Defer Until Public Paid Launch
 
-10. Resend/email delivery.
-11. ECPay recurring billing and invoice integration.
-12. Public self-serve signup.
-13. DB-backed platform admin role migration `036`.
-14. Automated lifecycle and operations alerts.
+9. Resend/email delivery.
+10. ECPay recurring billing and invoice integration.
+11. Public self-serve signup.
+12. DB-backed platform admin role migration `036`.
+13. Automated lifecycle and operations alerts.
 
 ## Authorization Templates
 
-### Apply Team Visibility Migration 038
+### Historical: Apply Team Visibility Migration 038
 
 ```text
 I authorize applying only supabase/migrations/038_saas_org_member_visibility.sql
@@ -303,6 +300,9 @@ to SaaS Supabase project auyznbwtjvemyamujmgt.
 Do not deploy, do not apply other migrations, do not edit env/secrets, do not
 enable email/billing/provider, and do not touch master/live/internal Supabase.
 ```
+
+Status: completed on 2026-07-01. Remote migration history records `038` as
+applied. Do not reapply unless a future repair is explicitly authorized.
 
 ### Apply Invoice Status Migration 030
 

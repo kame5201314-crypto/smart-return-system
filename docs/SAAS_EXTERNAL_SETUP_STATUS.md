@@ -7,7 +7,7 @@ This file tracks external SaaS setup work that must stay separate from the live 
 See also: [`SAAS_EXTERNAL_OWNER_ACTIONS.md`](./SAAS_EXTERNAL_OWNER_ACTIONS.md)
 for owner-provided values, handoff templates, and the recommended order for
 Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
-`036`, and `038`.
+and `036`.
 See also:
 [`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md)
 for the controlled customer handoff and first-session walkthrough.
@@ -22,7 +22,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `035_saas_onboarding_completion_rpc.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `035` as applied.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
 - Migration `037_saas_team_invite_status.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `037` as applied. It adds `organization_invites.status` and refreshes invite accept/create RPCs for team invite revoke/resend flows.
-- Draft migration `038_saas_org_member_visibility.sql` exists to let owner/admin users see same-org team members through helper-backed non-recursive RLS; it has not been applied and requires separate owner authorization.
+- Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-only; no email provider is wired and no email is sent.
@@ -36,7 +36,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
 - `npm run saas:migration-plan:strict` passes and the local draft chain now
   ends at `038_saas_org_member_visibility.sql`.
-- `npm run saas:schema-gate:strict` passes after owner-authorized migration `037` apply.
+- `npm run saas:schema-gate:strict` passes after owner-authorized migrations `037` and `038` apply.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
@@ -57,11 +57,47 @@ for the controlled customer handoff and first-session walkthrough.
 - Latest owner-authorized production deployment: `3fadd75 docs(saas): record production deployment gap` -> Vercel deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `3fadd75`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, and the multi-channel honesty copy.
 - A 2026-07-01 production smoke test after deployment confirms `/pricing` now exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
-- Previous external blocker audit confirmed Vercel production env names include `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, no custom/beta domain is visible, no email/ECPay provider credentials are visible, migrations `035` and `037` are applied, and draft migrations `033`, `034`, `036`, and `038` remain unapplied.
+- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. No custom/beta domain is visible, no email/ECPay provider credentials are visible, migrations `035`, `037`, and `038` are applied, and draft migrations `033`, `034`, and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
-- No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`/`038`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+- No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-01 Team Visibility Migration 038 Apply
+
+- Owner explicitly authorized applying only `038_saas_org_member_visibility.sql`
+  to SaaS Supabase project `auyznbwtjvemyamujmgt`.
+- Preflight, `npm run safety:agent-boundary`, and
+  `npm run saas:migration-plan:strict` passed before the apply.
+- Remote migration list before apply showed:
+  - `035` and `037` applied.
+  - `033`, `034`, `036`, and `038` pending.
+- Codex executed only
+  `supabase/migrations/038_saas_org_member_visibility.sql` via
+  `supabase db query --linked --file`.
+- Codex repaired remote migration history for version `038` to applied.
+- Remote migration list after apply shows:
+  - `035`, `037`, and `038` applied.
+  - `033`, `034`, and `036` still unapplied.
+- Verification:
+  - `public.is_organization_member(uuid, text[])` exists.
+  - `organization_members` policy `members_select_org_memberships` exists for
+    authenticated same-org SELECT.
+  - `npm run saas:schema-gate:strict` passes.
+  - `npm run saas:migration-plan:strict` passes.
+  - `npm run saas:doctor` passes with 165 pass, 1 expected local
+    `ENABLE_MULTI_TENANT_ADMIN=true` warning, and 0 fail.
+  - `npm run lint` passes.
+  - `npm run test:all` passes.
+  - `npm run saas:production-smoke` passes with 16 pass, 0 warn, 0 fail.
+- Not performed:
+  - No deployment.
+  - No migration `033`, `034`, or `036` apply.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
 
 ## 2026-07-01 Go-Live Risk And Service Plan
 
@@ -86,10 +122,9 @@ for the controlled customer handoff and first-session walkthrough.
     recurring billing/invoice flow, public signup/provisioning posture,
     lifecycle automation, and provider-backed alerts.
 - The next owner-authorized technical queue is:
-  1. Apply only `038_saas_org_member_visibility.sql` if multi-member team QA is
-     required.
-  2. Verify production `/admin` and `/internal` env/identity access read-only.
-  3. Run the merchant-to-platform QA plan in
+  1. Set or confirm production `PLATFORM_ADMIN_ROLES` for explicit platform
+     admin identity, then verify `/admin` and `/internal` access read-only.
+  2. Run the merchant-to-platform QA plan in
      `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 - Not performed:
   - No deployment.
@@ -264,6 +299,8 @@ for the controlled customer handoff and first-session walkthrough.
   normal authenticated RLS clients.
 - `038` is repository-only at this point. It was not applied to Supabase and is
   not authorized by this document.
+- Superseded on 2026-07-01: owner later authorized applying only `038`; remote
+  migration history now records `038` as applied.
 - Not performed:
   - No deployment.
   - No migration.

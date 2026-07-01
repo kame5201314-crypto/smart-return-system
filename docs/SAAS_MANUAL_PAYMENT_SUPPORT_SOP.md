@@ -148,8 +148,9 @@ Run this checklist for each manually provisioned Beta organization:
 4. Import or create a small test return dataset for that organization only.
 5. Run one AI analysis if the customer will use AI during Beta.
 6. Confirm `/settings/usage` shows the correct plan limits.
-7. If team usage is needed, apply and verify migration `038` first, then test
-   `/settings/team` with a disposable non-owner member.
+7. If team usage is needed, test `/settings/team` with a disposable non-owner
+   member first. Migration `038` is already applied, so the remaining check is
+   browser QA rather than schema authorization.
 8. Confirm platform operator can view tenant status and usage in `/internal`
    without customer return details or buyer PII.
 9. Record the onboarding date, owner contact, current blocker, and next follow

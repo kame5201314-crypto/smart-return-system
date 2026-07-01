@@ -36,7 +36,8 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - Sentry DSN is configured in Vercel Production env
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - migration `037_saas_team_invite_status.sql` is applied
-  - draft migrations `033`, `034`, `036`, and `038` remain unapplied
+  - migration `038_saas_org_member_visibility.sql` is applied
+  - draft migrations `033`, `034`, and `036` remain unapplied
 
 ## 2026-07-01 Go-Live Risk And Service Plan
 
@@ -65,20 +66,19 @@ Current decision:
 
 The next owner-authorized technical actions, in order, are:
 
-1. Apply only `038_saas_org_member_visibility.sql` if multi-member team
-   management QA is required.
-2. Verify production `/admin` and `/internal` env/identity access read-only.
-3. Run the merchant-to-platform QA plan in
+1. Set or confirm production `PLATFORM_ADMIN_ROLES` for explicit platform admin
+   identity, then verify production `/admin` and `/internal` access read-only.
+2. Run the merchant-to-platform QA plan in
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
-4. Before any paid customer, confirm invoice/receipt capability and finalize
+3. Before any paid customer, confirm invoice/receipt capability and finalize
    public legal pages for paid use.
-5. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
+4. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
    refund review, support SLA, and onboarding until ECPay/email automation is
    explicitly authorized and implemented.
-6. Use `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md` for every first-session
+5. Use `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md` for every first-session
    Beta onboarding so account handoff, Shopee/manual-channel scope, AI
    walkthrough, and `/internal` follow-up stay consistent.
-7. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
+6. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
    support before promising DPA, deletion, retention, or incident-notice terms
    to paying customers.
 

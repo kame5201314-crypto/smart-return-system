@@ -43,10 +43,11 @@ Confirm these facts first:
 | Whether team members are needed | Yes |
 | Whether real customer data will be imported during onboarding | Yes |
 
-If the merchant needs more than one account, apply and verify
-`038_saas_org_member_visibility.sql` first after explicit owner authorization.
-Otherwise, keep the first Beta tenant on one owner account until team QA is
-unblocked.
+If the merchant needs more than one account, first run `/settings/team` QA in a
+disposable organization. Migration `038_saas_org_member_visibility.sql` is
+already applied to the SaaS project, so owner/admin member visibility is no
+longer schema-blocked; do not invite real staff until the disposable-org flow
+passes.
 
 ## Account Handoff Rules
 
@@ -94,8 +95,9 @@ Run this in a short guided session or ask the merchant to follow it.
 9. Open `/settings/usage` and confirm:
    - Basic: 3 seats, 300 monthly returns, 10 AI analyses.
    - Growth: 5 seats, 800 monthly returns, 25 AI analyses.
-10. If team management is enabled and `038` is applied, open `/settings/team`
-    and invite one disposable test member before inviting real staff.
+10. If team management is needed, open `/settings/team` in a disposable QA org
+    first and test invite, role change, disable, revoke, and resend before
+    inviting real staff.
 
 Stop if:
 
@@ -164,4 +166,3 @@ Closed Beta is healthy enough to continue when:
 7. No platform view exposes customer return details or buyer PII.
 8. Support issues are mostly workflow questions, not data isolation or auth
    failures.
-

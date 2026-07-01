@@ -49,7 +49,7 @@ Use a disposable QA organization only. Do not use `yu-jian-wei-lai` or any real 
 The original commercial foundation only allowed users to read their own membership row.
 That prevents an owner/admin from seeing the rest of the same organization team.
 
-This repo now contains a draft migration:
+This repo contains the migration:
 
 ```text
 supabase/migrations/038_saas_org_member_visibility.sql
@@ -60,11 +60,15 @@ This avoids recursive `organization_members` RLS while allowing same-org team vi
 
 Current status:
 
-- This is a repository draft only.
-- It has not been applied to Supabase.
-- Full `/settings/team` owner/admin browser QA should wait until `038` is explicitly authorized and applied.
+- Owner authorized applying only `038` to SaaS Supabase project
+  `auyznbwtjvemyamujmgt` on 2026-07-01.
+- Remote migration history records `038` as applied.
+- `public.is_organization_member(uuid, text[])` exists.
+- Policy `members_select_org_memberships` exists on `organization_members`.
+- Full `/settings/team` owner/admin browser QA is no longer schema-blocked,
+  but it must use a disposable QA org before real merchant staff are invited.
 
-Owner authorization text:
+Historical owner authorization text:
 
 ```text
 I authorize applying only supabase/migrations/038_saas_org_member_visibility.sql
@@ -84,6 +88,7 @@ enable email/billing/provider, and do not touch master/live/internal Supabase.
 | Privacy boundary | Platform admin views do not show buyer PII or return detail tables. |
 | Disabled write operations | Stage 2 write operations remain disabled or clearly marked until billing operations are authorized. |
 | Navigation separation | Merchant sidebar does not link to `/internal`; platform admin entry is `/admin`. |
+| Team management | Disposable owner/admin can see same-org members on `/settings/team` and test role/disable/invite flows without touching real merchants. |
 
 ## 6. Final Local Gates
 
