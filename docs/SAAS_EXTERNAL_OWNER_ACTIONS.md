@@ -38,6 +38,9 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - migration `037_saas_team_invite_status.sql` is applied
   - migration `038_saas_org_member_visibility.sql` is applied
   - draft migrations `033`, `034`, and `036` remain unapplied
+  - production env-name inspection found `ENABLE_MULTI_TENANT_ADMIN`,
+    `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not
+    list `PLATFORM_ADMIN_ROLES`
 
 ## 2026-07-01 Go-Live Risk And Service Plan
 
@@ -66,8 +69,8 @@ Current decision:
 
 The next owner-authorized technical actions, in order, are:
 
-1. Set or confirm production `PLATFORM_ADMIN_ROLES` for explicit platform admin
-   identity, then verify production `/admin` and `/internal` access read-only.
+1. Set `PLATFORM_ADMIN_ROLES` if per-email platform operator roles are needed,
+   then revalidate authenticated platform admin login.
 2. Run the merchant-to-platform QA plan in
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 3. Before any paid customer, confirm invoice/receipt capability and finalize

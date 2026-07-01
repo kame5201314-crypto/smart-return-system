@@ -34,11 +34,36 @@ Result:
 Not executed because they require explicit owner authorization or external
 credentials/state:
 
-- Read-only Vercel Production `/admin` and `/internal` env/route verification.
 - Disposable-org browser QA that writes test return/team data.
 - Invoice/legal/payment collection actions.
 - Any deployment, env change, provider enablement, billing change, DNS change,
   or live/internal Supabase action.
+
+## 2026-07-01 Production Admin Read-Only Verification
+
+The read-only production admin check has been executed.
+
+Verified:
+
+- Vercel Production env names include `ENABLE_MULTI_TENANT_ADMIN`,
+  `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`.
+- Vercel Production env names do not list `PLATFORM_ADMIN_ROLES`.
+- Production deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` is Ready.
+- `/admin` and `/internal` redirect to the platform-admin login path when
+  unauthenticated.
+- `/admin/login?next=%2Finternal` redirects to the shared login page with the
+  internal next path preserved.
+- `npm run saas:production-smoke` passes with 16 pass, 0 warn, 0 fail.
+
+Not verified:
+
+- Authenticated platform-admin login, because this check did not use platform
+  admin credentials.
+
+Not changed:
+
+- No env values, secrets, deployments, migrations, providers, billing, DNS, or
+  live/internal Supabase state were modified.
 
 ## 2026-07-01 Manual Payment And Support SOP
 
@@ -159,7 +184,7 @@ merchant or platform backends.
 | ID | Item | Why it matters | Current repo state | Action |
 |---|---|---|---|---|
 | A1 | Team member visibility schema for team management | 499/699 plans include seats; owner/admin must be able to see same-org members for role changes and disable flows. | Migration `038` is applied to SaaS project `auyznbwtjvemyamujmgt`; same-org `organization_members` SELECT is helper-backed and non-recursive. | Run disposable-org `/settings/team` QA before inviting real multi-member merchants. |
-| A2 | Confirm production `/internal` access for platform operators | Platform operations backend must be usable to follow tenant health and usage. | Code supports `/admin` -> `/internal`; production env must be verified separately. | Owner/Codex must verify Vercel env and platform admin identity source before relying on production `/internal`. |
+| A2 | Confirm production `/internal` access for platform operators | Platform operations backend must be usable to follow tenant health and usage. | Read-only env/route verification is complete; `PLATFORM_ADMIN_ROLES` is not configured, while admin username/password env names exist. | If per-email operator roles are needed, set `PLATFORM_ADMIN_ROLES`; authenticated login still needs credentials-based QA. |
 | A3 | Run merchant-to-platform QA on a disposable org | Confirms merchant usage and AI analysis aggregate into `/internal` without exposing return detail/PII. | QA plan exists in `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md`; automated privacy-boundary tests exist. | Use QA org only; do not use real customers. |
 | A4 | Use the closed Beta onboarding runbook for the first merchant session | Keeps customer handoff, scope promises, AI walkthrough, and operator follow-up consistent. | Runbook exists in `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`. | Use it for every first-session onboarding; do not store passwords in docs/chat/Git. |
 
@@ -268,8 +293,9 @@ signals and account state, not customer PII.
 1. Re-run the read-only production smoke check when you need to confirm the
    public site is still current:
    `npm run saas:production-smoke`.
-2. Set or confirm production `PLATFORM_ADMIN_ROLES`, then verify
-   `/internal` has the correct platform admin identity.
+2. Set `PLATFORM_ADMIN_ROLES` if per-email operator roles are needed; otherwise
+   run authenticated platform-admin login QA with the existing admin
+   credentials.
 3. Run the manual QA path in
    `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 

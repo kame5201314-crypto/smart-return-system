@@ -63,6 +63,39 @@ for the controlled customer handoff and first-session walkthrough.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
 
+## 2026-07-01 Production Admin Read-Only Verification
+
+- Ran read-only Vercel Production env-name inspection for project
+  `smart-return-system-saas`; no secret values were read or printed.
+- Present Production env names include:
+  - `ENABLE_MULTI_TENANT_ADMIN`
+  - `ADMIN_USERNAME`
+  - `ADMIN_PASSWORD`
+  - `ADMIN_SESSION_SECRET`
+  - `SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_DSN`
+- `PLATFORM_ADMIN_ROLES` was not listed in Vercel Production env names.
+  Production platform access can still rely on the configured admin username /
+  password path, but per-email platform role mapping is not configured yet.
+- Vercel deployment inspect confirms production alias
+  `https://smart-return-system-saas.vercel.app` points to deployment
+  `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76`, status `Ready`.
+- Route checks:
+  - `/admin` -> `307` to `/admin/login?next=%2Finternal`
+  - `/internal` -> `307` to `/admin/login?next=%2Finternal`
+  - `/admin/login?next=%2Finternal` -> `307` to `/login?next=%2Finternal`
+- `npm run saas:production-smoke` passes with 16 pass, 0 warn, 0 fail.
+- Not verified:
+  - Authenticated `/internal` platform admin session, because this run did not
+    use or request platform admin credentials.
+- Not performed:
+  - No deployment.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No migration.
+  - No email/billing/provider enablement.
+  - No master/live/internal Supabase action.
+
 ## 2026-07-01 Team Visibility Migration 038 Apply
 
 - Owner explicitly authorized applying only `038_saas_org_member_visibility.sql`
@@ -122,8 +155,8 @@ for the controlled customer handoff and first-session walkthrough.
     recurring billing/invoice flow, public signup/provisioning posture,
     lifecycle automation, and provider-backed alerts.
 - The next owner-authorized technical queue is:
-  1. Set or confirm production `PLATFORM_ADMIN_ROLES` for explicit platform
-     admin identity, then verify `/admin` and `/internal` access read-only.
+  1. Set `PLATFORM_ADMIN_ROLES` if per-email platform operator roles are needed,
+     then redeploy or revalidate the platform admin login path as appropriate.
   2. Run the merchant-to-platform QA plan in
      `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
 - Not performed:

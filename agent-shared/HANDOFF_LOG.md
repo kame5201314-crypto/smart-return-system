@@ -2,6 +2,54 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Completed read-only production admin verification.
+
+Completed:
+
+- Re-ran preflight and `npm run safety:agent-boundary`; branch was
+  `develop-saas` and the worktree was clean before checks.
+- Used Vercel CLI read-only commands only.
+- Confirmed Vercel Production env names include:
+  - `ENABLE_MULTI_TENANT_ADMIN`
+  - `ADMIN_USERNAME`
+  - `ADMIN_PASSWORD`
+  - `ADMIN_SESSION_SECRET`
+  - `SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_DSN`
+- Confirmed `PLATFORM_ADMIN_ROLES` is not listed in Vercel Production env
+  names.
+- Confirmed deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` is Ready.
+- Confirmed unauthenticated `/admin` and `/internal` redirect to
+  `/admin/login?next=%2Finternal`.
+- Confirmed `/admin/login?next=%2Finternal` redirects to
+  `/login?next=%2Finternal`.
+- `npm run saas:production-smoke` passed with 16 pass, 0 warn, 0 fail.
+
+Not verified:
+
+- Authenticated platform-admin login, because no admin credentials were used in
+  this read-only run.
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- If per-email platform operator roles are needed, owner must authorize adding
+  `PLATFORM_ADMIN_ROLES` to Vercel Production env.
+- Otherwise, run authenticated platform-admin login QA with the existing admin
+  username/password through an approved secure credential handoff.
+- Run disposable-org merchant-to-platform and team-management browser QA
+  before inviting real multi-member merchants.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Applied the owner-authorized team member visibility migration to the SaaS
 project.
 
