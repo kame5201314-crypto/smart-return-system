@@ -266,8 +266,9 @@ signals and account state, not customer PII.
 
 ### Ready To Execute With Owner Authorization
 
-1. Deploy latest `develop-saas` to production if prospects should see the
-   499/699 pricing and multi-channel honesty copy.
+1. Re-run the read-only production smoke check when you need to confirm the
+   public site is still current:
+   `npm run saas:production-smoke`.
 2. Apply only `038_saas_org_member_visibility.sql` to SaaS Supabase if
    multi-member team QA is required.
 3. Verify production `/internal` has the correct Vercel env and platform admin
