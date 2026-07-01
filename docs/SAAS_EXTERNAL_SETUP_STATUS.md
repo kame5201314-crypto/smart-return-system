@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -58,6 +58,32 @@ Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`/`038`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-01 Go-Live Risk And Service Plan
+
+- Added `docs/SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md` as the current ordered
+  launch, subscription, and service risk plan.
+- Current launch decision:
+  - Closed free/manual Beta remains acceptable with controlled scope.
+  - First paid manual customers are not ready until invoice/receipt capability,
+    legal/refund finalization, and manual payment tracking are operational.
+  - Public self-serve paid SaaS remains blocked by email delivery, ECPay
+    recurring billing/invoice flow, public signup/provisioning posture,
+    lifecycle automation, and provider-backed alerts.
+- The next owner-authorized technical queue is:
+  1. Apply only `038_saas_org_member_visibility.sql` if multi-member team QA is
+     required.
+  2. Verify production `/admin` and `/internal` env/identity access read-only.
+  3. Run the merchant-to-platform QA plan in
+     `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
+- Not performed:
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
 
 ## 2026-06-30 AI Return Data Flow and Team Member Visibility Draft
 

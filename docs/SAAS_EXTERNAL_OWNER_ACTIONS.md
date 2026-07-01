@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -35,6 +35,31 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - migration `037_saas_team_invite_status.sql` is applied
   - draft migrations `033`, `034`, `036`, and `038` remain unapplied
+
+## 2026-07-01 Go-Live Risk And Service Plan
+
+See [`SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`](./SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md)
+for the current ordered launch, subscription, and service risk plan.
+
+Current decision:
+
+- Closed free/manual Beta is acceptable with controlled scope.
+- First paid manual customers require invoice/receipt capability, finalized
+  legal/refund wording, and a manual payment record SOP before collecting
+  money.
+- Public self-serve paid launch remains blocked by email delivery, ECPay
+  recurring billing, public signup/provisioning posture, lifecycle automation,
+  and provider-backed invoice flow.
+
+The next owner-authorized technical actions, in order, are:
+
+1. Apply only `038_saas_org_member_visibility.sql` if multi-member team
+   management QA is required.
+2. Verify production `/admin` and `/internal` env/identity access read-only.
+3. Run the merchant-to-platform QA plan in
+   `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
+4. Before any paid customer, confirm invoice/receipt capability and finalize
+   public legal pages for paid use.
 
 ## 2026-06-13 Custom Domain Deferred
 

@@ -1,5 +1,42 @@
 # Handoff Log
 
+## 2026-07-01 Codex -> Owner / Claude
+
+Added the current go-live risk and service plan.
+
+Completed:
+
+- Added `docs/SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`.
+- Linked the plan from `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md` and
+  `docs/SAAS_EXTERNAL_SETUP_STATUS.md`.
+- Updated `agent-shared/TASK_BOARD.md` and `agent-shared/ACTIVE_WORK.md` so
+  future Claude/Codex handoffs use the same ordered queue.
+- Clarified stage decisions:
+  - Closed free/manual Beta is acceptable with controlled scope.
+  - First paid manual customers require invoice/receipt capability, finalized
+    legal/refund wording, and manual payment tracking.
+  - Public self-serve paid SaaS remains blocked by email delivery, ECPay
+    recurring billing/invoice flow, public signup/provisioning posture,
+    lifecycle automation, and provider-backed alerts.
+
+Next:
+
+- Owner may explicitly authorize applying only
+  `038_saas_org_member_visibility.sql` if multi-member team QA is required.
+- Owner may explicitly authorize a read-only production `/admin` and
+  `/internal` Vercel env/route smoke.
+- After those, run the disposable-org merchant-to-platform QA plan in
+  `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md`.
+
+Not performed:
+
+- No migration.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
 ## 2026-06-30 Codex -> Owner / Claude
 
 Added a platform admin privacy-boundary regression test.
