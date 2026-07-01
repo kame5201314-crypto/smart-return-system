@@ -2,6 +2,48 @@
 
 ## 2026-07-01 Codex -> Owner / Claude
 
+Completed the local, non-external go-live execution pass.
+
+Completed:
+
+- Ran `npm run safety:agent-boundary`.
+- Ran `npm run lint`.
+- Ran `npm run typecheck`.
+- Ran `npm run saas:migration-plan:strict`.
+- Ran `npm run saas:schema-gate:strict`.
+- Ran `npm run test:all`.
+- Ran `npm run saas:doctor`.
+- Ran `npm run build`.
+- Updated `docs/SAAS_GO_LIVE_RISK_AND_SERVICE_PLAN.md`,
+  `docs/SAAS_EXTERNAL_SETUP_STATUS.md`, and `agent-shared/**` with the pass
+  result and remaining authorization blockers.
+
+Results:
+
+- Local gate status: pass.
+- `saas:doctor`: 165 pass, 1 expected local warning, 0 fail.
+- The warning is local `ENABLE_MULTI_TENANT_ADMIN=true`, which remains the
+  local platform-admin preview posture and not a code failure.
+
+Still requires explicit owner authorization:
+
+- Applying only `038_saas_org_member_visibility.sql`.
+- Read-only production `/admin` and `/internal` Vercel env/route verification.
+- Disposable-org browser QA that writes test return/team data.
+- Any deployment, env change, provider enablement, billing change, DNS change,
+  or live/internal Supabase action.
+
+Not performed:
+
+- No migration.
+- No deployment.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+## 2026-07-01 Codex -> Owner / Claude
+
 Added the current go-live risk and service plan.
 
 Completed:
