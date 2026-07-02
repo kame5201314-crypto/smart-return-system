@@ -65,11 +65,59 @@ for the controlled customer handoff and first-session walkthrough.
 - Latest owner-authorized production deployment: `3fadd75 docs(saas): record production deployment gap` -> Vercel deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `3fadd75`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, and the multi-channel honesty copy.
 - A 2026-07-01 production smoke test after deployment confirms `/pricing` now exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
-- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. No custom/beta domain is visible, no email/ECPay provider credentials are visible, migrations `035`, `037`, and `038` are applied, and draft migrations `033`, `034`, and `036` remain unapplied.
+- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `035`, `037`, and `038` are applied, and draft migrations `033`, `034`, and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-02 Production Closed-Beta Flag Lock Verification
+
+- Ran the required SaaS repo preflight in the SaaS commercial checkout; branch
+  was `develop-saas`, the worktree was clean, and
+  `npm run safety:agent-boundary` passed.
+- Used `npx vercel env ls production` for the env-name inventory, then pulled
+  Production env values into a Windows temporary file only long enough to parse
+  non-secret rollout flags. The temporary file was deleted immediately after
+  parsing, and no secret values were printed, committed, or written into repo.
+- Confirmed Production rollout flags:
+  - `ENABLE_BILLING=false`
+  - `ENABLE_PUBLIC_SIGNUP=false`
+  - `RESEND_API_KEY`: missing
+  - `EMAIL_FROM`: missing
+  - `EMAIL_PROVIDER`: missing
+  - `ENABLE_EMAIL_PROVIDER`: missing
+  - `EMAIL_DELIVERY_ENABLED`: missing
+- Confirmed the email/provider posture remains disabled:
+  - The Resend adapter skeleton remains disabled-by-default.
+  - The email queue route still rejects `dryRun=false` with
+    `delivery_not_enabled`.
+  - No Resend provider env or enablement flag is configured in Production.
+- Confirmed current route and platform-admin guard posture:
+  - `/admin` redirects an unauthenticated request to
+    `/admin/login?next=%2Finternal`.
+  - `/internal` redirects an unauthenticated request to
+    `/admin/login?next=%2Finternal`.
+  - `/internal/orgs` redirects an unauthenticated request to
+    `/admin/login?next=%2Finternal%2Forgs`.
+  - A signed production `admin_session` generated from the pulled temporary
+    `ADMIN_SESSION_SECRET` reached `/internal` with HTTP `200`.
+  - The same signed admin session reached `/internal/orgs` with HTTP `200`.
+  - The temporary env file and local response files used for this verification
+    were deleted after the check.
+- The latest authenticated merchant denial evidence remains the 2026-07-02 QA
+  run recorded below: a logged-in merchant account that opened `/internal` was
+  denied by the platform-admin gated state. No merchant password was used or
+  reset during this flag-lock verification pass.
+- Not performed:
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No public signup enablement.
+  - No master/live/internal Supabase action.
 
 ## 2026-07-02 Resend, Billing, And Public Signup Readiness
 
@@ -85,6 +133,9 @@ for the controlled customer handoff and first-session walkthrough.
   - `ECPAY_HASH_KEY`: missing
   - `ECPAY_HASH_IV`: missing
   - `ENABLE_BILLING`: set
+- A later 2026-07-02 flag-lock verification confirmed
+  `ENABLE_BILLING=false` and `ENABLE_PUBLIC_SIGNUP=false`; this earlier
+  readiness pass only listed encrypted env names and did not inspect values.
 - Resend readiness:
   - Added `lib/saas/email-delivery-provider.ts` as a disabled-by-default Resend
     adapter skeleton.
@@ -98,8 +149,7 @@ for the controlled customer handoff and first-session walkthrough.
   - Unit coverage now proves disabled-by-default behavior, missing config
     handling, mocked Resend success, and mocked provider errors.
 - Billing/ECPay readiness:
-  - `ENABLE_BILLING` remains present in Production env, but no value was
-    printed or changed.
+  - `ENABLE_BILLING=false` in Production, and no value was changed.
   - Production env names still do not list `ECPAY_MERCHANT_ID`,
     `ECPAY_HASH_KEY`, or `ECPAY_HASH_IV`.
   - Current billing code remains a gated webhook/event-recording foundation:

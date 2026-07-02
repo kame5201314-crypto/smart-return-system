@@ -2,6 +2,56 @@
 
 ## 2026-07-02 Codex -> Owner / Claude
 
+Completed production Closed Manual Beta flag-lock verification without
+changing any Vercel env, provider, billing, signup, deployment, migration, or
+database state.
+
+Completed:
+
+- Re-ran preflight and `npm run safety:agent-boundary`; branch was
+  `develop-saas` and the worktree was clean before changes.
+- Checked Vercel Production env names with `npx vercel env ls production`.
+- Pulled Vercel Production env values into a Windows temporary file only long
+  enough to parse non-secret rollout flags, then immediately deleted the temp
+  file. No secret values were printed, committed, or written into repo.
+- Confirmed:
+  - `ENABLE_BILLING=false`
+  - `ENABLE_PUBLIC_SIGNUP=false`
+  - `RESEND_API_KEY`: missing
+  - `EMAIL_FROM`: missing
+  - `EMAIL_PROVIDER`: missing
+  - `ENABLE_EMAIL_PROVIDER`: missing
+  - `EMAIL_DELIVERY_ENABLED`: missing
+- Confirmed `/admin`, `/internal`, and `/internal/orgs` unauthenticated route
+  behavior still redirects through the platform admin login path.
+- Confirmed a signed production platform-admin `admin_session` reaches:
+  - `/internal` with HTTP `200`
+  - `/internal/orgs` with HTTP `200`
+- Reused the existing 2026-07-02 authenticated merchant QA evidence for the
+  merchant-account denial claim; no merchant password was used or reset in this
+  flag-lock pass.
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email provider enablement.
+- No billing/provider enablement.
+- No public signup enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- Keep D/E/F disabled for Closed Manual Beta.
+- Owner may start Closed Manual Beta customer onboarding on the Vercel
+  production URL.
+- First paid customer remains blocked on invoice/receipt and legal/accounting
+  confirmation.
+
+## 2026-07-02 Codex -> Owner / Claude
+
 Completed SaaS D/E/F readiness pass for Resend email provider, ECPay/billing,
 and public signup without enabling any external provider.
 

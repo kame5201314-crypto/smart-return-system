@@ -43,9 +43,12 @@ environment changes, billing/provider enablement, or DNS changes by itself.
     `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not
     list `PLATFORM_ADMIN_ROLES`
   - production env-name inspection for this D/E/F readiness pass found
-    `ENABLE_BILLING` set, but `RESEND_API_KEY`, `EMAIL_FROM`,
-    `EMAIL_PROVIDER`, `ECPAY_MERCHANT_ID`, `ECPAY_HASH_KEY`, and
-    `ECPAY_HASH_IV` missing
+    `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_PROVIDER`,
+    `ECPAY_MERCHANT_ID`, `ECPAY_HASH_KEY`, and `ECPAY_HASH_IV` missing
+  - a follow-up production flag-lock check confirmed
+    `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no
+    Resend/email provider enablement env is configured; the temporary env file
+    used for value parsing was deleted immediately after the check
   - 2026-07-02 authenticated production platform-admin QA passed with the
     configured admin username/password path; `/internal` and `/internal/orgs`
     render for the platform admin, while a merchant account is denied from
@@ -131,8 +134,7 @@ legal advice and does not finalize paid-use terms by itself.
   - No email is sent unless a future owner action supplies real provider values
     and explicitly enables `ENABLE_EMAIL_DELIVERY=true`.
 - Billing/ECPay:
-  - `ENABLE_BILLING` is present in Vercel Production env, but its value was not
-    printed or changed.
+  - `ENABLE_BILLING=false` in Vercel Production.
   - ECPay credential env names are still missing from Vercel Production.
   - Current backend is webhook/event-recording only; recurring authorization,
     subscription state automation, invoice issuing, refunds, and provider
