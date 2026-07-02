@@ -25,8 +25,16 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
-- Notification backend foundation is queue-only; no email provider is wired and no email is sent.
-- Email queue worker is dry-run only through `GET /api/cron/saas/email-queue?dryRun=true`; no provider call or queue mutation is enabled.
+- Notification backend foundation is queue-oriented; email queue creation and
+  dry-run inspection exist, and a disabled-by-default Resend adapter skeleton is
+  now present for a future owner-authorized provider rollout.
+- Email queue worker is dry-run only through
+  `GET /api/cron/saas/email-queue?dryRun=true`; production delivery is still
+  disabled and no cron route sends email or mutates provider state.
+- Resend delivery remains blocked until the owner provides a Resend account,
+  verified sender domain, `RESEND_API_KEY`, `EMAIL_FROM`, delivery scope, and
+  explicitly authorizes `ENABLE_EMAIL_DELIVERY=true` plus
+  `EMAIL_PROVIDER=resend`.
 - Onboarding backend foundation now includes read-only `loadSaaSOnboardingView()` plus guarded `POST /api/saas/onboarding/complete`; migration `035` is applied and the `complete_organization_onboarding()` RPC is available to the service role.
 - Platform admin role policy now supports `owner`, `support`, and `billing`; optional `PLATFORM_ADMIN_ROLES` mapping is not configured by default.
 - Platform admin identity separation now requires the signed internal admin session, explicit `ADMIN_EMAIL` / email-style `ADMIN_USERNAME`, or valid `PLATFORM_ADMIN_ROLES`. Tenant/profile `users.role='admin'` is no longer a platform admin grant. Proxy-level `/login` redirects now use the same explicit platform admin identity policy for already-authenticated users, and authenticated merchants who visit `/admin` are sent back to `/analytics`.
@@ -62,6 +70,75 @@ for the controlled customer handoff and first-session walkthrough.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-02 Resend, Billing, And Public Signup Readiness
+
+- Ran the required SaaS repo preflight in the SaaS commercial checkout; branch
+  was `develop-saas`,
+  worktree was clean, and `npm run safety:agent-boundary` passed.
+- Vercel Production env-name inspection for project
+  `smart-return-system-saas` confirmed the following without printing values:
+  - `RESEND_API_KEY`: missing
+  - `EMAIL_FROM`: missing
+  - `EMAIL_PROVIDER`: missing
+  - `ECPAY_MERCHANT_ID`: missing
+  - `ECPAY_HASH_KEY`: missing
+  - `ECPAY_HASH_IV`: missing
+  - `ENABLE_BILLING`: set
+- Resend readiness:
+  - Added `lib/saas/email-delivery-provider.ts` as a disabled-by-default Resend
+    adapter skeleton.
+  - The adapter reports `delivery_not_enabled` unless
+    `ENABLE_EMAIL_DELIVERY=true`.
+  - Even after the enablement flag, it requires `EMAIL_PROVIDER=resend`,
+    `RESEND_API_KEY`, and `EMAIL_FROM`.
+  - No Vercel env was changed, no API key was written, no email was sent, and
+    the existing email queue cron route still rejects `dryRun=false` with
+    `delivery_not_enabled`.
+  - Unit coverage now proves disabled-by-default behavior, missing config
+    handling, mocked Resend success, and mocked provider errors.
+- Billing/ECPay readiness:
+  - `ENABLE_BILLING` remains present in Production env, but no value was
+    printed or changed.
+  - Production env names still do not list `ECPAY_MERCHANT_ID`,
+    `ECPAY_HASH_KEY`, or `ECPAY_HASH_IV`.
+  - Current billing code remains a gated webhook/event-recording foundation:
+    `ENABLE_BILLING=false` returns `billing_disabled`; if billing is later
+    enabled, the webhook still requires `BILLING_PROVIDER=ecpay`, complete ECPay
+    credentials, and CheckMacValue verification before inserting
+    `billing_events`.
+  - Full recurring billing is still not implemented: no recurring
+    authorization flow, no automatic paid/past_due/suspended transitions, no
+    invoice issuing, no refund execution, and no provider retry/replay.
+- Public signup readiness:
+  - `/signup` remains public marketing/Beta interest UI.
+  - `POST /api/saas/signup` remains gated by `ENABLE_PUBLIC_SIGNUP=false` and
+    returns `feature_disabled` before validation or persistence while the flag
+    is closed.
+  - If the owner later enables public signup, the current backend only records
+    a Basic-plan `signup_requests` lead/request. It does not create an auth
+    user, organization, owner membership, subscription, trial, invoice, or
+    billing authorization.
+- Owner data still required before activation:
+  - Resend: account, verified sender domain, `RESEND_API_KEY`, `EMAIL_FROM`,
+    and first delivery scope (`invite`, `trial reminder`, `quota warning`,
+    `billing notice`).
+  - ECPay: MerchantID, HashKey, HashIV, sandbox/production mode, invoice method,
+    company/tax identity, payment-failure grace days, refund SOP, sandbox test
+    account, and production cutover criteria.
+  - Public signup: abuse/WAF posture, CAPTCHA or equivalent abuse control,
+    default plan/trial policy, automatic org/subscription creation plan,
+    email-verification flow, and explicit `ENABLE_PUBLIC_SIGNUP=true`
+    authorization.
+- Not performed:
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No public signup enablement.
+  - No master/live/internal Supabase action.
 
 ## 2026-07-02 Production Admin And Disposable QA Verification
 
@@ -1944,6 +2021,10 @@ Required before migration/deployment:
 Optional before billing launch:
 
 - `NEXT_PUBLIC_CONTACT_EMAIL`
+- `ENABLE_EMAIL_DELIVERY`
+- `EMAIL_PROVIDER`
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
 - `BILLING_PROVIDER`
 - `ECPAY_MERCHANT_ID`
 - `ECPAY_HASH_KEY`

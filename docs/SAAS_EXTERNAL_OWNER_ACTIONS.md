@@ -27,7 +27,8 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
-  - email delivery remains dry-run
+  - email delivery remains dry-run; a disabled-by-default Resend adapter
+    skeleton exists, but no provider env or enablement flag is configured
   - owner deferred custom domain purchase/setup and chose to use
     `https://smart-return-system-saas.vercel.app` for Closed Manual Beta.
     Historical `app.smart-return.tw` DNS notes remain below for future use only;
@@ -41,6 +42,10 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - production env-name inspection found `ENABLE_MULTI_TENANT_ADMIN`,
     `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not
     list `PLATFORM_ADMIN_ROLES`
+  - production env-name inspection for this D/E/F readiness pass found
+    `ENABLE_BILLING` set, but `RESEND_API_KEY`, `EMAIL_FROM`,
+    `EMAIL_PROVIDER`, `ECPAY_MERCHANT_ID`, `ECPAY_HASH_KEY`, and
+    `ECPAY_HASH_IV` missing
   - 2026-07-02 authenticated production platform-admin QA passed with the
     configured admin username/password path; `/internal` and `/internal/orgs`
     render for the platform admin, while a merchant account is denied from
@@ -115,6 +120,36 @@ Owner must provide or approve:
 
 The current repository contains draft pages and SOPs only. It does not provide
 legal advice and does not finalize paid-use terms by itself.
+
+## 2026-07-02 Resend / Billing / Public Signup Readiness
+
+- Resend:
+  - `lib/saas/email-delivery-provider.ts` now provides a disabled-by-default
+    Resend adapter skeleton.
+  - The current email queue cron route remains dry-run only and still rejects
+    `dryRun=false` with `delivery_not_enabled`.
+  - No email is sent unless a future owner action supplies real provider values
+    and explicitly enables `ENABLE_EMAIL_DELIVERY=true`.
+- Billing/ECPay:
+  - `ENABLE_BILLING` is present in Vercel Production env, but its value was not
+    printed or changed.
+  - ECPay credential env names are still missing from Vercel Production.
+  - Current backend is webhook/event-recording only; recurring authorization,
+    subscription state automation, invoice issuing, refunds, and provider
+    replay are not live.
+- Public signup:
+  - `ENABLE_PUBLIC_SIGNUP=false` keeps public signup closed.
+  - If enabled later, current code records a Basic-plan `signup_requests`
+    lead/request only.
+  - It does not create a Supabase Auth user, organization, owner membership,
+    subscription, trial, invoice, or billing authorization.
+- Not authorized or performed:
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No public signup enablement.
 
 ## 2026-06-13 Custom Domain Deferred
 
@@ -213,8 +248,9 @@ legal advice and does not finalize paid-use terms by itself.
 - Vercel Production env names do not show email provider credentials or
   ECPay/provider credential names; email delivery and Billing/ECPay remain
   owner-blocked.
-- Draft migrations `033`, `034`, `036`, and `038` remain separate owner-authorization
-  items. Do not apply them as a bundle.
+- Draft migrations `033`, `034`, and `036` remain separate owner-authorization
+  items. Do not apply them as a bundle. Migration `038` is already applied and
+  must not be rerun without a repair plan.
 - No deploy, migration, env/secret edit, DNS/domain mutation, email provider
   enablement, billing/provider enablement, or internal/live Supabase action was
   performed.
@@ -586,11 +622,15 @@ domain is ready, run smoke tests, update docs, commit, and push develop-saas.
 
 Owner must provide:
 
-- Provider: Resend, Postmark, SendGrid, or SMTP
-- API key or SMTP credentials
-- Verified sender domain or sender email
-- Desired from name and from address
-- Whether invites and notification emails should be enabled immediately
+- Provider: Resend for the first implementation.
+- Resend account.
+- Verified sender domain, preferably the final SaaS domain.
+- `RESEND_API_KEY` provided out of band.
+- `EMAIL_FROM`, for example `Smart Return <no-reply@smart-return.tw>`.
+- Delivery scope decision: invite email only first, or invite plus trial
+  reminder, AI quota warning, and billing notice.
+- Explicit approval for `ENABLE_EMAIL_DELIVERY=true` and
+  `EMAIL_PROVIDER=resend`.
 
 Handoff after credentials are available:
 
@@ -598,11 +638,10 @@ Handoff after credentials are available:
 I authorize wiring email provider delivery for the SaaS project.
 
 Provider:
-- <provider name>
+- Resend
 
 Sender:
-- From name: <name>
-- From email: <email>
+- EMAIL_FROM=<provided out-of-band>
 
 Scope:
 - Keep secrets out of git.
@@ -611,8 +650,9 @@ Scope:
 - Do not run migration unless I separately authorize migration 034.
 - Do not touch master/live/internal Supabase.
 
-Add or enable the provider adapter, keep dry-run behavior available, run tests,
-then update docs and push develop-saas.
+Set RESEND_API_KEY, EMAIL_FROM, EMAIL_PROVIDER=resend, and
+ENABLE_EMAIL_DELIVERY=true only after I provide values and authorize it. Keep
+dry-run behavior available, run tests, then update docs and push develop-saas.
 ```
 
 ## Billing / ECPay
@@ -625,6 +665,12 @@ Owner must provide:
 - Environment choice: sandbox or production
 - Public pricing decision and whether Stage 2 paid Beta is authorized
 - Explicit approval for `ENABLE_BILLING=true`
+- Invoice method: manual invoice/receipt, ECPay electronic invoice, or another
+  approved channel
+- Company/tax identity for paid receipts/invoices
+- Payment-failure grace days before `past_due` / `suspended`
+- Refund SOP and invoice void/allowance handling
+- Sandbox test account and production cutover criteria
 
 Handoff after Stage 2 is approved:
 
@@ -651,12 +697,12 @@ Scope:
 - Update docs and push develop-saas.
 ```
 
-## Draft Migrations 033-038
+## Draft Migrations 033-038 Status
 
 These require explicit per-migration authorization. Do not apply them as a
-bundle. Migrations `035` and `037` have already been applied to the SaaS
-project after explicit owner authorization; the remaining unapplied drafts are
-`033`, `034`, `036`, and `038`.
+bundle. Migrations `035`, `037`, and `038` have already been applied to the
+SaaS project after explicit owner authorization; the remaining unapplied drafts
+are `033`, `034`, and `036`.
 
 ### `033_saas_platform_billing_operations.sql`
 
@@ -726,7 +772,7 @@ Risk:
 
 Recommendation:
 
-- Completed. Next migration actions remain `033`, `034`, `036`, and `038`, each only
+- Completed. Next migration actions remain `033`, `034`, and `036`, each only
   after separate owner authorization.
 
 ### `036_saas_platform_admin_roles.sql`
@@ -784,6 +830,13 @@ Recommendation:
 
 ### `038_saas_org_member_visibility.sql`
 
+Status:
+
+- Applied to SaaS Supabase project `auyznbwtjvemyamujmgt` on 2026-07-01 after
+  explicit owner authorization.
+- Remote migration history records version `038` as applied.
+- Do not reapply unless a future repair/rollback plan is explicitly approved.
+
 Purpose:
 
 - Adds `public.is_organization_member(...)` as a helper-backed,
@@ -808,15 +861,15 @@ Risk:
 
 Recommendation:
 
-- Apply only after explicit owner authorization for `038`; do not bundle with
-  `033`, `034`, or `036`.
+- Completed. Do not bundle or rerun `038` with future `033`, `034`, or `036`
+  work.
 
 ## Migration Authorization Template
 
 Use this only after choosing one migration:
 
 ```text
-I authorize applying migration <033|034|036|038> to the SaaS Supabase project
+I authorize applying migration <033|034|036> to the SaaS Supabase project
 auyznbwtjvemyamujmgt only.
 
 Scope:
@@ -835,8 +888,8 @@ Scope:
   safe to use that way.
 - Do not commit DSN, API keys, ECPay credentials, SMTP credentials, or DNS
   tokens.
-- Do not apply migrations `033`-`038` as a bundle. `035` and `037` are already
-  applied; the remaining unapplied drafts are `033`, `034`, `036`, and `038`.
+- Do not apply migrations `033`-`038` as a bundle. `035`, `037`, and `038` are
+  already applied; the remaining unapplied drafts are `033`, `034`, and `036`.
 - Do not enable `ENABLE_PUBLIC_SIGNUP=true` as part of these actions.
 - Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
 - Do not change `master`.

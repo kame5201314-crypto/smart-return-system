@@ -2,6 +2,70 @@
 
 ## 2026-07-02 Codex -> Owner / Claude
 
+Completed SaaS D/E/F readiness pass for Resend email provider, ECPay/billing,
+and public signup without enabling any external provider.
+
+Completed:
+
+- Re-ran preflight and `npm run safety:agent-boundary`; branch was
+  `develop-saas` and the worktree was clean before changes.
+- Checked Vercel Production env names without printing values:
+  - `RESEND_API_KEY`: missing
+  - `EMAIL_FROM`: missing
+  - `EMAIL_PROVIDER`: missing
+  - `ECPAY_MERCHANT_ID`: missing
+  - `ECPAY_HASH_KEY`: missing
+  - `ECPAY_HASH_IV`: missing
+  - `ENABLE_BILLING`: set
+- Added `lib/saas/email-delivery-provider.ts` as a disabled-by-default Resend
+  adapter skeleton.
+- Added unit coverage proving:
+  - email provider delivery is disabled by default;
+  - `ENABLE_EMAIL_DELIVERY=true`, `EMAIL_PROVIDER=resend`,
+    `RESEND_API_KEY`, and `EMAIL_FROM` are all required before readiness is
+    `ready`;
+  - the adapter does not call Resend when disabled;
+  - mocked Resend success/error handling works without real provider calls.
+- Updated `scripts/saas/readiness-check.mjs` so `saas:doctor` records the
+  disabled-by-default Resend readiness skeleton.
+- Confirmed the current email queue cron route remains dry-run only and still
+  rejects `dryRun=false` with `delivery_not_enabled`.
+- Confirmed current ECPay billing foundation remains webhook/event-recording
+  only and does not implement recurring authorization, paid/past_due/suspended
+  automation, invoice issuing, provider replay, or refund execution.
+- Confirmed current public signup remains closed by `ENABLE_PUBLIC_SIGNUP=false`;
+  if opened later, it records a Basic-plan `signup_requests` lead/request only
+  and does not create auth users, orgs, memberships, subscriptions, trials,
+  invoices, or billing authorizations.
+- Updated:
+  - `docs/SAAS_EXTERNAL_SETUP_STATUS.md`
+  - `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`
+  - `agent-shared/TASK_BOARD.md`
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email provider enablement.
+- No billing/provider enablement.
+- No public signup enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- Owner provides Resend account, verified sender domain, `RESEND_API_KEY`,
+  `EMAIL_FROM`, delivery scope, and explicit `ENABLE_EMAIL_DELIVERY=true`
+  authorization before any real email delivery.
+- Owner provides ECPay MerchantID / HashKey / HashIV, invoice method,
+  payment-failure grace policy, refund SOP, sandbox test account, and explicit
+  Stage 2 `ENABLE_BILLING=true` authorization before billing provider work.
+- Owner decides public signup posture and automatic provisioning requirements
+  before opening `ENABLE_PUBLIC_SIGNUP=true`.
+
+## 2026-07-02 Codex -> Owner / Claude
+
 Completed production authenticated admin verification, disposable QA team
 verification, and paid-customer invoice/legal readiness documentation.
 

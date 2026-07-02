@@ -211,6 +211,7 @@ function checkCommercialFoundation() {
     'lib/saas/platform-admin-billing-operations.ts',
     'lib/saas/billing-reconciliation.ts',
     'lib/saas/notifications.ts',
+    'lib/saas/email-delivery-provider.ts',
     'lib/saas/email-queue-worker.ts',
     'lib/saas/onboarding.ts',
     'lib/saas/onboarding-live-data.ts',
@@ -1341,6 +1342,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'lib/saas/email-queue-worker.ts'
   );
+  const emailDeliveryProviderPath = path.resolve(
+    process.cwd(),
+    'lib/saas/email-delivery-provider.ts'
+  );
   const emailQueueCronRoutePath = path.resolve(
     process.cwd(),
     'app/api/cron/saas/email-queue/route.ts'
@@ -1375,6 +1380,24 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS email queue worker dry-run', 'cron-gated email_queue inspection exists without sending email or mutating provider state');
     } else {
       record('fail', 'SaaS email queue worker dry-run', 'email queue worker must stay cron-gated and dry-run only until a delivery provider is approved');
+    }
+  }
+
+  if (fs.existsSync(emailDeliveryProviderPath)) {
+    const providerSource = fs.readFileSync(emailDeliveryProviderPath, 'utf8');
+    if (
+      providerSource.includes('resolveSaaSEmailDeliveryReadiness') &&
+      providerSource.includes('ENABLE_EMAIL_DELIVERY') &&
+      providerSource.includes('EMAIL_PROVIDER') &&
+      providerSource.includes('RESEND_API_KEY') &&
+      providerSource.includes('EMAIL_FROM') &&
+      providerSource.includes('sendResendEmail') &&
+      providerSource.includes('delivery_not_enabled') &&
+      providerSource.includes('https://api.resend.com/emails')
+    ) {
+      record('pass', 'SaaS email provider readiness', 'Resend adapter skeleton exists behind explicit ENABLE_EMAIL_DELIVERY and credential gates');
+    } else {
+      record('fail', 'SaaS email provider readiness', 'Resend adapter skeleton must stay disabled by default and require explicit provider credentials');
     }
   }
 
