@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -41,6 +41,14 @@ environment changes, billing/provider enablement, or DNS changes by itself.
   - production env-name inspection found `ENABLE_MULTI_TENANT_ADMIN`,
     `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not
     list `PLATFORM_ADMIN_ROLES`
+  - 2026-07-02 authenticated production platform-admin QA passed with the
+    configured admin username/password path; `/internal` and `/internal/orgs`
+    render for the platform admin, while a merchant account is denied from
+    platform operations.
+  - 2026-07-02 disposable QA org team-management QA passed for owner login,
+    member visibility, role change, member disable, invite create, invite
+    resend, and invite revoke. The QA run used only the disposable QA org and
+    did not touch real customer orgs.
 
 ## 2026-07-01 Go-Live Risk And Service Plan
 
@@ -69,21 +77,44 @@ Current decision:
 
 The next owner-authorized technical actions, in order, are:
 
-1. Set `PLATFORM_ADMIN_ROLES` if per-email platform operator roles are needed,
-   then revalidate authenticated platform admin login.
-2. Run the merchant-to-platform QA plan in
-   `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md` against a disposable QA org.
-3. Before any paid customer, confirm invoice/receipt capability and finalize
+1. Set `PLATFORM_ADMIN_ROLES` only if per-email platform operator roles are
+   needed. The configured admin username/password production path has already
+   been authenticated and verified.
+2. Before any paid customer, confirm invoice/receipt capability and finalize
    public legal pages for paid use.
-4. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
+3. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
    refund review, support SLA, and onboarding until ECPay/email automation is
    explicitly authorized and implemented.
-5. Use `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md` for every first-session
+4. Use `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md` for every first-session
    Beta onboarding so account handoff, Shopee/manual-channel scope, AI
    walkthrough, and `/internal` follow-up stay consistent.
-6. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
+5. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
    support before promising DPA, deletion, retention, or incident-notice terms
    to paying customers.
+
+## Paid Customer Invoice / Legal Owner Inputs
+
+Do not collect money or describe the public legal pages as final until the
+owner, accountant, and legal support confirm the required values below.
+
+Owner must provide or approve:
+
+- Legal company or business name.
+- Taiwan tax id / business registration number.
+- Registered business address.
+- Customer-facing billing/privacy contact email.
+- Invoice method: manual invoice/receipt, ECPay electronic invoice, or another
+  approved channel.
+- Person or role responsible for issuing and sending invoices/receipts.
+- Data retention period for merchant records, consumer return records, billing
+  records, logs, exports, and backups.
+- Personal data deletion/access request contact.
+- Subprocessor list, including Supabase, Vercel, Sentry, Google/Gemini, and any
+  future email/payment providers that receive personal data.
+- Paid refund rules and invoice void/allowance handling.
+
+The current repository contains draft pages and SOPs only. It does not provide
+legal advice and does not finalize paid-use terms by itself.
 
 ## 2026-06-13 Custom Domain Deferred
 

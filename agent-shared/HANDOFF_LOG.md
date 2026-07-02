@@ -1,5 +1,77 @@
 # Handoff Log
 
+## 2026-07-02 Codex -> Owner / Claude
+
+Completed production authenticated admin verification, disposable QA team
+verification, and paid-customer invoice/legal readiness documentation.
+
+Completed:
+
+- Re-ran preflight and `npm run safety:agent-boundary`; branch was
+  `develop-saas` and the worktree was clean before checks.
+- Confirmed Vercel Production env names include:
+  - `ENABLE_MULTI_TENANT_ADMIN`
+  - `ADMIN_USERNAME`
+  - `ADMIN_PASSWORD`
+  - `ADMIN_SESSION_SECRET`
+- Confirmed `PLATFORM_ADMIN_ROLES` is not listed in Vercel Production env
+  names. This remains optional owner work only if per-email platform operator
+  roles are needed.
+- Used the configured production admin username/password path without printing
+  secret values.
+- Authenticated production admin check passed:
+  - `/admin` redirects clean unauthenticated users to `/login?next=%2Finternal`.
+  - Platform admin login reaches `/internal`.
+  - `/internal` renders the operations console.
+  - `/internal/orgs` renders the tenant list.
+- Disposable QA check used only
+  `QA Team Management Test 20260624041704`
+  (`791748d1-7d3f-4b61-a9e5-3138a98f7262`).
+- Reset QA owner/member temporary passwords without printing or storing them.
+- QA owner login passed.
+- QA owner pages passed:
+  - `/analytics`
+  - `/shopee-returns`
+  - `/analytics/ai-report`
+  - `/settings/team`
+- QA team operations passed:
+  - owner can see member;
+  - member role change;
+  - member disable;
+  - invite create;
+  - invite resend/regenerate token;
+  - invite revoke.
+- Merchant account access to `/internal` is denied by the platform-admin gated
+  state and does not expose platform operations data.
+- Added invoice/receipt and legal-finalization owner checklist to
+  `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`.
+
+Result:
+
+- No code fix was required.
+- First paid customer is still blocked on owner/legal/accounting confirmation
+  of legal entity, tax id, registered address, contact email, invoice method,
+  invoice issuer owner, retention period, personal-data deletion contact,
+  subprocessor list, and paid refund rules.
+
+Not performed:
+
+- No deployment.
+- No migration.
+- No env/secret edit.
+- No domain/DNS change.
+- No email/billing/provider enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- Owner/legal/accounting finalizes invoice/receipt and legal-page values before
+  collecting money.
+- Owner decides public signup posture.
+- Owner provides and authorizes Resend/email delivery credentials when ready.
+- Owner separately authorizes Stage 2 Billing/ECPay and any draft migrations
+  `033`, `034`, or `036`.
+
 ## 2026-07-01 Codex -> Owner / Claude
 
 Completed read-only production admin verification.

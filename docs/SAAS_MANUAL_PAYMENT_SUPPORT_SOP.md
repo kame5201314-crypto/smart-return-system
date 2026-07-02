@@ -1,6 +1,6 @@
 # SaaS Manual Payment And Support SOP
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 This SOP covers the manual operating path before automated ECPay billing,
 provider email delivery, and public self-serve signup are enabled. It is for
@@ -31,6 +31,41 @@ Do not collect money until all items are true:
 5. Public legal pages no longer describe paid terms as unresolved drafts.
 6. Payment records can be stored in an internal tracker, spreadsheet, or future
    platform billing operation; secrets and full card data must never be stored.
+
+## Invoice, Receipt, And Legal Finalization Owner Checklist
+
+The repository currently has public legal pages and billing DTO fields, but the
+paid-customer legal/accounting content is not final. Do not claim legal review
+is complete until the owner, accountant, and legal support confirm these values.
+
+Owner must provide or approve:
+
+| Required field | Status | Notes |
+|---|---|---|
+| Legal company or business name | Owner-required | Use the exact entity that will sign terms and issue invoices/receipts. |
+| Taiwan tax id / business registration number | Owner-required | Required before B2B invoice or receipt wording is finalized. |
+| Registered business address | Owner-required | Must match the entity used for billing/legal pages. |
+| Customer-facing contact email | Owner-required | Used for billing, refund, privacy, and deletion requests. |
+| Invoice/receipt method | Owner-required | Decide manual invoice/receipt, ECPay electronic invoice, or another approved channel. |
+| Payment receipt owner | Owner-required | Name the operator/accounting owner who issues and records invoices/receipts. |
+| Data retention period | Owner/legal-required | Current SOP contains draft defaults only; legal/accounting must confirm exact retention. |
+| Personal data deletion contact | Owner/legal-required | Decide the public contact window for deletion/access requests. |
+| Subprocessor list | Owner/legal-required | Confirm which vendors receive personal data before publishing privacy/DPA wording. |
+| Refund review rules | Owner/legal-required | Confirm paid refund eligibility before collecting money. |
+
+Current draft sources to review before first paid customer:
+
+- Public terms page: `app/legal/terms/page.tsx`
+- Public privacy page: `app/legal/privacy/page.tsx`
+- Public refund page: `app/legal/refund/page.tsx`
+- Billing settings UI: `app/(admin)/settings/billing/page.tsx`
+- Billing DTO/data contract: `lib/saas/settings-billing-data.ts` and
+  `agent-shared/UI_BACKEND_CONTRACTS.md`
+- Privacy/deletion SOP: `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md`
+
+Do not store identity documents, full bank account data, API keys, service-role
+keys, provider secrets, or card data in Git, docs, chat, or manual payment
+trackers.
 
 ## Plan Matrix For Manual Sales
 

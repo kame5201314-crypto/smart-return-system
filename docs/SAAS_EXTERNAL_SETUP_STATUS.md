@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
@@ -62,6 +62,55 @@ for the controlled customer handoff and first-session walkthrough.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-02 Production Admin And Disposable QA Verification
+
+- Ran the required SaaS repo preflight in
+  `D:\AI專案\AI退貨系統商業版_2026.5.16`; branch was `develop-saas`, worktree
+  was clean, and `npm run safety:agent-boundary` passed.
+- Vercel Production env-name inspection for project
+  `smart-return-system-saas` confirmed these names are set without printing
+  values:
+  - `ENABLE_MULTI_TENANT_ADMIN`
+  - `ADMIN_USERNAME`
+  - `ADMIN_PASSWORD`
+  - `ADMIN_SESSION_SECRET`
+- `PLATFORM_ADMIN_ROLES` is still missing from the Vercel Production env-name
+  list. This remains an owner decision only if per-email platform operator roles
+  are needed; Codex did not add or edit env values.
+- Authenticated production platform-admin check passed:
+  - `/admin` redirects to `/login?next=%2Finternal` for a clean unauthenticated
+    session.
+  - The configured platform admin login reaches `/internal`.
+  - `/internal` renders the commercial operations console.
+  - `/internal/orgs` renders the tenant list, including the disposable QA org.
+- Disposable QA org verification used only
+  `QA Team Management Test 20260624041704`
+  (`791748d1-7d3f-4b61-a9e5-3138a98f7262`):
+  - QA owner and QA member temporary passwords were reset without printing or
+    storing them in Git/docs/chat.
+  - QA owner login passed.
+  - `/analytics`, `/shopee-returns`, `/analytics/ai-report`, and
+    `/settings/team` loaded successfully.
+  - QA owner can see the QA member in `/settings/team`.
+  - QA owner role-change, member disable, invite create, invite resend, and
+    invite revoke calls all returned success and were reflected in the team UI.
+  - A logged-in merchant account that opens `/internal` is denied by the
+    platform-admin gated state instead of seeing platform operations data.
+- No code fix was required.
+- Invoice/receipt and legal readiness remains not finalized. Before the first
+  paid customer, the owner/legal/accounting side must confirm the fields listed
+  in `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`: legal company/business name,
+  tax id, registered address, contact email, invoice/receipt method, data
+  retention period, personal-data deletion contact, and subprocessor list.
+- Not performed:
+  - No deployment.
+  - No migration.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No billing/provider enablement.
+  - No master/live/internal Supabase action.
 
 ## 2026-07-01 Production Admin Read-Only Verification
 
