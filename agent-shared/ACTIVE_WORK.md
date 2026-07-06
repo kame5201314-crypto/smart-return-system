@@ -453,7 +453,7 @@ Files:
 - agent-shared/HANDOFF_LOG.md
 - agent-shared/ACTIVE_WORK.md
 Status: done
-Notes: `/internal/orgs` and `/internal/orgs/[id]` live data loaders now fetch subscription snapshots and include `trialEnd` plus `daysUntilTrialEnd` in `PlatformOrganizationListItem`, enabling Claude to add Trial ?��???/ ?��?天數 columns without UI-side data fetching. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
+Notes: `/internal/orgs` and `/internal/orgs/[id]` live data loaders now fetch subscription snapshots and include `trialEnd` plus `daysUntilTrialEnd` in `PlatformOrganizationListItem`, enabling Claude to add Trial 到期日 / 剩餘天數 columns without UI-side data fetching. No deployment, migration, env/secret edit, domain/DNS change, email provider enablement, billing/provider enablement, master/live/internal Supabase action, or production setting mutation was performed.
 ```
 
 ```text
@@ -1019,7 +1019,7 @@ Scope: Onboarding sidebar entry
 Files:
 - app/(admin)/layout.tsx
 Status: done
-Notes: Tenant sidebar now surfaces `/onboarding` as `設�??��?` with a Compass icon. UI/navigation only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
+Notes: Tenant sidebar now surfaces `/onboarding` as `設定指引` with a Compass icon. UI/navigation only; no backend/auth/API/RLS/billing/migration/env/deploy changes were reported.
 ```
 
 ```text
