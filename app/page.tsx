@@ -31,7 +31,7 @@ import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 export const metadata: Metadata = {
   title: 'Smart Return｜台灣電商退貨管理系統｜蝦皮 + 官網 + momo 集中處理',
   description:
-    '蝦皮退貨自動匯入、掃描對單；官網、momo 等通路的退貨手動集中在同一個工作台，AI 自動分析退貨原因、找出地雷 SKU。14 天免費試用，不需信用卡。專為每月 50 筆以上退貨的台灣電商品牌設計。',
+    '蝦皮退貨自動匯入、掃描對單；官網、momo 等通路的退貨手動集中在同一個工作台，AI 自動分析退貨原因、找出地雷 SKU。14 天免費試用，不需信用卡。專為每月 30 筆以上退貨的台灣電商品牌設計。',
 };
 
 const trustItems = [
@@ -59,7 +59,7 @@ const outcomes = [
 
 const audienceFit = {
   good: [
-    '每月退貨 50 筆以上',
+    '每月退貨 30 筆以上',
     '同時經營蝦皮、官網、momo 或多通路',
     '有客服、倉庫、營運分工',
     '現在靠 Excel + LINE 管退貨',
@@ -204,7 +204,8 @@ export default function HomePage() {
               ，減少客服與倉庫來回確認。
             </p>
             <p className="mt-4 text-sm text-neutral-300">
-              專為每月 50 筆以上退貨、需要客服 / 倉庫協作的台灣電商品牌設計。
+              專為每月 30 筆以上退貨、需要客服 / 倉庫協作的台灣電商品牌設計。入門版每天不到
+              NT$17，少花一小時對帳就回本。
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {ctaPrimary}
@@ -254,6 +255,28 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Built from our own operations */}
+      <section className="border-y border-emerald-100 bg-emerald-50/60 py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-sm font-semibold text-emerald-700">我們自己就在用</p>
+              <h2 className="mt-2 text-2xl font-semibold leading-tight text-neutral-950">
+                這套系統源自我們自家電商的退貨現場，不是紙上談兵。
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-neutral-600">
+                我們自己也經營蝦皮與多通路電商，先用這套系統解決自家客服與倉庫的退貨對帳，
+                才開放給其他品牌。你遇到的退貨流程問題，我們大多自己踩過。
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-sm text-neutral-600">
+              <BadgeCheck className="size-5 text-emerald-700" />
+              Beta 期由創辦團隊直接支援
+            </div>
           </div>
         </div>
       </section>
@@ -371,7 +394,8 @@ export default function HomePage() {
                 固定月費，沒有隱藏費用。
               </h2>
               <p className="mt-3 text-sm text-neutral-600">
-                AI 額度有上限不怕成本爆掉、退貨量是軟提醒不擋作業。
+                AI 額度有上限不怕成本爆掉、退貨量是軟提醒不擋作業。入門版每天不到
+                NT$17，少花一小時對帳就回本。
               </p>
             </div>
             <Button asChild variant="outline">

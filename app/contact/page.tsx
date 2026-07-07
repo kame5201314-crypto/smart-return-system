@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import {
-  ArrowRight,
   Building2,
   CalendarClock,
   Clock3,
@@ -9,8 +7,8 @@ import {
   MessageSquareText,
 } from 'lucide-react';
 
+import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
-import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
   title: '預約 Demo / 聯絡我們 | Smart Return',
@@ -43,20 +41,7 @@ const contactReasons = [
 
 export default function ContactPage() {
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
-  const subject = encodeURIComponent('Smart Return 諮詢');
-  const body = encodeURIComponent(
-    [
-      '您好，',
-      '',
-      '・品牌名稱：',
-      '・聯絡人：',
-      '・想詢問的事項：（Demo / Beta 試用 / 企業方案 / 其他）',
-      '・每月退貨筆數（如適用）：',
-      '',
-      '謝謝！',
-    ].join('\n')
-  );
-  const mailHref = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
+  const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
 
   return (
     <MarketingShell>
@@ -70,25 +55,16 @@ export default function ContactPage() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-6">
             <Mail className="size-6 text-emerald-700" />
-            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">寫信給我們</h2>
+            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">留下資訊，我們主動聯絡你</h2>
             <p className="mt-3 text-sm leading-6 text-neutral-700">
-              點下方按鈕會幫你帶好 Email 範本，補上你的資訊送出就好。1 個工作天內回覆。
+              填好後選 LINE 或 Email 送出，1 個工作天內回覆。
             </p>
-            <Button asChild className="mt-6 min-h-11 bg-emerald-700 hover:bg-emerald-800">
-              <Link href={mailHref}>
-                <Mail className="size-4" />
-                寄信聯絡
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <p className="mt-3 text-xs text-neutral-600">寄到：{contactEmail}</p>
-            <div className="mt-6 border-t border-emerald-200 pt-5 text-sm text-neutral-700">
-              <p className="font-semibold">想直接申請試用？</p>
-              <p className="mt-2 text-neutral-600">
-                <Link href="/signup" className="inline-flex min-h-11 items-center text-emerald-700 underline underline-offset-2">
-                  申請 Beta 試用 →
-                </Link>
-              </p>
+            <div className="mt-5 rounded-md border border-emerald-200 bg-white p-4">
+              <LeadCaptureForm
+                variant="contact"
+                contactEmail={contactEmail}
+                lineOaId={lineOaId}
+              />
             </div>
           </div>
 

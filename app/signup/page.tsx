@@ -1,21 +1,18 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import {
-  ArrowRight,
   BadgeCheck,
   CalendarClock,
   CheckCircle2,
   Clock3,
-  Mail,
   MessageSquareWarning,
   ShieldCheck,
   Sparkles,
   UserRoundPlus,
 } from 'lucide-react';
 
+import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 
 export const metadata: Metadata = {
@@ -23,15 +20,6 @@ export const metadata: Metadata = {
   description:
     '申請 Smart Return Beta 試用，14 天免費、不需信用卡。我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助匯入第一批退貨資料。',
 };
-
-const applicationFields = [
-  '品牌名稱',
-  '聯絡人姓名',
-  'Email / LINE',
-  '主要銷售平台（蝦皮 / 官網 / momo / 其他）',
-  '每月約幾筆退貨',
-  '目前最大的退貨痛點',
-] as const;
 
 const onboardingSteps = [
   [
@@ -66,23 +54,7 @@ const reassurances = [
 export default function SignupPage() {
   const signupState = resolveSaaSPublicSignupState();
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
-  const subject = encodeURIComponent('Smart Return Beta 試用申請');
-  const body = encodeURIComponent(
-    [
-      '您好，想申請 Smart Return Beta 試用：',
-      '',
-      '・品牌名稱：',
-      '・聯絡人：',
-      '・Email / LINE：',
-      '・主要銷售平台：',
-      '・每月退貨筆數：',
-      '・目前最大痛點：',
-      '',
-      '謝謝！',
-    ].join('\n')
-  );
-  const mailHref = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
-  const primaryHref = signupState.isPublicSignupEnabled ? mailHref : mailHref;
+  const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
 
   return (
     <MarketingShell>
@@ -106,35 +78,12 @@ export default function SignupPage() {
             <p className="mt-3 text-sm leading-6 text-neutral-700">{signupState.description}</p>
 
             <div className="mt-6 rounded-md border border-emerald-200 bg-white p-4">
-              <div className="text-sm font-semibold text-neutral-900">申請只要這 6 個資訊：</div>
-              <ul className="mt-3 space-y-2">
-                {applicationFields.map((field) => (
-                  <li
-                    key={field}
-                    className="flex items-start gap-2 text-sm leading-6 text-neutral-700"
-                  >
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-700" />
-                    {field}
-                  </li>
-                ))}
-              </ul>
+              <LeadCaptureForm
+                variant="signup"
+                contactEmail={contactEmail}
+                lineOaId={lineOaId}
+              />
             </div>
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button asChild className="min-h-11 bg-emerald-700 hover:bg-emerald-800">
-                <Link href={primaryHref}>
-                  <Mail className="size-4" />
-                  寄信申請（範本已帶好）
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="min-h-11">
-                <Link href="/contact">改用其他方式聯絡</Link>
-              </Button>
-            </div>
-            <p className="mt-3 text-xs text-neutral-600">
-              寄到：{contactEmail} · 1 個工作天內回覆
-            </p>
           </div>
 
           {/* Onboarding steps */}
