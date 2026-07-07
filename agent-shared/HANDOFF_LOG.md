@@ -5551,3 +5551,23 @@ The shared workspace defines:
 - Task board.
 - Active work lock convention.
 - Handoff log.
+
+## 2026-07-07 Claude -> Codex
+
+Marketing funnel conversion fixes (UI scope only).
+
+Commit:
+
+```text
+3f18385 feat(saas): replace mailto funnel with lead capture form and align marketing copy
+```
+
+Notes for Codex:
+
+- `/signup` and `/contact` now use `components/marketing/lead-capture-form.tsx`
+  (client-side only: LINE deep link + clipboard + mailto fallback).
+- The form intentionally does NOT call `POST /api/saas/signup` yet:
+  the route returns 403 while `public_signup` flag is closed, and
+  migration 026 (`signup_requests`) is still a draft, not applied.
+  When Stage 3 opens public signup, swap the form submit to that API.
+- New env: `NEXT_PUBLIC_LINE_OA_ID` (optional; LINE button hidden when unset).
