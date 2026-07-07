@@ -177,12 +177,34 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <CardContent className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="rounded-md border p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">風險等級</span>
-              <Badge variant={riskVariant(org.health.riskLevel)}>
-                {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
-              </Badge>
+              <span className="text-sm font-medium">跟進狀態</span>
+              {trialExpired ? (
+                <Badge className="border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100">
+                  需關注
+                </Badge>
+              ) : (
+                <Badge variant={riskVariant(org.health.riskLevel)}>
+                  {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
+                </Badge>
+              )}
             </div>
-            {org.health.riskReasons.length > 0 ? (
+            {trialExpired ? (
+              <div className="space-y-1.5 text-sm">
+                <p className="text-amber-800">試用已到期，建議聯絡客戶確認續約或延長試用。</p>
+                {org.health.riskReasons.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">用量與帳務風險目前正常。</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    {org.health.riskReasons.map((reason) => (
+                      <Badge key={reason} variant="outline">
+                        <AlertTriangle className="size-3" aria-hidden="true" />
+                        {PLATFORM_RISK_REASON_LABEL[reason]}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : org.health.riskReasons.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {org.health.riskReasons.map((reason) => (
                   <Badge key={reason} variant="outline">
