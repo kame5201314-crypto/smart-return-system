@@ -34,6 +34,20 @@ const MEMBER_STATUS_LABEL: Record<string, string> = {
   invited: '邀請中',
   disabled: '已停用',
 };
+
+// 常見平台操作的繁中對照；未知 action 以原始代碼顯示。
+const AUDIT_ACTION_LABEL: Record<string, string> = {
+  'member.invited': '邀請成員',
+  'member.invite_accepted': '成員接受邀請',
+  'member.role_changed': '變更成員角色',
+  'member.disabled': '停用成員',
+  'invite.revoked': '撤銷邀請',
+  'invite.resent': '重送邀請',
+  'org.onboarding_completed': '完成導入設定',
+  'org.manual_beta_provisioned': '手動開通租戶',
+  'platform.tenant_preview_started': '開始租戶預覽',
+  'platform.tenant_preview_cleared': '結束租戶預覽',
+};
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
@@ -81,9 +95,16 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
   const featureFlags = Object.entries(org.featureFlags);
 
+  const trialExpired =
+    org.status === 'trialing' && org.daysUntilTrialEnd !== null && org.daysUntilTrialEnd <= 0;
+  // 與租戶清單同一套「需關注」定義：帳務/額度風險或試用已到期。
+  const needsAttention = org.health.riskLevel === 'at_risk' || trialExpired;
+
   const statusValue =
     org.status === 'trialing' && org.daysUntilTrialEnd !== null
-      ? `試用中（剩 ${Math.max(org.daysUntilTrialEnd, 0)} 天）`
+      ? trialExpired
+        ? '試用已到期'
+        : `試用中（剩 ${org.daysUntilTrialEnd} 天）`
       : PLATFORM_ORG_STATUS_LABEL[org.status];
 
   const summaryCards = [
@@ -100,17 +121,24 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
     ['建立日期', formatDate(org.createdAt)],
   ] as const;
 
-  const suggestedActions = formatSuggestedActions(org.health.riskReasons);
+  const suggestedActions = trialExpired
+    ? ['聯絡客戶確認續約或延長試用', ...formatSuggestedActions(org.health.riskReasons)]
+    : formatSuggestedActions(org.health.riskReasons);
 
   return (
     <>
-      {org.health.riskLevel === 'at_risk' ? (
+      {needsAttention ? (
         <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
           <div className="flex-1">
             <p className="font-medium">此租戶目前需關注，建議優先跟進。</p>
-            {org.health.riskReasons.length > 0 ? (
+            {(trialExpired || org.health.riskReasons.length > 0) ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {trialExpired ? (
+                  <Badge variant="destructive" className="text-xs">
+                    試用已到期
+                  </Badge>
+                ) : null}
                 {org.health.riskReasons.map((reason) => (
                   <Badge key={reason} variant="destructive" className="text-xs">
                     {PLATFORM_RISK_REASON_LABEL[reason]}
@@ -123,9 +151,6 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                 建議動作：{suggestedActions.join('；')}
               </p>
             ) : null}
-            <p className="mt-2 text-xs text-amber-800">
-              「以此租戶身分查看」可立即進入唯讀預覽；停用 / 調整方案等寫入操作上線後開放。
-            </p>
           </div>
         </div>
       ) : null}
@@ -144,7 +169,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="size-5 text-emerald-700" />
+            <Activity className="size-5 text-emerald-700" aria-hidden="true" />
             客戶健康度
           </CardTitle>
           <CardDescription>由訂閱狀態、席次、退貨量與 AI 額度即時計算，不讀取退貨明細。</CardDescription>
@@ -161,7 +186,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <div className="flex flex-wrap gap-2">
                 {org.health.riskReasons.map((reason) => (
                   <Badge key={reason} variant="outline">
-                    <AlertTriangle className="size-3" />
+                    <AlertTriangle className="size-3" aria-hidden="true" />
                     {PLATFORM_RISK_REASON_LABEL[reason]}
                   </Badge>
                 ))}
@@ -207,7 +232,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UsersRound className="size-5 text-emerald-700" />
+              <UsersRound className="size-5 text-emerald-700" aria-hidden="true" />
               成員與權限
             </CardTitle>
             <CardDescription>組織內所有成員與其角色。</CardDescription>
@@ -247,10 +272,10 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ReceiptText className="size-5 text-cyan-700" />
+              <ReceiptText className="size-5 text-cyan-700" aria-hidden="true" />
               帳務資料
             </CardTitle>
-            <CardDescription>來自 organizations 與 subscriptions。</CardDescription>
+            <CardDescription>帳務與訂閱基本資料。</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             {billingRows.map(([label, value]) => (
@@ -267,14 +292,14 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Flag className="size-5 text-emerald-700" />
-              旗標狀態
+              <Flag className="size-5 text-emerald-700" aria-hidden="true" />
+              功能開關
             </CardTitle>
-            <CardDescription>此租戶目前的 feature flag 設定。</CardDescription>
+            <CardDescription>此租戶目前開啟的功能。</CardDescription>
           </CardHeader>
           <CardContent>
             {featureFlags.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">尚未設定 feature flags。</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">尚未設定功能開關。</p>
             ) : (
               <Table>
                 <TableBody>
@@ -282,7 +307,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                     <TableRow key={flag}>
                       <TableCell className="font-mono text-xs">{flag}</TableCell>
                       <TableCell>
-                        <Badge variant={enabled ? 'default' : 'outline'}>{enabled ? 'on' : 'off'}</Badge>
+                        <Badge variant={enabled ? 'default' : 'outline'}>{enabled ? '啟用' : '停用'}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -295,8 +320,8 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileClock className="size-5 text-cyan-700" />
-              Audit Log
+              <FileClock className="size-5 text-cyan-700" aria-hidden="true" />
+              操作紀錄
             </CardTitle>
             <CardDescription>最近的平台操作紀錄。</CardDescription>
           </CardHeader>
@@ -317,7 +342,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                     <TableRow key={log.id}>
                       <TableCell className="text-muted-foreground">{formatDateTime(log.createdAt)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{log.action}</Badge>
+                        <Badge variant="outline">{AUDIT_ACTION_LABEL[log.action] ?? log.action}</Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{log.actorEmail ?? '—'}</TableCell>
                     </TableRow>
@@ -344,7 +369,7 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
         <div>
           <Button asChild variant="ghost" size="sm" className="mb-2 px-0">
             <Link href="/internal/orgs">
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-4" aria-hidden="true" />
               返回租戶清單
             </Link>
           </Button>
@@ -361,7 +386,7 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             />
           ) : null}
           <p className="text-xs text-muted-foreground">
-            「以此租戶身分查看」進入唯讀預覽（1 小時）；停用 / 調整方案等寫入操作將於第二階段收費功能開通後提供。
+            唯讀預覽有效 1 小時；停用／調整方案將於收費功能開通後提供。
           </p>
         </div>
       </div>

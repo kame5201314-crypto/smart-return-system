@@ -98,7 +98,7 @@ export function ManualBetaOrgForm() {
         throw new Error(payload?.error || '建立租戶失敗');
       }
 
-      toast.success('已建立 Manual Beta 租戶');
+      toast.success('已建立租戶');
       resetForm();
       setOpen(false);
       router.refresh();
@@ -120,9 +120,9 @@ export function ManualBetaOrgForm() {
       <DialogContent className="sm:max-w-xl">
         <form onSubmit={handleSubmit} className="grid gap-5">
           <DialogHeader>
-            <DialogTitle>手動開通 Manual Beta 租戶</DialogTitle>
+            <DialogTitle>手動開通租戶</DialogTitle>
             <DialogDescription>
-              建立 SaaS 組織、owner membership 與 manual trial subscription。送出前請確認這是 SaaS 專用測試或 Beta 客戶。
+              建立組織、擁有者帳號與試用訂閱。送出前請確認這是 Beta 客戶或測試用租戶。
             </DialogDescription>
           </DialogHeader>
 
@@ -143,7 +143,7 @@ export function ManualBetaOrgForm() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="manual-beta-slug">Slug</Label>
+              <Label htmlFor="manual-beta-slug">網址代稱（自動產生，可修改）</Label>
               <Input
                 id="manual-beta-slug"
                 value={slug}
@@ -170,7 +170,7 @@ export function ManualBetaOrgForm() {
             </div>
 
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="manual-beta-owner-email">Owner Email</Label>
+              <Label htmlFor="manual-beta-owner-email">擁有者 Email</Label>
               <Input
                 id="manual-beta-owner-email"
                 type="email"

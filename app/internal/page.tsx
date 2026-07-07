@@ -101,7 +101,7 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
         <Card className="rounded-lg border-amber-300 bg-amber-50/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-950">
-              <AlertTriangle className="size-5 text-amber-600" />
+              <AlertTriangle className="size-5 text-amber-600" aria-hidden="true" />
               需立即關注（{atRisk.summary.totalAlerts}）
             </CardTitle>
             <CardDescription className="text-amber-900">
@@ -159,7 +159,7 @@ function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
         <Card className="rounded-lg border-emerald-200 bg-emerald-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-950">
-              <ShieldCheck className="size-5 text-emerald-700" />
+              <ShieldCheck className="size-5 text-emerald-700" aria-hidden="true" />
               目前無待辦
             </CardTitle>
             <CardDescription className="text-emerald-900">
@@ -191,7 +191,7 @@ function GatedView({
     <Card className="rounded-lg border-amber-200 bg-amber-50/60">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-amber-950">
-          <ShieldCheck className="size-5 text-amber-600" />
+          <ShieldCheck className="size-5 text-amber-600" aria-hidden="true" />
           {title}
         </CardTitle>
         <CardDescription className="text-amber-900">{description}</CardDescription>
@@ -207,11 +207,11 @@ function GatedView({
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/analytics">返回退貨工作台</Link>
+            <Link href="/analytics">返回 AI 退貨管理系統</Link>
           </Button>
           <form action={signOut}>
             <Button type="submit" variant="ghost">
-              <LogOut className="size-4" />
+              <LogOut className="size-4" aria-hidden="true" />
               登出並切換帳號
             </Button>
           </form>
@@ -229,9 +229,9 @@ export default async function InternalDashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">平台總覽</h1>
+          <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            查看 SaaS 訂閱、用量與金流概況。
+            租戶狀態與需跟進事項。
           </p>
         </div>
         <GatedView
@@ -247,7 +247,7 @@ export default async function InternalDashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">平台總覽</h1>
+          <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
         </div>
         <Card className="rounded-lg border-red-200 bg-red-50">
           <CardHeader>
@@ -264,9 +264,9 @@ export default async function InternalDashboardPage() {
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-950">平台總覽</h1>
+            <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              SaaS 訂閱、用量與金流概況。
+              租戶狀態與需跟進事項。
             </p>
           </div>
         </div>
@@ -283,9 +283,9 @@ export default async function InternalDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">平台總覽</h1>
+          <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            SaaS 訂閱、用量與金流概況。更新於 {formatDateTime(result.data.generatedAt)}
+            租戶狀態與需跟進事項。更新於 {formatDateTime(result.data.generatedAt)}
           </p>
         </div>
         <Button asChild variant="outline">
