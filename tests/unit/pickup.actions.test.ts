@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createUntypedAdminClientMock } = vi.hoisted(() => ({
+const { createUntypedAdminClientMock, getOrgContextMock } = vi.hoisted(() => ({
   createUntypedAdminClientMock: vi.fn(),
+  getOrgContextMock: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -9,15 +10,11 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 vi.mock('@/lib/saas/org-context', () => ({
-  getOrgContext: vi.fn(async () => ({
-    orgId: 'org-pickup-test',
-    role: 'admin',
-    featureFlags: {},
-    plan: 'growth',
-  })),
+  getOrgContext: getOrgContextMock,
 }));
 
 import {
+  getPickupRecords,
   getRecentScannedPickupRecords,
   scanPickupRecord,
 } from '@/lib/actions/pickup.actions';
@@ -88,6 +85,28 @@ function mockPickupSelectRows(rows: PickupRow[]) {
 describe('pickup actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOrgContextMock.mockResolvedValue({
+      orgId: 'org-pickup-test',
+      role: 'admin',
+      featureFlags: {},
+      plan: 'growth',
+    });
+  });
+
+  it('returns a merchant workspace message instead of leaking SaaS org context errors', async () => {
+    const contextError = new Error(
+      'A SaaS organization account is required for workspace settings. Sign in with a tenant user to manage an organization.'
+    );
+    (contextError as Error & { code?: string }).code = 'membership_required';
+    getOrgContextMock.mockRejectedValueOnce(contextError);
+
+    const result = await getPickupRecords();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('目前登入的帳號沒有商家工作區');
+    expect(result.error).toContain('派車收件頁需要商家帳號');
+    expect(result.error).not.toContain('SaaS organization account');
+    expect(createUntypedAdminClientMock).not.toHaveBeenCalled();
   });
 
   it('returns duplicate status when matched row is already scanned', async () => {

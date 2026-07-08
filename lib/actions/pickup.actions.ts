@@ -60,6 +60,57 @@ function isPickupScanSchemaError(error: unknown): boolean {
   );
 }
 
+const PICKUP_TENANT_WORKSPACE_ERROR_MESSAGE =
+  '目前登入的帳號沒有商家工作區，派車收件頁需要商家帳號才能管理資料。請改用商家帳號登入，或從商業營運後台選擇租戶查看。';
+const PICKUP_AUTH_REQUIRED_ERROR_MESSAGE =
+  '請先登入商家帳號，再管理派車收件資料。';
+const PICKUP_TENANT_WORKSPACE_ERROR_MARKERS = [
+  'SaaS organization account is required',
+  'SaaS organization membership is required',
+  'tenant user to manage an organization',
+  'workspace settings',
+];
+
+function getSaaSOrgContextCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : null;
+}
+
+function getErrorMessage(error: unknown, fallback = '未知錯誤'): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function getPickupOrgContextMessage(error: unknown): string | null {
+  const code = getSaaSOrgContextCode(error);
+  const message = getErrorMessage(error, '');
+
+  if (code === 'unauthenticated') {
+    return PICKUP_AUTH_REQUIRED_ERROR_MESSAGE;
+  }
+
+  if (
+    code === 'membership_required' ||
+    PICKUP_TENANT_WORKSPACE_ERROR_MARKERS.some((marker) => message.includes(marker))
+  ) {
+    return PICKUP_TENANT_WORKSPACE_ERROR_MESSAGE;
+  }
+
+  return null;
+}
+
+function formatPickupActionFailure(prefix: string, error: unknown, fallback = '未知錯誤'): string {
+  const orgContextMessage = getPickupOrgContextMessage(error);
+  if (orgContextMessage) return orgContextMessage;
+
+  return `${prefix}: ${getErrorMessage(error, fallback)}`;
+}
+
+function logUnexpectedPickupActionError(label: string, error: unknown): void {
+  if (getPickupOrgContextMessage(error)) return;
+  console.error(label, error);
+}
+
 function normalizePickupScanToken(value: string): string {
   return value
     .trim()
@@ -218,9 +269,8 @@ export async function importPickupRecords(
 
     return { success: true, data: { imported: deduplicated.length, duplicates } };
   } catch (error) {
-    console.error('Import pickup records error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `匯入失敗: ${msg}` };
+    logUnexpectedPickupActionError('Import pickup records error:', error);
+    return { success: false, error: formatPickupActionFailure('匯入失敗', error) };
   }
 }
 
@@ -245,9 +295,8 @@ export async function getPickupRecords(): Promise<ApiResponse<PickupRecord[]>> {
 
     return { success: true, data: (data as PickupRecord[]) || [] };
   } catch (error) {
-    console.error('Get pickup records error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `載入資料失敗: ${msg}` };
+    logUnexpectedPickupActionError('Get pickup records error:', error);
+    return { success: false, error: formatPickupActionFailure('載入資料失敗', error) };
   }
 }
 
@@ -288,9 +337,8 @@ export async function createPickupRecord(
 
     return { success: true, data: data as PickupRecord };
   } catch (error) {
-    console.error('Create pickup record error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `新增失敗: ${msg}` };
+    logUnexpectedPickupActionError('Create pickup record error:', error);
+    return { success: false, error: formatPickupActionFailure('新增失敗', error) };
   }
 }
 
@@ -364,9 +412,8 @@ export async function updatePickupRecord(
 
     return { success: true, data: data as PickupRecord };
   } catch (error) {
-    console.error('Update pickup record error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `更新資料失敗: ${msg}` };
+    logUnexpectedPickupActionError('Update pickup record error:', error);
+    return { success: false, error: formatPickupActionFailure('更新資料失敗', error) };
   }
 }
 
@@ -399,9 +446,8 @@ export async function getRecentScannedPickupRecords(
 
     return { success: true, data: (data as PickupRecord[]) || [] };
   } catch (error) {
-    console.error('Get recent scanned pickup records error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `載入掃描記錄失敗: ${msg}` };
+    logUnexpectedPickupActionError('Get recent scanned pickup records error:', error);
+    return { success: false, error: formatPickupActionFailure('載入掃描記錄失敗', error) };
   }
 }
 
@@ -510,9 +556,8 @@ export async function scanPickupRecord(
       },
     };
   } catch (error) {
-    console.error('Scan pickup unexpected error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `掃描失敗: ${msg}` };
+    logUnexpectedPickupActionError('Scan pickup unexpected error:', error);
+    return { success: false, error: formatPickupActionFailure('掃描失敗', error) };
   }
 }
 
@@ -537,9 +582,8 @@ export async function deletePickupRecord(id: string): Promise<ApiResponse<void>>
 
     return { success: true };
   } catch (error) {
-    console.error('Delete pickup record error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `刪除失敗: ${msg}` };
+    logUnexpectedPickupActionError('Delete pickup record error:', error);
+    return { success: false, error: formatPickupActionFailure('刪除失敗', error) };
   }
 }
 
@@ -564,9 +608,8 @@ export async function batchDeletePickupRecords(ids: string[]): Promise<ApiRespon
 
     return { success: true };
   } catch (error) {
-    console.error('Batch delete pickup records error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `批次刪除失敗: ${msg}` };
+    logUnexpectedPickupActionError('Batch delete pickup records error:', error);
+    return { success: false, error: formatPickupActionFailure('批次刪除失敗', error) };
   }
 }
 
@@ -594,8 +637,7 @@ export async function batchUpdatePickupPrinted(ids: string[]): Promise<ApiRespon
 
     return { success: true };
   } catch (error) {
-    console.error('Batch update printed error:', error);
-    const msg = error instanceof Error ? error.message : '未知錯誤';
-    return { success: false, error: `更新列印狀態失敗: ${msg}` };
+    logUnexpectedPickupActionError('Batch update printed error:', error);
+    return { success: false, error: formatPickupActionFailure('更新列印狀態失敗', error) };
   }
 }
