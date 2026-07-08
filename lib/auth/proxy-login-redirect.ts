@@ -28,7 +28,12 @@ export function resolveAuthenticatedAdminEntryRedirect(input: {
   isAuthenticated: boolean;
   isPlatformAdminAuthenticated: boolean;
 }): PostLoginRedirectPath | null {
-  if (input.pathname !== '/admin' || !input.isAuthenticated) {
+  const isAdminEntryPath =
+    input.pathname === '/admin' ||
+    input.pathname === '/internal' ||
+    input.pathname.startsWith('/internal/');
+
+  if (!isAdminEntryPath || !input.isAuthenticated) {
     return null;
   }
 

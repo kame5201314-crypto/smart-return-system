@@ -76,7 +76,7 @@ export async function PlatformAdminModeIndicator() {
               href={view.links.dashboard}
               className="ml-1 rounded-full bg-emerald-500 px-3 py-1 font-medium text-neutral-950 transition-colors hover:bg-emerald-400"
             >
-              平台後台
+              商業營運後台
             </Link>
           </div>
         ) : null}

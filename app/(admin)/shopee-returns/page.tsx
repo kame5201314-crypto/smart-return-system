@@ -1206,9 +1206,6 @@ export default function ShopeeReturnsPage() {
                   {loadError === TENANT_WORKSPACE_ERROR_MESSAGE ? (
                     <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
                       <Button asChild variant="outline" size="sm">
-                        <Link href="/internal">{'\u524d\u5f80\u5e73\u53f0\u5f8c\u53f0'}</Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
                         <Link href="/login">{'\u5207\u63db\u5e33\u865f'}</Link>
                       </Button>
                     </div>

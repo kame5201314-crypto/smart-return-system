@@ -23,7 +23,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { getCurrentUser, signOut } from '@/lib/actions/auth';
 
 const navItems = [
-  { href: '/analytics', label: '營運總覽', icon: BarChart3, exact: true },
+  { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
   { href: '/returns', label: '退貨管理', icon: Package },
   { href: '/shopee-returns', label: '蝦皮退貨', icon: Printer },
   { href: '/pickup', label: '取件紀錄', icon: ClipboardList },

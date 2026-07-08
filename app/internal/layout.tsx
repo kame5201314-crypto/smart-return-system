@@ -42,7 +42,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
           <Button asChild variant="outline" size="sm">
             <Link href="/analytics">
               <ArrowLeft className="size-4" />
-              切換到 AI 退貨管理系統
+              返回 AI 退貨管理系統
             </Link>
           </Button>
         </div>

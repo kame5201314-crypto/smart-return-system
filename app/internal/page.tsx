@@ -229,7 +229,7 @@ export default async function InternalDashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
+          <h1 className="text-2xl font-bold text-gray-950">平台營運總覽</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             租戶狀態與需跟進事項。
           </p>
@@ -247,7 +247,7 @@ export default async function InternalDashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
+          <h1 className="text-2xl font-bold text-gray-950">平台營運總覽</h1>
         </div>
         <Card className="rounded-lg border-red-200 bg-red-50">
           <CardHeader>
@@ -264,7 +264,7 @@ export default async function InternalDashboardPage() {
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
+            <h1 className="text-2xl font-bold text-gray-950">平台營運總覽</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               租戶狀態與需跟進事項。
             </p>
@@ -283,7 +283,7 @@ export default async function InternalDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">營運總覽</h1>
+          <h1 className="text-2xl font-bold text-gray-950">平台營運總覽</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             租戶狀態與需跟進事項。更新於 {formatDateTime(result.data.generatedAt)}
           </p>
