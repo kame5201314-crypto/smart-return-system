@@ -512,7 +512,10 @@ function checkCommercialFoundation() {
       proxyLoginRedirectSource.includes('resolveAuthenticatedLoginRedirect') &&
       proxyLoginRedirectSource.includes('resolveAuthenticatedAdminEntryRedirect') &&
       proxyLoginRedirectSource.includes('isPlatformAdminAuthenticated') &&
-      proxyLoginRedirectSource.includes("input.pathname !== '/admin'") &&
+      proxyLoginRedirectSource.includes('isAdminEntryPath') &&
+      proxyLoginRedirectSource.includes("input.pathname === '/admin'") &&
+      proxyLoginRedirectSource.includes("input.pathname === '/internal'") &&
+      proxyLoginRedirectSource.includes("input.pathname.startsWith('/internal/')") &&
       proxyLoginRedirectSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('/login?next=') &&

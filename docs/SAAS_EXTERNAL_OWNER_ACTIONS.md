@@ -35,10 +35,11 @@ environment changes, billing/provider enablement, or DNS changes by itself.
     do not keep retrying domain verification until the owner buys/registers a
     domain and reauthorizes DNS/Vercel work.
   - Sentry DSN is configured in Vercel Production env
+  - migration `033_saas_platform_billing_operations.sql` is applied
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - migration `037_saas_team_invite_status.sql` is applied
   - migration `038_saas_org_member_visibility.sql` is applied
-  - draft migrations `033`, `034`, and `036` remain unapplied
+  - draft migrations `034` and `036` remain unapplied
   - production env-name inspection found `ENABLE_MULTI_TENANT_ADMIN`,
     `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not
     list `PLATFORM_ADMIN_ROLES`
@@ -250,7 +251,7 @@ legal advice and does not finalize paid-use terms by itself.
 - Vercel Production env names do not show email provider credentials or
   ECPay/provider credential names; email delivery and Billing/ECPay remain
   owner-blocked.
-- Draft migrations `033`, `034`, and `036` remain separate owner-authorization
+- Draft migrations `034` and `036` remain separate owner-authorization
   items. Do not apply them as a bundle. Migration `038` is already applied and
   must not be rerun without a repair plan.
 - No deploy, migration, env/secret edit, DNS/domain mutation, email provider
@@ -324,7 +325,7 @@ provider setup, or migration.
 4. Billing/ECPay:
    - Keep disabled for Closed Manual Beta.
    - Start only when Stage 2 paid Beta is approved and ECPay credentials exist.
-5. Migrations `033`, `034`, and `036`:
+5. Migrations `034` and `036`:
    - Do not apply as a bundle.
    - Apply only when the matching runtime feature is ready and separately
      authorized.
@@ -702,9 +703,9 @@ Scope:
 ## Draft Migrations 033-038 Status
 
 These require explicit per-migration authorization. Do not apply them as a
-bundle. Migrations `035`, `037`, and `038` have already been applied to the
-SaaS project after explicit owner authorization; the remaining unapplied drafts
-are `033`, `034`, and `036`.
+bundle. Migrations `033`, `035`, `037`, and `038` have already been applied to
+the SaaS project after explicit owner authorization; the remaining unapplied
+drafts are `034` and `036`.
 
 ### `033_saas_platform_billing_operations.sql`
 
@@ -715,18 +716,20 @@ Purpose:
 
 Recommended timing:
 
-- Stage 2 billing operations.
-- After billing operations SOP is accepted.
-- After backup and post-migration smoke plans are ready.
+- Completed on 2026-07-09 after explicit owner authorization for manual tenant
+  suspend/resume controls.
 
 Risk:
 
 - Can change organization and subscription status through service-role RPC.
 - Should not be enabled casually during Manual Beta.
 
-Recommendation:
+Status:
 
-- Do not apply now unless manual billing operations are immediately needed.
+- Applied to SaaS project `auyznbwtjvemyamujmgt`.
+- Remote migration history records version `033` as applied.
+- `/internal/orgs/[id]` now exposes guarded `暫停租戶` / `恢復租戶`
+  controls through the existing platform billing operations API.
 
 ### `034_saas_notification_email_queue.sql`
 
@@ -871,7 +874,7 @@ Recommendation:
 Use this only after choosing one migration:
 
 ```text
-I authorize applying migration <033|034|036> to the SaaS Supabase project
+I authorize applying migration <034|036> to the SaaS Supabase project
 auyznbwtjvemyamujmgt only.
 
 Scope:
@@ -890,8 +893,9 @@ Scope:
   safe to use that way.
 - Do not commit DSN, API keys, ECPay credentials, SMTP credentials, or DNS
   tokens.
-- Do not apply migrations `033`-`038` as a bundle. `035`, `037`, and `038` are
-  already applied; the remaining unapplied drafts are `033`, `034`, and `036`.
+- Do not apply migrations `033`-`038` as a bundle. `033`, `035`, `037`, and
+  `038` are already applied; the remaining unapplied drafts are `034` and
+  `036`.
 - Do not enable `ENABLE_PUBLIC_SIGNUP=true` as part of these actions.
 - Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
 - Do not change `master`.

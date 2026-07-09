@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
+import { OrgBillingOperationControls } from '@/components/internal/org-billing-operation-controls';
 import {
   formatSuggestedActions,
   PLATFORM_ORG_STATUS_LABEL,
@@ -400,16 +401,25 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             此租戶的方案、訂閱、用量與健康度概況。
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-2">
           {result.state === 'ready' ? (
-            <StartTenantPreviewButton
-              orgId={result.data.organization.id}
-              orgName={result.data.organization.name}
-            />
+            <>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <StartTenantPreviewButton
+                  orgId={result.data.organization.id}
+                  orgName={result.data.organization.name}
+                />
+                <OrgBillingOperationControls
+                  orgId={result.data.organization.id}
+                  orgName={result.data.organization.name}
+                  status={result.data.organization.status}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                唯讀預覽有效 1 小時；暫停／恢復會寫入操作紀錄。
+              </p>
+            </>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            唯讀預覽有效 1 小時；停用／調整方案將於收費功能開通後提供。
-          </p>
         </div>
       </div>
 

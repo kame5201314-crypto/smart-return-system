@@ -1,13 +1,12 @@
 # SaaS External Setup Status
 
-Last updated: 2026-07-02
+Last updated: 2026-07-09
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
 See also: [`SAAS_EXTERNAL_OWNER_ACTIONS.md`](./SAAS_EXTERNAL_OWNER_ACTIONS.md)
 for owner-provided values, handoff templates, and the recommended order for
-Sentry, domain, email provider, Billing/ECPay, and migrations `033`, `034`,
-and `036`.
+Sentry, domain, email provider, Billing/ECPay, and migrations `034` and `036`.
 See also:
 [`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md)
 for the controlled customer handoff and first-session walkthrough.
@@ -17,7 +16,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
 - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
-- Draft migration `033_saas_platform_billing_operations.sql` exists for platform billing operations but has not been applied.
+- Migration `033_saas_platform_billing_operations.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `033` as applied. It adds `perform_platform_billing_operation()` for manual payment marking, suspend/resume, refund request, and audit logging.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
 - Migration `035_saas_onboarding_completion_rpc.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `035` as applied.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
@@ -44,7 +43,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
 - `npm run saas:migration-plan:strict` passes and the local draft chain now
   ends at `038_saas_org_member_visibility.sql`.
-- `npm run saas:schema-gate:strict` passes after owner-authorized migrations `037` and `038` apply.
+- `npm run saas:schema-gate:strict` passes after owner-authorized migrations `033`, `037`, and `038` apply.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
@@ -65,11 +64,57 @@ for the controlled customer handoff and first-session walkthrough.
 - Latest owner-authorized production deployment: `3fadd75 docs(saas): record production deployment gap` -> Vercel deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `3fadd75`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, and the multi-channel honesty copy.
 - A 2026-07-01 production smoke test after deployment confirms `/pricing` now exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
-- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `035`, `037`, and `038` are applied, and draft migrations `033`, `034`, and `036` remain unapplied.
+- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, and `038` are applied, and draft migrations `034` and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
-- No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `033`/`034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+- No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-09 Owner-Authorized Migration 033 Apply and Tenant Suspend/Resume UI
+
+- Owner explicitly authorized applying only
+  `033_saas_platform_billing_operations.sql` to SaaS Supabase project
+  `auyznbwtjvemyamujmgt`.
+- Preflight, `npm run safety:agent-boundary`, and
+  `npm run saas:migration-plan:strict` passed before the apply.
+- Remote migration list before apply showed:
+  - `035`, `037`, and `038` applied.
+  - `033`, `034`, and `036` pending.
+- Codex executed only
+  `supabase/migrations/033_saas_platform_billing_operations.sql` via
+  `supabase db query --linked --file`.
+- Codex repaired remote migration history for version `033` to applied.
+- Remote migration list after apply shows:
+  - `033`, `035`, `037`, and `038` applied.
+  - `034` and `036` still unapplied.
+- Verification:
+  - `public.perform_platform_billing_operation(...)` exists.
+  - `service_role` has execute privilege on the RPC.
+  - `npm run saas:migration-plan:strict` passes.
+  - `npm run saas:schema-gate:strict` passes.
+  - `npm run saas:doctor` passes with 167 pass / 1 expected local warning /
+    0 fail.
+  - `npm run lint` and `npm run typecheck` pass after the UI wiring.
+  - Relevant unit tests pass for proxy login redirect, platform billing
+    operations, and UI/backend contracts.
+- Readiness check:
+  - `saas:doctor` auth-redirect coverage now validates the current server-side
+    `/admin`, `/internal`, and `/internal/*` non-admin redirect contract.
+- UI:
+  - `/internal/orgs/[id]` now exposes platform-admin `暫停租戶` /
+    `恢復租戶` controls through the existing guarded
+    `/api/internal/saas/billing/operations` route.
+  - Each operation requires a reason, displays a confirmation dialog, refreshes
+    the tenant detail after success, and writes audit metadata through the RPC.
+- Not performed:
+  - No deployment.
+  - No migration `034` or `036` apply.
+  - No env/secret edit.
+  - No domain/DNS change.
+  - No email provider enablement.
+  - No Billing/ECPay provider enablement.
+  - No public signup enablement.
+  - No master/live/internal Supabase action.
 
 ## 2026-07-02 Production Closed-Beta Flag Lock Verification
 

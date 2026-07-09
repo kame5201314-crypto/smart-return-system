@@ -1,5 +1,62 @@
 # Handoff Log
 
+## 2026-07-09 Codex -> Owner / Claude
+
+Completed owner-authorized migration `033_saas_platform_billing_operations.sql`
+apply and platform tenant suspend/resume UI wiring.
+
+Completed:
+
+- Re-ran preflight and `npm run safety:agent-boundary`; branch was
+  `develop-saas`.
+- Confirmed the target linked SaaS Supabase project was
+  `auyznbwtjvemyamujmgt`.
+- Ran `npm run saas:migration-plan:strict` before applying the migration.
+- Applied only
+  `supabase/migrations/033_saas_platform_billing_operations.sql` with
+  `npx supabase db query --linked --file ...`.
+- Marked only remote migration history version `033` as applied.
+- Rechecked remote migration history: `033`, `035`, `037`, and `038` are
+  applied; `034` and `036` remain unapplied.
+- Verified `perform_platform_billing_operation(...)` exists and `service_role`
+  has execute privilege.
+- Added `/internal/orgs/[id]` controls for `暫停租戶` and `恢復租戶` through
+  the existing guarded `/api/internal/saas/billing/operations` route. The UI
+  requires a reason, shows a confirmation dialog, refreshes after success, and
+  does not enable billing/provider automation.
+- Updated `saas:doctor` auth-redirect readiness coverage so it validates the
+  current server-side `/admin`, `/internal`, and `/internal/*` non-admin
+  redirect contract instead of the older `/admin`-only check.
+- Updated rollout status docs and shared coordination files.
+
+Validation:
+
+- `npm run safety:agent-boundary`: passed.
+- `npm run saas:migration-plan:strict`: passed before migration apply.
+- `npm run saas:schema-gate:strict`: passed.
+- `npm run saas:doctor`: passed with 167 pass / 1 expected local warning /
+  0 fail.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed.
+- Relevant unit tests passed:
+  `proxy-login-redirect`, `saas-platform-admin-billing-operations`, and
+  `saas-ui-backend-contracts`.
+
+Not performed:
+
+- No deployment.
+- No migration other than `033`.
+- No env/secret edit.
+- No domain/DNS change.
+- No email provider enablement.
+- No billing/provider enablement.
+- No public signup enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- `034` and `036` remain blocked until separately authorized.
+
 ## 2026-07-02 Codex -> Owner / Claude
 
 Completed production Closed Manual Beta flag-lock verification without
