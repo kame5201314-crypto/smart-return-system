@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import { ArrowRight, Lightbulb } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { ManualBetaOrgForm } from '@/components/internal/manual-beta-org-form';
 import { loadPlatformOrganizationsView } from '@/lib/saas/platform-admin-live-data';
@@ -42,15 +41,30 @@ function followUpTier(org: PlatformOrg): number {
   return 2;
 }
 
-function sortForFollowUp(orgs: readonly PlatformOrg[]): PlatformOrg[] {
+function sortWithinGroup(orgs: readonly PlatformOrg[]): PlatformOrg[] {
   return [...orgs].sort((a, b) => {
-    const tierDiff = followUpTier(a) - followUpTier(b);
-    if (tierDiff !== 0) return tierDiff;
     const daysA = a.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY;
     const daysB = b.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY;
     if (daysA !== daysB) return daysA - daysB;
     return a.name.localeCompare(b.name, 'zh-TW');
   });
+}
+
+// 與租戶詳情頁同一套風險等級用詞：需關注 / 觀察中 / 健康。
+function groupForFollowUp(orgs: readonly PlatformOrg[]): {
+  attention: PlatformOrg[];
+  watch: PlatformOrg[];
+  healthy: PlatformOrg[];
+} {
+  const tiers: PlatformOrg[][] = [[], [], []];
+  for (const org of orgs) {
+    tiers[followUpTier(org)].push(org);
+  }
+  return {
+    attention: sortWithinGroup(tiers[0]),
+    watch: sortWithinGroup(tiers[1]),
+    healthy: sortWithinGroup(tiers[2]),
+  };
 }
 
 function buildSuggestions(org: PlatformOrg): string[] {
@@ -59,15 +73,6 @@ function buildSuggestions(org: PlatformOrg): string[] {
     return ['聯絡客戶確認續約或延長試用', ...actions];
   }
   return actions;
-}
-
-function statusVariant(
-  status: PlatformOrg['status']
-): 'default' | 'secondary' | 'destructive' | 'outline' {
-  if (status === 'active') return 'default';
-  if (status === 'trialing') return 'secondary';
-  if (status === 'suspended' || status === 'past_due') return 'destructive';
-  return 'outline';
 }
 
 function TrialCountdown({ org }: { org: PlatformOrg }) {
@@ -80,8 +85,7 @@ function TrialCountdown({ org }: { org: PlatformOrg }) {
     return <span className="text-xs font-medium text-red-600">試用已到期</span>;
   }
 
-  const tone =
-    days <= 3 ? 'font-medium text-red-600' : days <= 7 ? 'font-medium text-amber-700' : 'text-muted-foreground';
+  const tone = days <= 7 ? 'font-medium text-amber-700' : 'text-muted-foreground';
   return (
     <span className={`text-xs ${tone}`}>
       {formatTrialEnd(org.trialEnd)}（剩 {days} 天）
@@ -108,84 +112,200 @@ function UsageMetric({ label, used, limit }: { label: string; used: number; limi
   );
 }
 
+function UsageLine({ org }: { org: PlatformOrg }) {
+  const plan = SAAS_PLAN_DEFINITIONS[org.plan];
+  return (
+    <span className="flex flex-wrap gap-x-2 text-xs">
+      <UsageMetric label="席次" used={org.memberCount} limit={plan.seatLimit} />
+      <span className="text-muted-foreground">·</span>
+      <UsageMetric
+        label="退貨"
+        used={org.usage.returnsThisMonth}
+        limit={plan.monthlyReturnSoftLimit}
+      />
+      <span className="text-muted-foreground">·</span>
+      <UsageMetric label="AI" used={org.usage.aiUsedThisMonth} limit={plan.aiMonthlyLimit} />
+    </span>
+  );
+}
+
+// 需關注與觀察中用完整卡片；整卡可點，名稱是主視覺，方案/狀態/email 降為次要資訊。
 function OrgCard({ org }: { org: PlatformOrg }) {
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
   const attention = needsAttention(org);
   const suggestions = buildSuggestions(org);
 
   return (
-    <li
-      className={`rounded-lg border bg-white p-4 ${
-        attention ? 'border-l-4 border-amber-200 border-l-amber-500 bg-amber-50/30' : 'border-neutral-200'
-      }`}
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            {attention ? <Badge variant="destructive">需關注</Badge> : null}
-            <Link
-              href={`/internal/orgs/${org.id}`}
-              className="font-medium text-neutral-950 hover:text-emerald-700 hover:underline"
-            >
-              {org.name}
-            </Link>
-            <Badge variant="outline">{plan.name}</Badge>
-            <Badge variant={statusVariant(org.status)}>
-              {PLATFORM_ORG_STATUS_LABEL[org.status]}
+    <li>
+      <Link
+        href={`/internal/orgs/${org.id}`}
+        className={`block rounded-lg border bg-white p-4 transition hover:shadow-sm ${
+          attention
+            ? 'border-amber-200 border-l-4 border-l-amber-500 bg-amber-50/30 hover:border-amber-400'
+            : 'border-neutral-200 hover:border-emerald-500'
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-base font-semibold text-neutral-950">{org.name}</span>
+          {attention ? (
+            <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">
+              需關注
             </Badge>
-            <TrialCountdown org={org} />
-          </div>
-
-          <div className="text-xs text-muted-foreground">{org.ownerEmail ?? '—'}</div>
-
-          <div className="flex flex-wrap gap-x-2 text-xs">
-            <UsageMetric label="席次" used={org.memberCount} limit={plan.seatLimit} />
-            <span className="text-muted-foreground">·</span>
-            <UsageMetric
-              label="退貨"
-              used={org.usage.returnsThisMonth}
-              limit={plan.monthlyReturnSoftLimit}
-            />
-            <span className="text-muted-foreground">·</span>
-            <UsageMetric label="AI" used={org.usage.aiUsedThisMonth} limit={plan.aiMonthlyLimit} />
-          </div>
-
-          {suggestions.length > 0 ? (
-            <div className="flex items-start gap-1.5 text-xs text-amber-800">
-              <Lightbulb className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span>建議：{suggestions.join('；')}</span>
-            </div>
           ) : null}
+          <span className="ml-auto">
+            <TrialCountdown org={org} />
+          </span>
         </div>
 
-        <Button asChild variant="outline" size="sm" className="shrink-0 self-start">
-          <Link href={`/internal/orgs/${org.id}`}>
-            查看
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </Button>
-      </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {plan.name} · {PLATFORM_ORG_STATUS_LABEL[org.status]} · {org.ownerEmail ?? '—'}
+        </div>
+
+        <div className="mt-1.5">
+          <UsageLine org={org} />
+        </div>
+
+        {suggestions.length > 0 ? (
+          <div
+            className={`mt-2 flex items-start gap-1.5 text-xs ${
+              attention ? 'text-amber-800' : 'text-muted-foreground'
+            }`}
+          >
+            <Lightbulb className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            <span>建議：{suggestions.join('；')}</span>
+          </div>
+        ) : null}
+      </Link>
     </li>
   );
 }
 
+// 健康租戶降為單行密度：這頁的重點是異常處理，不是展示所有租戶。
+function HealthyOrgRow({ org }: { org: PlatformOrg }) {
+  const plan = SAAS_PLAN_DEFINITIONS[org.plan];
+
+  return (
+    <li>
+      <Link
+        href={`/internal/orgs/${org.id}`}
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-neutral-200 bg-white px-4 py-2.5 transition hover:border-emerald-500 hover:shadow-sm"
+      >
+        <span className="text-sm font-medium text-neutral-950">{org.name}</span>
+        <span className="text-xs text-muted-foreground">
+          {plan.name} · {PLATFORM_ORG_STATUS_LABEL[org.status]}
+        </span>
+        <TrialCountdown org={org} />
+        <span className="ml-auto">
+          <UsageLine org={org} />
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function SectionHeading({
+  title,
+  count,
+  dotClass,
+}: {
+  title: string;
+  count: number;
+  dotClass: string;
+}) {
+  return (
+    <h3 className="flex items-center gap-2 text-sm font-semibold text-neutral-950">
+      <span className={`size-2 rounded-full ${dotClass}`} aria-hidden="true" />
+      {title}（{count.toLocaleString('zh-TW')}）
+    </h3>
+  );
+}
+
+function SummaryChips({
+  summary,
+  attentionCount,
+}: {
+  summary: PlatformOrganizationListView['summary'];
+  attentionCount: number;
+}) {
+  const neutralChip =
+    'inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-700';
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <a
+        href="#orgs-attention"
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition ${
+          attentionCount > 0
+            ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+            : 'border-neutral-200 bg-white text-neutral-500'
+        }`}
+      >
+        需關注 <span className="font-semibold">{attentionCount.toLocaleString('zh-TW')}</span>
+      </a>
+      <span className={neutralChip}>
+        試用中 <span className="font-semibold">{summary.trialingOrganizations.toLocaleString('zh-TW')}</span>
+      </span>
+      <span className={neutralChip}>
+        月營收 <span className="font-semibold">{formatTwd(summary.estimatedActiveMrrTwd)}</span>
+      </span>
+      <span className={neutralChip}>
+        試用潛在 <span className="font-semibold">{formatTwd(summary.trialPipelineMrrTwd)}</span>
+      </span>
+    </div>
+  );
+}
+
 function OrgsContent({ data }: { data: PlatformOrganizationListView }) {
-  const summary = data.summary;
-  const orgs = sortForFollowUp(data.organizations);
+  const groups = groupForFollowUp(data.organizations);
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        {summary.totalOrganizations.toLocaleString('zh-TW')} 個租戶 ·{' '}
-        {summary.trialingOrganizations.toLocaleString('zh-TW')} 個試用中 · 預估月營收{' '}
-        {formatTwd(summary.estimatedActiveMrrTwd)}（試用潛在 {formatTwd(summary.trialPipelineMrrTwd)}）
-      </p>
+      <SummaryChips summary={data.summary} attentionCount={groups.attention.length} />
 
-      <ul className="space-y-3">
-        {orgs.map((org) => (
-          <OrgCard key={org.id} org={org} />
-        ))}
-      </ul>
+      <section id="orgs-attention" className="scroll-mt-6 space-y-3">
+        <SectionHeading title="需關注" count={groups.attention.length} dotClass="bg-amber-500" />
+        {groups.attention.length > 0 ? (
+          <ul className="space-y-3">
+            {groups.attention.map((org) => (
+              <OrgCard key={org.id} org={org} />
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-md border border-dashed border-neutral-200 px-4 py-3 text-sm text-muted-foreground">
+            目前沒有需要跟進的租戶。
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeading title="觀察中" count={groups.watch.length} dotClass="bg-neutral-400" />
+        {groups.watch.length > 0 ? (
+          <ul className="space-y-3">
+            {groups.watch.map((org) => (
+              <OrgCard key={org.id} org={org} />
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-md border border-dashed border-neutral-200 px-4 py-3 text-sm text-muted-foreground">
+            此分組目前沒有租戶。
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeading title="健康" count={groups.healthy.length} dotClass="bg-emerald-500" />
+        {groups.healthy.length > 0 ? (
+          <ul className="space-y-2">
+            {groups.healthy.map((org) => (
+              <HealthyOrgRow key={org.id} org={org} />
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-md border border-dashed border-neutral-200 px-4 py-3 text-sm text-muted-foreground">
+            此分組目前沒有租戶。
+          </p>
+        )}
+      </section>
 
       <p className="text-center text-xs text-muted-foreground">
         停用／調整方案等操作將於收費功能開通後提供。
@@ -199,12 +319,12 @@ export default async function InternalOrgsPage() {
   redirectUnauthenticatedPlatformAdminResult(result, '/internal/orgs');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-2xl font-semibold">租戶管理</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            依「誰需要跟進」排序的租戶清單。
+            依「誰需要跟進」分組的行動清單。
           </p>
         </div>
         <ManualBetaOrgForm />
