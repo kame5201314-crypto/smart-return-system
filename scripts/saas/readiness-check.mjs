@@ -226,6 +226,8 @@ function checkCommercialFoundation() {
     'lib/saas/public-signup.ts',
     'lib/saas/signup-request.ts',
     'lib/saas/signup-request-repository.ts',
+    'lib/saas/lead-capture.ts',
+    'lib/saas/lead-capture-repository.ts',
     'app/api/saas/signup/route.ts',
     'app/api/saas/invite/accept/route.ts',
     'app/api/saas/onboarding/complete/route.ts',
@@ -264,6 +266,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/036_saas_platform_admin_roles.sql',
     'supabase/migrations/037_saas_team_invite_status.sql',
     'supabase/migrations/038_saas_org_member_visibility.sql',
+    'supabase/migrations/039_saas_public_lead_capture.sql',
   ];
 
   for (const file of requiredFiles) {
@@ -677,12 +680,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('036_saas_platform_admin_roles.sql') &&
+      source.includes('039_saas_public_lead_capture.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-038 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-039 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-038 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-039 migration chain without applying migrations');
     }
   }
 
