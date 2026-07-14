@@ -59,7 +59,7 @@ describe('DirectImageUploader UI', () => {
         json: async () => ({
           signedUrl: 'https://storage.example/upload',
           path: 'product-photos/123_file.jpg',
-          publicUrl: 'https://storage.example/public.jpg',
+          imageUrl: 'storage://return-images/product-photos/123_file.jpg',
         }),
       })
       .mockResolvedValueOnce({ ok: true });
@@ -86,7 +86,7 @@ describe('DirectImageUploader UI', () => {
         json: async () => ({
           signedUrl: 'https://storage.example/upload',
           path: 'product-photos/123_file.jpg',
-          publicUrl: 'https://storage.example/public.jpg',
+          imageUrl: 'storage://return-images/product-photos/123_file.jpg',
         }),
       })
       .mockResolvedValueOnce({ ok: true });

@@ -5,81 +5,98 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceRoleKey) {
-  console.error('❌ 請設定環境變數 NEXT_PUBLIC_SUPABASE_URL 和 SUPABASE_SERVICE_ROLE_KEY');
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 async function checkStorage() {
-  console.log('檢查 Storage Buckets...\n');
+  console.log('Checking Supabase Storage buckets...');
 
   const { data: buckets, error } = await supabase.storage.listBuckets();
 
   if (error) {
-    console.error('錯誤:', error.message);
+    console.error('Bucket list error:', error.message);
+    process.exitCode = 1;
     return;
   }
 
-  console.log('現有 Buckets:', buckets.map(b => b.name));
+  console.log('Buckets:', buckets.map((bucket) => bucket.name).join(', ') || '(none)');
 
-  // Check if return-images bucket exists
-  const returnImagesBucket = buckets.find(b => b.name === 'return-images');
+  const returnImagesBucket = buckets.find((bucket) => bucket.name === 'return-images');
 
   if (!returnImagesBucket) {
-    console.log('\n建立 return-images bucket...');
+    console.log('Creating private return-images bucket...');
     const { error: createError } = await supabase.storage.createBucket('return-images', {
-      public: true,
-      fileSizeLimit: 10485760, // 10MB
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+      public: false,
+      fileSizeLimit: 10 * 1024 * 1024,
+      allowedMimeTypes: [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+        'image/heic',
+        'image/heif',
+      ],
     });
 
     if (createError) {
-      console.error('建立失敗:', createError.message);
-    } else {
-      console.log('✅ return-images bucket 建立成功');
+      console.error('Create return-images bucket error:', createError.message);
+      process.exitCode = 1;
+      return;
     }
+
+    console.log('return-images bucket created.');
   } else {
-    console.log('✅ return-images bucket 已存在');
+    console.log('return-images bucket exists.');
+    if ((returnImagesBucket as { public?: boolean }).public) {
+      console.warn('return-images bucket is currently public. After signed URL rollout is deployed, set it to private in Supabase.');
+    }
   }
 
-  // Test upload with image MIME type
-  console.log('\n測試圖片上傳...');
-  // Create a minimal valid PNG (1x1 transparent pixel)
   const pngData = Buffer.from([
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
     0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
-    0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, // IDAT chunk
+    0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
     0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
     0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
-    0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, // IEND chunk
-    0x42, 0x60, 0x82
+    0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+    0x42, 0x60, 0x82,
   ]);
+  const testPath = `storage-check/${Date.now()}-test-image.png`;
 
   const { error: uploadError } = await supabase.storage
     .from('return-images')
-    .upload('test-image.png', pngData, {
+    .upload(testPath, pngData, {
       contentType: 'image/png',
-      upsert: true
+      upsert: false,
     });
 
   if (uploadError) {
-    console.error('上傳測試失敗:', uploadError.message);
-  } else {
-    console.log('✅ 圖片上傳測試成功');
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('return-images')
-      .getPublicUrl('test-image.png');
-    console.log('Public URL:', urlData.publicUrl);
-
-    // Clean up
-    await supabase.storage.from('return-images').remove(['test-image.png']);
-    console.log('✅ 測試檔案已清除');
+    console.error('Upload smoke test error:', uploadError.message);
+    process.exitCode = 1;
+    return;
   }
+
+  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+    .from('return-images')
+    .createSignedUrl(testPath, 60);
+
+  if (signedUrlError || !signedUrlData?.signedUrl) {
+    console.error('Signed URL smoke test error:', signedUrlError?.message || 'missing signed URL');
+    process.exitCode = 1;
+  } else {
+    console.log('Signed URL smoke test passed.');
+  }
+
+  await supabase.storage.from('return-images').remove([testPath]);
+  console.log('Storage smoke test file removed.');
 }
 
-checkStorage();
+checkStorage().catch((error: unknown) => {
+  console.error('Storage check failed:', error);
+  process.exit(1);
+});

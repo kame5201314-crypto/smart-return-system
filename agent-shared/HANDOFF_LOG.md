@@ -5628,3 +5628,18 @@ Notes for Codex:
   migration 026 (`signup_requests`) is still a draft, not applied.
   When Stage 3 opens public signup, swap the form submit to that API.
 - New env: `NEXT_PUBLIC_LINE_OA_ID` (optional; LINE button hidden when unset).
+
+## 2026-07-14 Codex -> Owner / Codex
+
+Return image privacy hardening prepared in code.
+
+Notes:
+
+- Upload flows now store `storage://return-images/...` references instead of newly
+  generated public Storage URLs.
+- Portal and merchant return-detail reads sign `return-images` objects on demand
+  before returning data to UI surfaces.
+- `scripts/check-storage.ts` now creates/checks a private `return-images` bucket
+  posture and smoke-tests `createSignedUrl()`.
+- This commit does not change Supabase bucket visibility. Deploy this code first,
+  then separately switch the SaaS Supabase `return-images` bucket to private.

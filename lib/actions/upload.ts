@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext, type SaaSOrgContext } from '@/lib/saas/org-context';
+import { buildReturnImageStorageReference, signReturnImageUrls } from '@/lib/storage/return-images';
 import type { ReturnImage } from '@/types/database.types';
 
 export interface UploadResult {
@@ -65,14 +66,10 @@ export async function uploadImage(data: ImageUploadData): Promise<UploadResult> 
       };
     }
 
-    // 獲取公開 URL
-    const { data: publicUrl } = supabase.storage
-      .from('return-images')
-      .getPublicUrl(storagePath);
-
+    // Store a private storage reference; display URLs are signed on read.
     return {
       success: true,
-      url: publicUrl.publicUrl,
+      url: buildReturnImageStorageReference(storagePath),
       path: storagePath,
     };
   } catch (error) {
@@ -229,9 +226,11 @@ export async function getReturnImages(
       };
     }
 
+    const signedImages = await signReturnImageUrls(supabase, images || []);
+
     return {
       success: true,
-      images: images || [],
+      images: signedImages as ReturnImage[],
     };
   } catch (error) {
     console.error('Get images error:', error);

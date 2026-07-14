@@ -145,10 +145,11 @@ async function uploadImageDirect(
         throw new Error(message);
       }
 
-      const { signedUrl, path, publicUrl } = await signedUrlResponse.json() as {
+      const { signedUrl, path, imageUrl, publicUrl } = await signedUrlResponse.json() as {
         signedUrl: string;
         path: string;
-        publicUrl: string;
+        imageUrl?: string;
+        publicUrl?: string;
       };
 
       // 2. Upload file directly to Supabase Storage using signed URL
@@ -168,7 +169,7 @@ async function uploadImageDirect(
         throw new Error(`上傳檔案失敗（HTTP ${uploadResponse.status}）`);
       }
 
-      return { publicUrl, storagePath: path };
+      return { publicUrl: imageUrl || publicUrl || path, storagePath: path };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('上傳失敗');
       if (attempt < maxAttempts) {

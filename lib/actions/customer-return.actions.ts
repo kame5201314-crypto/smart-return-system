@@ -10,6 +10,7 @@ import {
   verifyUploadSessionToken,
   UPLOAD_MAX_FILE_SIZE_BYTES,
 } from '@/lib/upload/security';
+import { buildReturnImageStorageReference, signReturnImageUrls } from '@/lib/storage/return-images';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 
 const customerReturnSchema = z.object({
@@ -440,12 +441,8 @@ export async function submitCustomerReturn(
 
             movedPaths.push(targetPath);
 
-            const { data: urlData } = adminClient.storage
-              .from('return-images')
-              .getPublicUrl(targetPath);
-
             return {
-              url: urlData.publicUrl,
+              url: buildReturnImageStorageReference(targetPath),
               storagePath: targetPath,
               imageType: inferImageTypeFromPath(image.storagePath),
             } as PreparedImageRecord;
@@ -487,12 +484,8 @@ export async function submitCustomerReturn(
           }
         });
 
-        const { data: urlData } = adminClient.storage
-          .from('return-images')
-          .getPublicUrl(fileName);
-
         return {
-          url: urlData.publicUrl,
+          url: buildReturnImageStorageReference(fileName),
           storagePath: fileName,
           imageType: 'product_damage' as const,
         };
@@ -637,6 +630,7 @@ interface ReturnListResult {
   return_images?: {
     id: string;
     image_url: string;
+    storage_path?: string | null;
     image_type: string | null;
   }[];
 }
@@ -691,6 +685,7 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
         return_images (
           id,
           image_url,
+          storage_path,
           image_type
         )
       `)
@@ -702,7 +697,12 @@ export async function searchReturnsByPhone(phone: string): Promise<{ success: bo
       return { success: false, error: '鏌ヨ澶辨晽' };
     }
 
-    return { success: true, data: data || [] };
+    const signedData = await Promise.all((data || []).map(async (item) => ({
+      ...item,
+      return_images: await signReturnImageUrls(adminClient, item.return_images || []),
+    })));
+
+    return { success: true, data: signedData };
   } catch {
     return { success: false, error: '绯荤当閷' };
   }
@@ -727,6 +727,7 @@ interface ReturnSearchResult {
   return_images?: {
     id: string;
     image_url: string;
+    storage_path?: string | null;
     image_type: string | null;
   }[];
 }
@@ -776,6 +777,7 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
         return_images (
           id,
           image_url,
+          storage_path,
           image_type
         )
       `)
@@ -787,7 +789,15 @@ export async function searchReturnByNumber(requestNumber: string): Promise<{ suc
       return { success: false, error: '找不到此退貨單號' };
     }
 
-    return { success: true, data };
+    const signedImages = await signReturnImageUrls(adminClient, data.return_images || []);
+
+    return {
+      success: true,
+      data: {
+        ...data,
+        return_images: signedImages,
+      },
+    };
   } catch {
     return { success: false, error: '绯荤当閷' };
   }

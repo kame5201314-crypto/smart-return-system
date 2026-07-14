@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 import { getOrgContext } from '@/lib/saas/org-context';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { buildReturnImageStorageReference } from '@/lib/storage/return-images';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   getExtensionFromFileName,
@@ -325,16 +326,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: publicUrlData } = adminClient.storage
-      .from('return-images')
-      .getPublicUrl(filePath);
+    const imageUrl = buildReturnImageStorageReference(filePath);
 
     return NextResponse.json({
       success: true,
       signedUrl: data.signedUrl,
       token: data.token,
       path: filePath,
-      publicUrl: publicUrlData.publicUrl,
+      imageUrl,
+      publicUrl: imageUrl,
       remainingFiles: slot.remaining,
     });
   } catch (error) {

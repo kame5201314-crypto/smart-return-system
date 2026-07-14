@@ -17,6 +17,7 @@ import { CHANNELS, ERROR_MESSAGES, RETURN_ITEM_RESOLUTION_TYPES } from '@/config
 import type { ApiResponse, CustomerSession, ReturnRequestWithRelations } from '@/types';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
 import { getOrgContext, type SaaSOrgContext } from '@/lib/saas/org-context';
+import { signReturnImageUrls } from '@/lib/storage/return-images';
 import {
   applyFallbackResolutionTypeToItems,
   isReturnItemResolutionType,
@@ -497,6 +498,7 @@ export async function getReturnStatus(
       return_images (
         id,
         image_url,
+        storage_path,
         image_type
       )
     `;
@@ -517,6 +519,7 @@ export async function getReturnStatus(
       return_images (
         id,
         image_url,
+        storage_path,
         image_type
       )
     `;
@@ -565,7 +568,15 @@ export async function getReturnStatus(
       return { success: false, error: ERROR_MESSAGES.UNAUTHORIZED };
     }
 
-    return { success: true, data: data as ReturnRequestWithRelations };
+    const signedImages = await signReturnImageUrls(createAdminClient(), data.return_images || []);
+
+    return {
+      success: true,
+      data: {
+        ...data,
+        return_images: signedImages,
+      } as ReturnRequestWithRelations,
+    };
   } catch (error) {
     console.error('Get return status error:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC };
@@ -1307,6 +1318,7 @@ export async function getReturnRequestDetail(id: string) {
           return_images (
             id,
             image_url,
+            storage_path,
             image_type,
             uploaded_by,
             created_at
@@ -1357,7 +1369,21 @@ export async function getReturnRequestDetail(id: string) {
       );
     }
 
-    return { success: true, data };
+    const detailData = data as unknown as Record<string, unknown> & {
+      return_images?: Array<{
+        image_url: string;
+        storage_path?: string | null;
+      }>;
+    };
+    const signedImages = await signReturnImageUrls(adminClient, detailData.return_images || []);
+
+    return {
+      success: true,
+      data: {
+        ...detailData,
+        return_images: signedImages,
+      },
+    };
   } catch (error) {
     console.error('Get return request detail error:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC };

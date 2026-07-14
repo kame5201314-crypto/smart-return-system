@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createUploadSessionToken } from '@/lib/upload/security';
 
 const createSignedUploadUrlMock = vi.fn();
-const getPublicUrlMock = vi.fn();
 const TEST_SECRET = 'upload-session-secret-for-tests-1234567890';
 
 process.env.UPLOAD_SESSION_SECRET = TEST_SECRET;
@@ -14,7 +13,6 @@ vi.mock('@/lib/supabase/admin', () => ({
     storage: {
       from: () => ({
         createSignedUploadUrl: createSignedUploadUrlMock,
-        getPublicUrl: getPublicUrlMock,
       }),
     },
   }),
@@ -57,9 +55,6 @@ describe('POST /api/v1/upload/signed-url', () => {
       data: { signedUrl: 'https://storage.example/signed-url', token: 'upload-token' },
       error: null,
     });
-    getPublicUrlMock.mockReturnValue({
-      data: { publicUrl: 'https://storage.example/public.jpg' },
-    });
   });
 
   it('allows anonymous upload sign-url requests for supported image types', async () => {
@@ -79,7 +74,8 @@ describe('POST /api/v1/upload/signed-url', () => {
 
     expect(payload.success).toBe(true);
     expect(payload.signedUrl).toBe('https://storage.example/signed-url');
-    expect(payload.publicUrl).toBe('https://storage.example/public.jpg');
+    expect(payload.imageUrl).toMatch(/^storage:\/\/return-images\/staging\/d7f16050-16d8-4d7f-ae4c-ec89b6a31f5c\/product-photos\/\d+_[a-f0-9]+\.(jpg|jpeg)$/);
+    expect(payload.publicUrl).toBe(payload.imageUrl);
     expect(createSignedUploadUrlMock).toHaveBeenCalledTimes(1);
     expect(createSignedUploadUrlMock).toHaveBeenCalledWith(
       expect.stringMatching(/^staging\/d7f16050-16d8-4d7f-ae4c-ec89b6a31f5c\/product-photos\/\d+_[a-f0-9]+\.(jpg|jpeg)$/)
