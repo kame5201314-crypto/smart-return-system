@@ -1,4 +1,5 @@
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
+import { createInMemoryRateLimiter } from '@/lib/security/request-rate-limit';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 
 export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-14-v1';
@@ -10,6 +11,7 @@ export type SelfServiceTrialErrorCode =
   | 'unauthenticated'
   | 'google_identity_required'
   | 'invalid_request'
+  | 'rate_limited'
   | 'trial_already_claimed'
   | 'not_configured'
   | 'provision_failed';
@@ -57,6 +59,18 @@ export interface SelfServiceTrialResult {
 export interface SelfServiceTrialRepository {
   provision(input: SelfServiceTrialProvisioningInput): Promise<SelfServiceTrialResult>;
 }
+
+export interface SelfServiceTrialRateLimiter {
+  check(key: string, now?: Date): {
+    allowed: boolean;
+    retryAfterSeconds: number;
+  };
+}
+
+const selfServiceTrialRateLimiter = createInMemoryRateLimiter({
+  maxRequests: 20,
+  windowMs: 60 * 60 * 1000,
+});
 
 interface RpcClient {
   rpc(
@@ -199,6 +213,7 @@ export async function provisionSelfServiceTrial(
     identity: SelfServiceTrialIdentity | null;
     env?: Record<string, string | undefined>;
     repository?: SelfServiceTrialRepository;
+    rateLimiter?: SelfServiceTrialRateLimiter;
     now?: Date;
   }
 ): Promise<SelfServiceTrialResult> {
@@ -223,6 +238,18 @@ export async function provisionSelfServiceTrial(
       'google_identity_required',
       403,
       'A verified Google identity is required.'
+    );
+  }
+
+  const rateLimit = (options.rateLimiter ?? selfServiceTrialRateLimiter).check(
+    `saas_self_service_trial:${options.identity.userId}`,
+    options.now
+  );
+  if (!rateLimit.allowed) {
+    throw new SelfServiceTrialError(
+      'rate_limited',
+      429,
+      `Too many self-service trial requests. Try again in ${rateLimit.retryAfterSeconds} seconds.`
     );
   }
 

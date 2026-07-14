@@ -42,6 +42,7 @@ function getErrorMessage(code: unknown): string {
   if (code === 'trial_already_claimed') return '這個帳號已使用過試用資格。';
   if (code === 'google_identity_required') return '請先使用 Google 帳號登入。';
   if (code === 'feature_disabled') return '自助試用目前尚未開放。';
+  if (code === 'rate_limited') return '操作過於頻繁，請稍後再試。';
   if (code === 'invalid_request') return '請確認品牌名稱、方案與條款勾選。';
   return '建立試用工作區失敗，請稍後再試。';
 }

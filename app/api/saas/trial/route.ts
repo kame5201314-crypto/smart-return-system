@@ -6,6 +6,7 @@ import {
   provisionSelfServiceTrial,
   SelfServiceTrialError,
   type SelfServiceTrialIdentity,
+  type SelfServiceTrialRateLimiter,
   type SelfServiceTrialRepository,
 } from '@/lib/saas/self-service-trial';
 import { createClient } from '@/lib/supabase/server';
@@ -16,6 +17,7 @@ interface SelfServiceTrialRouteDependencies {
   env?: Record<string, string | undefined>;
   identity?: SelfServiceTrialIdentity | null;
   repository?: SelfServiceTrialRepository;
+  rateLimiter?: SelfServiceTrialRateLimiter;
   now?: Date;
 }
 
@@ -62,6 +64,7 @@ export async function handleSelfServiceTrialRequest(
       identity,
       env: deps.env,
       repository: deps.repository,
+      rateLimiter: deps.rateLimiter,
       now: deps.now,
     });
 

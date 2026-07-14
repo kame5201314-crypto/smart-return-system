@@ -134,4 +134,26 @@ describe('self-service trial API', () => {
     expect(staleTerms.status).toBe(400);
     expect(await staleTerms.json()).toMatchObject({ code: 'invalid_request' });
   });
+
+  it('rate limits repeated authenticated provisioning before calling the RPC', async () => {
+    const repository = { provision: vi.fn() };
+    const response = await handleSelfServiceTrialRequest(buildRequest(body), {
+      identity,
+      env: {
+        ENABLE_GOOGLE_AUTH: 'true',
+        ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      },
+      repository,
+      rateLimiter: {
+        check: vi.fn().mockReturnValue({
+          allowed: false,
+          retryAfterSeconds: 120,
+        }),
+      },
+    });
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ code: 'rate_limited' });
+    expect(repository.provision).not.toHaveBeenCalled();
+  });
 });
