@@ -2,7 +2,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   BarChart3,
-  Compass,
   CreditCard,
   Database,
   UsersRound,
@@ -12,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/saas/page-header';
 import { getOrgContext } from '@/lib/saas/org-context';
-import { loadSaaSOnboardingView } from '@/lib/saas/onboarding-live-data';
 
 type SettingCard = {
   href: string;
@@ -42,13 +40,6 @@ const coreSettingCards: SettingCard[] = [
   },
 ];
 
-const onboardingCard: SettingCard = {
-  href: '/onboarding',
-  title: '設定指引',
-  description: '完成首次設定流程，協助團隊更快開始處理退貨。',
-  icon: Compass,
-};
-
 const backupCard: SettingCard = {
   href: '/settings/backup',
   title: '資料與備份',
@@ -59,17 +50,7 @@ const backupCard: SettingCard = {
 async function loadSettingsHubCards(): Promise<SettingCard[]> {
   try {
     const context = await getOrgContext();
-    const onboarding = await loadSaaSOnboardingView({
-      getContext: async () => context,
-    });
     const cards = [...coreSettingCards];
-
-    if (
-      onboarding.state === 'ready'
-      && onboarding.data.org.onboardingCompletedAt === null
-    ) {
-      cards.push(onboardingCard);
-    }
 
     if (context.role === 'owner' || context.role === 'admin') {
       cards.push(backupCard);
