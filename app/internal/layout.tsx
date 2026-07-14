@@ -4,6 +4,7 @@ import { ArrowLeft, LayoutDashboard, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { InternalNavLink } from '@/components/internal/nav-link';
+import { resolvePlatformAdminFeatureFlags } from '@/lib/saas/platform-admin';
 
 const internalNav = [
   {
@@ -19,9 +20,21 @@ const internalNav = [
     description: '租戶、方案與狀態',
     iconName: 'building',
   },
+  {
+    href: '/internal/leads',
+    label: '試用申請',
+    description: '新名單與聯絡進度',
+    iconName: 'inbox',
+    requiresLeadCapture: true,
+  },
 ] as const;
 
 export default function InternalLayout({ children }: { children: ReactNode }) {
+  const featureFlags = resolvePlatformAdminFeatureFlags();
+  const visibleNav = internalNav.filter(
+    (item) => !('requiresLeadCapture' in item) || featureFlags.public_lead_capture
+  );
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-950">
       <div className="border-b bg-white">
@@ -55,7 +68,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
             管理選單
           </div>
           <nav className="grid gap-1">
-            {internalNav.map((item) => (
+            {visibleNav.map((item) => (
               <InternalNavLink
                 key={item.href}
                 href={item.href}

@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, FileClock, LayoutDashboard } from 'lucide-react';
+import { Building2, FileClock, Inbox, LayoutDashboard } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 
-type InternalIconName = 'building' | 'fileClock' | 'layoutDashboard';
+type InternalIconName = 'building' | 'fileClock' | 'inbox' | 'layoutDashboard';
 
 const ICON_MAP: Record<InternalIconName, ComponentType<SVGProps<SVGSVGElement>>> = {
   building: Building2,
   fileClock: FileClock,
+  inbox: Inbox,
   layoutDashboard: LayoutDashboard,
 };
 
