@@ -9,6 +9,13 @@ import {
   SaaSAIQuotaError,
   type AIQuotaQueryClient,
 } from '@/lib/saas/ai-quota';
+import {
+  createSelfServiceTrialAIQuotaRepository,
+  reserveSelfServiceTrialAIAnalysis,
+  SelfServiceTrialAIQuotaError,
+  type SelfServiceTrialAIQuotaRepository,
+  type SelfServiceTrialAIReservation,
+} from '@/lib/saas/self-service-trial-ai-quota';
 import { normalizeResolutionTypeFromFallback } from '@/lib/utils/resolution-fallback';
 import { containsLikelyMojibake } from '@/lib/utils/text-hygiene';
 import { buildReconcileMismatches } from '@/lib/maintenance/reconcile-ai-reports';
@@ -396,6 +403,10 @@ export async function POST(request: NextRequest) {
     return crossSiteResponse;
   }
 
+  let trialAIReservation: SelfServiceTrialAIReservation | null = null;
+  let trialAIQuotaRepository: SelfServiceTrialAIQuotaRepository | null = null;
+  let trialAIReservationSettled = false;
+
   try {
     const orgContext = await getOrgContext({
       requirements: {
@@ -426,6 +437,11 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
     const untypedSupabase = createUntypedAdminClient();
+    trialAIQuotaRepository = createSelfServiceTrialAIQuotaRepository(
+      untypedSupabase as unknown as Parameters<
+        typeof createSelfServiceTrialAIQuotaRepository
+      >[0]
+    );
 
     // Get date range for the period
     const startDate = `${period}-01`;
@@ -652,10 +668,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await assertAIQuotaAvailable({
-      client: untypedSupabase as unknown as AIQuotaQueryClient,
-      context: orgContext,
+    trialAIReservation = await reserveSelfServiceTrialAIAnalysis({
+      enabled: orgContext.featureFlags.google_trial_signup,
+      orgId: orgContext.orgId,
+      repository: trialAIQuotaRepository,
     });
+
+    if (!trialAIReservation) {
+      await assertAIQuotaAvailable({
+        client: untypedSupabase as unknown as AIQuotaQueryClient,
+        context: orgContext,
+      });
+    }
 
     let aiResult: GeminiTextResponse;
     let aiResponse: string;
@@ -725,6 +749,11 @@ export async function POST(request: NextRequest) {
           prompt_character_count: prompt.length,
         },
       });
+
+      if (trialAIReservation && trialAIQuotaRepository) {
+        await trialAIQuotaRepository.release(trialAIReservation);
+        trialAIReservationSettled = true;
+      }
 
       return NextResponse.json(
         { success: false, error: 'AI 回應內容疑似亂碼，請重新分析' },
@@ -798,6 +827,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (trialAIReservation && trialAIQuotaRepository) {
+      if (aiResult.model === 'local-text-fallback') {
+        await trialAIQuotaRepository.release(trialAIReservation);
+      } else {
+        await trialAIQuotaRepository.complete(
+          trialAIReservation,
+          new Date().toISOString()
+        );
+      }
+      trialAIReservationSettled = true;
+    }
+
     return NextResponse.json({
       success: true,
       saved,
@@ -826,6 +867,21 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (
+      trialAIReservation
+      && trialAIQuotaRepository
+      && !trialAIReservationSettled
+    ) {
+      try {
+        await trialAIQuotaRepository.release(trialAIReservation);
+      } catch (releaseError) {
+        console.warn(
+          'Trial AI reservation release failed:',
+          getErrorMessage(releaseError) || 'Unknown release error'
+        );
+      }
+    }
+
     if (error instanceof SaaSOrgContextError) {
       return NextResponse.json(
         { success: false, error: error.message },
@@ -840,6 +896,18 @@ export async function POST(request: NextRequest) {
           error: error.message,
           code: error.code,
           quota: error.decision,
+        },
+        { status: error.status }
+      );
+    }
+
+    if (error instanceof SelfServiceTrialAIQuotaError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          code: error.code,
+          quota: error.quota,
         },
         { status: error.status }
       );

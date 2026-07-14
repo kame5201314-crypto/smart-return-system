@@ -383,6 +383,15 @@ BEGIN
   FROM public.subscriptions
   WHERE org_id = p_org_id;
 
+  IF FOUND AND subscription_record.status = 'active' THEN
+    RETURN jsonb_build_object(
+      'applies', false,
+      'allowed', true,
+      'claim_id', claim_record.id,
+      'reason', 'paid_plan'
+    );
+  END IF;
+
   IF NOT FOUND
      OR subscription_record.status <> 'trialing'
      OR subscription_record.trial_end IS NULL

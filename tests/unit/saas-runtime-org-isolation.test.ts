@@ -29,6 +29,10 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain('await getOrgContext({');
     expect(source).toContain("from '@/lib/saas/ai-quota'");
     expect(source).toContain('await assertAIQuotaAvailable({');
+    expect(source).toContain("from '@/lib/saas/self-service-trial-ai-quota'");
+    expect(source).toContain('await reserveSelfServiceTrialAIAnalysis({');
+    expect(source).toContain('await trialAIQuotaRepository.complete(');
+    expect(source).toContain('await trialAIQuotaRepository.release(trialAIReservation)');
     expect(source).toContain(".eq('org_id', orgContext.orgId)");
     expect(source).toContain('org_id: orgContext.orgId');
     expect(source).toContain('recordAIUsageEvent(untypedSupabase, orgContext.orgId');
