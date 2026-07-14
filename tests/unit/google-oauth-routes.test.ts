@@ -41,6 +41,28 @@ describe('Google OAuth routes', () => {
     });
   });
 
+  it('drops unsafe next paths before starting OAuth', async () => {
+    const signInWithOAuth = vi.fn().mockResolvedValue({
+      data: { url: 'https://accounts.google.com/o/oauth2/v2/auth?state=test' },
+      error: null,
+    });
+    await handleGoogleOAuthStart(
+      request('/auth/google?next=%2F%2Fevil.test&plan=enterprise'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: { auth: { signInWithOAuth } },
+      }
+    );
+
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://app.example.test/auth/callback?plan=basic',
+        scopes: 'openid email profile',
+      },
+    });
+  });
+
   it('exchanges the code and routes an existing merchant to the workspace', async () => {
     const exchangeCodeForSession = vi.fn().mockResolvedValue({ error: null });
     const getUser = vi.fn().mockResolvedValue({
@@ -89,6 +111,85 @@ describe('Google OAuth routes', () => {
     expect(response.headers.get('location')).toBe(
       'https://app.example.test/signup/complete?plan=growth'
     );
+  });
+
+  it('routes disabled members to support without creating another workspace', async () => {
+    const response = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=valid-code&plan=growth'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: {
+          auth: {
+            exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+            getUser: vi.fn().mockResolvedValue({
+              data: { user: { id: 'user-disabled', email: 'disabled@example.com' } },
+              error: null,
+            }),
+          },
+          from: vi.fn(),
+        },
+        repository: {
+          listMemberships: vi.fn().mockResolvedValue([
+            { orgId: 'org-disabled', status: 'disabled' },
+          ]),
+        },
+      }
+    );
+
+    expect(response.headers.get('location')).toBe(
+      'https://app.example.test/signup/complete?plan=growth&state=membership_disabled'
+    );
+  });
+
+  it('routes explicit platform admins to internal without provisioning', async () => {
+    const response = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=valid-code&plan=growth'),
+      {
+        env: {
+          ENABLE_GOOGLE_AUTH: 'true',
+          PLATFORM_ADMIN_ROLES: 'operator@example.com=owner',
+        },
+        client: {
+          auth: {
+            exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+            getUser: vi.fn().mockResolvedValue({
+              data: { user: { id: 'platform-user', email: 'operator@example.com' } },
+              error: null,
+            }),
+          },
+          from: vi.fn(),
+        },
+        repository: { listMemberships: vi.fn().mockResolvedValue([]) },
+      }
+    );
+
+    expect(response.headers.get('location')).toBe('https://app.example.test/internal');
+  });
+
+  it('does not honor an internal next path for a merchant callback', async () => {
+    const response = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=valid-code&next=%2Finternal%2Forgs'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: {
+          auth: {
+            exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+            getUser: vi.fn().mockResolvedValue({
+              data: { user: { id: 'merchant-user', email: 'merchant@example.com' } },
+              error: null,
+            }),
+          },
+          from: vi.fn(),
+        },
+        repository: {
+          listMemberships: vi.fn().mockResolvedValue([
+            { orgId: 'org-1', status: 'active' },
+          ]),
+        },
+      }
+    );
+
+    expect(response.headers.get('location')).toBe('https://app.example.test/analytics');
   });
 
   it('fails closed for missing or already-consumed callback codes', async () => {

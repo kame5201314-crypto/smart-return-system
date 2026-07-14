@@ -59,6 +59,36 @@ describe('self-service trial API', () => {
     });
   });
 
+  it('returns the original workspace for an idempotent retry', async () => {
+    const repository = {
+      provision: vi.fn().mockResolvedValue({
+        orgId: 'org-existing',
+        subscriptionId: 'sub-existing',
+        ownerMembershipId: 'member-existing',
+        auditLogId: null,
+        claimId: 'claim-existing',
+        trialEnd: '2026-07-28T00:00:00.000Z',
+        reused: true,
+      }),
+    };
+    const response = await handleSelfServiceTrialRequest(buildRequest(body), {
+      identity,
+      env: {
+        ENABLE_GOOGLE_AUTH: 'true',
+        ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      },
+      repository,
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      redirectTo: '/analytics',
+      data: { orgId: 'org-existing', reused: true },
+    });
+    expect(repository.provision).toHaveBeenCalledTimes(1);
+  });
+
   it('fails closed when disabled or unauthenticated', async () => {
     const disabled = await handleSelfServiceTrialRequest(buildRequest(body), {
       identity,
