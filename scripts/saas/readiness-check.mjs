@@ -188,6 +188,7 @@ function checkCommercialFoundation() {
     'lib/security/request-rate-limit.ts',
     'lib/auth/admin-login-rate-limit.ts',
     'lib/auth/post-login-redirect.ts',
+    'lib/auth/google-oauth.ts',
     'lib/auth/internal-login-redirect.ts',
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
@@ -232,6 +233,9 @@ function checkCommercialFoundation() {
     'lib/saas/platform-lead-management.ts',
     'lib/saas/lead-attribution.ts',
     'components/marketing/lead-capture-form.tsx',
+    'components/auth/login-page-content.tsx',
+    'app/auth/google/route.ts',
+    'app/auth/callback/route.ts',
     'app/api/saas/signup/route.ts',
     'app/api/saas/invite/accept/route.ts',
     'app/api/saas/leads/route.ts',
@@ -274,7 +278,12 @@ function checkCommercialFoundation() {
     'supabase/migrations/037_saas_team_invite_status.sql',
     'supabase/migrations/038_saas_org_member_visibility.sql',
     'supabase/migrations/039_saas_public_lead_capture.sql',
+    'supabase/migrations/040_saas_google_self_service_trial.sql',
+    'supabase/migrations/041_saas_scoped_trial_expiry.sql',
     'lib/saas/lead-capture-service.ts',
+    'lib/saas/self-service-trial.ts',
+    'lib/saas/trial-expiry-worker.ts',
+    'app/api/cron/saas/trial-expiry/route.ts',
   ];
 
   for (const file of requiredFiles) {
@@ -355,6 +364,13 @@ function checkCommercialFoundation() {
     'lib/auth/platform-admin-identity.ts'
   );
   const loginPagePath = path.resolve(process.cwd(), 'app/login/page.tsx');
+  const loginPageContentPath = path.resolve(
+    process.cwd(),
+    'components/auth/login-page-content.tsx'
+  );
+  const googleOAuthPath = path.resolve(process.cwd(), 'lib/auth/google-oauth.ts');
+  const googleOAuthStartPath = path.resolve(process.cwd(), 'app/auth/google/route.ts');
+  const googleOAuthCallbackPath = path.resolve(process.cwd(), 'app/auth/callback/route.ts');
   const adminLoginPagePath = path.resolve(process.cwd(), 'app/admin/login/page.tsx');
   const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
   if (fs.existsSync(publicRoutesPath) && fs.existsSync(proxyPath)) {
@@ -514,6 +530,10 @@ function checkCommercialFoundation() {
     fs.existsSync(routeAuthPath) &&
     fs.existsSync(platformAdminIdentityPath) &&
     fs.existsSync(loginPagePath) &&
+    fs.existsSync(loginPageContentPath) &&
+    fs.existsSync(googleOAuthPath) &&
+    fs.existsSync(googleOAuthStartPath) &&
+    fs.existsSync(googleOAuthCallbackPath) &&
     fs.existsSync(adminLoginPagePath)
   ) {
     const postLoginSource = fs.readFileSync(postLoginRedirectPath, 'utf8');
@@ -523,6 +543,10 @@ function checkCommercialFoundation() {
     const platformAdminIdentitySource = fs.readFileSync(platformAdminIdentityPath, 'utf8');
     const proxySource = fs.existsSync(proxyPath) ? fs.readFileSync(proxyPath, 'utf8') : '';
     const loginPageSource = fs.readFileSync(loginPagePath, 'utf8');
+    const loginPageContentSource = fs.readFileSync(loginPageContentPath, 'utf8');
+    const googleOAuthSource = fs.readFileSync(googleOAuthPath, 'utf8');
+    const googleOAuthStartSource = fs.readFileSync(googleOAuthStartPath, 'utf8');
+    const googleOAuthCallbackSource = fs.readFileSync(googleOAuthCallbackPath, 'utf8');
     const adminLoginPageSource = fs.readFileSync(adminLoginPagePath, 'utf8');
     if (
       postLoginSource.includes('getPostLoginRedirect') &&
@@ -545,8 +569,14 @@ function checkCommercialFoundation() {
       proxyLoginRedirectSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('/login?next=') &&
-      loginPageSource.includes('new URLSearchParams(window.location.search).get') &&
-      loginPageSource.includes('result.redirectTo') &&
+      loginPageSource.includes('LoginPageContent') &&
+      loginPageContentSource.includes('new URLSearchParams(window.location.search).get') &&
+      loginPageContentSource.includes('result.redirectTo') &&
+      googleOAuthSource.includes('normalizeLocalRedirectPath') &&
+      googleOAuthSource.includes('isExplicitPlatformAdminPrincipal') &&
+      googleOAuthStartSource.includes("scopes: 'openid email profile'") &&
+      googleOAuthCallbackSource.includes('exchangeCodeForSession') &&
+      googleOAuthCallbackSource.includes('resolveGoogleOAuthDestination') &&
       proxySource.includes('isExplicitPlatformAdminPrincipal') &&
       proxySource.includes('resolveAuthenticatedLoginRedirect') &&
       proxySource.includes('resolveAuthenticatedAdminEntryRedirect') &&
@@ -763,12 +793,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('039_saas_public_lead_capture.sql') &&
+      source.includes('041_saas_scoped_trial_expiry.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-039 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-041 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-039 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-041 migration chain without applying migrations');
     }
   }
 
