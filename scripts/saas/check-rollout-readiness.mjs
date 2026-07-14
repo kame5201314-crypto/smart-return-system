@@ -187,6 +187,7 @@ function checkAppUrlAndObservability() {
     record('pass', 'Sentry/logging DSN', 'set');
   } else if (
     parseBool(process.env.ENABLE_PUBLIC_SIGNUP) ||
+    parseBool(process.env.ENABLE_PUBLIC_LEAD_CAPTURE) ||
     parseBool(process.env.ENABLE_BILLING) ||
     parseBool(process.env.ENABLE_SUBSCRIPTION_PLAN)
   ) {
@@ -224,11 +225,13 @@ function checkAiSafety() {
 
 function checkControlledRolloutFlags() {
   const publicSignup = normalizeEnvValue(process.env.ENABLE_PUBLIC_SIGNUP).toLowerCase();
+  const publicLeadCapture = normalizeEnvValue(process.env.ENABLE_PUBLIC_LEAD_CAPTURE).toLowerCase();
   const multiTenantAdmin = normalizeEnvValue(process.env.ENABLE_MULTI_TENANT_ADMIN).toLowerCase();
   const subscriptionPlan = normalizeEnvValue(process.env.ENABLE_SUBSCRIPTION_PLAN).toLowerCase();
   const advancedAnalytics = normalizeEnvValue(process.env.ENABLE_ADVANCED_ANALYTICS).toLowerCase();
 
   record('pass', 'ENABLE_PUBLIC_SIGNUP', publicSignup === 'true' ? 'enabled intentionally' : 'closed for controlled rollout');
+  record('pass', 'ENABLE_PUBLIC_LEAD_CAPTURE', publicLeadCapture === 'true' ? 'enabled intentionally' : 'closed for controlled rollout');
   record('pass', 'ENABLE_MULTI_TENANT_ADMIN', multiTenantAdmin === 'true' ? 'enabled intentionally' : 'closed until platform admin rollout');
   record('pass', 'ENABLE_SUBSCRIPTION_PLAN', subscriptionPlan === 'true' ? 'enabled intentionally' : 'closed until billing rollout');
   record('pass', 'ENABLE_ADVANCED_ANALYTICS', advancedAnalytics === 'true' ? 'enabled intentionally' : 'closed unless plan rollout approves it');

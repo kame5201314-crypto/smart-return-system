@@ -13,6 +13,7 @@ const DEFAULT_INTERNAL_PROJECT_ID = 'prj_aaRiMeML9D4G7U71QRDZYVonLH8h';
 const DEFAULT_INTERNAL_SUPABASE_PROJECT_ID = 'fdzfnenizyppxglypden';
 const FEATURE_FLAG_DEFAULTS = {
   ENABLE_PUBLIC_SIGNUP: 'false',
+  ENABLE_PUBLIC_LEAD_CAPTURE: 'false',
   ENABLE_BILLING: 'false',
   ENABLE_SUBSCRIPTION_PLAN: 'false',
   ENABLE_AI_USAGE_LIMIT: 'true',
@@ -230,6 +231,7 @@ function checkCommercialFoundation() {
     'lib/saas/lead-capture-repository.ts',
     'app/api/saas/signup/route.ts',
     'app/api/saas/invite/accept/route.ts',
+    'app/api/saas/leads/route.ts',
     'app/api/saas/onboarding/complete/route.ts',
     'app/api/saas/team/invites/route.ts',
     'app/api/saas/team/members/[id]/route.ts',
@@ -267,6 +269,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/037_saas_team_invite_status.sql',
     'supabase/migrations/038_saas_org_member_visibility.sql',
     'supabase/migrations/039_saas_public_lead_capture.sql',
+    'lib/saas/lead-capture-service.ts',
   ];
 
   for (const file of requiredFiles) {
@@ -315,6 +318,7 @@ function checkCommercialFoundation() {
     const source = fs.readFileSync(flagsPath, 'utf8');
     const requiredFlags = [
       'public_signup',
+      'public_lead_capture',
       'billing',
       'subscription_plan',
       'ai_usage_limit',
@@ -445,8 +449,12 @@ function checkCommercialFoundation() {
   if (fs.existsSync(requestRateLimitPath)) {
     const requestRateLimitSource = fs.readFileSync(requestRateLimitPath, 'utf8');
     const signupRoutePath = path.resolve(process.cwd(), 'app/api/saas/signup/route.ts');
+    const leadRoutePath = path.resolve(process.cwd(), 'app/api/saas/leads/route.ts');
     const signupRouteSource = fs.existsSync(signupRoutePath)
       ? fs.readFileSync(signupRoutePath, 'utf8')
+      : '';
+    const leadRouteSource = fs.existsSync(leadRoutePath)
+      ? fs.readFileSync(leadRoutePath, 'utf8')
       : '';
 
     if (
@@ -460,6 +468,16 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public signup rate limit', 'public signup mutation has best-effort per-runtime request throttling');
     } else {
       record('fail', 'SaaS public signup rate limit', 'public signup route must throttle repeated signup requests before public rollout');
+    }
+
+    if (
+      leadRouteSource.includes('leadRateLimiter') &&
+      leadRouteSource.includes("scope: 'saas_public_lead'") &&
+      leadRouteSource.includes("code: 'rate_limited'")
+    ) {
+      record('pass', 'SaaS public lead rate limit', 'public lead mutation has best-effort per-runtime request throttling');
+    } else {
+      record('fail', 'SaaS public lead rate limit', 'public lead route must throttle repeated lead requests before rollout');
     }
   }
 
@@ -585,6 +603,37 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public signup API', 'API route is flag-gated and persistence is wired behind the disabled-by-default flag');
     } else {
       record('fail', 'SaaS public signup API', 'signup API must be flag-gated, Basic-only, and persist to signup_requests only after the flag is enabled');
+    }
+  }
+
+  const publicLeadContractPath = path.resolve(process.cwd(), 'lib/saas/lead-capture.ts');
+  const publicLeadServicePath = path.resolve(process.cwd(), 'lib/saas/lead-capture-service.ts');
+  const publicLeadRepositoryPath = path.resolve(process.cwd(), 'lib/saas/lead-capture-repository.ts');
+  const publicLeadApiPath = path.resolve(process.cwd(), 'app/api/saas/leads/route.ts');
+  if (
+    fs.existsSync(publicLeadContractPath) &&
+    fs.existsSync(publicLeadServicePath) &&
+    fs.existsSync(publicLeadRepositoryPath) &&
+    fs.existsSync(publicLeadApiPath)
+  ) {
+    const contractSource = fs.readFileSync(publicLeadContractPath, 'utf8');
+    const serviceSource = fs.readFileSync(publicLeadServicePath, 'utf8');
+    const repositorySource = fs.readFileSync(publicLeadRepositoryPath, 'utf8');
+    const apiSource = fs.readFileSync(publicLeadApiPath, 'utf8');
+    if (
+      contractSource.includes('normalizeSaaSPublicLead') &&
+      contractSource.includes('privacyConsent') &&
+      serviceSource.includes('public_lead_capture') &&
+      serviceSource.includes('isHoneypotSubmission') &&
+      !serviceSource.includes('createOrganization') &&
+      repositorySource.includes("source: 'public_lead'") &&
+      repositorySource.includes('signup_requests') &&
+      apiSource.includes('handleSaaSPublicLeadRequest') &&
+      apiSource.includes('rejectCrossSiteRequest')
+    ) {
+      record('pass', 'SaaS public lead API', 'lead-only API is independently gated, throttled, and persists without provisioning');
+    } else {
+      record('fail', 'SaaS public lead API', 'lead API must use an independent flag and persist leads without creating accounts or organizations');
     }
   }
 

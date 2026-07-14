@@ -74,6 +74,7 @@ describe('SaaS commercial configuration', () => {
   it('keeps risky SaaS feature flags closed by default', () => {
     expect(resolveSaaSFeatureFlags({ env: {}, orgPlan: 'basic' })).toMatchObject({
       public_signup: false,
+      public_lead_capture: false,
       billing: false,
       subscription_plan: false,
       ai_usage_limit: true,

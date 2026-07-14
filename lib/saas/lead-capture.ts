@@ -37,7 +37,11 @@ export interface SaaSPublicLeadInput {
   privacyConsent: true;
 }
 
-export type SaaSPublicLeadErrorCode = 'invalid_request' | 'request_failed';
+export type SaaSPublicLeadErrorCode =
+  | 'feature_disabled'
+  | 'invalid_request'
+  | 'not_configured'
+  | 'request_failed';
 
 export class SaaSPublicLeadError extends Error {
   constructor(

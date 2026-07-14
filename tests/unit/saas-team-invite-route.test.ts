@@ -33,6 +33,7 @@ function buildContext(overrides: Partial<SaaSOrgContext> = {}): SaaSOrgContext {
     planDefinition: getSaaSPlanDefinition('basic'),
     featureFlags: {
       public_signup: false,
+      public_lead_capture: false,
       billing: false,
       subscription_plan: false,
       ai_usage_limit: true,

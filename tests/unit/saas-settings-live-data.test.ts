@@ -24,6 +24,7 @@ function buildContext(overrides: Partial<SaaSOrgContext> = {}): SaaSOrgContext {
     planDefinition: getSaaSPlanDefinition('growth'),
     featureFlags: {
       public_signup: false,
+      public_lead_capture: false,
       billing: true,
       subscription_plan: false,
       ai_usage_limit: true,
