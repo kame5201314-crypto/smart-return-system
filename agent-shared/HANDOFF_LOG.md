@@ -5786,3 +5786,52 @@ Public lead capture production rollout completed.
 - Deployment error-log scan found no errors.
 - Public signup, billing, email delivery, ECPay/other providers, domain/DNS,
   and migrations `034`/`036` were not enabled or changed.
+
+## 2026-07-14 Codex -> Owner / Claude / Codex
+
+Google merchant login and self-service trial foundations are implemented,
+verified, and pushed without activating external services.
+
+Commits:
+
+```text
+d05f89f feat(saas): add Google login for existing merchants
+1eb9a7f feat(saas): add Google self-service trial foundation
+5ac9a8d feat(saas): automate scoped trial expiry suspension
+ceb42ae fix(saas): align readiness gates with Google trial phases
+4782088 fix(saas): gate Google trial rollout dependencies
+88cc392 docs(saas): add Google trial activation runbook
+cb4b203 test(saas): cover Google trial identity matrix
+```
+
+Current behavior:
+
+- Google OAuth is disabled by default and existing email/password login remains
+  unchanged.
+- Existing active merchant members can return to their tenant workspace after
+  Google OAuth; platform administrators remain routed to `/internal`.
+- Accounts without a workspace receive the minimal `/signup/complete` landing
+  flow instead of tenant data.
+- The self-service trial API and migrations `040`/`041` are present but remain
+  inactive until the owner completes provider setup, authorizes migrations,
+  and explicitly enables all dependent flags.
+- The scoped expiry worker only transitions expired `trialing` subscriptions
+  to `suspended`; it does not cancel subscriptions or delete data.
+- Rollout readiness fails closed if self-service trials are enabled without
+  Google authentication or the expiry cron.
+
+Final verification:
+
+- `npm run test:all` passed: 16 backend tests, 489 unit tests, 4 E2E tests,
+  and 5 integration tests.
+- `npm run build`, `npm run saas:doctor`,
+  `npm run safety:agent-boundary`, and `git diff --check` passed.
+- `saas:doctor` reported 190 pass / 1 existing local flag warning / 0 fail.
+
+Activation boundary:
+
+- No migration was applied, no OAuth provider was configured, no env or secret
+  was changed, and no deployment was performed.
+- Owner setup and explicit authorization remain required for Google Cloud,
+  Supabase Google provider configuration, migrations `040`/`041`, production
+  flags, deployment, and disposable-account production verification.
