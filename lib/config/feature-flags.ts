@@ -3,6 +3,7 @@ import { getSaaSPlanDefinition, type SaaSPlanCode } from '@/lib/config/saas-plan
 export type SaaSFeatureFlag =
   | 'public_signup'
   | 'public_lead_capture'
+  | 'google_auth'
   | 'billing'
   | 'subscription_plan'
   | 'ai_usage_limit'
@@ -13,6 +14,7 @@ export type SaaSFeatureFlag =
 export const SAAS_FEATURE_FLAG_ENV: Record<SaaSFeatureFlag, string> = {
   public_signup: 'ENABLE_PUBLIC_SIGNUP',
   public_lead_capture: 'ENABLE_PUBLIC_LEAD_CAPTURE',
+  google_auth: 'ENABLE_GOOGLE_AUTH',
   billing: 'ENABLE_BILLING',
   subscription_plan: 'ENABLE_SUBSCRIPTION_PLAN',
   ai_usage_limit: 'ENABLE_AI_USAGE_LIMIT',
@@ -24,6 +26,7 @@ export const SAAS_FEATURE_FLAG_ENV: Record<SaaSFeatureFlag, string> = {
 export const DEFAULT_SAAS_FEATURE_FLAGS: Record<SaaSFeatureFlag, boolean> = {
   public_signup: false,
   public_lead_capture: false,
+  google_auth: false,
   billing: false,
   subscription_plan: false,
   ai_usage_limit: true,

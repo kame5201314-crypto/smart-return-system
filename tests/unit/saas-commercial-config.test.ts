@@ -75,6 +75,7 @@ describe('SaaS commercial configuration', () => {
     expect(resolveSaaSFeatureFlags({ env: {}, orgPlan: 'basic' })).toMatchObject({
       public_signup: false,
       public_lead_capture: false,
+      google_auth: false,
       billing: false,
       subscription_plan: false,
       ai_usage_limit: true,
@@ -82,6 +83,21 @@ describe('SaaS commercial configuration', () => {
       multi_tenant_admin: false,
       image_ai: false,
     });
+  });
+
+  it('keeps Google OAuth behind an independent rollout flag', () => {
+    expect(
+      resolveSaaSFeatureFlags({
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        orgPlan: 'basic',
+      }).google_auth
+    ).toBe(true);
+    expect(
+      resolveSaaSFeatureFlags({
+        env: { ENABLE_PUBLIC_SIGNUP: 'true' },
+        orgPlan: 'basic',
+      }).google_auth
+    ).toBe(false);
   });
 
   it('allows org flags but still gates advanced features by plan', () => {

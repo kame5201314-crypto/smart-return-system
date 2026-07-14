@@ -20,6 +20,8 @@ describe('public route allowlist', () => {
   it('keeps customer portal and login routes public', () => {
     expect(isPublicRoute('/login')).toBe(true);
     expect(isPublicRoute('/admin/login')).toBe(true);
+    expect(isPublicRoute('/auth/google')).toBe(true);
+    expect(isPublicRoute('/auth/callback')).toBe(true);
     expect(isPublicRoute('/portal')).toBe(true);
     expect(isPublicRoute('/portal/track/query')).toBe(true);
     expect(isPublicRoute('/portal/track/demo-id')).toBe(true);
@@ -45,5 +47,6 @@ describe('public route allowlist', () => {
     expect(isPublicRoute('/features-admin')).toBe(false);
     expect(isPublicRoute('/legal-admin')).toBe(false);
     expect(isPublicRoute('/portal-admin')).toBe(false);
+    expect(isPublicRoute('/authentication')).toBe(false);
   });
 });

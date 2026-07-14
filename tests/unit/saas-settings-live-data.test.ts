@@ -25,6 +25,7 @@ function buildContext(overrides: Partial<SaaSOrgContext> = {}): SaaSOrgContext {
     featureFlags: {
       public_signup: false,
       public_lead_capture: false,
+      google_auth: false,
       billing: true,
       subscription_plan: false,
       ai_usage_limit: true,

@@ -11,6 +11,7 @@ const PUBLIC_ROUTE_EXACT_PATHS = new Set([
 ]);
 
 const PUBLIC_ROUTE_PREFIXES = [
+  '/auth',
   '/features',
   '/invite',
   '/legal',

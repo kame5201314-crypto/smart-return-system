@@ -1,0 +1,118 @@
+import { NextRequest } from 'next/server';
+import { describe, expect, it, vi } from 'vitest';
+
+import { handleGoogleOAuthCallback } from '@/app/auth/callback/route';
+import { handleGoogleOAuthStart } from '@/app/auth/google/route';
+
+function request(path: string): NextRequest {
+  return new NextRequest(`https://app.example.test${path}`);
+}
+
+describe('Google OAuth routes', () => {
+  it('keeps OAuth disabled by default', async () => {
+    const response = await handleGoogleOAuthStart(request('/auth/google'));
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://app.example.test/login?error=google_auth_disabled'
+    );
+  });
+
+  it('starts PKCE OAuth with a safe callback and requested customer path', async () => {
+    const signInWithOAuth = vi.fn().mockResolvedValue({
+      data: { url: 'https://accounts.google.com/o/oauth2/v2/auth?state=test' },
+      error: null,
+    });
+    const response = await handleGoogleOAuthStart(
+      request('/auth/google?next=%2Freturns&plan=growth'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: { auth: { signInWithOAuth } },
+      }
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toContain('accounts.google.com');
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://app.example.test/auth/callback?next=%2Freturns&plan=growth',
+        scopes: 'openid email profile',
+      },
+    });
+  });
+
+  it('exchanges the code and routes an existing merchant to the workspace', async () => {
+    const exchangeCodeForSession = vi.fn().mockResolvedValue({ error: null });
+    const getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'merchant@example.com' } },
+      error: null,
+    });
+    const response = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=valid-code&next=%2Fanalytics'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: {
+          auth: { exchangeCodeForSession, getUser },
+          from: vi.fn(),
+        },
+        repository: {
+          listMemberships: vi.fn().mockResolvedValue([
+            { orgId: 'org-1', status: 'active' },
+          ]),
+        },
+      }
+    );
+
+    expect(exchangeCodeForSession).toHaveBeenCalledWith('valid-code');
+    expect(response.headers.get('location')).toBe('https://app.example.test/analytics');
+  });
+
+  it('routes a different Google identity without membership to completion', async () => {
+    const response = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=valid-code&plan=growth'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: {
+          auth: {
+            exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+            getUser: vi.fn().mockResolvedValue({
+              data: { user: { id: 'user-2', email: 'new@example.com' } },
+              error: null,
+            }),
+          },
+          from: vi.fn(),
+        },
+        repository: { listMemberships: vi.fn().mockResolvedValue([]) },
+      }
+    );
+
+    expect(response.headers.get('location')).toBe(
+      'https://app.example.test/signup/complete?plan=growth'
+    );
+  });
+
+  it('fails closed for missing or already-consumed callback codes', async () => {
+    const missingCode = await handleGoogleOAuthCallback(
+      request('/auth/callback'),
+      { env: { ENABLE_GOOGLE_AUTH: 'true' } }
+    );
+    expect(missingCode.headers.get('location')).toContain('error=google_auth_failed');
+
+    const consumedCode = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=used-code'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client: {
+          auth: {
+            exchangeCodeForSession: vi.fn().mockResolvedValue({
+              error: { message: 'invalid flow state' },
+            }),
+            getUser: vi.fn(),
+          },
+          from: vi.fn(),
+        },
+      }
+    );
+    expect(consumedCode.headers.get('location')).toContain('error=google_auth_failed');
+  });
+});

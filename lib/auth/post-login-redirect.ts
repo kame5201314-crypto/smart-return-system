@@ -10,7 +10,7 @@ function isInternalPath(pathname: string): boolean {
   return pathname === '/internal' || pathname.startsWith('/internal/');
 }
 
-function normalizeLocalRedirectPath(value: unknown): string | null {
+export function normalizeLocalRedirectPath(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
   }
