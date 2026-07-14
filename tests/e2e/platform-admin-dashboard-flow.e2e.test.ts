@@ -166,6 +166,7 @@ function createMixedTenantRepository(): PlatformAdminDataRepository {
         cancelAtPeriodEnd: false,
       },
     })),
+    listOrganizationSelfServiceTrialClaims: vi.fn(async () => ({})),
     listOrganizationNames: vi.fn(async () => ({
       'org-active': 'Active Brand',
       'org-pastdue': 'Pastdue Brand',

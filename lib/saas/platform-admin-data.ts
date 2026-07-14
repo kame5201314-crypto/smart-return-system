@@ -44,6 +44,13 @@ export interface PlatformOrgSubscriptionSnapshot {
   cancelAtPeriodEnd: boolean;
 }
 
+export interface PlatformSelfServiceTrialClaimSnapshot {
+  orgId: string;
+  createdAt: string | null;
+  analysisReservedAt: string | null;
+  analysisCompletedAt: string | null;
+}
+
 export interface PlatformAuditLogSummary {
   id: string;
   action: string;
@@ -62,6 +69,9 @@ export interface PlatformAdminDataRepository {
   listOrganizationSubscriptions(input: {
     orgIds: string[];
   }): Promise<Record<string, PlatformOrgSubscriptionSnapshot>>;
+  listOrganizationSelfServiceTrialClaims(input: {
+    orgIds: string[];
+  }): Promise<Record<string, PlatformSelfServiceTrialClaimSnapshot>>;
   listOrganizationNames(input: { orgIds: string[] }): Promise<Record<string, string | null>>;
   listAuditLogs(input: { orgId: string; limit?: number }): Promise<PlatformAuditLogSummary[]>;
 }
@@ -244,6 +254,26 @@ function normalizeSubscriptionRow(
   };
 }
 
+function normalizeSelfServiceTrialClaim(
+  row: unknown
+): PlatformSelfServiceTrialClaimSnapshot | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const orgId = stringOrNull(row.org_id);
+  if (!orgId) {
+    return null;
+  }
+
+  return {
+    orgId,
+    createdAt: stringOrNull(row.created_at),
+    analysisReservedAt: stringOrNull(row.analysis_reserved_at),
+    analysisCompletedAt: stringOrNull(row.analysis_completed_at),
+  };
+}
+
 function normalizeAuditLog(row: unknown): PlatformAuditLogSummary | null {
   if (!isRecord(row)) {
     return null;
@@ -413,6 +443,26 @@ export function createPlatformAdminDataRepository(
       }
 
       return subscriptionsByOrgId;
+    },
+
+    async listOrganizationSelfServiceTrialClaims(input) {
+      if (input.orgIds.length === 0) {
+        return {};
+      }
+
+      const { data, error } = await client
+        .from('saas_self_service_trial_claims')
+        .select('org_id, created_at, analysis_reserved_at, analysis_completed_at')
+        .in('org_id', input.orgIds);
+
+      assertNoSupabaseError(error, 'Failed to load self-service trial claims.');
+
+      return Object.fromEntries(
+        (Array.isArray(data) ? data : [])
+          .map((row) => normalizeSelfServiceTrialClaim(row))
+          .filter((claim): claim is PlatformSelfServiceTrialClaimSnapshot => claim !== null)
+          .map((claim) => [claim.orgId, claim])
+      );
     },
 
     async listOrganizationNames(input) {

@@ -8,6 +8,7 @@ import type {
   PlatformOrgDetail,
   PlatformOrgSummary,
   PlatformOrgSubscriptionSnapshot,
+  PlatformSelfServiceTrialClaimSnapshot,
 } from '@/lib/saas/platform-admin-data';
 import { resolveSaaSReturnUsagePolicy } from '@/lib/saas/return-usage-policy';
 import { resolveSaaSTeamSeatUsage } from '@/lib/saas/team-limits';
@@ -228,6 +229,13 @@ export interface PlatformOrganizationListItem {
   createdAt: string;
   trialEnd: string | null;
   daysUntilTrialEnd: number | null;
+  provisioningSource: 'manual' | 'google_self_service';
+  selfServiceTrialAI: {
+    limit: 1;
+    used: 0 | 1;
+    status: 'available' | 'in_progress' | 'used';
+    completedAt: string | null;
+  } | null;
   usage: PlatformOrganizationUsage;
   health: PlatformOrganizationHealth;
 }
@@ -726,13 +734,21 @@ export function buildPlatformOrganizationListView(
   usageByOrgId: PlatformOrgUsageById,
   options: {
     subscriptionsByOrgId?: PlatformOrgSubscriptionsById;
+    selfServiceTrialClaimsByOrgId?: Record<string, PlatformSelfServiceTrialClaimSnapshot>;
     now?: Date;
   } = {}
 ): PlatformOrganizationListView {
   const now = options.now ?? new Date();
   const subscriptionsByOrgId = options.subscriptionsByOrgId ?? {};
+  const selfServiceTrialClaimsByOrgId = options.selfServiceTrialClaimsByOrgId ?? {};
   const items = organizations.map((org) =>
-    buildPlatformOrganizationListItem(org, usageByOrgId, subscriptionsByOrgId[org.id], now)
+    buildPlatformOrganizationListItem(
+      org,
+      usageByOrgId,
+      subscriptionsByOrgId[org.id],
+      selfServiceTrialClaimsByOrgId[org.id],
+      now
+    )
   );
 
   return {
@@ -746,6 +762,7 @@ export function buildPlatformOrganizationDetailView(
   input: {
     usageByOrgId: PlatformOrgUsageById;
     subscriptionsByOrgId?: PlatformOrgSubscriptionsById;
+    selfServiceTrialClaimsByOrgId?: Record<string, PlatformSelfServiceTrialClaimSnapshot>;
     recentAuditLogs: PlatformOrganizationDetailView['recentAuditLogs'];
     now?: Date;
   }
@@ -757,6 +774,7 @@ export function buildPlatformOrganizationDetailView(
         organization,
         input.usageByOrgId,
         input.subscriptionsByOrgId?.[organization.id],
+        input.selfServiceTrialClaimsByOrgId?.[organization.id],
         now
       ),
       billingEmail: organization.billingEmail,
@@ -925,6 +943,7 @@ function buildPlatformOrganizationListItem(
   org: PlatformOrgSummary,
   usageByOrgId: PlatformOrgUsageById,
   subscription: PlatformOrgSubscriptionSnapshot | undefined = undefined,
+  selfServiceTrialClaim: PlatformSelfServiceTrialClaimSnapshot | undefined = undefined,
   now: Date = new Date()
 ): PlatformOrganizationListItem {
   const id = requireString(org.id, 'organization.id');
@@ -934,6 +953,18 @@ function buildPlatformOrganizationListItem(
   const memberCount = nonNegativeNumber(org.memberCount, 'organization.memberCount');
   const usage = requireUsage(usageByOrgId, id);
   const trialEnd = status === 'trialing' ? subscription?.trialEnd ?? null : null;
+  const selfServiceTrialAI = selfServiceTrialClaim
+    ? {
+        limit: 1 as const,
+        used: selfServiceTrialClaim.analysisCompletedAt ? 1 as const : 0 as const,
+        status: selfServiceTrialClaim.analysisCompletedAt
+          ? 'used' as const
+          : selfServiceTrialClaim.analysisReservedAt
+            ? 'in_progress' as const
+            : 'available' as const,
+        completedAt: selfServiceTrialClaim.analysisCompletedAt,
+      }
+    : null;
 
   return {
     id,
@@ -946,6 +977,8 @@ function buildPlatformOrganizationListItem(
     createdAt: requireString(org.createdAt, 'organization.createdAt'),
     trialEnd,
     daysUntilTrialEnd: daysUntil(now, trialEnd),
+    provisioningSource: selfServiceTrialClaim ? 'google_self_service' : 'manual',
+    selfServiceTrialAI,
     usage,
     health: buildPlatformOrganizationHealth({
       plan,

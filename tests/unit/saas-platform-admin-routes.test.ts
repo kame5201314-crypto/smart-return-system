@@ -110,6 +110,7 @@ function createRepository(): PlatformAdminDataRepository {
         cancelAtPeriodEnd: false,
       },
     })),
+    listOrganizationSelfServiceTrialClaims: vi.fn(async () => ({})),
     listOrganizationNames: vi.fn(async () => ({
       'org-1': 'Demo Org',
     })),

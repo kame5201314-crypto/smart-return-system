@@ -101,6 +101,7 @@ function createRepository(): PlatformAdminDataRepository {
         cancelAtPeriodEnd: false,
       },
     })),
+    listOrganizationSelfServiceTrialClaims: vi.fn(async () => ({})),
     listOrganizationNames: vi.fn(async () => ({
       'org-1': 'Demo Org',
     })),
@@ -322,6 +323,89 @@ describe('SaaS platform admin live data loaders', () => {
       periodStart: '2026-05-01T00:00:00.000Z',
     });
     expect(repository.listOrganizationSubscriptions).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+    });
+    expect(repository.listOrganizationSelfServiceTrialClaims).not.toHaveBeenCalled();
+  });
+
+  it('adds Google self-service source and trial AI status when the rollout flag is enabled', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizationSelfServiceTrialClaims).mockResolvedValueOnce({
+      'org-1': {
+        orgId: 'org-1',
+        createdAt: '2026-07-14T00:00:00.000Z',
+        analysisReservedAt: null,
+        analysisCompletedAt: '2026-07-14T01:00:00.000Z',
+      },
+    });
+    const access = {
+      ...platformAdminContext,
+      featureFlags: {
+        ...platformAdminContext.featureFlags,
+        google_trial_signup: true,
+      },
+    };
+
+    const result = await loadPlatformOrganizationsView({
+      requireAccess: async () => access,
+      repository,
+      now: new Date('2026-07-14T02:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        organizations: [{
+          id: 'org-1',
+          provisioningSource: 'google_self_service',
+          selfServiceTrialAI: {
+            limit: 1,
+            used: 1,
+            status: 'used',
+            completedAt: '2026-07-14T01:00:00.000Z',
+          },
+        }],
+      },
+    });
+    expect(repository.listOrganizationSelfServiceTrialClaims).toHaveBeenCalledWith({
+      orgIds: ['org-1'],
+    });
+  });
+
+  it('adds self-service trial operations data to organization detail', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listOrganizationSelfServiceTrialClaims).mockResolvedValueOnce({
+      'org-1': {
+        orgId: 'org-1',
+        createdAt: '2026-07-14T00:00:00.000Z',
+        analysisReservedAt: '2026-07-14T01:00:00.000Z',
+        analysisCompletedAt: null,
+      },
+    });
+    const access = {
+      ...platformAdminContext,
+      featureFlags: {
+        ...platformAdminContext.featureFlags,
+        google_trial_signup: true,
+      },
+    };
+
+    const result = await loadPlatformOrganizationDetailView('org-1', {
+      requireAccess: async () => access,
+      repository,
+      now: new Date('2026-07-14T02:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        organization: {
+          provisioningSource: 'google_self_service',
+          selfServiceTrialAI: { used: 0, status: 'in_progress' },
+        },
+      },
+    });
+    expect(repository.listOrganizationSelfServiceTrialClaims).toHaveBeenCalledWith({
       orgIds: ['org-1'],
     });
   });

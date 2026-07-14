@@ -187,7 +187,7 @@ export async function loadPlatformOrganizationsView(
     }
 
     const orgIds = organizations.map((org) => org.id);
-    const [usageByOrgId, subscriptionsByOrgId] = await Promise.all([
+    const [usageByOrgId, subscriptionsByOrgId, selfServiceTrialClaimsByOrgId] = await Promise.all([
       repository.listOrganizationUsage({
         orgIds,
         periodStart: getCurrentMonthStartIso(options.now),
@@ -195,12 +195,16 @@ export async function loadPlatformOrganizationsView(
       repository.listOrganizationSubscriptions({
         orgIds,
       }),
+      context.featureFlags.google_trial_signup
+        ? repository.listOrganizationSelfServiceTrialClaims({ orgIds })
+        : Promise.resolve({}),
     ]);
 
     return {
       state: 'ready',
       data: buildPlatformOrganizationListView(organizations, usageByOrgId, {
         subscriptionsByOrgId,
+        selfServiceTrialClaimsByOrgId,
         now: options.now,
       }),
       context,
@@ -302,7 +306,12 @@ export async function loadPlatformOrganizationDetailView(
       };
     }
 
-    const [usageByOrgId, subscriptionsByOrgId, recentAuditLogs] = await Promise.all([
+    const [
+      usageByOrgId,
+      subscriptionsByOrgId,
+      selfServiceTrialClaimsByOrgId,
+      recentAuditLogs,
+    ] = await Promise.all([
       repository.listOrganizationUsage({
         orgIds: [organization.id],
         periodStart: getCurrentMonthStartIso(deps.now),
@@ -310,6 +319,9 @@ export async function loadPlatformOrganizationDetailView(
       repository.listOrganizationSubscriptions({
         orgIds: [organization.id],
       }),
+      context.featureFlags.google_trial_signup
+        ? repository.listOrganizationSelfServiceTrialClaims({ orgIds: [organization.id] })
+        : Promise.resolve({}),
       repository.listAuditLogs({
         orgId: organization.id,
         limit: DEFAULT_DETAIL_AUDIT_LIMIT,
@@ -321,6 +333,7 @@ export async function loadPlatformOrganizationDetailView(
       data: buildPlatformOrganizationDetailView(organization, {
         usageByOrgId,
         subscriptionsByOrgId,
+        selfServiceTrialClaimsByOrgId,
         recentAuditLogs,
         now: deps.now,
       }),

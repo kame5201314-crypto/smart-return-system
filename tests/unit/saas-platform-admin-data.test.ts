@@ -98,4 +98,34 @@ describe('SaaS platform admin data repository', () => {
     ).resolves.toEqual({});
     expect(from).not.toHaveBeenCalled();
   });
+
+  it('loads self-service trial claim state without selecting reservation tokens', async () => {
+    const claimsChain = createChain([
+      {
+        org_id: 'org-a',
+        created_at: '2026-07-14T00:00:00.000Z',
+        analysis_reserved_at: null,
+        analysis_completed_at: '2026-07-14T01:00:00.000Z',
+      },
+    ]);
+    const from = vi.fn(() => claimsChain);
+    const repository = createPlatformAdminDataRepository({ from } as PlatformAdminQueryClient);
+
+    await expect(repository.listOrganizationSelfServiceTrialClaims({
+      orgIds: ['org-a'],
+    })).resolves.toEqual({
+      'org-a': {
+        orgId: 'org-a',
+        createdAt: '2026-07-14T00:00:00.000Z',
+        analysisReservedAt: null,
+        analysisCompletedAt: '2026-07-14T01:00:00.000Z',
+      },
+    });
+
+    expect(from).toHaveBeenCalledWith('saas_self_service_trial_claims');
+    expect(claimsChain.select).toHaveBeenCalledWith(
+      'org_id, created_at, analysis_reserved_at, analysis_completed_at'
+    );
+    expect(claimsChain.select.mock.calls[0][0]).not.toContain('analysis_reservation_token');
+  });
 });

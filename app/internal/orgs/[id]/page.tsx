@@ -79,6 +79,14 @@ function formatTwd(value: number): string {
   return `NT$${value.toLocaleString('zh-TW')}`;
 }
 
+function formatSelfServiceTrialAI(
+  value: PlatformOrganizationDetailView['organization']['selfServiceTrialAI']
+): string {
+  if (!value) return '—';
+  if (value.status === 'in_progress') return '分析中（0 / 1）';
+  return `${value.used} / ${value.limit}`;
+}
+
 function usagePercent(value: number | null): number {
   return value ?? 0;
 }
@@ -116,6 +124,9 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   ] as const;
 
   const billingRows = [
+    ['開通來源', org.provisioningSource === 'google_self_service' ? 'Google 自助試用' : '人工開通'],
+    ['試用到期日', org.trialEnd ? formatDate(org.trialEnd) : '—'],
+    ['試用 AI', formatSelfServiceTrialAI(org.selfServiceTrialAI)],
     ['帳務 Email', org.billingEmail ?? '—'],
     ['統一編號', org.taxId ?? '—'],
     ['方案', plan.name],

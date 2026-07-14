@@ -129,6 +129,22 @@ function UsageLine({ org }: { org: PlatformOrg }) {
   );
 }
 
+function TrialSourceLine({ org }: { org: PlatformOrg }) {
+  if (org.provisioningSource !== 'google_self_service' || !org.selfServiceTrialAI) {
+    return null;
+  }
+
+  const status = org.selfServiceTrialAI.status === 'in_progress'
+    ? '分析中'
+    : `${org.selfServiceTrialAI.used} / ${org.selfServiceTrialAI.limit}`;
+
+  return (
+    <span className="text-xs text-emerald-700">
+      Google 自助試用 · 試用 AI {status}
+    </span>
+  );
+}
+
 // 需關注與觀察中用完整卡片；整卡可點，名稱是主視覺，方案/狀態/email 降為次要資訊。
 function OrgCard({ org }: { org: PlatformOrg }) {
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
@@ -160,6 +176,12 @@ function OrgCard({ org }: { org: PlatformOrg }) {
         <div className="mt-1 text-xs text-muted-foreground">
           {plan.name} · {PLATFORM_ORG_STATUS_LABEL[org.status]} · {org.ownerEmail ?? '—'}
         </div>
+
+        {org.provisioningSource === 'google_self_service' ? (
+          <div className="mt-1">
+            <TrialSourceLine org={org} />
+          </div>
+        ) : null}
 
         <div className="mt-1.5">
           <UsageLine org={org} />
@@ -195,6 +217,7 @@ function HealthyOrgRow({ org }: { org: PlatformOrg }) {
           {plan.name} · {PLATFORM_ORG_STATUS_LABEL[org.status]}
         </span>
         <TrialCountdown org={org} />
+        <TrialSourceLine org={org} />
         <span className="ml-auto">
           <UsageLine org={org} />
         </span>

@@ -61,6 +61,7 @@ function createRepository(): PlatformAdminDataRepository {
     listBillingEvents: vi.fn(async () => []),
     listOrganizationUsage: vi.fn(async () => ({})),
     listOrganizationSubscriptions: vi.fn(async () => ({})),
+    listOrganizationSelfServiceTrialClaims: vi.fn(async () => ({})),
     listOrganizationNames: vi.fn(async () => ({})),
     listAuditLogs: vi.fn(async () => []),
   };

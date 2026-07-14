@@ -399,6 +399,8 @@ describe('SaaS UI/backend contracts', () => {
           createdAt: '2026-05-20T00:00:00.000Z',
           trialEnd: null,
           daysUntilTrialEnd: null,
+          provisioningSource: 'manual',
+          selfServiceTrialAI: null,
           usage: {
             returnsThisMonth: 680,
             aiUsedThisMonth: 25,
@@ -457,6 +459,44 @@ describe('SaaS UI/backend contracts', () => {
       status: 'trialing',
       trialEnd: '2026-05-28T00:00:00.000Z',
       daysUntilTrialEnd: 3,
+    });
+  });
+
+  it('exposes self-service trial source and single-use AI progress', () => {
+    const selfServiceOrg: PlatformOrgSummary = {
+      id: 'org-self-service',
+      name: 'Self-service Store',
+      slug: 'self-service-store',
+      plan: 'basic',
+      status: 'trialing',
+      ownerEmail: 'owner@example.com',
+      memberCount: 1,
+      createdAt: '2026-07-14T00:00:00.000Z',
+    };
+
+    expect(buildPlatformOrganizationListView(
+      [selfServiceOrg],
+      {
+        'org-self-service': { returnsThisMonth: 0, aiUsedThisMonth: 0 },
+      },
+      {
+        selfServiceTrialClaimsByOrgId: {
+          'org-self-service': {
+            orgId: 'org-self-service',
+            createdAt: '2026-07-14T00:00:00.000Z',
+            analysisReservedAt: '2026-07-14T01:00:00.000Z',
+            analysisCompletedAt: null,
+          },
+        },
+      }
+    ).organizations[0]).toMatchObject({
+      provisioningSource: 'google_self_service',
+      selfServiceTrialAI: {
+        limit: 1,
+        used: 0,
+        status: 'in_progress',
+        completedAt: null,
+      },
     });
   });
 
