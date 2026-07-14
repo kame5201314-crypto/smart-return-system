@@ -17,6 +17,24 @@ Status:
 Notes:
 ```
 
+```text
+Owner: Codex
+Commit: 7838530, e9ff6c3, 6e4e5a6, 24ac804, e7695e8
+Scope: Public lead capture and Manual Beta operations closure
+Files:
+- supabase/migrations/039_saas_public_lead_capture.sql
+- lib/saas/lead-capture*.ts
+- lib/saas/platform-lead-management.ts
+- app/api/saas/leads/route.ts
+- app/api/internal/saas/leads/**
+- app/internal/leads/page.tsx
+- components/marketing/lead-capture-form.tsx
+- components/internal/platform-leads-list.tsx
+- components/internal/org-billing-operation-controls.tsx
+Status: done
+Notes: Lead capture remains independently disabled by default and migration 039 was not applied. Manual LINE/copy/Email channels remain available. The platform queue is hidden and does not query 039-only fields while disabled. Manual payment uses the already-applied platform billing operation RPC; billing/provider/email/public signup remain disabled. Full lint, typecheck, unit, E2E, integration, UI, build, doctor, and rollout checks passed at e7695e8.
+```
+
 ## Current
 
 ```text

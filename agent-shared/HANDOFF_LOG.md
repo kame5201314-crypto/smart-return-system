@@ -5690,3 +5690,31 @@ Notes:
   posture and smoke-tests `createSignedUrl()`.
 - This commit does not change Supabase bucket visibility. Deploy this code first,
   then separately switch the SaaS Supabase `return-images` bucket to private.
+
+## 2026-07-14 Codex -> Owner / Claude / Codex
+
+Public lead capture and Manual Beta operator workflow are implemented and pushed.
+
+Commits:
+
+```text
+7838530 feat(saas): define public lead capture contract
+e9ff6c3 feat(saas): add gated public lead API
+6e4e5a6 feat(saas/ui): connect plan-aware lead capture form
+24ac804 feat(saas): add platform lead operations queue
+e7695e8 feat(saas/ui): add manual payment control
+```
+
+Current behavior:
+
+- Pricing carries `basic`, `growth`, or `enterprise` into the lead form.
+- The lead-only API is independently same-origin/rate-limit/flag gated and never provisions an account, organization, subscription, payment, or email.
+- Manual LINE, copy, and Email contact paths remain available while the lead flag is closed.
+- `/internal/leads` supports audited new/contacted/approved/rejected/converted progress after activation.
+- Tenant detail supports recording an already-confirmed manual payment through the existing platform billing operation RPC.
+
+Activation boundary:
+
+- Migration `039_saas_public_lead_capture.sql` is draft and was not applied.
+- `ENABLE_PUBLIC_LEAD_CAPTURE` remains false/unset.
+- No deployment, env edit, provider enablement, automatic billing, email delivery, or public signup change was made.

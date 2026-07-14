@@ -2129,6 +2129,33 @@ These are intentionally not completed because they require private credentials, 
 
 ## Required Values Before Deployment
 
+## 2026-07-14 Public Lead Capture Readiness
+
+Repository-side implementation is complete through the public plan-aware form,
+lead-only API, platform operations queue, and manual payment control.
+
+- Runtime commits: `7838530`, `e9ff6c3`, `6e4e5a6`, `24ac804`, `e7695e8`.
+- Migration `039_saas_public_lead_capture.sql` is draft-only and is not applied.
+- `ENABLE_PUBLIC_LEAD_CAPTURE` remains disabled by default.
+- The existing LINE/copy/Email Manual Beta paths remain usable without the flag.
+- The lead API never creates an account, organization, subscription, payment, or
+  email delivery job.
+- `/internal/leads` stays hidden and avoids querying `039`-only columns while the
+  flag is disabled.
+- Manual payment recording uses the already-applied platform billing operation
+  RPC and does not enable ECPay or automatic billing.
+
+Activation requires separate owner authorization, in this order:
+
+1. Apply only migration `039` to SaaS project `auyznbwtjvemyamujmgt`.
+2. Run strict migration/schema checks and test one disposable lead.
+3. Set `ENABLE_PUBLIC_LEAD_CAPTURE=true` in the SaaS Vercel project.
+4. Deploy an explicitly authorized `develop-saas` HEAD and smoke-test the form
+   plus `/internal/leads`.
+
+Do not combine these steps with `ENABLE_PUBLIC_SIGNUP`, billing, email delivery,
+or provider activation.
+
 Create `.env.saas.local` locally from `.env.saas.example`, or set the same values in the SaaS Vercel Project.
 
 Required before migration/deployment:
