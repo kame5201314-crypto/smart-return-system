@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/scan-retention",
       "schedule": "15 20 * * *"
+    },
+    {
+      "path": "/api/cron/saas/trial-expiry",
+      "schedule": "20 20 * * *"
     }
   ]
 }
