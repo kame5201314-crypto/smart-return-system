@@ -5749,3 +5749,24 @@ Owner-authorized Production lead flag configuration completed.
   requires a new owner-authorized production deployment.
 - No billing, email provider, public signup, domain, or additional Supabase
   migration setting was changed.
+
+## 2026-07-14 Codex -> Owner / Claude / Codex
+
+Public lead capture production rollout completed.
+
+- `npm run saas:predeploy` passed checkout/env/rollout/schema gates, lint,
+  typecheck, 16 backend tests, 444 unit tests, 4 E2E tests, 5 integration
+  tests, and the production build.
+- Deployed runtime HEAD `ba70e90` to Vercel Production project
+  `smart-return-system-saas`.
+- Deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2` is Ready and the customer URL
+  remains `https://smart-return-system-saas.vercel.app`.
+- `npm run saas:production-smoke` passed 16/16.
+- `/signup?plan=growth` exposes the plan-aware copy and Email actions.
+- A same-origin empty request to `POST /api/saas/leads` returned
+  `400 invalid_request`, proving the lead flag is active without persisting a
+  test lead; `signup_requests` remained empty.
+- `/internal/leads` redirects unauthenticated visitors to platform login.
+- Deployment error-log scan found no errors.
+- Public signup, billing, email delivery, ECPay/other providers, domain/DNS,
+  and migrations `034`/`036` were not enabled or changed.

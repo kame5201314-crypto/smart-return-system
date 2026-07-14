@@ -23,7 +23,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `037_saas_team_invite_status.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `037` as applied. It adds `organization_invites.status` and refreshes invite accept/create RPCs for team invite revoke/resend flows.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - Migration `039_saas_public_lead_capture.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `039` as applied. It extends `signup_requests` for Basic/Growth/Enterprise leads, LINE/email/phone contact, monthly return bands, and operator follow-up timestamps.
-- Vercel Production project `smart-return-system-saas` now has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`. The env name is verified; a new production deployment is required before the lead-only runtime path uses it.
+- Vercel Production project `smart-return-system-saas` now has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`, active in Ready deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2`.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
@@ -61,12 +61,12 @@ for the controlled customer handoff and first-session walkthrough.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest deployed runtime source is `f009621 fix(saas): sign return image storage URLs`.
+- Latest deployed runtime source is `ba70e90 docs(saas): record public lead production flag`; it includes the lead capture runtime through `e7695e8`.
 - This post-deploy documentation update is expected to create a newer docs-only Git commit than the production runtime source.
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Latest owner-authorized production deployment: `f009621 fix(saas): sign return image storage URLs` -> Vercel deployment `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
-- Production now includes the post-`796a02a` fixes through `f009621`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, the multi-channel honesty copy, platform tenant suspend/resume controls, `/internal` non-admin redirect hardening, tenant list operations UI, and signed return-image storage URL handling.
-- A 2026-07-14 production smoke test after deployment passed 16/16 and confirms `/pricing` exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
+- Latest owner-authorized production deployment: runtime HEAD `ba70e90` -> Vercel deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
+- Production includes the lead capture contract/API/form/operations queue and manual payment UI through `e7695e8`, plus all previously deployed 499/699, isolation, operator, and signed return-image changes.
+- A 2026-07-14 production smoke test after deployment passed 16/16 and confirms `/pricing` exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers. Additional non-persisting lead smoke confirmed `/signup?plan=growth` form markers, `POST /api/saas/leads` reached enabled validation with `400 invalid_request`, `/internal/leads` redirects unauthenticated users to platform login, and `signup_requests` remained empty. Deployment error-log scan returned no errors.
 - Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, `038`, and `039` are applied, and migrations `034` and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
@@ -2142,20 +2142,18 @@ lead-only API, platform operations queue, and manual payment control.
 - Remote history records `039` as applied; the five new columns and six lead
   constraints were verified. Migrations `034` and `036` remain unapplied.
 - `ENABLE_PUBLIC_LEAD_CAPTURE=true` is configured only for Vercel Production;
-  it remains independently scoped from `ENABLE_PUBLIC_SIGNUP` and requires the
-  next production deployment to become active in runtime.
+  it remains independently scoped from `ENABLE_PUBLIC_SIGNUP` and is active in
+  deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2`.
 - The existing LINE/copy/Email Manual Beta paths remain usable without the flag.
 - The lead API never creates an account, organization, subscription, payment, or
   email delivery job.
-- `/internal/leads` stays hidden and avoids querying `039`-only columns while the
-  flag is disabled.
+- `/internal/leads` is active for authorized platform operators and continues
+  to redirect unauthenticated visitors to the platform login.
 - Manual payment recording uses the already-applied platform billing operation
   RPC and does not enable ECPay or automatic billing.
 
-Remaining activation steps require separate owner authorization, in this order:
-
-1. Deploy an explicitly authorized `develop-saas` HEAD and smoke-test the form
-   plus `/internal/leads`.
+Activation completed on 2026-07-14. No disposable lead row was persisted during
+smoke testing; the invalid payload intentionally stopped at validation.
 
 Do not combine these steps with `ENABLE_PUBLIC_SIGNUP`, billing, email delivery,
 or provider activation.
