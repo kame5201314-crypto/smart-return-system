@@ -1,6 +1,5 @@
 import {
   CUSTOMER_POST_LOGIN_PATH,
-  PLATFORM_ADMIN_POST_LOGIN_PATH,
   type PostLoginRedirectPath,
 } from '@/lib/auth/post-login-redirect';
 import { normalizeInternalNextPath } from '@/lib/auth/internal-login-redirect';
@@ -20,7 +19,7 @@ export function resolveAuthenticatedLoginRedirect(input: {
     return input.requestedPath;
   }
 
-  return PLATFORM_ADMIN_POST_LOGIN_PATH;
+  return CUSTOMER_POST_LOGIN_PATH;
 }
 
 export function resolveAuthenticatedAdminEntryRedirect(input: {

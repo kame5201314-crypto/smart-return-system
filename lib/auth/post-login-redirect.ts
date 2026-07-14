@@ -39,7 +39,7 @@ export function getPostLoginRedirect(input: {
       return requestedPath;
     }
 
-    return PLATFORM_ADMIN_POST_LOGIN_PATH;
+    return CUSTOMER_POST_LOGIN_PATH;
   }
 
   if (requestedPath && !isInternalPath(requestedPath)) {
