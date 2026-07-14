@@ -32,7 +32,7 @@ Files:
 - components/internal/platform-leads-list.tsx
 - components/internal/org-billing-operation-controls.tsx
 Status: done
-Notes: Lead capture remains independently disabled by default and migration 039 was not applied. Manual LINE/copy/Email channels remain available. The platform queue is hidden and does not query 039-only fields while disabled. Manual payment uses the already-applied platform billing operation RPC; billing/provider/email/public signup remain disabled. Full lint, typecheck, unit, E2E, integration, UI, build, doctor, and rollout checks passed at e7695e8.
+Notes: Lead capture remains independently disabled by default. Owner-authorized migration 039 was applied only to SaaS project `auyznbwtjvemyamujmgt` on 2026-07-14; remote history, five columns, six constraints, strict migration plan, and strict schema gate were verified. Migrations 034 and 036 remain unapplied. Manual LINE/copy/Email channels remain available. The platform queue is hidden while the flag is disabled. Manual payment uses the already-applied platform billing operation RPC; billing/provider/email/public signup remain disabled. Full lint, typecheck, unit, E2E, integration, UI, build, doctor, and rollout checks passed at e7695e8.
 ```
 
 ## Current

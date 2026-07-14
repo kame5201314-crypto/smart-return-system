@@ -22,6 +22,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
 - Migration `037_saas_team_invite_status.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `037` as applied. It adds `organization_invites.status` and refreshes invite accept/create RPCs for team invite revoke/resend flows.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
+- Migration `039_saas_public_lead_capture.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `039` as applied. It extends `signup_requests` for Basic/Growth/Enterprise leads, LINE/email/phone contact, monthly return bands, and operator follow-up timestamps.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
@@ -42,9 +43,9 @@ for the controlled customer handoff and first-session walkthrough.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
-- `npm run saas:migration-plan:strict` passes and the local draft chain now
-  ends at `038_saas_org_member_visibility.sql`.
-- `npm run saas:schema-gate:strict` passes after owner-authorized migrations `033`, `037`, and `038` apply.
+- `npm run saas:migration-plan:strict` passes and the local chain now ends at
+  `039_saas_public_lead_capture.sql`.
+- `npm run saas:schema-gate:strict` passes after owner-authorized migrations `033`, `037`, `038`, and `039` apply.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
@@ -65,7 +66,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Latest owner-authorized production deployment: `f009621 fix(saas): sign return image storage URLs` -> Vercel deployment `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
 - Production now includes the post-`796a02a` fixes through `f009621`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, the multi-channel honesty copy, platform tenant suspend/resume controls, `/internal` non-admin redirect hardening, tenant list operations UI, and signed return-image storage URL handling.
 - A 2026-07-14 production smoke test after deployment passed 16/16 and confirms `/pricing` exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
-- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, and `038` are applied, and draft migrations `034` and `036` remain unapplied.
+- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, `038`, and `039` are applied, and migrations `034` and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
@@ -2135,7 +2136,10 @@ Repository-side implementation is complete through the public plan-aware form,
 lead-only API, platform operations queue, and manual payment control.
 
 - Runtime commits: `7838530`, `e9ff6c3`, `6e4e5a6`, `24ac804`, `e7695e8`.
-- Migration `039_saas_public_lead_capture.sql` is draft-only and is not applied.
+- Migration `039_saas_public_lead_capture.sql` was applied only to SaaS project
+  `auyznbwtjvemyamujmgt` on 2026-07-14 after explicit owner authorization.
+- Remote history records `039` as applied; the five new columns and six lead
+  constraints were verified. Migrations `034` and `036` remain unapplied.
 - `ENABLE_PUBLIC_LEAD_CAPTURE` remains disabled by default.
 - The existing LINE/copy/Email Manual Beta paths remain usable without the flag.
 - The lead API never creates an account, organization, subscription, payment, or
@@ -2145,12 +2149,10 @@ lead-only API, platform operations queue, and manual payment control.
 - Manual payment recording uses the already-applied platform billing operation
   RPC and does not enable ECPay or automatic billing.
 
-Activation requires separate owner authorization, in this order:
+Remaining activation steps require separate owner authorization, in this order:
 
-1. Apply only migration `039` to SaaS project `auyznbwtjvemyamujmgt`.
-2. Run strict migration/schema checks and test one disposable lead.
-3. Set `ENABLE_PUBLIC_LEAD_CAPTURE=true` in the SaaS Vercel project.
-4. Deploy an explicitly authorized `develop-saas` HEAD and smoke-test the form
+1. Set `ENABLE_PUBLIC_LEAD_CAPTURE=true` in the SaaS Vercel project.
+2. Deploy an explicitly authorized `develop-saas` HEAD and smoke-test the form
    plus `/internal/leads`.
 
 Do not combine these steps with `ENABLE_PUBLIC_SIGNUP`, billing, email delivery,

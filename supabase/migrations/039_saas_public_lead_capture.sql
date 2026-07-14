@@ -1,5 +1,5 @@
--- DRAFT: SaaS public lead capture contract.
--- Do not apply without explicit owner authorization for the SaaS Supabase project.
+-- Applied to SaaS project auyznbwtjvemyamujmgt on 2026-07-14 after
+-- explicit owner authorization. Do not reapply without a repair authorization.
 -- This migration extends the already-applied signup_requests table. Do not edit 026.
 
 ALTER TABLE public.signup_requests

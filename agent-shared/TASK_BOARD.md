@@ -46,7 +46,8 @@ Status values:
 
 | Status | Task | Notes |
 |---|---|---|
-| done | Public lead capture data contract | Commit `7838530`; added the lead DTO/repository contract and draft migration `039` for Basic/Growth/Enterprise requests, LINE-or-email-or-phone contact, UTM attribution, contacted/follow-up timestamps, and lead-safe persistence. Migration `039` remains unapplied |
+| done | Public lead capture data contract | Commit `7838530`; added the lead DTO/repository contract and migration `039` for Basic/Growth/Enterprise requests, LINE-or-email-or-phone contact, UTM attribution, contacted/follow-up timestamps, and lead-safe persistence. Owner-authorized migration `039` is now applied only to SaaS project `auyznbwtjvemyamujmgt` |
+| done | Public lead capture migration apply | This commit; owner authorized applying only `039_saas_public_lead_capture.sql` to SaaS project `auyznbwtjvemyamujmgt`. Remote history records `039` as applied, all five columns and six constraints were verified, and `034`/`036` remain unapplied |
 | done | Gated public lead API | Commit `e9ff6c3`; added disabled-by-default `ENABLE_PUBLIC_LEAD_CAPTURE` and same-origin/rate-limited `POST /api/saas/leads`. The route records leads only and never provisions accounts, organizations, subscriptions, billing, or email delivery |
 | done | Plan-aware public lead form | Commit `6e4e5a6`; `/pricing` carries Basic/Growth/Enterprise selection into `/signup` or `/contact`, the form captures whitelisted first-touch attribution and posts only when the independent lead flag is enabled, while LINE/copy/Email Manual Beta fallbacks remain available |
 | done | Platform lead operations queue | Commit `24ac804`; added owner/support lead permissions, flag-gated `/internal/leads`, guarded list/update APIs, and audited new/contacted/approved/rejected/converted operations. The page does not query migration `039` fields while the lead flag is closed |

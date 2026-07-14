@@ -5718,3 +5718,19 @@ Activation boundary:
 - Migration `039_saas_public_lead_capture.sql` is draft and was not applied.
 - `ENABLE_PUBLIC_LEAD_CAPTURE` remains false/unset.
 - No deployment, env edit, provider enablement, automatic billing, email delivery, or public signup change was made.
+
+## 2026-07-14 Codex -> Owner / Claude / Codex
+
+Owner-authorized public lead capture migration apply completed.
+
+- Applied only `supabase/migrations/039_saas_public_lead_capture.sql` to SaaS
+  Supabase project `auyznbwtjvemyamujmgt` through the linked query path.
+- Repaired only migration history version `039` to `applied`.
+- Verified the five lead columns and six lead constraints on
+  `public.signup_requests`.
+- `npm run saas:migration-plan:strict` and
+  `npm run saas:schema-gate:strict` pass.
+- Migrations `034` and `036` remain unapplied.
+- No Vercel env or deployment action was included in this migration step.
+- Billing, email delivery, provider integrations, and public signup remain
+  disabled.
