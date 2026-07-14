@@ -1,9 +1,9 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowLeft, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { InternalNavLink } from '@/components/internal/nav-link';
+import { signOut } from '@/lib/actions/auth';
 import { resolvePlatformAdminFeatureFlags } from '@/lib/saas/platform-admin';
 
 const internalNav = [
@@ -52,12 +52,12 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
               </p>
             </div>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/analytics">
-              <ArrowLeft className="size-4" />
-              返回 AI 退貨管理系統
-            </Link>
-          </Button>
+          <form action={signOut}>
+            <Button type="submit" variant="outline" size="sm">
+              <LogOut className="size-4" />
+              登出並切換至商家帳號
+            </Button>
+          </form>
         </div>
       </div>
 

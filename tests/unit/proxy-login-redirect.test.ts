@@ -16,10 +16,10 @@ describe('proxy authenticated login redirect policy', () => {
     })).toBe('/analytics');
   });
 
-  it('routes the general login entry to the merchant workspace for platform admins', () => {
+  it('routes platform admins to the platform console by default', () => {
     expect(resolveAuthenticatedLoginRedirect({
       isPlatformAdminAuthenticated: true,
-    })).toBe('/analytics');
+    })).toBe('/internal');
   });
 
   it('honors safe internal next paths for platform admins', () => {
@@ -33,15 +33,15 @@ describe('proxy authenticated login redirect policy', () => {
     expect(resolveAuthenticatedLoginRedirect({
       isPlatformAdminAuthenticated: true,
       requestedPath: '/analytics',
-    })).toBe('/analytics');
+    })).toBe('/internal');
     expect(resolveAuthenticatedLoginRedirect({
       isPlatformAdminAuthenticated: true,
       requestedPath: '//example.com/internal',
-    })).toBe('/analytics');
+    })).toBe('/internal');
     expect(resolveAuthenticatedLoginRedirect({
       isPlatformAdminAuthenticated: true,
       requestedPath: '/internal\\orgs',
-    })).toBe('/analytics');
+    })).toBe('/internal');
   });
 
   it('routes authenticated merchants away from platform admin entries', () => {
