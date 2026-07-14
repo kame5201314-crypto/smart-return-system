@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, PauseCircle, PlayCircle } from 'lucide-react';
+import { Banknote, Loader2, PauseCircle, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 type OrgStatus = 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled';
@@ -24,6 +25,7 @@ interface OrgBillingOperationControlsProps {
   orgId: string;
   orgName: string;
   status: OrgStatus;
+  suggestedAmountTwd?: number | null;
 }
 
 interface OperationResponse {
@@ -69,11 +71,17 @@ export function OrgBillingOperationControls({
   orgId,
   orgName,
   status,
+  suggestedAmountTwd,
 }: OrgBillingOperationControlsProps) {
   const router = useRouter();
   const [operation, setOperation] = useState<BillingOperation | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [amountTwd, setAmountTwd] = useState(suggestedAmountTwd ? String(suggestedAmountTwd) : '');
+  const [periodStart, setPeriodStart] = useState('');
+  const [periodEnd, setPeriodEnd] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
 
   const currentOperation: BillingOperation | null =
     status === 'cancelled' ? null : status === 'suspended' ? 'resume_org' : 'suspend_org';
@@ -120,6 +128,60 @@ export function OrgBillingOperationControls({
     }
   }
 
+  async function submitManualPayment() {
+    const amount = Number(amountTwd);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      toast.error('請填寫正確的付款金額。');
+      return;
+    }
+    if (!periodEnd) {
+      toast.error('請填寫服務到期日。');
+      return;
+    }
+    if (periodStart && periodEnd <= periodStart) {
+      toast.error('服務到期日必須晚於開始日。');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/internal/saas/billing/operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operation: 'mark_manual_payment',
+          orgId,
+          amountTwd: amount,
+          periodStart: periodStart ? `${periodStart}T00:00:00.000Z` : null,
+          periodEnd: `${periodEnd}T00:00:00.000Z`,
+          reason: paymentNote.trim() || null,
+          idempotencyKey: `internal-manual-payment-${orgId}-${crypto.randomUUID()}`,
+          metadata: {
+            source: 'internal_org_detail',
+            orgName,
+            paymentMethod: 'manual',
+          },
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as OperationResponse | null;
+      if (!response.ok || payload?.success !== true) {
+        toast.error(resolveErrorMessage(payload));
+        return;
+      }
+
+      toast.success('已記錄人工付款並更新服務期間。');
+      setPaymentOpen(false);
+      setPeriodStart('');
+      setPeriodEnd('');
+      setPaymentNote('');
+      router.refresh();
+    } catch {
+      toast.error('操作失敗，請稍後再試。');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (!currentOperation) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -132,21 +194,27 @@ export function OrgBillingOperationControls({
 
   return (
     <>
-      <Button
-        type="button"
-        variant={currentOperation === 'suspend_org' ? 'destructive' : 'default'}
-        onClick={() => {
-          setReason('');
-          setOperation(currentOperation);
-        }}
-      >
-        {currentOperation === 'suspend_org' ? (
-          <PauseCircle className="size-4" aria-hidden="true" />
-        ) : (
-          <PlayCircle className="size-4" aria-hidden="true" />
-        )}
-        {currentCopy.buttonLabel}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" onClick={() => setPaymentOpen(true)}>
+          <Banknote className="size-4" aria-hidden="true" />
+          記錄人工付款
+        </Button>
+        <Button
+          type="button"
+          variant={currentOperation === 'suspend_org' ? 'destructive' : 'default'}
+          onClick={() => {
+            setReason('');
+            setOperation(currentOperation);
+          }}
+        >
+          {currentOperation === 'suspend_org' ? (
+            <PauseCircle className="size-4" aria-hidden="true" />
+          ) : (
+            <PlayCircle className="size-4" aria-hidden="true" />
+          )}
+          {currentCopy.buttonLabel}
+        </Button>
+      </div>
 
       <Dialog
         open={operation !== null}
@@ -197,6 +265,76 @@ export function OrgBillingOperationControls({
             >
               {submitting ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
               {copy?.confirmLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={paymentOpen}
+        onOpenChange={(open) => {
+          if (!submitting) setPaymentOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg" showCloseButton={!submitting}>
+          <DialogHeader>
+            <DialogTitle>記錄人工付款</DialogTitle>
+            <DialogDescription>
+              僅用於已確認收到的匯款或人工收款。送出後會更新服務期間並留下操作紀錄。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="manual-payment-amount">付款金額（NT$）</Label>
+              <Input
+                id="manual-payment-amount"
+                type="number"
+                min={1}
+                step={1}
+                value={amountTwd}
+                onChange={(event) => setAmountTwd(event.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manual-payment-period-start">服務開始日（選填）</Label>
+              <Input
+                id="manual-payment-period-start"
+                type="date"
+                value={periodStart}
+                onChange={(event) => setPeriodStart(event.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manual-payment-period-end">服務到期日</Label>
+              <Input
+                id="manual-payment-period-end"
+                type="date"
+                value={periodEnd}
+                onChange={(event) => setPeriodEnd(event.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="manual-payment-note">備註（選填）</Label>
+              <Textarea
+                id="manual-payment-note"
+                value={paymentNote}
+                onChange={(event) => setPaymentNote(event.target.value)}
+                placeholder="例：2026 年 7 月銀行轉帳，已人工核對。"
+                disabled={submitting}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPaymentOpen(false)} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="button" onClick={submitManualPayment} disabled={submitting}>
+              {submitting ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
+              確認已收款
             </Button>
           </DialogFooter>
         </DialogContent>

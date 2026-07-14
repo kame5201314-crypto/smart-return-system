@@ -413,10 +413,11 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
                   orgId={result.data.organization.id}
                   orgName={result.data.organization.name}
                   status={result.data.organization.status}
+                  suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                唯讀預覽有效 1 小時；暫停／恢復會寫入操作紀錄。
+                唯讀預覽有效 1 小時；人工付款與暫停／恢復都會寫入操作紀錄。
               </p>
             </>
           ) : null}
