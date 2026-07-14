@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import {
   BadgeCheck,
+  Building2,
   CalendarClock,
   CheckCircle2,
   Clock3,
   MessageSquareWarning,
+  LogIn,
   ShieldCheck,
   Sparkles,
   UserRoundPlus,
@@ -13,6 +16,7 @@ import {
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
@@ -20,7 +24,7 @@ import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 export const metadata: Metadata = {
   title: '申請 14 天免費試用 | Smart Return',
   description:
-    '申請 Smart Return Beta 試用，14 天免費、不需信用卡。我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助匯入第一批退貨資料。',
+    '使用 Google 建立 Smart Return 14 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
 };
 
 const onboardingSteps = [
@@ -46,6 +50,13 @@ const onboardingSteps = [
   ],
 ] as const;
 
+const selfServiceSteps = [
+  [LogIn, '使用 Google 登入', '以 Google 帳號完成驗證，既有商家成員會直接回到原工作區。'],
+  [Building2, '設定品牌與方案', '填寫品牌名稱並選擇入門版或成長版試用方案。'],
+  [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，14 天試用從現在開始。'],
+  [Sparkles, '匯入第一批退貨資料', '從蝦皮匯出資料開始，或手動建立第一筆退貨。'],
+] as const;
+
 const reassurances = [
   [BadgeCheck, '不需信用卡', '14 天試用完全不綁卡。試用結束不會自動扣款。'],
   [Clock3, '隨時取消', '試用期內或付費後皆可隨時停用，不綁約。'],
@@ -68,13 +79,19 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
   const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
+  const initialPlan = resolveInitialPlan(params?.plan);
+  const googleTrialEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const steps = googleTrialEnabled ? selfServiceSteps : onboardingSteps;
+  const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
     <MarketingShell>
       <PageHeader
         eyebrow="申請試用"
-        title="申請 14 天免費試用 + Beta 期免費協助導入。"
-        description="不需信用卡。送出申請後我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助你匯入第一批退貨資料。"
+        title={googleTrialEnabled ? '使用 Google 開始 14 天免費試用。' : '申請 14 天免費試用 + Beta 期免費協助導入。'}
+        description={googleTrialEnabled
+          ? '不需信用卡。登入後確認品牌與方案即可建立工作區；需要導入協助，也可提交申請由專人聯絡。'
+          : '不需信用卡。送出申請後我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助你匯入第一批退貨資料。'}
       />
 
       <section className="bg-white py-14">
@@ -83,18 +100,42 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-6">
             <div className="flex items-center justify-between gap-3">
               <UserRoundPlus className="size-6 text-emerald-700" />
-              <Badge className="bg-amber-500 hover:bg-amber-500">{signupState.statusLabel}</Badge>
+              <Badge className="bg-amber-500 hover:bg-amber-500">
+                {googleTrialEnabled ? '自助試用開放' : signupState.statusLabel}
+              </Badge>
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-neutral-950">
-              {signupState.headline}
+              {googleTrialEnabled ? '立即建立試用，或申請專人協助' : signupState.headline}
             </h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-700">{signupState.description}</p>
+            <p className="mt-3 text-sm leading-6 text-neutral-700">
+              {googleTrialEnabled
+                ? 'Google 登入可立即建立工作區；若有資料匯入或流程評估需求，可再填寫下方表單。'
+                : signupState.description}
+            </p>
 
             <div className="mt-6 rounded-md border border-emerald-200 bg-white p-4">
+              {googleTrialEnabled && (
+                <>
+                  <Button asChild className="w-full">
+                    <Link href={`/auth/google?plan=${googleTrialPlan}`}>
+                      <LogIn className="size-4" aria-hidden="true" />
+                      使用 Google 登入並開始試用
+                    </Link>
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-neutral-500">
+                    14 天免費、不需信用卡、不會自動扣款
+                  </p>
+                  <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                    <div className="h-px flex-1 bg-neutral-200" />
+                    <span className="text-xs text-neutral-400">需要導入協助？提交申請</span>
+                    <div className="h-px flex-1 bg-neutral-200" />
+                  </div>
+                </>
+              )}
               <LeadCaptureForm
                 variant="signup"
                 contactEmail={contactEmail}
-                initialPlan={resolveInitialPlan(params?.plan)}
+                initialPlan={initialPlan}
                 leadCaptureEnabled={featureFlags.public_lead_capture}
                 lineOaId={lineOaId}
               />
@@ -104,12 +145,14 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           {/* Onboarding steps */}
           <div className="grid gap-4">
             <div className="mb-2">
-              <p className="text-sm font-semibold text-emerald-700">送出申請後會發生什麼</p>
+              <p className="text-sm font-semibold text-emerald-700">
+                {googleTrialEnabled ? '自助試用會發生什麼' : '送出申請後會發生什麼'}
+              </p>
               <h3 className="mt-1 text-lg font-semibold text-neutral-950">
                 清楚告訴你接下來 4 步。
               </h3>
             </div>
-            {onboardingSteps.map(([Icon, title, body], index) => (
+            {steps.map(([Icon, title, body], index) => (
               <div
                 key={title}
                 className="grid grid-cols-[2.5rem_1fr] gap-4 rounded-lg border border-neutral-200 p-5"

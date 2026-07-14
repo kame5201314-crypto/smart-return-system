@@ -2,17 +2,27 @@ import { ArrowLeft, Building2, LogOut, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { SelfServiceTrialForm } from '@/components/auth/self-service-trial-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { signOut } from '@/lib/actions/auth';
-import { createGoogleOAuthMembershipRepository } from '@/lib/auth/google-oauth';
+import {
+  createGoogleOAuthMembershipRepository,
+  normalizeGoogleTrialPlan,
+} from '@/lib/auth/google-oauth';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 import { requireRouteAuth } from '@/lib/auth/route-auth';
+import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SignupCompletePage() {
+interface SignupCompletePageProps {
+  searchParams?: Promise<{ plan?: string | string[] }>;
+}
+
+export default async function SignupCompletePage({ searchParams }: SignupCompletePageProps) {
+  const params = await searchParams;
   const auth = await requireRouteAuth();
   if (!auth.ok || !auth.userId) {
     redirect('/login?next=/signup/complete');
@@ -35,10 +45,13 @@ export default async function SignupCompletePage() {
   }
 
   const membershipDisabled = memberships.length > 0;
+  const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
+  const selfServiceEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const planParam = Array.isArray(params?.plan) ? params?.plan[0] : params?.plan;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-12">
-      <Card className="w-full max-w-xl border-neutral-200 bg-white shadow-sm">
+      <Card className="w-full max-w-2xl border-neutral-200 bg-white shadow-sm">
         <CardHeader>
           <div className="mb-3 flex size-11 items-center justify-center rounded-md bg-emerald-100 text-emerald-800">
             {membershipDisabled ? (
@@ -48,26 +61,41 @@ export default async function SignupCompletePage() {
             )}
           </div>
           <CardTitle>
-            {membershipDisabled ? '這個商家工作區已停用' : 'Google 登入完成'}
+            {membershipDisabled
+              ? '這個商家工作區已停用'
+              : selfServiceEnabled
+                ? '設定你的試用工作區'
+                : 'Google 登入完成'}
           </CardTitle>
           <CardDescription className="leading-6">
             {membershipDisabled
               ? '你的帳號目前沒有可使用的商家工作區。請聯絡原商家管理員或 Smart Return 客服確認權限。'
-              : '這個 Google 帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}
+              : selfServiceEnabled
+                ? '確認品牌名稱與方案後，即可建立 14 天免費試用。試用不需信用卡，也不會自動扣款。'
+                : '這個 Google 帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row">
-          {!membershipDisabled && (
-            <Button asChild className="sm:flex-1">
-              <Link href="/signup">申請 14 天免費試用</Link>
-            </Button>
+        <CardContent>
+          {!membershipDisabled && selfServiceEnabled ? (
+            <SelfServiceTrialForm
+              email={auth.userEmail || ''}
+              initialPlan={normalizeGoogleTrialPlan(planParam)}
+            />
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {!membershipDisabled && (
+                <Button asChild className="sm:flex-1">
+                  <Link href="/signup">申請 14 天免費試用</Link>
+                </Button>
+              )}
+              <form action={signOut} className="sm:flex-1">
+                <Button type="submit" variant="outline" className="w-full">
+                  <LogOut className="size-4" aria-hidden="true" />
+                  登出並切換帳號
+                </Button>
+              </form>
+            </div>
           )}
-          <form action={signOut} className="sm:flex-1">
-            <Button type="submit" variant="outline" className="w-full">
-              <LogOut className="size-4" aria-hidden="true" />
-              登出並切換帳號
-            </Button>
-          </form>
         </CardContent>
         <div className="border-t border-neutral-200 px-6 py-4">
           <Link

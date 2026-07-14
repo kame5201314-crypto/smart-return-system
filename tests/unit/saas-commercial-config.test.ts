@@ -76,6 +76,7 @@ describe('SaaS commercial configuration', () => {
       public_signup: false,
       public_lead_capture: false,
       google_auth: false,
+      google_trial_signup: false,
       billing: false,
       subscription_plan: false,
       ai_usage_limit: true,
@@ -98,6 +99,31 @@ describe('SaaS commercial configuration', () => {
         orgPlan: 'basic',
       }).google_auth
     ).toBe(false);
+  });
+
+  it('does not couple Google login to self-service trial creation', () => {
+    expect(
+      resolveSaaSFeatureFlags({
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        orgPlan: 'basic',
+      })
+    ).toMatchObject({
+      google_auth: true,
+      google_trial_signup: false,
+    });
+
+    expect(
+      resolveSaaSFeatureFlags({
+        env: {
+          ENABLE_GOOGLE_AUTH: 'true',
+          ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+        },
+        orgPlan: 'basic',
+      })
+    ).toMatchObject({
+      google_auth: true,
+      google_trial_signup: true,
+    });
   });
 
   it('allows org flags but still gates advanced features by plan', () => {

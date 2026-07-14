@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   TrendingUp,
+  Upload,
 } from 'lucide-react';
 import {
   BarChart,
@@ -356,6 +357,30 @@ export default function AnalyticsPage() {
           </Link>
         }
       />
+
+      {!loading && allReturns.length === 0 && shopeeReturns.length === 0 && (
+        <section className="border border-emerald-200 bg-emerald-50 p-5 sm:p-6" aria-labelledby="first-import-title">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-emerald-800">
+                <Upload className="size-5" aria-hidden="true" />
+                <h2 id="first-import-title" className="font-semibold">匯入第一批退貨資料</h2>
+              </div>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-700">
+                建議先從蝦皮匯出檔開始；其他通路可先手動建立退貨，資料進來後報表與 AI 分析才會顯示內容。
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild>
+                <Link href="/shopee-returns">前往蝦皮退貨</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/returns">手動建立退貨</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Filters */}
       <Card>

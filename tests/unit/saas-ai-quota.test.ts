@@ -30,6 +30,7 @@ function buildContext(input: {
       public_signup: false,
       public_lead_capture: false,
       google_auth: false,
+      google_trial_signup: false,
       billing: false,
       subscription_plan: false,
       ai_usage_limit: input.aiUsageLimitEnabled ?? true,
