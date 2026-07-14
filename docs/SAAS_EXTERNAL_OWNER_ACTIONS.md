@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-07-02
+Last updated: 2026-07-14
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -9,20 +9,25 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Current production runs `3fadd75 docs(saas): record production deployment gap`,
+- Current production runs `f009621 fix(saas): sign return image storage URLs`,
   which includes the post-`796a02a` Shopee workspace-error localization, SEO
   infrastructure, public access for `robots.txt`, `sitemap.xml`, and
-  `opengraph-image`, the 499/699 pricing contract, and the multi-channel
-  honesty copy.
+  `opengraph-image`, the 499/699 pricing contract, the multi-channel honesty
+  copy, platform tenant suspend/resume controls, `/internal` non-admin redirect
+  hardening, tenant list operations UI, and signed return-image storage URL
+  handling.
 - Production URL: `https://smart-return-system-saas.vercel.app`
-- Production deployment: `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76`
+- Production deployment: `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v`
 - Production status: Ready
 - Latest deployed runtime commit:
-  `3fadd75 docs(saas): record production deployment gap`
-- Owner-authorized production smoke on 2026-07-01 confirms `/pricing` now
-  shows 499/699 markers and the multi-channel honesty copy is visible on the
-  public site. Checked response no longer exposes old `1,490` / `2,990`
-  pricing markers.
+  `f009621 fix(saas): sign return image storage URLs`
+- Owner-authorized production smoke on 2026-07-14 passed 16/16 and confirms
+  `/pricing` still shows 499/699 markers. Checked response no longer exposes
+  old `1,490` / `2,990` pricing markers.
+- SaaS Supabase bucket `return-images` is now private (`public=false`) after
+  the signed URL runtime was deployed. Bucket verification found no existing
+  stored objects to live-fetch during the smoke, but the private visibility
+  switch itself succeeded against project `auyznbwtjvemyamujmgt`.
 - Latest Sentry setup / redeploy: 2026-06-06
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`

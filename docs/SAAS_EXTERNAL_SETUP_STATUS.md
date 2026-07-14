@@ -22,7 +22,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Draft migration `036_saas_platform_admin_roles.sql` exists for DB-backed platform admin role assignments but has not been applied.
 - Migration `037_saas_team_invite_status.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `037` as applied. It adds `organization_invites.status` and refreshes invite accept/create RPCs for team invite revoke/resend flows.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
-- Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. After this code is deployed, owner/Codex can separately switch the Supabase `return-images` bucket to private; that bucket visibility change was not performed by this Git change.
+- Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
 - Notification backend foundation is queue-oriented; email queue creation and
@@ -59,17 +59,51 @@ for the controlled customer handoff and first-session walkthrough.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest deployed runtime source is `3fadd75 docs(saas): record production deployment gap`.
+- Latest deployed runtime source is `f009621 fix(saas): sign return image storage URLs`.
 - This post-deploy documentation update is expected to create a newer docs-only Git commit than the production runtime source.
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Latest owner-authorized production deployment: `3fadd75 docs(saas): record production deployment gap` -> Vercel deployment `dpl_2ELVrGvkGzEF47juNTZA9yu5UV76` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
-- Production now includes the post-`796a02a` fixes through `3fadd75`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, and the multi-channel honesty copy.
-- A 2026-07-01 production smoke test after deployment confirms `/pricing` now exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
+- Latest owner-authorized production deployment: `f009621 fix(saas): sign return image storage URLs` -> Vercel deployment `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env.
+- Production now includes the post-`796a02a` fixes through `f009621`, including Shopee workspace-error localization, SEO infrastructure, public access for `robots.txt`, `sitemap.xml`, and `opengraph-image`, the 499/699 pricing contract, the multi-channel honesty copy, platform tenant suspend/resume controls, `/internal` non-admin redirect hardening, tenant list operations UI, and signed return-image storage URL handling.
+- A 2026-07-14 production smoke test after deployment passed 16/16 and confirms `/pricing` exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers in the checked response.
 - Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, and `038` are applied, and draft migrations `034` and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+
+## 2026-07-14 Owner-Authorized Signed Return Image Production Rollout
+
+- Owner authorized completing the signed return-image rollout in order:
+  deploy the signed URL runtime, then switch the Supabase `return-images`
+  bucket to private, then smoke test and update docs.
+- Preflight and `npm run safety:agent-boundary` passed on `develop-saas`.
+- `npm run saas:predeploy` passed:
+  - checkout/env/rollout/schema gates passed.
+  - lint and typecheck passed.
+  - scripts/backend, unit, e2e, and integration tests passed.
+  - production build passed.
+  - Rollout warnings were the expected local admin-password, local Sentry, and
+    billing-disabled warnings.
+- Vercel Production deployment:
+  - Runtime source: `f009621 fix(saas): sign return image storage URLs`
+  - Deployment ID: `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v`
+  - Status: Ready
+  - URL: `https://smart-return-system-saas.vercel.app`
+  - Vercel inspect also lists the historical `app.smart-return.tw` alias; do
+    not treat that as the active customer URL until domain ownership/DNS is
+    explicitly resumed.
+- SaaS Supabase storage change:
+  - Project: `auyznbwtjvemyamujmgt`
+  - Bucket: `return-images`
+  - Before: `public=true`
+  - After: `public=false`
+  - Verification confirmed `return-images public=false`.
+  - No existing stored object was found during the signed/public URL smoke, so
+    there was no live object URL to fetch.
+- `npm run saas:production-smoke` passed with 16 pass, 0 warn, 0 fail.
+- No migration, env/secret edit, domain/DNS setting change, email provider
+  enablement, billing/provider enablement, public signup enablement, or
+  master/live/internal Supabase action was performed.
 
 ## 2026-07-09 Owner-Authorized Migration 033 Apply and Tenant Suspend/Resume UI
 

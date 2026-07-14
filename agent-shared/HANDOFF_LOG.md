@@ -1,5 +1,52 @@
 # Handoff Log
 
+## 2026-07-14 Codex -> Owner / Claude
+
+Completed owner-authorized production deployment of the signed return-image
+runtime and the follow-up private bucket switch.
+
+Completed:
+
+- Re-ran preflight and `npm run safety:agent-boundary`; branch was
+  `develop-saas` and the worktree was clean before the run.
+- Ran `npm run saas:predeploy`; safety/env/rollout/schema/lint/typecheck,
+  scripts/backend, unit, e2e, integration, and build all passed. Rollout
+  warnings were the expected local admin-password, Sentry/local logging, and
+  billing-disabled warnings.
+- Deployed `f009621 fix(saas): sign return image storage URLs` to Vercel
+  Production project `smart-return-system-saas`.
+- Vercel deployment `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v` is Ready and aliased to
+  `https://smart-return-system-saas.vercel.app`.
+- After the deployment was Ready, switched SaaS Supabase project
+  `auyznbwtjvemyamujmgt` bucket `return-images` from `public=true` to
+  `public=false`.
+- Verified storage bucket state with service role:
+  - `return-images public=false`
+  - no existing object was found in the bucket during the signed/public URL
+    smoke, so there was no live object URL to fetch.
+- Ran `npm run saas:production-smoke`; 16 pass, 0 warn, 0 fail.
+- Updated rollout docs and shared coordination files.
+
+Not performed:
+
+- No migration.
+- No env/secret edit.
+- No domain/DNS setting change.
+- No email provider enablement.
+- No billing/provider enablement.
+- No public signup enablement.
+- No master/live/internal Supabase action.
+
+Next:
+
+- If future customer uploads create `return-images` objects, verify one
+  merchant return-detail image and one portal tracking image render through
+  signed URLs.
+- Remaining public/paid rollout blockers are still invoice/legal finalization,
+  Resend credentials plus explicit delivery authorization, Stage 2 ECPay
+  billing, public signup posture, optional `PLATFORM_ADMIN_ROLES`, and
+  separately authorized migrations `034`/`036`.
+
 ## 2026-07-09 Codex -> Owner / Claude
 
 Completed owner-authorized migration `033_saas_platform_billing_operations.sql`
