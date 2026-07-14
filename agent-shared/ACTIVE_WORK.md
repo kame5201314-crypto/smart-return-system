@@ -1,5 +1,20 @@
 # Active Work
 
+## 2026-07-14 Google OAuth And Trial Rollout Foundation
+
+Status: blocked
+
+Scope: Production activation of Google login, self-service trial, and scoped
+trial expiry.
+
+Notes: Repository work is complete through `4782088`. Google OAuth, the
+self-service trial contract/draft `040`, scoped expiry contract/draft `041`,
+and fail-closed rollout dependencies are pushed. No migration was applied, no
+Google/Supabase provider was configured, no env/secret changed, and no deploy
+was performed. Continue only from `docs/SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`
+after explicit owner authorization and external provider inputs.
+
+
 Use this file to avoid Claude / Codex editing the same files at the same time.
 
 This file is Codex-maintained. Claude should not edit it directly; Claude should declare task scope in the chat or commit message, and Codex records it here after handoff.

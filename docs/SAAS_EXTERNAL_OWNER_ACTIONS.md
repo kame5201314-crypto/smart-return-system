@@ -6,6 +6,12 @@ This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
 environment changes, billing/provider enablement, or DNS changes by itself.
 
+For the Google login and self-service trial rollout, use
+[`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md).
+The code is present on `develop-saas`, but Google Cloud/Supabase provider setup,
+migrations `040`/`041`, rollout flags, deployment, and disposable-account QA
+remain separate owner-authorized actions.
+
 ## Current Verified State
 
 - Branch: `develop-saas`

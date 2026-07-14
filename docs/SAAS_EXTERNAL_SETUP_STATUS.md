@@ -1,5 +1,24 @@
 # SaaS External Setup Status
 
+## 2026-07-14 Google Login And Self-Service Trial Foundation
+
+- Repository implementation is complete and pushed on `develop-saas`:
+  - `d05f89f` existing-merchant Google OAuth and safe routing.
+  - `1eb9a7f` self-service trial API/UI foundation and draft migration `040`.
+  - `5ac9a8d` scoped trial-expiry worker/cron, suspended-state UI, and draft
+    migration `041`.
+  - `ceb42ae` migration/readiness checks aligned through `041`.
+  - `4782088` rollout dependencies fail closed when self-service trial is
+    enabled without Google Auth or the scoped expiry cron.
+- All Google rollout flags remain disabled by default. No Google Cloud OAuth
+  client, Supabase Google provider, migration `040`/`041`, Production env,
+  or deployment change was made by these repository commits.
+- Activation must follow
+  [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md),
+  including same-email identity-linking QA and disposable-org lifecycle QA.
+- Migrations `040` and `041` are draft-only and require separate, explicit
+  owner authorization for SaaS project `auyznbwtjvemyamujmgt`.
+
 Last updated: 2026-07-14
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.

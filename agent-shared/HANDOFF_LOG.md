@@ -1,5 +1,21 @@
 # Handoff Log
 
+## 2026-07-14 - Google OAuth / Self-Service Trial Handoff
+
+- Implemented and pushed existing-merchant Google OAuth (`d05f89f`),
+  self-service trial foundation plus draft migration `040` (`1eb9a7f`), scoped
+  trial expiry plus draft migration `041` (`5ac9a8d`), and readiness/rollout
+  gate alignment (`ceb42ae`, `4782088`).
+- Added `docs/SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md` as the authoritative activation
+  order and disposable QA matrix.
+- No Google Cloud/Supabase provider setting, migration, env/secret, deployment,
+  billing, email provider, or master/live/internal Supabase change was made.
+- Next owner-blocked sequence: configure external Google/Supabase settings;
+  enable Phase 1 only and QA existing merchants; separately authorize `040`
+  and `041`; run the full identity/lifecycle QA matrix; only then enable Google
+  trial and scoped expiry together.
+
+
 ## 2026-07-14 Codex -> Owner / Claude
 
 Completed owner-authorized production deployment of the signed return-image
