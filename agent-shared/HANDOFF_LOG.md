@@ -5835,3 +5835,46 @@ Activation boundary:
 - Owner setup and explicit authorization remain required for Google Cloud,
   Supabase Google provider configuration, migrations `040`/`041`, production
   flags, deployment, and disposable-account production verification.
+
+## 2026-07-14 Codex -> Owner / Claude / Codex
+
+Completed the remaining repository-side Google OAuth and self-service trial
+hardening. All changes were committed and pushed separately without activating
+external services.
+
+Commits:
+
+```text
+9bfec28 fix(saas): pin Google OAuth redirects to app origin
+8594905 fix(saas): throttle Google trial provisioning
+65e452d chore(saas): enforce Google trial readiness hardening
+```
+
+Security behavior:
+
+- Google OAuth start/callback redirects now resolve from the configured
+  `NEXT_PUBLIC_APP_URL` when it is valid, rather than trusting an incoming host
+  header.
+- Self-service trial provisioning applies a best-effort per-user limit of 20
+  requests per hour after authentication and before invoking the service-role
+  RPC.
+- `saas:doctor` now fails if either the trusted-origin OAuth wiring or trial
+  provisioning throttle is removed.
+
+Final verification:
+
+- `npm run test:all` passed: 16 backend tests, 492 unit tests, 4 E2E tests,
+  and 5 integration tests.
+- `npm run build`, `npm run lint`, `npm run typecheck`,
+  `npm run test:scripts`, and `npm run safety:agent-boundary` passed.
+- `npm run saas:doctor` reported 191 pass / 1 existing local flag warning /
+  0 fail.
+
+Remaining boundary:
+
+- No migration was applied, no OAuth provider was configured, no env or secret
+  was changed, and no deployment was performed.
+- Production activation remains owner-blocked on Google Cloud OAuth setup,
+  SaaS Supabase Google provider configuration, explicit migrations `040` and
+  `041` authorization, Production flags/deploy authorization, and disposable
+  QA accounts for the identity and lifecycle matrix.

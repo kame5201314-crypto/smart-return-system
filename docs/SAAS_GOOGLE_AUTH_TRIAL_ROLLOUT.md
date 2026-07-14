@@ -19,6 +19,8 @@ Supabase、Vercel、migration、env 或 Production deployment。
 - Phase 2：`/signup/complete`、自助試用 API、migration `040` 專用 RPC 草稿。
 - Phase 3：scoped 到期 worker/cron、migration `041` RPC 草稿、暫停後唯讀提示。
 - Rollout gate：自助試用不得在 Google Auth 或到期排程關閉時啟用。
+- OAuth 導向來源：回呼與錯誤導向優先使用 `NEXT_PUBLIC_APP_URL`，不信任來訪 request host。
+- 試用開通限流：驗證身分後、呼叫 service-role RPC 前，以使用者為單位做每小時 20 次的 best-effort 限流。
 
 ## 外部設定順序
 
