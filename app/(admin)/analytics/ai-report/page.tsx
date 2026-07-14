@@ -28,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/saas/confirm-dialog';
+import type { SelfServiceTrialAIQuotaSnapshot } from '@/lib/saas/self-service-trial-ai-quota';
 import { normalizeAISkuAnalysisOutput } from '@/lib/utils/ai-sku-analysis';
 
 interface AIAnalysisResult {
@@ -77,6 +79,78 @@ interface AIAnalysisResult {
   };
 }
 
+function buildStaticDemoReport(period: string): AIAnalysisResult {
+  return {
+    period,
+    summary:
+      '示範資料顯示，退貨主要集中在尺寸認知落差與商品頁資訊不足。優先補強尺寸說明與出貨前檢查，可降低重複退貨並縮短客服處理時間。',
+    painPoints: [
+      {
+        issue: '尺寸與商品頁說明不一致',
+        frequency: 'high',
+        impact: 'high',
+        affected_products: ['示範商品 A', '示範商品 B'],
+      },
+      {
+        issue: '包裝保護不足造成外觀瑕疵',
+        frequency: 'medium',
+        impact: 'medium',
+        affected_products: ['示範商品 C'],
+      },
+    ],
+    recommendations: [
+      {
+        title: '補強尺寸與適用情境說明',
+        description: '在商品頁加入實測尺寸、適用範例與常見誤解，並同步客服回覆範本。',
+        priority: 'high',
+        category: '商品頁優化',
+      },
+      {
+        title: '建立高退貨商品出貨檢查表',
+        description: '針對高退貨 SKU 增加包裝與配件確認，降低可避免的退貨。',
+        priority: 'medium',
+        category: '倉儲流程',
+      },
+    ],
+    skuAnalysis: [
+      {
+        sku_group: 'DEMO-A',
+        product_name: '示範商品 A',
+        return_count: 8,
+        return_rate: '12.5%',
+        main_issues: ['尺寸不合', '資訊理解落差'],
+        suggestion: '補上尺寸對照與使用情境圖片，並在下單前提示確認。',
+      },
+      {
+        sku_group: 'DEMO-C',
+        product_name: '示範商品 C',
+        return_count: 4,
+        return_rate: '6.3%',
+        main_issues: ['包裝受損'],
+        suggestion: '增加緩衝包材並納入出貨抽查。',
+      },
+    ],
+    channelAnalysis: [
+      {
+        channel: '蝦皮（示範）',
+        return_count: 9,
+        common_issues: ['尺寸不合', '商品資訊落差'],
+      },
+      {
+        channel: '官網（示範）',
+        return_count: 3,
+        common_issues: ['包裝受損'],
+      },
+    ],
+    statistics: {
+      totalReturns: 12,
+      totalRefundAmount: 8640,
+      storeCreditRate: 25,
+    },
+    diagnostics: { model: 'static-demo' },
+  };
+}
+
 function getSkuGroupLabel(item: AIAnalysisResult['skuAnalysis'][number]): string {
   return item.sku_group || item.sku || '-';
 }
@@ -100,6 +174,9 @@ export default function AIReportPage() {
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
   const [hasExistingReport, setHasExistingReport] = useState(false);
+  const [trialQuota, setTrialQuota] = useState<SelfServiceTrialAIQuotaSnapshot | null>(null);
+  const [trialConfirmOpen, setTrialConfirmOpen] = useState(false);
+  const [showingDemo, setShowingDemo] = useState(false);
 
   // Generate period options (last 12 months)
   const periodOptions = Array.from({ length: 12 }, (_, i) => {
@@ -147,9 +224,11 @@ export default function AIReportPage() {
           },
         });
         setHasExistingReport(true);
+        setShowingDemo(false);
       } else {
         setResult(null);
         setHasExistingReport(false);
+        setShowingDemo(false);
       }
     } catch (error) {
       console.error('Load existing report error:', error);
@@ -165,6 +244,22 @@ export default function AIReportPage() {
     loadExistingReport(selectedPeriod);
   }, [selectedPeriod, loadExistingReport]);
 
+  const loadTrialQuota = useCallback(async () => {
+    try {
+      const response = await fetch('/api/saas/trial/ai-quota', { cache: 'no-store' });
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.success && data.quota) {
+        setTrialQuota(data.quota as SelfServiceTrialAIQuotaSnapshot);
+      }
+    } catch (error) {
+      console.warn('Load trial AI quota error:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTrialQuota();
+  }, [loadTrialQuota]);
+
   async function handleAnalyze() {
     try {
       setLoading(true);
@@ -179,6 +274,9 @@ export default function AIReportPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.success) {
+        if (data?.quota?.applies) {
+          setTrialQuota(data.quota as SelfServiceTrialAIQuotaSnapshot);
+        }
         toast.error(data?.error || 'AI \u5206\u6790\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u3002');
         return;
       }
@@ -194,8 +292,18 @@ export default function AIReportPage() {
       };
 
       setResult(nextResult);
+      setShowingDemo(false);
 
       const usedLocalFallback = data.data?.diagnostics?.model === 'local-text-fallback';
+      if (trialQuota?.applies && data.reused !== true && !usedLocalFallback) {
+        setTrialQuota({
+          ...trialQuota,
+          used: 1,
+          remaining: 0,
+          reason: 'limit_reached',
+          completedAt: new Date().toISOString(),
+        });
+      }
       if (data.saved !== false) {
         setHasExistingReport(true);
         if (usedLocalFallback) {
@@ -217,8 +325,34 @@ export default function AIReportPage() {
 
   function handleAnalyzeClick(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
+    if (trialQuota?.applies) {
+      if (trialQuota.reason === 'in_progress') {
+        toast.info('AI 分析正在處理中，請稍候再重新整理。');
+        return;
+      }
+      if (trialQuota.remaining <= 0 || trialQuota.reason === 'trial_inactive') {
+        toast.info('本次試用的真實 AI 分析額度已使用完畢。');
+        return;
+      }
+      setTrialConfirmOpen(true);
+      return;
+    }
     void handleAnalyze();
   }
+
+  function showStaticDemo() {
+    setResult(buildStaticDemoReport(selectedPeriod));
+    setHasExistingReport(false);
+    setShowingDemo(true);
+    toast.info('目前顯示固定示範資料，不會使用 AI 額度。');
+  }
+
+  const trialAnalysisBlocked = Boolean(
+    trialQuota?.applies
+    && (trialQuota.remaining <= 0
+      || trialQuota.reason === 'in_progress'
+      || trialQuota.reason === 'trial_inactive')
+  );
 
   return (
     <div className="space-y-6">
@@ -241,10 +375,42 @@ export default function AIReportPage() {
         </Button>
       </div>
 
+      {trialQuota?.applies && (
+        <Card className="border-emerald-200 bg-emerald-50/40">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-semibold">試用 AI 體驗</h2>
+                <Badge variant="outline" className="border-emerald-300 bg-white text-emerald-700">
+                  已使用 {trialQuota.used} / {trialQuota.limit}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                試用期間包含 1 次真實 AI 分析。你可以先查看固定示範報告，不會扣除額度。
+              </p>
+              {trialQuota.reason === 'in_progress' && (
+                <p className="text-sm font-medium text-amber-700">分析正在處理中，請勿重複送出。</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={showStaticDemo}>
+                <FileText className="mr-2 size-4" />
+                查看示範報告
+              </Button>
+              {trialQuota.remaining <= 0 && (
+                <Button asChild>
+                  <Link href="/contact">聯絡客服升級</Link>
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Controls */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-muted-foreground" />
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -264,7 +430,7 @@ export default function AIReportPage() {
             <Button
               type="button"
               onClick={handleAnalyzeClick}
-              disabled={loading || loadingExisting}
+              disabled={loading || loadingExisting || trialAnalysisBlocked}
             >
               {loading ? (
                 <>
@@ -284,7 +450,13 @@ export default function AIReportPage() {
               )}
             </Button>
 
-            {hasExistingReport && !loading && (
+            {showingDemo && !loading && (
+              <Badge variant="outline" className="border-blue-300 text-blue-700">
+                示範資料，不會扣額度
+              </Badge>
+            )}
+
+            {hasExistingReport && !loading && !showingDemo && (
               <Badge variant="outline" className="text-green-600 border-green-300">
                 <History className="w-3 h-3 mr-1" />
                 已有歷史報告
@@ -583,6 +755,20 @@ export default function AIReportPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={trialConfirmOpen}
+        onOpenChange={setTrialConfirmOpen}
+        title="使用本次試用唯一的 AI 分析額度？"
+        description="送出後會使用你的退貨資料產生真實報告。只有成功完成的真實 AI 分析才會扣除這次額度；失敗或固定示範報告都不扣額度。"
+        confirmLabel="開始真實分析"
+        cancelLabel="先不使用"
+        pending={loading}
+        onConfirm={() => {
+          setTrialConfirmOpen(false);
+          void handleAnalyze();
+        }}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 export const SELF_SERVICE_TRIAL_AI_LIMIT = 1;
 
 export type SelfServiceTrialAIReservationReason =
+  | 'available'
   | 'reserved'
   | 'not_self_service_trial'
   | 'paid_plan'
@@ -51,6 +52,16 @@ export interface SelfServiceTrialAIQuotaRpcClient {
   rpc(name: string, args: Record<string, unknown>): PromiseLike<RpcResult>;
 }
 
+interface SelfServiceTrialAIQuotaQueryBuilder {
+  select(columns: string): SelfServiceTrialAIQuotaQueryBuilder;
+  eq(column: string, value: unknown): SelfServiceTrialAIQuotaQueryBuilder;
+  maybeSingle(): PromiseLike<RpcResult>;
+}
+
+export interface SelfServiceTrialAIQuotaQueryClient {
+  from(table: string): SelfServiceTrialAIQuotaQueryBuilder;
+}
+
 export interface SelfServiceTrialAIQuotaRepository {
   reserve(orgId: string, effectiveAt: string): Promise<SelfServiceTrialAIReservation | null>;
   complete(reservation: SelfServiceTrialAIReservation, effectiveAt: string): Promise<void>;
@@ -75,6 +86,7 @@ function optionalString(value: unknown): string | null {
 function normalizeReason(value: unknown): SelfServiceTrialAIReservationReason {
   if (
     value === 'reserved'
+    || value === 'available'
     || value === 'not_self_service_trial'
     || value === 'paid_plan'
     || value === 'limit_reached'
@@ -105,7 +117,7 @@ function quotaSnapshot(input: {
 function blockedError(
   reason: Exclude<
     SelfServiceTrialAIReservationReason,
-    'reserved' | 'not_self_service_trial' | 'paid_plan'
+    'available' | 'reserved' | 'not_self_service_trial' | 'paid_plan'
   >,
   completedAt: string | null
 ): SelfServiceTrialAIQuotaError {
@@ -156,6 +168,9 @@ export function createSelfServiceTrialAIQuotaRepository(
 
       const reason = normalizeReason(data.reason);
       if (reason === 'not_self_service_trial' || reason === 'paid_plan') return null;
+      if (reason === 'available') {
+        throw rpcFailure('Trial AI quota reservation returned an unexpected state.');
+      }
       if (reason !== 'reserved') {
         throw blockedError(reason, optionalString(data.completed_at));
       }
@@ -207,4 +222,67 @@ export async function reserveSelfServiceTrialAIAnalysis(input: {
     input.orgId,
     (input.now ?? new Date()).toISOString()
   );
+}
+
+export async function loadSelfServiceTrialAIQuotaSnapshot(input: {
+  enabled: boolean;
+  orgId: string;
+  orgStatus: string;
+  client: SelfServiceTrialAIQuotaQueryClient;
+}): Promise<SelfServiceTrialAIQuotaSnapshot> {
+  if (!input.enabled) {
+    return quotaSnapshot({
+      applies: false,
+      used: 0,
+      reason: 'not_self_service_trial',
+    });
+  }
+
+  const { data, error } = await input.client
+    .from('saas_self_service_trial_claims')
+    .select('analysis_reserved_at, analysis_completed_at')
+    .eq('org_id', input.orgId)
+    .maybeSingle();
+
+  if (error) {
+    throw rpcFailure(error.message || 'Failed to load trial AI quota.');
+  }
+  if (!isRecord(data)) {
+    return quotaSnapshot({
+      applies: false,
+      used: 0,
+      reason: 'not_self_service_trial',
+    });
+  }
+
+  const completedAt = optionalString(data.analysis_completed_at);
+  if (input.orgStatus === 'active') {
+    return quotaSnapshot({
+      applies: false,
+      used: 0,
+      reason: 'paid_plan',
+      completedAt,
+    });
+  }
+  if (completedAt) {
+    return quotaSnapshot({
+      applies: true,
+      used: 1,
+      reason: 'limit_reached',
+      completedAt,
+    });
+  }
+  if (input.orgStatus !== 'trialing') {
+    return quotaSnapshot({
+      applies: true,
+      used: 0,
+      reason: 'trial_inactive',
+    });
+  }
+
+  return quotaSnapshot({
+    applies: true,
+    used: 0,
+    reason: optionalString(data.analysis_reserved_at) ? 'in_progress' : 'available',
+  });
 }

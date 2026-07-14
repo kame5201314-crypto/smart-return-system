@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   createSelfServiceTrialAIQuotaRepository,
+  loadSelfServiceTrialAIQuotaSnapshot,
   reserveSelfServiceTrialAIAnalysis,
   SelfServiceTrialAIQuotaError,
 } from '@/lib/saas/self-service-trial-ai-quota';
@@ -128,4 +129,62 @@ describe('self-service trial AI quota policy', () => {
       { p_org_id: orgId, p_reservation_token: reservationToken }
     );
   });
+
+  it('shows 0/1 before use and 1/1 after a successful self-service trial analysis', async () => {
+    const availableClient = createQuotaQueryClient({
+      analysis_reserved_at: null,
+      analysis_completed_at: null,
+    });
+    await expect(loadSelfServiceTrialAIQuotaSnapshot({
+      enabled: true,
+      orgId,
+      orgStatus: 'trialing',
+      client: availableClient,
+    })).resolves.toMatchObject({
+      applies: true,
+      used: 0,
+      remaining: 1,
+      reason: 'available',
+    });
+
+    const completedClient = createQuotaQueryClient({
+      analysis_reserved_at: now.toISOString(),
+      analysis_completed_at: now.toISOString(),
+    });
+    await expect(loadSelfServiceTrialAIQuotaSnapshot({
+      enabled: true,
+      orgId,
+      orgStatus: 'trialing',
+      client: completedClient,
+    })).resolves.toMatchObject({
+      applies: true,
+      used: 1,
+      remaining: 0,
+      reason: 'limit_reached',
+    });
+  });
+
+  it('does not keep the trial limit after conversion to an active paid plan', async () => {
+    const client = createQuotaQueryClient({
+      analysis_reserved_at: now.toISOString(),
+      analysis_completed_at: now.toISOString(),
+    });
+
+    await expect(loadSelfServiceTrialAIQuotaSnapshot({
+      enabled: true,
+      orgId,
+      orgStatus: 'active',
+      client,
+    })).resolves.toMatchObject({ applies: false, reason: 'paid_plan' });
+  });
 });
+
+function createQuotaQueryClient(data: Record<string, unknown> | null) {
+  const result = Promise.resolve({ data, error: null });
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    maybeSingle: vi.fn(() => result),
+  };
+  return { from: vi.fn(() => builder) };
+}
