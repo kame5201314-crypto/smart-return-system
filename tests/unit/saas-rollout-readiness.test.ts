@@ -30,6 +30,10 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       ENABLE_IMAGE_AI: 'false',
       ENABLE_AI_USAGE_LIMIT: 'true',
       ENABLE_PUBLIC_SIGNUP: 'false',
+      ENABLE_PUBLIC_LEAD_CAPTURE: 'false',
+      ENABLE_GOOGLE_AUTH: 'false',
+      ENABLE_GOOGLE_TRIAL_SIGNUP: 'false',
+      ENABLE_TRIAL_EXPIRY_CRON: 'false',
       ENABLE_BILLING: 'false',
       ENABLE_SUBSCRIPTION_PLAN: 'false',
       ENABLE_ADVANCED_ANALYTICS: 'false',
@@ -140,5 +144,57 @@ describe('SaaS rollout readiness check', () => {
 
     expect(result.status).toBe(0);
     expect(result.output).toContain('Sentry/logging DSN - set');
+  });
+
+  it('keeps existing-merchant Google login independent from self-service trial', () => {
+    const result = runRolloutCheck({
+      ENABLE_GOOGLE_AUTH: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain(
+      'Google login rollout - existing-merchant Google login is enabled without self-service provisioning'
+    );
+  });
+
+  it('rejects self-service trial when Google auth is not enabled', () => {
+    const result = runRolloutCheck({
+      ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      ENABLE_TRIAL_EXPIRY_CRON: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(
+      'Google trial dependency - ENABLE_GOOGLE_TRIAL_SIGNUP=true requires ENABLE_GOOGLE_AUTH=true'
+    );
+  });
+
+  it('rejects self-service trial without the scoped expiry lifecycle', () => {
+    const result = runRolloutCheck({
+      ENABLE_GOOGLE_AUTH: 'true',
+      ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(
+      'Google trial lifecycle - ENABLE_GOOGLE_TRIAL_SIGNUP=true requires ENABLE_TRIAL_EXPIRY_CRON=true'
+    );
+  });
+
+  it('passes Google self-service trial only with auth, lifecycle, and logging', () => {
+    const result = runRolloutCheck({
+      ENABLE_GOOGLE_AUTH: 'true',
+      ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      ENABLE_TRIAL_EXPIRY_CRON: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain(
+      'Google trial rollout - Google auth and scoped trial-expiry lifecycle are enabled together'
+    );
   });
 });

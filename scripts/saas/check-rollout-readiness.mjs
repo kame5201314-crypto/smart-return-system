@@ -188,6 +188,8 @@ function checkAppUrlAndObservability() {
   } else if (
     parseBool(process.env.ENABLE_PUBLIC_SIGNUP) ||
     parseBool(process.env.ENABLE_PUBLIC_LEAD_CAPTURE) ||
+    parseBool(process.env.ENABLE_GOOGLE_AUTH) ||
+    parseBool(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP) ||
     parseBool(process.env.ENABLE_BILLING) ||
     parseBool(process.env.ENABLE_SUBSCRIPTION_PLAN)
   ) {
@@ -226,15 +228,61 @@ function checkAiSafety() {
 function checkControlledRolloutFlags() {
   const publicSignup = normalizeEnvValue(process.env.ENABLE_PUBLIC_SIGNUP).toLowerCase();
   const publicLeadCapture = normalizeEnvValue(process.env.ENABLE_PUBLIC_LEAD_CAPTURE).toLowerCase();
+  const googleAuth = normalizeEnvValue(process.env.ENABLE_GOOGLE_AUTH).toLowerCase();
+  const googleTrialSignup = normalizeEnvValue(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP).toLowerCase();
+  const trialExpiryCron = normalizeEnvValue(process.env.ENABLE_TRIAL_EXPIRY_CRON).toLowerCase();
   const multiTenantAdmin = normalizeEnvValue(process.env.ENABLE_MULTI_TENANT_ADMIN).toLowerCase();
   const subscriptionPlan = normalizeEnvValue(process.env.ENABLE_SUBSCRIPTION_PLAN).toLowerCase();
   const advancedAnalytics = normalizeEnvValue(process.env.ENABLE_ADVANCED_ANALYTICS).toLowerCase();
 
   record('pass', 'ENABLE_PUBLIC_SIGNUP', publicSignup === 'true' ? 'enabled intentionally' : 'closed for controlled rollout');
   record('pass', 'ENABLE_PUBLIC_LEAD_CAPTURE', publicLeadCapture === 'true' ? 'enabled intentionally' : 'closed for controlled rollout');
+  record('pass', 'ENABLE_GOOGLE_AUTH', googleAuth === 'true' ? 'enabled intentionally' : 'closed until Google provider rollout');
+  record('pass', 'ENABLE_GOOGLE_TRIAL_SIGNUP', googleTrialSignup === 'true' ? 'enabled intentionally' : 'closed until self-service trial rollout');
+  record('pass', 'ENABLE_TRIAL_EXPIRY_CRON', trialExpiryCron === 'true' ? 'enabled intentionally' : 'closed until scoped lifecycle rollout');
   record('pass', 'ENABLE_MULTI_TENANT_ADMIN', multiTenantAdmin === 'true' ? 'enabled intentionally' : 'closed until platform admin rollout');
   record('pass', 'ENABLE_SUBSCRIPTION_PLAN', subscriptionPlan === 'true' ? 'enabled intentionally' : 'closed until billing rollout');
   record('pass', 'ENABLE_ADVANCED_ANALYTICS', advancedAnalytics === 'true' ? 'enabled intentionally' : 'closed unless plan rollout approves it');
+}
+
+function checkGoogleTrialReadiness() {
+  const googleAuthEnabled = parseBool(process.env.ENABLE_GOOGLE_AUTH);
+  const googleTrialEnabled = parseBool(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP);
+  const trialExpiryEnabled = parseBool(process.env.ENABLE_TRIAL_EXPIRY_CRON);
+
+  if (googleTrialEnabled && !googleAuthEnabled) {
+    record(
+      'fail',
+      'Google trial dependency',
+      'ENABLE_GOOGLE_TRIAL_SIGNUP=true requires ENABLE_GOOGLE_AUTH=true'
+    );
+    return;
+  }
+
+  if (googleTrialEnabled && !trialExpiryEnabled) {
+    record(
+      'fail',
+      'Google trial lifecycle',
+      'ENABLE_GOOGLE_TRIAL_SIGNUP=true requires ENABLE_TRIAL_EXPIRY_CRON=true'
+    );
+    return;
+  }
+
+  if (googleTrialEnabled) {
+    record(
+      'pass',
+      'Google trial rollout',
+      'Google auth and scoped trial-expiry lifecycle are enabled together'
+    );
+  } else if (googleAuthEnabled) {
+    record(
+      'pass',
+      'Google login rollout',
+      'existing-merchant Google login is enabled without self-service provisioning'
+    );
+  } else {
+    record('pass', 'Google rollout', 'Google login and self-service trial remain closed');
+  }
 }
 
 function checkBillingReadiness() {
@@ -285,5 +333,6 @@ checkRequiredSecrets();
 checkAppUrlAndObservability();
 checkAiSafety();
 checkControlledRolloutFlags();
+checkGoogleTrialReadiness();
 checkBillingReadiness();
 printSummary();
