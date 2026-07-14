@@ -371,6 +371,7 @@ function checkCommercialFoundation() {
   const googleOAuthPath = path.resolve(process.cwd(), 'lib/auth/google-oauth.ts');
   const googleOAuthStartPath = path.resolve(process.cwd(), 'app/auth/google/route.ts');
   const googleOAuthCallbackPath = path.resolve(process.cwd(), 'app/auth/callback/route.ts');
+  const selfServiceTrialPath = path.resolve(process.cwd(), 'lib/saas/self-service-trial.ts');
   const adminLoginPagePath = path.resolve(process.cwd(), 'app/admin/login/page.tsx');
   const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
   if (fs.existsSync(publicRoutesPath) && fs.existsSync(proxyPath)) {
@@ -502,6 +503,28 @@ function checkCommercialFoundation() {
     }
   }
 
+  if (fs.existsSync(selfServiceTrialPath)) {
+    const selfServiceTrialSource = fs.readFileSync(selfServiceTrialPath, 'utf8');
+    if (
+      selfServiceTrialSource.includes('createInMemoryRateLimiter') &&
+      selfServiceTrialSource.includes('maxRequests: 20') &&
+      selfServiceTrialSource.includes('saas_self_service_trial:') &&
+      selfServiceTrialSource.includes("'rate_limited'")
+    ) {
+      record(
+        'pass',
+        'SaaS self-service trial rate limit',
+        'authenticated trial provisioning is throttled per user before the service-role RPC'
+      );
+    } else {
+      record(
+        'fail',
+        'SaaS self-service trial rate limit',
+        'self-service trial provisioning must throttle repeated requests before invoking the service-role RPC'
+      );
+    }
+  }
+
   if (fs.existsSync(adminLoginRateLimitPath) && fs.existsSync(authActionPath)) {
     const adminLoginRateLimitSource = fs.readFileSync(adminLoginRateLimitPath, 'utf8');
     const authActionSource = fs.readFileSync(authActionPath, 'utf8');
@@ -573,9 +596,12 @@ function checkCommercialFoundation() {
       loginPageContentSource.includes('new URLSearchParams(window.location.search).get') &&
       loginPageContentSource.includes('result.redirectTo') &&
       googleOAuthSource.includes('normalizeLocalRedirectPath') &&
+      googleOAuthSource.includes('resolveGoogleOAuthAppOrigin') &&
       googleOAuthSource.includes('isExplicitPlatformAdminPrincipal') &&
       googleOAuthStartSource.includes("scopes: 'openid email profile'") &&
+      googleOAuthStartSource.includes('resolveGoogleOAuthAppOrigin') &&
       googleOAuthCallbackSource.includes('exchangeCodeForSession') &&
+      googleOAuthCallbackSource.includes('resolveGoogleOAuthAppOrigin') &&
       googleOAuthCallbackSource.includes('resolveGoogleOAuthDestination') &&
       proxySource.includes('isExplicitPlatformAdminPrincipal') &&
       proxySource.includes('resolveAuthenticatedLoginRedirect') &&
@@ -589,7 +615,7 @@ function checkCommercialFoundation() {
       platformAdminIdentitySource.includes('ADMIN_EMAIL') &&
       platformAdminIdentitySource.includes('PLATFORM_ADMIN_ROLES')
     ) {
-      record('pass', 'SaaS auth redirect contract', 'post-login redirects use explicit platform admin principals and sanitized next paths');
+      record('pass', 'SaaS auth redirect contract', 'post-login and Google OAuth redirects use explicit principals, trusted app origins, and sanitized next paths');
     } else {
       record('fail', 'SaaS auth redirect contract', 'login must use explicit platform admin principals, server-provided redirectTo, and sanitized next paths');
     }
