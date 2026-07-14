@@ -23,6 +23,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `037_saas_team_invite_status.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `037` as applied. It adds `organization_invites.status` and refreshes invite accept/create RPCs for team invite revoke/resend flows.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - Migration `039_saas_public_lead_capture.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `039` as applied. It extends `signup_requests` for Basic/Growth/Enterprise leads, LINE/email/phone contact, monthly return bands, and operator follow-up timestamps.
+- Vercel Production project `smart-return-system-saas` now has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`. The env name is verified; a new production deployment is required before the lead-only runtime path uses it.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
@@ -2140,7 +2141,9 @@ lead-only API, platform operations queue, and manual payment control.
   `auyznbwtjvemyamujmgt` on 2026-07-14 after explicit owner authorization.
 - Remote history records `039` as applied; the five new columns and six lead
   constraints were verified. Migrations `034` and `036` remain unapplied.
-- `ENABLE_PUBLIC_LEAD_CAPTURE` remains disabled by default.
+- `ENABLE_PUBLIC_LEAD_CAPTURE=true` is configured only for Vercel Production;
+  it remains independently scoped from `ENABLE_PUBLIC_SIGNUP` and requires the
+  next production deployment to become active in runtime.
 - The existing LINE/copy/Email Manual Beta paths remain usable without the flag.
 - The lead API never creates an account, organization, subscription, payment, or
   email delivery job.
@@ -2151,8 +2154,7 @@ lead-only API, platform operations queue, and manual payment control.
 
 Remaining activation steps require separate owner authorization, in this order:
 
-1. Set `ENABLE_PUBLIC_LEAD_CAPTURE=true` in the SaaS Vercel project.
-2. Deploy an explicitly authorized `develop-saas` HEAD and smoke-test the form
+1. Deploy an explicitly authorized `develop-saas` HEAD and smoke-test the form
    plus `/internal/leads`.
 
 Do not combine these steps with `ENABLE_PUBLIC_SIGNUP`, billing, email delivery,

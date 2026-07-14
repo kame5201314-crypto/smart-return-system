@@ -5734,3 +5734,18 @@ Owner-authorized public lead capture migration apply completed.
 - No Vercel env or deployment action was included in this migration step.
 - Billing, email delivery, provider integrations, and public signup remain
   disabled.
+
+## 2026-07-14 Codex -> Owner / Claude / Codex
+
+Owner-authorized Production lead flag configuration completed.
+
+- Set only `ENABLE_PUBLIC_LEAD_CAPTURE=true` for Vercel Production project
+  `smart-return-system-saas`.
+- Verified the env name is present for Production and rewrote the value through
+  no-newline stdin to avoid hidden whitespace.
+- This flag is independent from `ENABLE_PUBLIC_SIGNUP` and never provisions an
+  account, organization, subscription, payment, or email job.
+- No deployment was included in this env step, so runtime activation still
+  requires a new owner-authorized production deployment.
+- No billing, email provider, public signup, domain, or additional Supabase
+  migration setting was changed.
