@@ -85,6 +85,29 @@ export function normalizeGoogleOAuthNext(value: unknown): string | null {
   return path;
 }
 
+function normalizeHttpOrigin(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.replace(/\\n/g, '').trim();
+  if (!normalized) return null;
+
+  try {
+    const url = new URL(normalized);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveGoogleOAuthAppOrigin(
+  requestOrigin: string,
+  env: Record<string, string | undefined> = process.env
+): string {
+  return normalizeHttpOrigin(env.NEXT_PUBLIC_APP_URL)
+    ?? normalizeHttpOrigin(requestOrigin)
+    ?? 'http://localhost:3000';
+}
+
 export function buildSignupCompletePath(input?: {
   plan?: unknown;
   state?: 'no_workspace' | 'membership_disabled';

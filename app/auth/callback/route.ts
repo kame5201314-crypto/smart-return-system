@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import {
   createGoogleOAuthMembershipRepository,
+  resolveGoogleOAuthAppOrigin,
   resolveGoogleOAuthDestination,
   type GoogleOAuthMembershipRepository,
 } from '@/lib/auth/google-oauth';
@@ -29,10 +30,12 @@ interface GoogleOAuthCallbackDependencies {
   repository?: GoogleOAuthMembershipRepository;
 }
 
-function redirectWithError(request: NextRequest, error: string): NextResponse {
-  const url = request.nextUrl.clone();
-  url.pathname = '/login';
-  url.search = '';
+function redirectWithError(
+  request: NextRequest,
+  env: Record<string, string | undefined>,
+  error: string
+): NextResponse {
+  const url = new URL('/login', resolveGoogleOAuthAppOrigin(request.nextUrl.origin, env));
   url.searchParams.set('error', error);
   return NextResponse.redirect(url);
 }
@@ -44,12 +47,12 @@ export async function handleGoogleOAuthCallback(
   const env = deps.env ?? process.env;
   const flags = resolveSaaSFeatureFlags({ env, orgPlan: 'basic' });
   if (!flags.google_auth) {
-    return redirectWithError(request, 'google_auth_disabled');
+    return redirectWithError(request, env, 'google_auth_disabled');
   }
 
   const code = request.nextUrl.searchParams.get('code')?.trim();
   if (!code) {
-    return redirectWithError(request, 'google_auth_failed');
+    return redirectWithError(request, env, 'google_auth_failed');
   }
 
   try {
@@ -57,13 +60,13 @@ export async function handleGoogleOAuthCallback(
     const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
     if (exchangeError) {
       console.error('Google OAuth code exchange failed:', exchangeError.message);
-      return redirectWithError(request, 'google_auth_failed');
+      return redirectWithError(request, env, 'google_auth_failed');
     }
 
     const { data, error: userError } = await client.auth.getUser();
     if (userError || !data.user) {
       console.error('Google OAuth user lookup failed:', userError?.message || 'Missing user');
-      return redirectWithError(request, 'google_auth_failed');
+      return redirectWithError(request, env, 'google_auth_failed');
     }
 
     const repository = deps.repository ?? createGoogleOAuthMembershipRepository(
@@ -78,10 +81,12 @@ export async function handleGoogleOAuthCallback(
       env,
     });
 
-    return NextResponse.redirect(new URL(destination, request.nextUrl.origin));
+    return NextResponse.redirect(
+      new URL(destination, resolveGoogleOAuthAppOrigin(request.nextUrl.origin, env))
+    );
   } catch (error) {
     console.error('Google OAuth callback failed:', error);
-    return redirectWithError(request, 'google_auth_failed');
+    return redirectWithError(request, env, 'google_auth_failed');
   }
 }
 

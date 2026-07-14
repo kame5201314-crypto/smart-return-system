@@ -41,6 +41,32 @@ describe('Google OAuth routes', () => {
     });
   });
 
+  it('uses the configured app origin instead of the incoming host for OAuth redirects', async () => {
+    const signInWithOAuth = vi.fn().mockResolvedValue({
+      data: { url: 'https://accounts.google.com/o/oauth2/v2/auth?state=test' },
+      error: null,
+    });
+    await handleGoogleOAuthStart(
+      new NextRequest('https://untrusted-host.example/auth/google?next=%2Freturns'),
+      {
+        env: {
+          ENABLE_GOOGLE_AUTH: 'true',
+          NEXT_PUBLIC_APP_URL: 'https://smart-return-system-saas.vercel.app/app-path',
+        },
+        client: { auth: { signInWithOAuth } },
+      }
+    );
+
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo:
+          'https://smart-return-system-saas.vercel.app/auth/callback?next=%2Freturns&plan=basic',
+        scopes: 'openid email profile',
+      },
+    });
+  });
+
   it('drops unsafe next paths before starting OAuth', async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({
       data: { url: 'https://accounts.google.com/o/oauth2/v2/auth?state=test' },
@@ -110,6 +136,33 @@ describe('Google OAuth routes', () => {
 
     expect(response.headers.get('location')).toBe(
       'https://app.example.test/signup/complete?plan=growth'
+    );
+  });
+
+  it('uses the configured app origin after a successful callback', async () => {
+    const response = await handleGoogleOAuthCallback(
+      new NextRequest('https://untrusted-host.example/auth/callback?code=valid-code'),
+      {
+        env: {
+          ENABLE_GOOGLE_AUTH: 'true',
+          NEXT_PUBLIC_APP_URL: 'https://smart-return-system-saas.vercel.app',
+        },
+        client: {
+          auth: {
+            exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+            getUser: vi.fn().mockResolvedValue({
+              data: { user: { id: 'user-3', email: 'new-3@example.com' } },
+              error: null,
+            }),
+          },
+          from: vi.fn(),
+        },
+        repository: { listMemberships: vi.fn().mockResolvedValue([]) },
+      }
+    );
+
+    expect(response.headers.get('location')).toBe(
+      'https://smart-return-system-saas.vercel.app/signup/complete?plan=basic'
     );
   });
 

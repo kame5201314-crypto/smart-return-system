@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { normalizeGoogleOAuthNext, normalizeGoogleTrialPlan } from '@/lib/auth/google-oauth';
+import {
+  normalizeGoogleOAuthNext,
+  normalizeGoogleTrialPlan,
+  resolveGoogleOAuthAppOrigin,
+} from '@/lib/auth/google-oauth';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { createClient } from '@/lib/supabase/server';
 
@@ -24,10 +28,12 @@ interface GoogleOAuthStartDependencies {
   client?: GoogleOAuthClient;
 }
 
-function redirectWithError(request: NextRequest, error: string): NextResponse {
-  const url = request.nextUrl.clone();
-  url.pathname = '/login';
-  url.search = '';
+function redirectWithError(
+  request: NextRequest,
+  env: Record<string, string | undefined>,
+  error: string
+): NextResponse {
+  const url = new URL('/login', resolveGoogleOAuthAppOrigin(request.nextUrl.origin, env));
   url.searchParams.set('error', error);
   return NextResponse.redirect(url);
 }
@@ -39,10 +45,13 @@ export async function handleGoogleOAuthStart(
   const env = deps.env ?? process.env;
   const flags = resolveSaaSFeatureFlags({ env, orgPlan: 'basic' });
   if (!flags.google_auth) {
-    return redirectWithError(request, 'google_auth_disabled');
+    return redirectWithError(request, env, 'google_auth_disabled');
   }
 
-  const callbackUrl = new URL('/auth/callback', request.nextUrl.origin);
+  const callbackUrl = new URL(
+    '/auth/callback',
+    resolveGoogleOAuthAppOrigin(request.nextUrl.origin, env)
+  );
   const requestedPath = normalizeGoogleOAuthNext(request.nextUrl.searchParams.get('next'));
   if (requestedPath) {
     callbackUrl.searchParams.set('next', requestedPath);
@@ -64,13 +73,13 @@ export async function handleGoogleOAuthStart(
 
     if (error || !data.url) {
       console.error('Google OAuth start failed:', error?.message || 'Missing provider URL');
-      return redirectWithError(request, 'google_auth_failed');
+      return redirectWithError(request, env, 'google_auth_failed');
     }
 
     return NextResponse.redirect(data.url);
   } catch (error) {
     console.error('Google OAuth start failed:', error);
-    return redirectWithError(request, 'google_auth_failed');
+    return redirectWithError(request, env, 'google_auth_failed');
   }
 }
 
