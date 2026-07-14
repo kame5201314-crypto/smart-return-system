@@ -27,4 +27,36 @@ describe('Google self-service trial migration', () => {
     expect(source).toContain('org.google_self_service_trial_created');
     expect(source).toContain("p_plan NOT IN ('basic', 'growth')");
   });
+
+  it('uses a token-owned atomic reservation for the single trial AI analysis', () => {
+    expect(source).toContain('analysis_reserved_at TIMESTAMPTZ');
+    expect(source).toContain('analysis_reservation_token UUID');
+    expect(source).toContain('analysis_completed_at TIMESTAMPTZ');
+    expect(source).toContain(
+      'CREATE OR REPLACE FUNCTION public.reserve_google_self_service_trial_ai_analysis'
+    );
+    expect(source).toContain(
+      'CREATE OR REPLACE FUNCTION public.complete_google_self_service_trial_ai_analysis'
+    );
+    expect(source).toContain(
+      'CREATE OR REPLACE FUNCTION public.release_google_self_service_trial_ai_analysis'
+    );
+    expect(source).toContain("effective_at - INTERVAL '10 minutes'");
+    expect(source).toContain('claim.analysis_reservation_token = p_reservation_token');
+    expect(source).toContain("'reason', 'limit_reached'");
+    expect(source).toContain("'reason', 'in_progress'");
+  });
+
+  it('keeps every trial AI reservation RPC service-role only', () => {
+    for (const functionName of [
+      'reserve_google_self_service_trial_ai_analysis',
+      'complete_google_self_service_trial_ai_analysis',
+      'release_google_self_service_trial_ai_analysis',
+    ]) {
+      expect(source).toContain(`REVOKE ALL ON FUNCTION public.${functionName}`);
+      expect(source).toContain(`GRANT EXECUTE ON FUNCTION public.${functionName}`);
+    }
+    expect(source).not.toContain('TO authenticated');
+    expect(source).not.toContain('TO anon');
+  });
 });

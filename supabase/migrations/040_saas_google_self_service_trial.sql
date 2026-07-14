@@ -12,7 +12,15 @@ CREATE TABLE IF NOT EXISTS public.saas_self_service_trial_claims (
   terms_version TEXT NOT NULL,
   terms_accepted_at TIMESTAMPTZ NOT NULL,
   idempotency_key TEXT NOT NULL,
+  analysis_reserved_at TIMESTAMPTZ,
+  analysis_reservation_token UUID,
+  analysis_completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (analysis_reserved_at IS NULL AND analysis_reservation_token IS NULL)
+    OR (analysis_reserved_at IS NOT NULL AND analysis_reservation_token IS NOT NULL)
+  ),
+  CHECK (analysis_completed_at IS NULL OR analysis_reservation_token IS NOT NULL),
   UNIQUE (user_id),
   UNIQUE (normalized_email),
   UNIQUE (org_id),
@@ -294,3 +302,220 @@ COMMENT ON TABLE public.saas_self_service_trial_claims IS
   'One-time self-service trial claims. Service-role only; no public direct access.';
 COMMENT ON FUNCTION public.create_google_self_service_trial(UUID, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT) IS
   'Atomically creates one Google-authenticated SaaS trial workspace and records terms acceptance.';
+
+CREATE OR REPLACE FUNCTION public.reserve_google_self_service_trial_ai_analysis(
+  p_org_id UUID,
+  p_effective_at TIMESTAMPTZ DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  effective_at TIMESTAMPTZ := COALESCE(p_effective_at, NOW());
+  reservation_token UUID := gen_random_uuid();
+  claim_record public.saas_self_service_trial_claims%ROWTYPE;
+  subscription_record public.subscriptions%ROWTYPE;
+BEGIN
+  IF p_org_id IS NULL THEN
+    RAISE EXCEPTION 'org_id is required';
+  END IF;
+
+  UPDATE public.saas_self_service_trial_claims AS claim
+  SET
+    analysis_reserved_at = effective_at,
+    analysis_reservation_token = reservation_token
+  WHERE claim.org_id = p_org_id
+    AND claim.analysis_completed_at IS NULL
+    AND (
+      claim.analysis_reserved_at IS NULL
+      OR claim.analysis_reserved_at <= effective_at - INTERVAL '10 minutes'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM public.subscriptions AS subscription
+      WHERE subscription.org_id = p_org_id
+        AND subscription.status = 'trialing'
+        AND subscription.trial_end IS NOT NULL
+        AND subscription.trial_end > effective_at
+    )
+  RETURNING claim.* INTO claim_record;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'applies', true,
+      'allowed', true,
+      'claim_id', claim_record.id,
+      'reservation_token', claim_record.analysis_reservation_token,
+      'reserved_at', claim_record.analysis_reserved_at,
+      'completed_at', claim_record.analysis_completed_at,
+      'reason', 'reserved'
+    );
+  END IF;
+
+  SELECT *
+  INTO claim_record
+  FROM public.saas_self_service_trial_claims
+  WHERE org_id = p_org_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'applies', false,
+      'allowed', true,
+      'org_id', p_org_id,
+      'reason', 'not_self_service_trial'
+    );
+  END IF;
+
+  IF claim_record.analysis_completed_at IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'applies', true,
+      'allowed', false,
+      'claim_id', claim_record.id,
+      'completed_at', claim_record.analysis_completed_at,
+      'reason', 'limit_reached'
+    );
+  END IF;
+
+  SELECT *
+  INTO subscription_record
+  FROM public.subscriptions
+  WHERE org_id = p_org_id;
+
+  IF NOT FOUND
+     OR subscription_record.status <> 'trialing'
+     OR subscription_record.trial_end IS NULL
+     OR subscription_record.trial_end <= effective_at THEN
+    RETURN jsonb_build_object(
+      'applies', true,
+      'allowed', false,
+      'claim_id', claim_record.id,
+      'trial_end', subscription_record.trial_end,
+      'reason', 'trial_inactive'
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'applies', true,
+    'allowed', false,
+    'claim_id', claim_record.id,
+    'reserved_at', claim_record.analysis_reserved_at,
+    'reason', 'in_progress'
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.complete_google_self_service_trial_ai_analysis(
+  p_org_id UUID,
+  p_reservation_token UUID,
+  p_effective_at TIMESTAMPTZ DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  effective_at TIMESTAMPTZ := COALESCE(p_effective_at, NOW());
+  claim_record public.saas_self_service_trial_claims%ROWTYPE;
+BEGIN
+  IF p_org_id IS NULL OR p_reservation_token IS NULL THEN
+    RAISE EXCEPTION 'org_id and reservation_token are required';
+  END IF;
+
+  UPDATE public.saas_self_service_trial_claims AS claim
+  SET analysis_completed_at = effective_at
+  WHERE claim.org_id = p_org_id
+    AND claim.analysis_reservation_token = p_reservation_token
+    AND claim.analysis_completed_at IS NULL
+  RETURNING claim.* INTO claim_record;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'completed', true,
+      'reused', false,
+      'claim_id', claim_record.id,
+      'completed_at', claim_record.analysis_completed_at
+    );
+  END IF;
+
+  SELECT *
+  INTO claim_record
+  FROM public.saas_self_service_trial_claims
+  WHERE org_id = p_org_id;
+
+  IF FOUND
+     AND claim_record.analysis_reservation_token = p_reservation_token
+     AND claim_record.analysis_completed_at IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'completed', true,
+      'reused', true,
+      'claim_id', claim_record.id,
+      'completed_at', claim_record.analysis_completed_at
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'completed', false,
+    'reused', false,
+    'org_id', p_org_id,
+    'reason', 'reservation_not_owned'
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.release_google_self_service_trial_ai_analysis(
+  p_org_id UUID,
+  p_reservation_token UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  claim_record public.saas_self_service_trial_claims%ROWTYPE;
+BEGIN
+  IF p_org_id IS NULL OR p_reservation_token IS NULL THEN
+    RAISE EXCEPTION 'org_id and reservation_token are required';
+  END IF;
+
+  UPDATE public.saas_self_service_trial_claims AS claim
+  SET
+    analysis_reserved_at = NULL,
+    analysis_reservation_token = NULL
+  WHERE claim.org_id = p_org_id
+    AND claim.analysis_reservation_token = p_reservation_token
+    AND claim.analysis_completed_at IS NULL
+  RETURNING claim.* INTO claim_record;
+
+  RETURN jsonb_build_object(
+    'released', FOUND,
+    'claim_id', CASE WHEN FOUND THEN claim_record.id ELSE NULL END,
+    'org_id', p_org_id
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reserve_google_self_service_trial_ai_analysis(UUID, TIMESTAMPTZ)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reserve_google_self_service_trial_ai_analysis(UUID, TIMESTAMPTZ)
+  TO service_role;
+
+REVOKE ALL ON FUNCTION public.complete_google_self_service_trial_ai_analysis(UUID, UUID, TIMESTAMPTZ)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.complete_google_self_service_trial_ai_analysis(UUID, UUID, TIMESTAMPTZ)
+  TO service_role;
+
+REVOKE ALL ON FUNCTION public.release_google_self_service_trial_ai_analysis(UUID, UUID)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.release_google_self_service_trial_ai_analysis(UUID, UUID)
+  TO service_role;
+
+COMMENT ON FUNCTION public.reserve_google_self_service_trial_ai_analysis(UUID, TIMESTAMPTZ) IS
+  'Atomically reserves the single real AI analysis allowed during a Google self-service trial.';
+COMMENT ON FUNCTION public.complete_google_self_service_trial_ai_analysis(UUID, UUID, TIMESTAMPTZ) IS
+  'Completes a Google self-service trial AI reservation only for its current owner token.';
+COMMENT ON FUNCTION public.release_google_self_service_trial_ai_analysis(UUID, UUID) IS
+  'Releases a failed Google self-service trial AI reservation only for its current owner token.';
