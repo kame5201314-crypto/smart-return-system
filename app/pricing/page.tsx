@@ -137,7 +137,7 @@ export default function PricingPage() {
                 <p className="mt-2 text-sm text-neutral-500">{copy.bestFor}</p>
 
                 <Button asChild className="mt-6 w-full" variant={copy.featured ? 'default' : 'outline'}>
-                  <Link href={code === 'enterprise' ? '/contact' : '/signup'}>
+                  <Link href={code === 'enterprise' ? '/contact?plan=enterprise' : `/signup?plan=${code}`}>
                     {copy.cta}
                     <ArrowRight className="size-4" />
                   </Link>
@@ -280,13 +280,13 @@ export default function PricingPage() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild className="bg-white text-neutral-950 hover:bg-neutral-100">
-              <Link href="/signup">
+              <Link href="/signup?plan=growth">
                 申請 14 天免費試用
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button asChild variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white">
-              <Link href="/contact">預約導入</Link>
+              <Link href="/contact?plan=enterprise">預約導入</Link>
             </Button>
           </div>
         </div>

@@ -13,6 +13,8 @@ import {
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Badge } from '@/components/ui/badge';
+import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
+import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 
 export const metadata: Metadata = {
@@ -51,8 +53,19 @@ const reassurances = [
   [Sparkles, 'Beta 限 5 家免費導入', '前 5 家品牌享免費協助匯入第一批退貨資料，現在還有名額。'],
 ] as const;
 
-export default function SignupPage() {
+interface SignupPageProps {
+  searchParams?: Promise<{ plan?: string | string[] }>;
+}
+
+function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode {
+  const plan = Array.isArray(value) ? value[0] : value;
+  return plan === 'growth' || plan === 'enterprise' ? plan : 'basic';
+}
+
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const params = await searchParams;
   const signupState = resolveSaaSPublicSignupState();
+  const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
   const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
 
@@ -81,6 +94,8 @@ export default function SignupPage() {
               <LeadCaptureForm
                 variant="signup"
                 contactEmail={contactEmail}
+                initialPlan={resolveInitialPlan(params?.plan)}
+                leadCaptureEnabled={featureFlags.public_lead_capture}
                 lineOaId={lineOaId}
               />
             </div>

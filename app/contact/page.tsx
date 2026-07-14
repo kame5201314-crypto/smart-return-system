@@ -9,6 +9,8 @@ import {
 
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
+import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
+import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
   title: '預約 Demo / 聯絡我們 | Smart Return',
@@ -39,7 +41,18 @@ const contactReasons = [
   ],
 ] as const;
 
-export default function ContactPage() {
+interface ContactPageProps {
+  searchParams?: Promise<{ plan?: string | string[] }>;
+}
+
+function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode {
+  const plan = Array.isArray(value) ? value[0] : value;
+  return plan === 'basic' || plan === 'growth' ? plan : 'enterprise';
+}
+
+export default async function ContactPage({ searchParams }: ContactPageProps) {
+  const params = await searchParams;
+  const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
   const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
 
@@ -63,6 +76,8 @@ export default function ContactPage() {
               <LeadCaptureForm
                 variant="contact"
                 contactEmail={contactEmail}
+                initialPlan={resolveInitialPlan(params?.plan)}
+                leadCaptureEnabled={featureFlags.public_lead_capture}
                 lineOaId={lineOaId}
               />
             </div>

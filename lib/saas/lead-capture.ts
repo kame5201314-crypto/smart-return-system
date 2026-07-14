@@ -113,7 +113,7 @@ function normalizeEnum<T extends string>(
   fail(`${field} is invalid.`);
 }
 
-function normalizePlan(value: unknown): SaaSPlanCode {
+export function normalizeSaaSLeadRequestedPlan(value: unknown): SaaSPlanCode {
   return normalizeEnum(value, 'requestedPlan', ['basic', 'growth', 'enterprise'] as const, 'basic');
 }
 
@@ -168,7 +168,7 @@ export function normalizeSaaSPublicLead(value: unknown): SaaSPublicLeadInput {
     lineId,
     phone,
     preferredContactChannel,
-    requestedPlan: normalizePlan(value.requestedPlan),
+    requestedPlan: normalizeSaaSLeadRequestedPlan(value.requestedPlan),
     monthlyReturnBand: normalizeEnum(
       value.monthlyReturnBand,
       'monthlyReturnBand',

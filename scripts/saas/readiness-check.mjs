@@ -229,6 +229,8 @@ function checkCommercialFoundation() {
     'lib/saas/signup-request-repository.ts',
     'lib/saas/lead-capture.ts',
     'lib/saas/lead-capture-repository.ts',
+    'lib/saas/lead-attribution.ts',
+    'components/marketing/lead-capture-form.tsx',
     'app/api/saas/signup/route.ts',
     'app/api/saas/invite/accept/route.ts',
     'app/api/saas/leads/route.ts',
@@ -634,6 +636,35 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public lead API', 'lead-only API is independently gated, throttled, and persists without provisioning');
     } else {
       record('fail', 'SaaS public lead API', 'lead API must use an independent flag and persist leads without creating accounts or organizations');
+    }
+  }
+
+  const publicLeadFormPath = path.resolve(process.cwd(), 'components/marketing/lead-capture-form.tsx');
+  const pricingPagePath = path.resolve(process.cwd(), 'app/pricing/page.tsx');
+  const contactPagePath = path.resolve(process.cwd(), 'app/contact/page.tsx');
+  if (
+    fs.existsSync(publicLeadFormPath) &&
+    fs.existsSync(pricingPagePath) &&
+    fs.existsSync(signupPagePath) &&
+    fs.existsSync(contactPagePath)
+  ) {
+    const formSource = fs.readFileSync(publicLeadFormPath, 'utf8');
+    const pricingSource = fs.readFileSync(pricingPagePath, 'utf8');
+    const signupPageSource = fs.readFileSync(signupPagePath, 'utf8');
+    const contactPageSource = fs.readFileSync(contactPagePath, 'utf8');
+    if (
+      formSource.includes("fetch('/api/saas/leads'") &&
+      formSource.includes('leadCaptureEnabled') &&
+      formSource.includes('captureSaaSLeadAttribution') &&
+      formSource.includes('privacyConsent') &&
+      pricingSource.includes('/signup?plan=') &&
+      pricingSource.includes('/contact?plan=enterprise') &&
+      signupPageSource.includes('public_lead_capture') &&
+      contactPageSource.includes('public_lead_capture')
+    ) {
+      record('pass', 'SaaS public lead form', 'pricing plan, consent, contact channels, and attribution are wired behind the lead-only flag');
+    } else {
+      record('fail', 'SaaS public lead form', 'public lead form must preserve manual contact fallbacks and send plan/attribution only when enabled');
     }
   }
 
