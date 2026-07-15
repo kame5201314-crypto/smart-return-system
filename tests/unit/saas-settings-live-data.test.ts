@@ -136,6 +136,67 @@ describe('SaaS settings live data loaders', () => {
     });
   });
 
+  it('uses friendly Traditional Chinese copy when billing data is empty', async () => {
+    const result = await loadBillingSettingsView({
+      ...createBaseDeps(),
+      billingRepository: {
+        getOrganizationBilling: vi.fn(async () => null),
+        getSubscription: vi.fn(async () => null),
+        getLatestInvoice: vi.fn(async () => null),
+      },
+    });
+
+    expect(result).toMatchObject({
+      state: 'empty',
+      data: null,
+      message: '目前找不到帳務資料，請稍後再試；如需協助，請聯絡客服確認方案狀態。',
+      context: {
+        orgId: 'org-1',
+      },
+    });
+  });
+
+  it('does not expose billing repository errors to the settings page', async () => {
+    const result = await loadBillingSettingsView({
+      ...createBaseDeps(),
+      billingRepository: {
+        getOrganizationBilling: vi.fn(async () => {
+          throw new Error('relation subscriptions does not exist');
+        }),
+        getSubscription: vi.fn(async () => null),
+        getLatestInvoice: vi.fn(async () => null),
+      },
+    });
+
+    expect(result).toEqual({
+      state: 'error',
+      data: null,
+      message: '帳務資料暫時無法載入，請稍後再試；如持續發生，請聯絡客服。',
+    });
+    expect(JSON.stringify(result)).not.toContain('subscriptions');
+  });
+
+  it('localizes billing role guard copy', async () => {
+    const result = await loadBillingSettingsView({
+      getContext: vi.fn(async () => {
+        throw new SaaSOrgContextError(
+          'role_forbidden',
+          403,
+          'Owner or admin role is required.'
+        );
+      }),
+    });
+
+    expect(result).toEqual({
+      state: 'gated',
+      data: null,
+      gated: {
+        reason: 'role_required',
+        message: '需要商家擁有者或管理員權限才能查看帳務設定。',
+      },
+    });
+  });
+
   it('loads usage settings for the authenticated organization and month', async () => {
     const now = new Date('2026-05-21T10:00:00.000Z');
     const usageRepository = {

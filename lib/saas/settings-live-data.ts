@@ -39,6 +39,17 @@ type SettingsQueryClient = SettingsBillingQueryClient &
   SettingsUsageQueryClient &
   SettingsTeamQueryClient;
 
+const BILLING_FEATURE_DISABLED_MESSAGE =
+  '線上帳務與自助付款目前尚未開放。如需升級方案、調整付款資訊或取消續訂，請聯絡客服，由專人協助處理。';
+const BILLING_ROLE_REQUIRED_MESSAGE =
+  '需要商家擁有者或管理員權限才能查看帳務設定。';
+const BILLING_REQUIRED_MESSAGE =
+  '目前訂閱狀態無法使用帳務設定，請聯絡客服協助確認。';
+const BILLING_EMPTY_MESSAGE =
+  '目前找不到帳務資料，請稍後再試；如需協助，請聯絡客服確認方案狀態。';
+const BILLING_LOAD_ERROR_MESSAGE =
+  '帳務資料暫時無法載入，請稍後再試；如持續發生，請聯絡客服。';
+
 export interface SettingsLiveDataContext {
   orgId: string;
   role: SaaSOrgContext['role'];
@@ -161,6 +172,53 @@ function mapLiveDataError(error: unknown, fallbackMessage: string): SettingsLive
   };
 }
 
+function mapBillingContextError(
+  error: SaaSOrgContextError
+): SettingsLiveDataResult<never> {
+  if (error.code === 'feature_forbidden') {
+    return {
+      state: 'gated',
+      data: null,
+      gated: {
+        reason: 'feature_disabled',
+        message: BILLING_FEATURE_DISABLED_MESSAGE,
+      },
+    };
+  }
+
+  if (
+    error.code === 'role_forbidden' ||
+    error.code === 'membership_required' ||
+    error.code === 'unauthenticated'
+  ) {
+    return {
+      state: 'gated',
+      data: null,
+      gated: {
+        reason: 'role_required',
+        message: BILLING_ROLE_REQUIRED_MESSAGE,
+      },
+    };
+  }
+
+  if (error.code === 'subscription_inactive') {
+    return {
+      state: 'gated',
+      data: null,
+      gated: {
+        reason: 'billing_required',
+        message: BILLING_REQUIRED_MESSAGE,
+      },
+    };
+  }
+
+  return {
+    state: 'error',
+    data: null,
+    message: BILLING_LOAD_ERROR_MESSAGE,
+  };
+}
+
 function buildTeamActions(context: SaaSOrgContext): TeamSettingsView['actions'] {
   const isManager = context.role === 'owner' || context.role === 'admin';
   const canWrite = canWriteSaaSOrgData(context);
@@ -213,7 +271,7 @@ export async function loadBillingSettingsView(
       return {
         state: 'empty',
         data: null,
-        message: 'No billing settings were found for this organization.',
+        message: BILLING_EMPTY_MESSAGE,
         context: liveContext,
       };
     }
@@ -224,19 +282,15 @@ export async function loadBillingSettingsView(
       context: liveContext,
     };
   } catch (error) {
-    if (error instanceof SaaSOrgContextError && error.code === 'feature_forbidden') {
-      return {
-        state: 'gated',
-        data: null,
-        gated: {
-          reason: 'feature_disabled',
-          message:
-            '線上帳務與自助付款目前尚未開放。如需升級方案、調整付款資訊或取消續訂，請聯絡客服，由專人協助處理。',
-        },
-      };
+    if (error instanceof SaaSOrgContextError) {
+      return mapBillingContextError(error);
     }
 
-    return mapLiveDataError(error, 'Failed to load billing settings.');
+    return {
+      state: 'error',
+      data: null,
+      message: BILLING_LOAD_ERROR_MESSAGE,
+    };
   }
 }
 
