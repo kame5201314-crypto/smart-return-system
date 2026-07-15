@@ -130,7 +130,8 @@ describe('SaaS settings live data loaders', () => {
       data: null,
       gated: {
         reason: 'feature_disabled',
-        message: 'SaaS feature billing is not enabled for this org.',
+        message:
+          '線上帳務與自助付款目前尚未開放。如需升級方案、調整付款資訊或取消續訂，請聯絡客服，由專人協助處理。',
       },
     });
   });

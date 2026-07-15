@@ -293,12 +293,17 @@ export default async function BillingSettingsPage() {
         title="帳務與訂閱"
         description={`查看目前方案、訂閱狀態與電子發票資訊。${BETA_SUPPORT_NOTE}`}
         actions={
-          <Button asChild variant="outline">
-            <Link href="/pricing" target="_blank">
-              查看方案
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+          <>
+            <Button asChild>
+              <Link href="/contact">聯絡客服</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/pricing" target="_blank">
+                查看方案
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </>
         }
       />
 

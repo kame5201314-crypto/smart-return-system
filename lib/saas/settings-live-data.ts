@@ -224,6 +224,18 @@ export async function loadBillingSettingsView(
       context: liveContext,
     };
   } catch (error) {
+    if (error instanceof SaaSOrgContextError && error.code === 'feature_forbidden') {
+      return {
+        state: 'gated',
+        data: null,
+        gated: {
+          reason: 'feature_disabled',
+          message:
+            '線上帳務與自助付款目前尚未開放。如需升級方案、調整付款資訊或取消續訂，請聯絡客服，由專人協助處理。',
+        },
+      };
+    }
+
     return mapLiveDataError(error, 'Failed to load billing settings.');
   }
 }
