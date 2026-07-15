@@ -12,7 +12,11 @@ import { createClient } from '@/lib/supabase/server';
 async function loadWorkspaceAccessNotice(): Promise<WorkspaceAccessNotice | null> {
   try {
     const context = await getOrgContext();
-    if (context.orgStatus !== 'suspended') return null;
+    if (context.orgStatus !== 'suspended') {
+      return buildWorkspaceAccessNotice({
+        status: context.orgStatus,
+      });
+    }
 
     const client = await createClient();
     const { data } = await client

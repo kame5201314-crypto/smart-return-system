@@ -20,6 +20,22 @@ describe('workspace access notice', () => {
     });
   });
 
+  it('explains past-due readonly access and points merchants to support', () => {
+    expect(buildWorkspaceAccessNotice({ status: 'past_due' })).toEqual({
+      kind: 'past_due',
+      title: '帳務狀態待確認，工作區暫時唯讀',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請聯絡客服確認付款或續用方式。',
+    });
+  });
+
+  it('explains cancelled readonly access and offers reactivation guidance', () => {
+    expect(buildWorkspaceAccessNotice({ status: 'cancelled' })).toEqual({
+      kind: 'cancelled',
+      title: '訂閱已結束，工作區目前為唯讀',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請重新啟用方案或聯絡客服恢復使用。',
+    });
+  });
+
   it('does not show a restriction notice for active or trialing workspaces', () => {
     expect(buildWorkspaceAccessNotice({ status: 'active' })).toBeNull();
     expect(buildWorkspaceAccessNotice({ status: 'trialing' })).toBeNull();

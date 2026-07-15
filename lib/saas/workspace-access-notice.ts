@@ -1,7 +1,7 @@
 import type { SaaSSubscriptionStatus } from '@/lib/saas/subscription-access';
 
 export interface WorkspaceAccessNotice {
-  kind: 'trial_expired' | 'suspended';
+  kind: 'trial_expired' | 'past_due' | 'suspended' | 'cancelled';
   title: string;
   message: string;
 }
@@ -17,6 +17,22 @@ export function buildWorkspaceAccessNotice(input: {
   trialEnd?: string | null;
   now?: Date;
 }): WorkspaceAccessNotice | null {
+  if (input.status === 'past_due') {
+    return {
+      kind: 'past_due',
+      title: '帳務狀態待確認，工作區暫時唯讀',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請聯絡客服確認付款或續用方式。',
+    };
+  }
+
+  if (input.status === 'cancelled') {
+    return {
+      kind: 'cancelled',
+      title: '訂閱已結束，工作區目前為唯讀',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請重新啟用方案或聯絡客服恢復使用。',
+    };
+  }
+
   if (input.status !== 'suspended') return null;
   if (isReached(input.trialEnd, input.now ?? new Date())) {
     return {
