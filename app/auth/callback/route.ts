@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import {
   createGoogleOAuthMembershipRepository,
+  normalizeGoogleOAuthNext,
+  normalizeGoogleTrialPlan,
   resolveGoogleOAuthAppOrigin,
   resolveGoogleOAuthDestination,
   type GoogleOAuthMembershipRepository,
@@ -37,6 +39,17 @@ function redirectWithError(
 ): NextResponse {
   const url = new URL('/login', resolveGoogleOAuthAppOrigin(request.nextUrl.origin, env));
   url.searchParams.set('error', error);
+
+  const requestedPath = normalizeGoogleOAuthNext(request.nextUrl.searchParams.get('next'));
+  if (requestedPath) {
+    url.searchParams.set('next', requestedPath);
+  }
+
+  const requestedPlan = request.nextUrl.searchParams.get('plan');
+  if (requestedPlan) {
+    url.searchParams.set('plan', normalizeGoogleTrialPlan(requestedPlan));
+  }
+
   return NextResponse.redirect(url);
 }
 
@@ -52,7 +65,7 @@ export async function handleGoogleOAuthCallback(
 
   const code = request.nextUrl.searchParams.get('code')?.trim();
   if (!code) {
-    return redirectWithError(request, env, 'google_auth_failed');
+    return redirectWithError(request, env, 'google_auth_expired');
   }
 
   try {
@@ -60,7 +73,7 @@ export async function handleGoogleOAuthCallback(
     const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
     if (exchangeError) {
       console.error('Google OAuth code exchange failed:', exchangeError.message);
-      return redirectWithError(request, env, 'google_auth_failed');
+      return redirectWithError(request, env, 'google_auth_expired');
     }
 
     const { data, error: userError } = await client.auth.getUser();

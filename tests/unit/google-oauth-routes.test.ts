@@ -247,10 +247,12 @@ describe('Google OAuth routes', () => {
 
   it('fails closed for missing or already-consumed callback codes', async () => {
     const missingCode = await handleGoogleOAuthCallback(
-      request('/auth/callback'),
+      request('/auth/callback?next=%2Freturns&plan=growth'),
       { env: { ENABLE_GOOGLE_AUTH: 'true' } }
     );
-    expect(missingCode.headers.get('location')).toContain('error=google_auth_failed');
+    expect(missingCode.headers.get('location')).toBe(
+      'https://app.example.test/login?error=google_auth_expired&next=%2Freturns&plan=growth'
+    );
 
     const consumedCode = await handleGoogleOAuthCallback(
       request('/auth/callback?code=used-code'),
@@ -267,6 +269,6 @@ describe('Google OAuth routes', () => {
         },
       }
     );
-    expect(consumedCode.headers.get('location')).toContain('error=google_auth_failed');
+    expect(consumedCode.headers.get('location')).toContain('error=google_auth_expired');
   });
 });

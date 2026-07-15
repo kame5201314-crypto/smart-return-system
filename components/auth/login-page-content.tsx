@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import {
+  AlertCircle,
   ArrowLeft,
   Eye,
   EyeOff,
@@ -43,6 +44,7 @@ function isPlatformAdminNext(value: string | null): boolean {
 
 function getGoogleErrorMessage(value: string | null): string | null {
   if (value === 'google_auth_disabled') return 'Google 登入目前尚未開放。';
+  if (value === 'google_auth_expired') return '登入流程已失效，請重新使用 Google 登入';
   if (value === 'google_auth_failed') return 'Google 登入失敗，請重新嘗試。';
   return null;
 }
@@ -51,16 +53,22 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
+  const planParam = searchParams.get('plan');
   const isPlatformAdminLogin = isPlatformAdminNext(nextParam);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const googleError = getGoogleErrorMessage(searchParams.get('error'));
+  const googleErrorCode = searchParams.get('error');
+  const googleError = getGoogleErrorMessage(googleErrorCode);
+  const googleAuthExpired = googleErrorCode === 'google_auth_expired';
 
   const googleHref = useMemo(() => {
     const params = new URLSearchParams();
     params.set('next', nextParam && !isPlatformAdminLogin ? nextParam : '/analytics');
+    if (planParam === 'basic' || planParam === 'growth') {
+      params.set('plan', planParam);
+    }
     return `/auth/google?${params.toString()}`;
-  }, [isPlatformAdminLogin, nextParam]);
+  }, [isPlatformAdminLogin, nextParam, planParam]);
 
   useEffect(() => {
     if (googleError) toast.error(googleError);
@@ -133,6 +141,25 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {googleError ? (
+              <div
+                role="alert"
+                className="mb-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{googleError}</p>
+                    {googleAuthExpired && googleAuthEnabled && !isPlatformAdminLogin ? (
+                      <Button asChild size="sm" variant="outline" className="mt-3 bg-white">
+                        <Link href={googleHref}>重新使用 Google 登入</Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {!isPlatformAdminLogin && googleAuthEnabled && (
               <>
                 <Button asChild variant="outline" className="w-full">
