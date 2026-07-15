@@ -8,58 +8,41 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 
 For the Google login and self-service trial rollout, use
 [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md).
-Google Cloud/Supabase provider setup and migrations `040`/`041` are complete.
-The remaining callback-origin fix, migration `042`, new-HEAD deployment, rollout
-flags, and disposable-account QA remain separate owner-authorized actions.
+The Google Production rollout is complete according to the current owner
+handoff. It is no longer an outstanding owner-action blocker.
 
-## 2026-07-15 Google Rollout Follow-up Authorization Required
+## 2026-07-15 Google Production Rollout Completed
 
-The Google Cloud OAuth client, SaaS Supabase Google provider, migrations `040`
-and `041`, and deployment of exact HEAD `d6250b3` are complete. Public route and
-3-day marker smoke passed, but authenticated/lifecycle smoke found two blockers.
-The three Google rollout flags were therefore reset to `false` and Production
-was redeployed fail-closed.
-
-Do not re-enable self-service trial until the owner separately authorizes all
-three actions below:
-
-1. Change Vercel Production `NEXT_PUBLIC_APP_URL` to
-   `https://smart-return-system-saas.vercel.app` and redeploy. The current value
-   is the different Vercel project alias
-   `https://smart-return-system-saas-kaweis-projects.vercel.app`; because that
-   callback is not the approved public callback, the OAuth code returns to `/`
-   rather than `/auth/callback`.
-2. Apply only `042_saas_scope_trial_expiry_to_self_service.sql` to SaaS project
-   `auyznbwtjvemyamujmgt`. This prevents the expiry cron from suspending manual
-   Beta organizations that have no self-service trial claim.
-3. Push/deploy the resulting new `develop-saas` HEAD, then repeat the disposable
-   Google identity, 3-day trial, concurrent `0/1` AI, and expired-to-read-only
-   smoke matrix before setting all three rollout flags to `true`.
-
-Current safe Production state:
-
-- Runtime: `d6250b3`
-- Deployment: `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz` (Ready)
-- `ENABLE_GOOGLE_AUTH=false`
-- `ENABLE_GOOGLE_TRIAL_SIGNUP=false`
-- `ENABLE_TRIAL_EXPIRY_CRON=false`
-- migrations `040` and `041` applied; draft `042` unapplied
+- Production URL: `https://smart-return-system-saas.vercel.app`
+- Google Cloud/Supabase provider setup is complete.
+- Migrations `040`, `041`, `042`, and `043` are already applied only to SaaS
+  project `auyznbwtjvemyamujmgt`; do not apply them again.
+- `ENABLE_GOOGLE_AUTH=true`
+- `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
+- `ENABLE_TRIAL_EXPIRY_CRON=true`
+- Existing-merchant login, automatic 3-day trial creation, single-use trial AI,
+  scoped expiry, and post-expiry read-only behavior are complete.
+- `ENABLE_BILLING=false` remains intentional, and no Email provider is enabled.
+  Billing and Email remain separate owner-action queues.
+- The earlier fail-closed callback-origin and expiry-scope notes later in this
+  file are retained as historical incident records, not current blockers.
 
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Current production runs `f009621 fix(saas): sign return image storage URLs`,
+- Current owner-confirmed Production URL is
+  `https://smart-return-system-saas.vercel.app`; this local-only update did not
+  re-query the exact deployed commit or deployment ID.
+- Historical signed-image rollout baseline ran
+  `f009621 fix(saas): sign return image storage URLs`,
   which includes the post-`796a02a` Shopee workspace-error localization, SEO
   infrastructure, public access for `robots.txt`, `sitemap.xml`, and
   `opengraph-image`, the 499/699 pricing contract, the multi-channel honesty
   copy, platform tenant suspend/resume controls, `/internal` non-admin redirect
   hardening, tenant list operations UI, and signed return-image storage URL
   handling.
-- Production URL: `https://smart-return-system-saas.vercel.app`
-- Production deployment: `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v`
-- Production status: Ready
-- Latest deployed runtime commit:
-  `f009621 fix(saas): sign return image storage URLs`
+- Historical signed-image deployment:
+  `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v` (Ready)
 - Owner-authorized production smoke on 2026-07-14 passed 16/16 and confirms
   `/pricing` still shows 499/699 markers. Checked response no longer exposes
   old `1,490` / `2,990` pricing markers.
@@ -71,6 +54,9 @@ Current safe Production state:
 - Manual Beta posture:
   - `ENABLE_PUBLIC_SIGNUP=false`
   - `ENABLE_BILLING=false`
+  - `ENABLE_GOOGLE_AUTH=true`
+  - `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
+  - `ENABLE_TRIAL_EXPIRY_CRON=true`
   - email delivery remains dry-run; a disabled-by-default Resend adapter
     skeleton exists, but no provider env or enablement flag is configured
   - owner deferred custom domain purchase/setup and chose to use
@@ -83,6 +69,8 @@ Current safe Production state:
   - migration `035_saas_onboarding_completion_rpc.sql` is applied
   - migration `037_saas_team_invite_status.sql` is applied
   - migration `038_saas_org_member_visibility.sql` is applied
+  - migrations `040`, `041`, `042`, and `043` are applied only to SaaS project
+    `auyznbwtjvemyamujmgt` and must not be applied again
   - draft migrations `034` and `036` remain unapplied
   - production env-name inspection found `ENABLE_MULTI_TENANT_ADMIN`,
     `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not

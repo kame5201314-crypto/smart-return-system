@@ -24,9 +24,10 @@
   (`be1569d`).
 - No migration, env/secret, Google/Supabase provider, deployment, billing,
   email provider, or master/live/internal Supabase change was made.
-- Next owner-blocked step remains the rollout sequence in
+- At this historical handoff, the next step was the rollout sequence in
   `docs/SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`, including disposable concurrent
-  reservation and expiry QA before enabling Google self-service trial.
+  reservation and expiry QA before enabling Google self-service trial. The
+  later Production rollout resolution at the end of this log supersedes it.
 
 ## 2026-07-14 - Google OAuth / Self-Service Trial Handoff
 
@@ -38,10 +39,11 @@
   order and disposable QA matrix.
 - No Google Cloud/Supabase provider setting, migration, env/secret, deployment,
   billing, email provider, or master/live/internal Supabase change was made.
-- Next owner-blocked sequence: configure external Google/Supabase settings;
+- At this historical handoff, the remaining sequence was to configure external Google/Supabase settings;
   enable Phase 1 only and QA existing merchants; separately authorize `040`
   and `041`; run the full identity/lifecycle QA matrix; only then enable Google
-  trial and scoped expiry together.
+  trial and scoped expiry together. The later Production rollout resolution at
+  the end of this log records completion.
 
 
 ## 2026-07-14 Codex -> Owner / Claude
@@ -5902,10 +5904,11 @@ Remaining boundary:
 
 - No migration was applied, no OAuth provider was configured, no env or secret
   was changed, and no deployment was performed.
-- Production activation remains owner-blocked on Google Cloud OAuth setup,
+- At that historical handoff, Production activation still required Google Cloud OAuth setup,
   SaaS Supabase Google provider configuration, explicit migrations `040` and
   `041` authorization, Production flags/deploy authorization, and disposable
-  QA accounts for the identity and lifecycle matrix.
+  QA accounts for the identity and lifecycle matrix. Those Google rollout items
+  are now complete per the resolution recorded at the end of this log.
 
 ## 2026-07-15 Codex -> Owner / Claude / Codex
 
@@ -5958,3 +5961,20 @@ Owner follow-up authorization required before resuming:
 
 No billing/email provider, domain/DNS, master/live/internal Supabase, automatic
 cancel, or data deletion action was performed.
+
+## 2026-07-15 Google Production Rollout Resolution
+
+The current owner handoff supersedes the fail-closed snapshot above:
+
+- Google Production rollout is complete at
+  `https://smart-return-system-saas.vercel.app`.
+- Migrations `040`, `041`, `042`, and `043` are already applied only to SaaS
+  project `auyznbwtjvemyamujmgt`; do not apply them again.
+- Production `ENABLE_GOOGLE_AUTH`, `ENABLE_GOOGLE_TRIAL_SIGNUP`, and
+  `ENABLE_TRIAL_EXPIRY_CRON` are enabled.
+- Existing-merchant Google login, eligible-user automatic 3-day trials,
+  single-use trial AI, scoped expiry, and post-expiry read-only behavior are
+  complete.
+- Billing remains `ENABLE_BILLING=false`; no Email provider is enabled.
+- This handoff only updates local tests and documentation. It does not push,
+  deploy, apply migrations, or change env/external settings.

@@ -1,6 +1,6 @@
 # SaaS Google 登入與自助試用啟用手冊
 
-狀態：外部基礎已設定，Production 目前 fail-closed，待修正後重新驗收
+狀態：Production rollout 已完成；Google 登入、自助試用與到期排程均已啟用
 更新：2026-07-15
 
 這份手冊只定義安全啟用順序，不授權變更 Google Cloud、
@@ -18,10 +18,12 @@ Supabase、Vercel、migration、env 或 Production deployment。
 ## 程式已完成
 
 - Phase 1：Google OAuth PKCE start/callback、安全 `next` 路徑、商家/平台管理員分流。
-- Phase 2：`/signup/complete`、自助試用 API、migration `040` 專用 RPC 草稿。
-- Phase 3：scoped 到期 worker/cron、migration `041` RPC 草稿、暫停後唯讀提示。
-- Phase 3 防誤停：migration `042` 草稿要求組織存在 Google 自助試用
+- Phase 2：`/signup/complete`、自助試用 API、migration `040` 專用 RPC。
+- Phase 3：scoped 到期 worker/cron、migration `041` RPC、暫停後唯讀提示。
+- Phase 3 防誤停：migration `042` 要求組織存在 Google 自助試用
   claim，避免自動排程誤停人工開通的 Beta 租戶。
+- Quota read grant：migration `043` 僅允許 service role 讀取自助試用 AI
+  額度狀態，`anon` 與 `authenticated` 不可直接讀取。
 - Rollout gate：自助試用不得在 Google Auth 或到期排程關閉時啟用。
 - OAuth 導向來源：回呼與錯誤導向優先使用 `NEXT_PUBLIC_APP_URL`，不信任來訪 request host。
 - 試用開通限流：驗證身分後、呼叫 service-role RPC 前，以使用者為單位做每小時 20 次的 best-effort 限流。
@@ -92,6 +94,7 @@ ENABLE_TRIAL_EXPIRY_CRON=false
 1. `040_saas_google_self_service_trial.sql`
 2. `041_saas_scoped_trial_expiry.sql`
 3. `042_saas_scope_trial_expiry_to_self_service.sql`
+4. `043_saas_google_trial_claims_service_role_read.sql`
 
 套用後驗證：
 
@@ -104,7 +107,8 @@ ENABLE_TRIAL_EXPIRY_CRON=false
 - `suspend_expired_trial_organization(...)` 對沒有
   `saas_self_service_trial_claims` 的人工 Beta 組織回傳
   `not_self_service_trial` 且不改狀態。
-- migration history 依序記錄 `040`、`041` 與 `042`。
+- `saas_self_service_trial_claims` 直接讀取權限僅授予 service role。
+- migration history 依序記錄 `040`、`041`、`042` 與 `043`。
 - `npm run saas:migration-plan:strict` 與 `npm run saas:schema-gate:strict` 通過。
 
 ### 5. Disposable QA 驗收矩陣
@@ -148,11 +152,12 @@ Production 必須同時有有效 `CRON_SECRET`、Sentry DSN 與正確 app URL。
 npm run saas:predeploy
 ```
 
-目前 `040` 與 `041` 已套用；`042` 仍是未套用草稿。Google provider 已設定，
-但 2026-07-15 實測發現 `NEXT_PUBLIC_APP_URL` 與允許的公開 callback 網址不一致，且
-`041` 尚未排除人工 Beta 租戶。Production 三個 Google rollout flags 已回復
-`false`。在 `NEXT_PUBLIC_APP_URL`、`042` 與新 HEAD 部署分別取得授權並完成
-整套 disposable QA 前，旗標必須維持關閉。
+依 2026-07-15 owner handoff，Google Production rollout 已完成：SaaS project
+`auyznbwtjvemyamujmgt` 已依序套用 `040`、`041`、`042`、`043`，不可重複套用；
+Production `ENABLE_GOOGLE_AUTH`、`ENABLE_GOOGLE_TRIAL_SIGNUP` 與
+`ENABLE_TRIAL_EXPIRY_CRON` 均已啟用。Google 登入、3 天試用、單次 AI、
+到期排程與到期後唯讀均為目前正式流程。Billing 仍維持
+`ENABLE_BILLING=false`，Email provider 仍未啟用，兩者不屬於本次 Google rollout。
 
 ## 回滾順序
 

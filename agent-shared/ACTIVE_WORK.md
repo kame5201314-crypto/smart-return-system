@@ -2,25 +2,21 @@
 
 ## 2026-07-15 Google OAuth And Trial Rollout Activation Follow-up
 
-Status: blocked
+Status: done
 
 Scope: Safe completion of Google login, 3-day self-service trial, single-use AI,
 and self-service-only expiry.
 
-Notes: Google Cloud OAuth and SaaS Supabase provider setup are complete.
-Owner-authorized migrations `040` and `041` are applied only to
-`auyznbwtjvemyamujmgt`. Exact HEAD `d6250b3` passed predeploy, deployed Ready,
-and passed public/protected-route plus 3-day marker smoke. Authenticated OAuth
-then exposed that Production `NEXT_PUBLIC_APP_URL` uses a different Vercel
-project alias than the allowed public callback, returning the code to `/`
-instead of `/auth/callback`. Expiry inspection also found `041` can
-suspend manual Beta trials because it does not require a self-service claim.
-Production was returned fail-closed with all three Google rollout flags false;
-deployment `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz` is Ready. Draft migration `042`
-adds the missing claim gate and focused tests pass, but it is not applied.
-Continue only after separate owner authorization for the stable app URL,
-migration `042`, push/deploy of the new HEAD, and disposable full smoke. Billing,
-email, domain/DNS, and master/live/internal Supabase remain out of scope.
+Notes: Current owner handoff confirms the Google Production rollout is complete
+at `https://smart-return-system-saas.vercel.app`. Migrations `040`, `041`, `042`,
+and `043` are already applied only to SaaS project `auyznbwtjvemyamujmgt` and
+must not be applied again. Production `ENABLE_GOOGLE_AUTH`,
+`ENABLE_GOOGLE_TRIAL_SIGNUP`, and `ENABLE_TRIAL_EXPIRY_CRON` are enabled.
+Existing-merchant Google login, automatic 3-day trials, single-use trial AI,
+scoped expiry, and post-expiry read-only behavior are complete. Billing remains
+`ENABLE_BILLING=false`, and no Email provider is enabled; those separate queues
+remain unchanged. No migration, env, deployment, or external setting was changed
+by this local handoff update.
 
 
 Use this file to avoid Claude / Codex editing the same files at the same time.

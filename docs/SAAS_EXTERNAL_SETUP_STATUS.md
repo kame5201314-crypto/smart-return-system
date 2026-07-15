@@ -1,6 +1,26 @@
 # SaaS External Setup Status
 
-## 2026-07-15 Google Trial Production Activation Attempt
+## 2026-07-15 Google Production Rollout Completed
+
+- The owner handoff confirms the Google Production rollout is complete at
+  `https://smart-return-system-saas.vercel.app`.
+- Migrations `040`, `041`, `042`, and `043` are already applied only to SaaS
+  project `auyznbwtjvemyamujmgt`. Do not apply them again.
+- Production has `ENABLE_GOOGLE_AUTH=true`,
+  `ENABLE_GOOGLE_TRIAL_SIGNUP=true`, and
+  `ENABLE_TRIAL_EXPIRY_CRON=true`.
+- The completed flow includes existing-merchant Google login, automatic 3-day
+  trial provisioning for eligible Google users, a single successful real AI
+  analysis during the trial, scoped trial-expiry automation, and read-only
+  access after expiry.
+- Billing remains intentionally disabled with `ENABLE_BILLING=false`, and no
+  Email provider is enabled. Those items remain separate from the completed
+  Google rollout.
+- This current status supersedes the fail-closed activation-attempt record
+  below. This local documentation update did not re-query or change any
+  Production setting.
+
+## Historical: 2026-07-15 Google Trial Production Activation Attempt
 
 - Owner-authorized external setup completed only for SaaS project
   `auyznbwtjvemyamujmgt` and Vercel project `smart-return-system-saas`:
@@ -51,7 +71,7 @@
     and the used-quota upgrade path.
   - `be1569d` exposes Google self-service source, trial expiry, and token-free AI
     quota status in the commercial operations backend and UI.
-- All Google rollout flags remain disabled by default. No Google Cloud OAuth
+- At this historical repository-only milestone, all Google rollout flags remained disabled by default. No Google Cloud OAuth
   client, Supabase Google provider, migration `040`/`041`, Production env,
   or deployment change was made by these repository commits.
 - The current self-service contract is a 3-day trial with terms version
@@ -62,8 +82,9 @@
 - Activation must follow
   [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md),
   including same-email identity-linking QA and disposable-org lifecycle QA.
-- Migrations `040` and `041` are draft-only and require separate, explicit
-  owner authorization for SaaS project `auyznbwtjvemyamujmgt`.
+- At that milestone, migrations `040` and `041` were draft-only and required
+  separate owner authorization for SaaS project `auyznbwtjvemyamujmgt`; the
+  current status section above records that `040`–`043` are now applied.
 - No migration, Google/Supabase provider, Production env, deployment, billing,
   email provider, or master/live/internal Supabase change was made by the
   single-use trial AI commits.
@@ -91,8 +112,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `037_saas_team_invite_status.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `037` as applied. It adds `organization_invites.status` and refreshes invite accept/create RPCs for team invite revoke/resend flows.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - Migration `039_saas_public_lead_capture.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `039` as applied. It extends `signup_requests` for Basic/Growth/Enterprise leads, LINE/email/phone contact, monthly return bands, and operator follow-up timestamps.
-- Migrations `040_saas_google_self_service_trial.sql` and `041_saas_scoped_trial_expiry.sql` have been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records both versions as applied. Google provider setup is complete, but the rollout flags are disabled because OAuth callback and expiry-scope smoke found blockers.
-- Draft migration `042_saas_scope_trial_expiry_to_self_service.sql` exists to ensure the automated expiry RPC can suspend only organizations recorded in `saas_self_service_trial_claims`. It has not been applied and requires separate owner authorization.
+- Migrations `040_saas_google_self_service_trial.sql`, `041_saas_scoped_trial_expiry.sql`, `042_saas_scope_trial_expiry_to_self_service.sql`, and `043_saas_google_trial_claims_service_role_read.sql` have been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization. Do not apply them again. Google provider setup and the Production rollout are complete, with all three Google rollout flags enabled.
 - Vercel Production project `smart-return-system-saas` now has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`, active in Ready deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2`.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
@@ -114,8 +134,8 @@ for the controlled customer handoff and first-session walkthrough.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
-- `npm run saas:migration-plan:strict` passes and the local draft chain now ends
-  at `042_saas_scope_trial_expiry_to_self_service.sql`.
+- `npm run saas:migration-plan:strict` passes and the local migration chain now ends
+  at `043_saas_google_trial_claims_service_role_read.sql`.
 - `npm run saas:schema-gate:strict` passes after owner-authorized migrations `033`, `037`, `038`, and `039` apply.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
@@ -131,10 +151,9 @@ for the controlled customer handoff and first-session walkthrough.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- Latest deployed runtime source is `d6250b3 feat(saas): shorten self-service trial to three days`; Google self-service flags are currently fail-closed after smoke identified the callback-origin and expiry-scope blockers.
-- This post-deploy documentation update is expected to create a newer docs-only Git commit than the production runtime source.
+- The owner handoff confirms the current Production Google rollout is enabled at `https://smart-return-system-saas.vercel.app`; this local-only task did not re-inspect the exact Vercel deployment ID or deployed commit.
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Latest owner-authorized production deployment: runtime HEAD `d6250b3` -> Vercel deployment `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz` (Ready), aliased to `https://smart-return-system-saas.vercel.app`. SaaS-only Sentry DSN values are configured in Vercel Production env; Google Auth/trial/expiry flags are false pending the separately authorized fixes.
+- Current owner-confirmed Production URL is `https://smart-return-system-saas.vercel.app`. Google Auth, trial signup, and trial expiry are enabled; Billing and Email delivery remain disabled. Historical deployment IDs below are retained only as earlier rollout records.
 - Production includes the lead capture contract/API/form/operations queue and manual payment UI through `e7695e8`, plus all previously deployed 499/699, isolation, operator, and signed return-image changes.
 - A 2026-07-14 production smoke test after deployment passed 16/16 and confirms `/pricing` exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers. Additional non-persisting lead smoke confirmed `/signup?plan=growth` form markers, `POST /api/saas/leads` reached enabled validation with `400 invalid_request`, `/internal/leads` redirects unauthenticated users to platform login, and `signup_requests` remained empty. Deployment error-log scan returned no errors.
 - Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, `038`, and `039` are applied, and migrations `034` and `036` remain unapplied.
