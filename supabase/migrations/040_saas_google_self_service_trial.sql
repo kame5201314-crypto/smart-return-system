@@ -1,6 +1,6 @@
--- DRAFT: Google-authenticated SaaS self-service trial provisioning.
--- Not applied to any database.
--- Apply only to SaaS project auyznbwtjvemyamujmgt after explicit owner authorization.
+-- Google-authenticated SaaS self-service trial provisioning.
+-- Applied to SaaS project auyznbwtjvemyamujmgt on 2026-07-15 after explicit owner authorization.
+-- Do not reapply; preserve this file as the applied migration source.
 -- Do not apply to the master/live/internal Supabase project.
 
 CREATE TABLE IF NOT EXISTS public.saas_self_service_trial_claims (

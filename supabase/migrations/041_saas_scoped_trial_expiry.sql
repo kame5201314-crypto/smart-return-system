@@ -1,6 +1,6 @@
--- DRAFT: Scoped SaaS trial expiry suspension.
--- Not applied to any database.
--- Apply only to SaaS project auyznbwtjvemyamujmgt after explicit owner authorization.
+-- Scoped SaaS trial expiry suspension.
+-- Applied to SaaS project auyznbwtjvemyamujmgt on 2026-07-15 after explicit owner authorization.
+-- Do not reapply; migration 042 subsequently replaces this function with the self-service-only guard.
 -- Do not apply to the master/live/internal Supabase project.
 
 CREATE OR REPLACE FUNCTION public.suspend_expired_trial_organization(

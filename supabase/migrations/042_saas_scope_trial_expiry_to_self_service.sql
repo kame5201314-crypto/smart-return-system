@@ -1,6 +1,6 @@
--- DRAFT: Restrict automated trial expiry to Google self-service trial claims.
--- Not applied to any database.
--- Apply only to SaaS project auyznbwtjvemyamujmgt after explicit owner authorization.
+-- Restrict automated trial expiry to Google self-service trial claims.
+-- Applied to SaaS project auyznbwtjvemyamujmgt on 2026-07-15 after explicit owner authorization.
+-- Do not reapply; this is the active self-service-only expiry guard.
 -- Do not apply to the master/live/internal Supabase project.
 
 CREATE OR REPLACE FUNCTION public.suspend_expired_trial_organization(

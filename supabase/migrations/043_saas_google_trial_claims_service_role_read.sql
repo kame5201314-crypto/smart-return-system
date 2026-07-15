@@ -1,5 +1,6 @@
--- DRAFT: Allow the application service role to read Google trial quota state.
--- Apply only to SaaS project auyznbwtjvemyamujmgt after explicit owner authorization.
+-- Allow the application service role to read Google trial quota state.
+-- Applied to SaaS project auyznbwtjvemyamujmgt on 2026-07-15 after explicit owner authorization.
+-- Do not reapply; preserve this file as the applied migration source.
 -- Do not apply to the master/live/internal Supabase project.
 
 REVOKE ALL ON TABLE public.saas_self_service_trial_claims FROM anon, authenticated;
