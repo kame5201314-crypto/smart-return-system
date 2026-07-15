@@ -123,8 +123,16 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
     ['預估月營收', formatTwd(org.health.estimatedMrrTwd)],
   ] as const;
 
+  const provisioningSourceLabel = org.provisioningSource === 'google_self_service'
+    ? 'Google 自助試用'
+    : org.provisioningSource === 'email_otp_self_service'
+      ? '信箱驗證自助試用'
+      : org.provisioningSource === 'phone_otp_self_service'
+        ? '手機驗證自助試用'
+        : '人工開通';
+
   const billingRows = [
-    ['開通來源', org.provisioningSource === 'google_self_service' ? 'Google 自助試用' : '人工開通'],
+    ['開通來源', provisioningSourceLabel],
     ['試用到期日', org.trialEnd ? formatDate(org.trialEnd) : '—'],
     ['試用 AI', formatSelfServiceTrialAI(org.selfServiceTrialAI)],
     ['帳務 Email', org.billingEmail ?? '—'],

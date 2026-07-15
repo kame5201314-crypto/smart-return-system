@@ -12,6 +12,10 @@ import {
 } from '@/lib/auth/google-oauth';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 import { requireRouteAuth } from '@/lib/auth/route-auth';
+import {
+  resolveVerifiedSignupAvailability,
+  selectEnabledVerifiedSignupProvider,
+} from '@/lib/auth/verified-signup';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { createClient } from '@/lib/supabase/server';
 
@@ -36,6 +40,7 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
   }
 
   const client = await createClient();
+  const { data: currentAuth } = await client.auth.getUser();
   const repository = createGoogleOAuthMembershipRepository(
     client as unknown as Parameters<typeof createGoogleOAuthMembershipRepository>[0]
   );
@@ -46,7 +51,29 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
 
   const membershipDisabled = memberships.length > 0;
   const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
-  const selfServiceEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const verifiedSignup = resolveVerifiedSignupAvailability();
+  const currentUser = currentAuth.user;
+  const hasGoogleIdentity = Boolean(
+    currentUser?.identities?.some((identity) => identity.provider === 'google')
+  );
+  const hasEmailIdentity = Boolean(
+    currentUser?.identities?.some((identity) => identity.provider === 'email')
+  );
+  const hasPhoneIdentity = Boolean(
+    currentUser?.identities?.some((identity) => identity.provider === 'phone')
+  );
+  const selfServiceEnabled = Boolean(selectEnabledVerifiedSignupProvider({
+    signupChannel: currentUser?.user_metadata?.signup_channel,
+    hasGoogleIdentity,
+    hasEmailIdentity,
+    hasPhoneIdentity,
+    emailVerified: Boolean(currentUser?.email && currentUser.email_confirmed_at),
+    phoneVerified: Boolean(currentUser?.phone && currentUser.phone_confirmed_at),
+    googleEnabled: featureFlags.google_auth && featureFlags.google_trial_signup,
+    emailEnabled: verifiedSignup.emailEnabled,
+    phoneEnabled: verifiedSignup.phoneEnabled,
+  }));
+  const identityLabel = currentUser?.email || currentUser?.phone || '已驗證帳號';
   const planParam = Array.isArray(params?.plan) ? params?.plan[0] : params?.plan;
 
   return (
@@ -65,20 +92,20 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
               ? '這個商家工作區已停用'
               : selfServiceEnabled
                 ? '設定你的試用工作區'
-                : 'Google 登入完成'}
+                : '帳號驗證完成'}
           </CardTitle>
           <CardDescription className="leading-6">
             {membershipDisabled
               ? '你的帳號目前沒有可使用的商家工作區。請聯絡原商家管理員或 Smart Return 客服確認權限。'
               : selfServiceEnabled
                 ? '確認品牌名稱與方案後，即可建立 3 天免費試用。試用不需信用卡，也不會自動扣款。'
-                : '這個 Google 帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}
+                : '這個帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!membershipDisabled && selfServiceEnabled ? (
             <SelfServiceTrialForm
-              email={auth.userEmail || ''}
+              identityLabel={identityLabel}
               initialPlan={normalizeGoogleTrialPlan(planParam)}
             />
           ) : (

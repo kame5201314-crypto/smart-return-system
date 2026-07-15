@@ -221,8 +221,8 @@ function normalizeMember(row: unknown): TeamMemberManagementRecord | null {
 
   const id = stringOrNull(row.id);
   const orgId = stringOrNull(row.org_id);
-  const email = stringOrNull(row.email);
-  if (!id || !orgId || !email) {
+  const email = stringOrNull(row.email) ?? '已驗證手機帳號';
+  if (!id || !orgId) {
     return null;
   }
 

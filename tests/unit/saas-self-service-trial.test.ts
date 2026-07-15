@@ -12,7 +12,10 @@ import {
 const identity = {
   userId: '11111111-1111-4111-8111-111111111111',
   email: 'Owner@Example.com',
-  hasGoogleIdentity: true,
+  phone: null,
+  provider: 'google' as const,
+  emailVerified: true,
+  phoneVerified: false,
 };
 
 const payload = {
@@ -71,7 +74,7 @@ describe('SaaS Google self-service trial contract', () => {
       repository: { provision: vi.fn() },
     })).rejects.toMatchObject({ code: 'unauthenticated', status: 401 });
     await expect(provisionSelfServiceTrial(payload, {
-      identity: { ...identity, hasGoogleIdentity: false },
+      identity: { ...identity, emailVerified: false },
       env,
       repository: { provision: vi.fn() },
     })).rejects.toMatchObject({ code: 'google_identity_required', status: 403 });
@@ -97,8 +100,31 @@ describe('SaaS Google self-service trial contract', () => {
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
       ownerUserId: identity.userId,
       ownerEmail: 'owner@example.com',
+      ownerPhone: null,
+      identityProvider: 'google',
       termsAcceptedAt: '2026-07-14T12:00:00.000Z',
     });
+  });
+
+  it('ignores an unrelated international secondary phone on Google identities', async () => {
+    const repository = { provision: vi.fn().mockResolvedValue(result) };
+    await expect(provisionSelfServiceTrial(payload, {
+      identity: {
+        ...identity,
+        phone: '+14155552671',
+        phoneVerified: true,
+      },
+      env: {
+        ENABLE_GOOGLE_AUTH: 'true',
+        ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      },
+      repository,
+    })).resolves.toEqual(result);
+
+    expect(repository.provision).toHaveBeenCalledWith(expect.objectContaining({
+      identityProvider: 'google',
+      ownerPhone: null,
+    }));
   });
 
   it('uses a service-role-only RPC contract and normalizes the result', async () => {
@@ -119,6 +145,8 @@ describe('SaaS Google self-service trial contract', () => {
       ...normalizeSelfServiceTrialInput(payload),
       ownerUserId: identity.userId,
       ownerEmail: 'owner@example.com',
+      ownerPhone: null,
+      identityProvider: 'google' as const,
       termsAcceptedAt: '2026-07-14T12:00:00.000Z',
     };
 
@@ -127,5 +155,107 @@ describe('SaaS Google self-service trial contract', () => {
       'create_google_self_service_trial',
       buildSelfServiceTrialRpcArgs(input)
     );
+  });
+
+  it('provisions a verified email identity only when the guarded rollout is ready', async () => {
+    const repository = { provision: vi.fn().mockResolvedValue(result) };
+    const emailIdentity = {
+      ...identity,
+      provider: 'email_otp' as const,
+    };
+    const env = {
+      ENABLE_EMAIL_OTP_SIGNUP: 'true',
+      SAAS_AUTH_CAPTCHA_READY: 'true',
+      SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+      SAAS_EMAIL_OTP_PROVIDER_READY: 'true',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
+    };
+
+    await expect(provisionSelfServiceTrial(payload, {
+      identity: emailIdentity,
+      env: { ENABLE_EMAIL_OTP_SIGNUP: 'true' },
+      repository,
+    })).rejects.toMatchObject({ code: 'feature_disabled', status: 403 });
+    expect(repository.provision).not.toHaveBeenCalled();
+
+    await expect(provisionSelfServiceTrial(payload, {
+      identity: emailIdentity,
+      env,
+      repository,
+      now: new Date('2026-07-14T12:00:00.000Z'),
+    })).resolves.toEqual(result);
+    expect(repository.provision).toHaveBeenCalledWith(expect.objectContaining({
+      identityProvider: 'email_otp',
+      ownerEmail: 'owner@example.com',
+      ownerPhone: null,
+    }));
+  });
+
+  it('normalizes Taiwan phone-only owners and uses the verified identity RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        org_id: result.orgId,
+        subscription_id: result.subscriptionId,
+        owner_membership_id: result.ownerMembershipId,
+        audit_log_id: result.auditLogId,
+        claim_id: result.claimId,
+        trial_end: result.trialEnd,
+        reused: false,
+      },
+      error: null,
+    });
+    const repository = createSelfServiceTrialRepository({ rpc });
+    const phoneIdentity = {
+      userId: identity.userId,
+      provider: 'phone_otp' as const,
+      email: 'pending@example.com',
+      phone: '0912-345-678',
+      emailVerified: false,
+      phoneVerified: true,
+    };
+    const actual = await provisionSelfServiceTrial(payload, {
+      identity: phoneIdentity,
+      env: {
+        ENABLE_PHONE_OTP_SIGNUP: 'true',
+        SAAS_AUTH_CAPTCHA_READY: 'true',
+        SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+        SAAS_PHONE_OTP_PROVIDER_READY: 'true',
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
+      },
+      repository,
+      now: new Date('2026-07-14T12:00:00.000Z'),
+    });
+
+    expect(actual).toEqual(result);
+    expect(rpc).toHaveBeenCalledWith(
+      'create_verified_identity_self_service_trial',
+      expect.objectContaining({
+        p_identity_provider: 'phone_otp',
+        p_owner_email: null,
+        p_owner_phone: '+886912345678',
+      })
+    );
+  });
+
+  it('does not expose raw database errors to the public trial route', async () => {
+    const repository = createSelfServiceTrialRepository({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'secret database topology detail' },
+      }),
+    });
+    const input = {
+      ...normalizeSelfServiceTrialInput(payload),
+      ownerUserId: identity.userId,
+      ownerEmail: 'owner@example.com',
+      ownerPhone: null,
+      identityProvider: 'google' as const,
+      termsAcceptedAt: '2026-07-14T12:00:00.000Z',
+    };
+
+    await expect(repository.provision(input)).rejects.toMatchObject({
+      code: 'provision_failed',
+      message: 'Failed to provision self-service trial.',
+    });
   });
 });

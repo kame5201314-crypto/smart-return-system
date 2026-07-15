@@ -190,6 +190,8 @@ function checkAppUrlAndObservability() {
     parseBool(process.env.ENABLE_PUBLIC_LEAD_CAPTURE) ||
     parseBool(process.env.ENABLE_GOOGLE_AUTH) ||
     parseBool(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP) ||
+    parseBool(process.env.ENABLE_EMAIL_OTP_SIGNUP) ||
+    parseBool(process.env.ENABLE_PHONE_OTP_SIGNUP) ||
     parseBool(process.env.ENABLE_BILLING) ||
     parseBool(process.env.ENABLE_SUBSCRIPTION_PLAN)
   ) {
@@ -230,6 +232,8 @@ function checkControlledRolloutFlags() {
   const publicLeadCapture = normalizeEnvValue(process.env.ENABLE_PUBLIC_LEAD_CAPTURE).toLowerCase();
   const googleAuth = normalizeEnvValue(process.env.ENABLE_GOOGLE_AUTH).toLowerCase();
   const googleTrialSignup = normalizeEnvValue(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP).toLowerCase();
+  const emailOtpSignup = normalizeEnvValue(process.env.ENABLE_EMAIL_OTP_SIGNUP).toLowerCase();
+  const phoneOtpSignup = normalizeEnvValue(process.env.ENABLE_PHONE_OTP_SIGNUP).toLowerCase();
   const trialExpiryCron = normalizeEnvValue(process.env.ENABLE_TRIAL_EXPIRY_CRON).toLowerCase();
   const multiTenantAdmin = normalizeEnvValue(process.env.ENABLE_MULTI_TENANT_ADMIN).toLowerCase();
   const subscriptionPlan = normalizeEnvValue(process.env.ENABLE_SUBSCRIPTION_PLAN).toLowerCase();
@@ -239,6 +243,8 @@ function checkControlledRolloutFlags() {
   record('pass', 'ENABLE_PUBLIC_LEAD_CAPTURE', publicLeadCapture === 'true' ? 'enabled intentionally' : 'closed for controlled rollout');
   record('pass', 'ENABLE_GOOGLE_AUTH', googleAuth === 'true' ? 'enabled intentionally' : 'closed until Google provider rollout');
   record('pass', 'ENABLE_GOOGLE_TRIAL_SIGNUP', googleTrialSignup === 'true' ? 'enabled intentionally' : 'closed until self-service trial rollout');
+  record('pass', 'ENABLE_EMAIL_OTP_SIGNUP', emailOtpSignup === 'true' ? 'enabled intentionally' : 'closed until verified email rollout');
+  record('pass', 'ENABLE_PHONE_OTP_SIGNUP', phoneOtpSignup === 'true' ? 'enabled intentionally' : 'closed until verified SMS rollout');
   record('pass', 'ENABLE_TRIAL_EXPIRY_CRON', trialExpiryCron === 'true' ? 'enabled intentionally' : 'closed until scoped lifecycle rollout');
   record('pass', 'ENABLE_MULTI_TENANT_ADMIN', multiTenantAdmin === 'true' ? 'enabled intentionally' : 'closed until platform admin rollout');
   record('pass', 'ENABLE_SUBSCRIPTION_PLAN', subscriptionPlan === 'true' ? 'enabled intentionally' : 'closed until billing rollout');
@@ -282,6 +288,47 @@ function checkGoogleTrialReadiness() {
     );
   } else {
     record('pass', 'Google rollout', 'Google login and self-service trial remain closed');
+  }
+}
+
+function checkVerifiedSignupReadiness() {
+  const emailEnabled = parseBool(process.env.ENABLE_EMAIL_OTP_SIGNUP);
+  const phoneEnabled = parseBool(process.env.ENABLE_PHONE_OTP_SIGNUP);
+  if (!emailEnabled && !phoneEnabled) {
+    record('pass', 'Verified signup rollout', 'email and phone OTP signup remain closed');
+    return;
+  }
+
+  if (!parseBool(process.env.ENABLE_TRIAL_EXPIRY_CRON)) {
+    record('fail', 'Verified signup lifecycle', 'OTP signup requires ENABLE_TRIAL_EXPIRY_CRON=true');
+  }
+
+  if (!parseBool(process.env.SAAS_AUTH_CAPTCHA_READY)) {
+    record('fail', 'Verified signup CAPTCHA', 'SAAS_AUTH_CAPTCHA_READY=true is required');
+  }
+
+  if (!parseBool(process.env.SAAS_VERIFIED_SIGNUP_MIGRATION_READY)) {
+    record(
+      'fail',
+      'Verified signup migration',
+      'SAAS_VERIFIED_SIGNUP_MIGRATION_READY=true is required after migration 044 verification'
+    );
+  }
+
+  if (isPlaceholder(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)) {
+    record('fail', 'NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'a real public site key is required');
+  }
+
+  if (emailEnabled && !parseBool(process.env.SAAS_EMAIL_OTP_PROVIDER_READY)) {
+    record('fail', 'Email OTP provider', 'SAAS_EMAIL_OTP_PROVIDER_READY=true is required');
+  } else if (emailEnabled) {
+    record('pass', 'Email OTP provider', 'marked ready for controlled rollout');
+  }
+
+  if (phoneEnabled && !parseBool(process.env.SAAS_PHONE_OTP_PROVIDER_READY)) {
+    record('fail', 'Phone OTP provider', 'SAAS_PHONE_OTP_PROVIDER_READY=true is required');
+  } else if (phoneEnabled) {
+    record('pass', 'Phone OTP provider', 'marked ready for controlled rollout');
   }
 }
 
@@ -334,5 +381,6 @@ checkAppUrlAndObservability();
 checkAiSafety();
 checkControlledRolloutFlags();
 checkGoogleTrialReadiness();
+checkVerifiedSignupReadiness();
 checkBillingReadiness();
 printSummary();

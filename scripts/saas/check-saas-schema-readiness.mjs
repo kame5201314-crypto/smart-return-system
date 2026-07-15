@@ -180,6 +180,23 @@ async function checkColumn(supabase, table, column) {
   };
 }
 
+async function checkVerifiedTrialFunction(supabase) {
+  const { error } = await supabase.rpc('create_verified_identity_self_service_trial', {
+    p_owner_user_id: null,
+    p_identity_provider: 'email_otp',
+    p_owner_email: null,
+    p_owner_phone: null,
+    p_org_name: '',
+    p_plan: 'basic',
+    p_terms_version: '',
+    p_terms_accepted_at: null,
+    p_idempotency_key: '',
+  });
+
+  if (!error || !isMissingSchemaError(error.message)) return { ok: true };
+  return { ok: false, reason: 'missing_function', error: error.message };
+}
+
 async function main() {
   const strict = isStrictMode();
 
@@ -221,24 +238,51 @@ async function main() {
     },
   });
   const failures = [];
+  const verifiedSignupExpected =
+    parseBool(process.env.ENABLE_EMAIL_OTP_SIGNUP) ||
+    parseBool(process.env.ENABLE_PHONE_OTP_SIGNUP) ||
+    parseBool(process.env.SAAS_VERIFIED_SIGNUP_MIGRATION_READY);
+  const tablesToCheck = verifiedSignupExpected
+    ? [...requiredTables, 'saas_self_service_trial_claims']
+    : requiredTables;
+  const columnsToCheck = verifiedSignupExpected
+    ? [
+        ...requiredColumns,
+        ['organizations', 'owner_phone'],
+        ['organization_members', 'phone'],
+        ['saas_self_service_trial_claims', 'identity_provider'],
+        ['saas_self_service_trial_claims', 'normalized_phone'],
+      ]
+    : requiredColumns;
 
-  for (const table of requiredTables) {
+  for (const table of tablesToCheck) {
     const result = await checkTable(supabase, table);
     if (!result.ok) {
       failures.push({ kind: 'table', table, ...result });
     }
   }
 
-  for (const [table, column] of requiredColumns) {
+  for (const [table, column] of columnsToCheck) {
     const result = await checkColumn(supabase, table, column);
     if (!result.ok) {
       failures.push({ kind: 'column', table, column, ...result });
     }
   }
 
+  if (verifiedSignupExpected) {
+    const result = await checkVerifiedTrialFunction(supabase);
+    if (!result.ok) {
+      failures.push({
+        kind: 'function',
+        functionName: 'create_verified_identity_self_service_trial',
+        ...result,
+      });
+    }
+  }
+
   if (failures.length === 0) {
     console.log(
-      `[saas-schema-gate] PASS (${requiredTables.length} table(s), ${requiredColumns.length} column(s) checked).`
+      `[saas-schema-gate] PASS (${tablesToCheck.length} table(s), ${columnsToCheck.length} column(s) checked${verifiedSignupExpected ? ', verified signup RPC checked' : ''}).`
     );
     return 0;
   }
@@ -249,7 +293,9 @@ async function main() {
     const target =
       failure.kind === 'table'
         ? failure.table
-        : `${failure.table}.${failure.column}`;
+        : failure.kind === 'function'
+          ? failure.functionName
+          : `${failure.table}.${failure.column}`;
     console.error(`  - ${target} (${failure.reason}): ${failure.error}`);
   }
 

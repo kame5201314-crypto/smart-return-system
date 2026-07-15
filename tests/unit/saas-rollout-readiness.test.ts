@@ -33,6 +33,13 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       ENABLE_PUBLIC_LEAD_CAPTURE: 'false',
       ENABLE_GOOGLE_AUTH: 'false',
       ENABLE_GOOGLE_TRIAL_SIGNUP: 'false',
+      ENABLE_EMAIL_OTP_SIGNUP: 'false',
+      ENABLE_PHONE_OTP_SIGNUP: 'false',
+      SAAS_AUTH_CAPTCHA_READY: 'false',
+      SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'false',
+      SAAS_EMAIL_OTP_PROVIDER_READY: 'false',
+      SAAS_PHONE_OTP_PROVIDER_READY: 'false',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '',
       ENABLE_TRIAL_EXPIRY_CRON: 'false',
       ENABLE_BILLING: 'false',
       ENABLE_SUBSCRIPTION_PLAN: 'false',
@@ -196,5 +203,50 @@ describe('SaaS rollout readiness check', () => {
     expect(result.output).toContain(
       'Google trial rollout - Google auth and scoped trial-expiry lifecycle are enabled together'
     );
+  });
+
+  it('fails closed when verified signup lacks CAPTCHA, lifecycle, or its provider', () => {
+    const result = runRolloutCheck({
+      ENABLE_EMAIL_OTP_SIGNUP: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Verified signup lifecycle');
+    expect(result.output).toContain('Verified signup CAPTCHA');
+    expect(result.output).toContain('Verified signup migration');
+    expect(result.output).toContain('NEXT_PUBLIC_TURNSTILE_SITE_KEY');
+    expect(result.output).toContain('Email OTP provider');
+  });
+
+  it('passes email OTP rollout without accidentally opening phone signup', () => {
+    const result = runRolloutCheck({
+      ENABLE_EMAIL_OTP_SIGNUP: 'true',
+      ENABLE_TRIAL_EXPIRY_CRON: 'true',
+      SAAS_AUTH_CAPTCHA_READY: 'true',
+      SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+      SAAS_EMAIL_OTP_PROVIDER_READY: 'true',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('ENABLE_EMAIL_OTP_SIGNUP - enabled intentionally');
+    expect(result.output).toContain('ENABLE_PHONE_OTP_SIGNUP - closed until verified SMS rollout');
+    expect(result.output).toContain('Email OTP provider - marked ready');
+  });
+
+  it('requires the SMS readiness marker independently for phone OTP rollout', () => {
+    const result = runRolloutCheck({
+      ENABLE_PHONE_OTP_SIGNUP: 'true',
+      ENABLE_TRIAL_EXPIRY_CRON: 'true',
+      SAAS_AUTH_CAPTCHA_READY: 'true',
+      SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Phone OTP provider');
   });
 });

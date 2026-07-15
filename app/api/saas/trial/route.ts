@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
+import {
+  resolveVerifiedSignupAvailability,
+  selectEnabledVerifiedSignupProvider,
+} from '@/lib/auth/verified-signup';
+import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 import {
   provisionSelfServiceTrial,
@@ -33,22 +38,61 @@ async function readJsonBody(request: NextRequest): Promise<unknown> {
   }
 }
 
-async function loadGoogleIdentity(): Promise<SelfServiceTrialIdentity | null> {
+async function loadVerifiedIdentity(
+  env?: Record<string, string | undefined>
+): Promise<SelfServiceTrialIdentity | null> {
   const client = await createClient();
   const { data, error } = await client.auth.getUser();
   const user = data.user;
-  if (error || !user?.id || !user.email) return null;
+  if (error || !user?.id) return null;
 
   if (isExplicitPlatformAdminPrincipal({ userId: user.id, userEmail: user.email })) {
     return null;
   }
 
+  const emailVerified = Boolean(user.email && user.email_confirmed_at);
+  const phoneVerified = Boolean(user.phone && user.phone_confirmed_at);
+  const hasGoogleIdentity = Boolean(
+    user.identities?.some((identity) => identity.provider === 'google')
+  );
+  const hasEmailIdentity = Boolean(
+    user.identities?.some((identity) => identity.provider === 'email')
+  );
+  const hasPhoneIdentity = Boolean(
+    user.identities?.some((identity) => identity.provider === 'phone')
+  );
+  const signupChannel = user.user_metadata?.signup_channel;
+  const featureFlags = resolveSaaSFeatureFlags({ env, orgPlan: 'basic' });
+  const verifiedSignup = resolveVerifiedSignupAvailability(env);
+  const googleEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const provider = selectEnabledVerifiedSignupProvider({
+    signupChannel,
+    hasGoogleIdentity,
+    hasEmailIdentity,
+    hasPhoneIdentity,
+    emailVerified,
+    phoneVerified,
+    googleEnabled,
+    emailEnabled: verifiedSignup.emailEnabled,
+    phoneEnabled: verifiedSignup.phoneEnabled,
+  }) ?? (
+    hasGoogleIdentity
+      ? 'google'
+      : emailVerified && hasEmailIdentity
+        ? 'email_otp'
+        : phoneVerified && hasPhoneIdentity
+          ? 'phone_otp'
+          : null
+  );
+  if (!provider) return null;
+
   return {
     userId: user.id,
-    email: user.email,
-    hasGoogleIdentity: Boolean(
-      user.identities?.some((identity) => identity.provider === 'google')
-    ),
+    provider,
+    email: user.email ?? null,
+    phone: user.phone ?? null,
+    emailVerified,
+    phoneVerified,
   };
 }
 
@@ -59,7 +103,7 @@ export async function handleSelfServiceTrialRequest(
   try {
     const identity = Object.prototype.hasOwnProperty.call(deps, 'identity')
       ? deps.identity ?? null
-      : await loadGoogleIdentity();
+      : await loadVerifiedIdentity(deps.env);
     const result = await provisionSelfServiceTrial(await readJsonBody(request), {
       identity,
       env: deps.env,

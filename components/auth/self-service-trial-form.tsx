@@ -14,7 +14,7 @@ import {
 } from '@/lib/saas/self-service-trial';
 
 interface SelfServiceTrialFormProps {
-  email: string;
+  identityLabel: string;
   initialPlan: SelfServiceTrialPlan;
 }
 
@@ -41,13 +41,15 @@ const PLAN_OPTIONS: Array<{
 function getErrorMessage(code: unknown): string {
   if (code === 'trial_already_claimed') return '這個帳號已使用過試用資格。';
   if (code === 'google_identity_required') return '請先使用 Google 帳號登入。';
+  if (code === 'verified_identity_required') return '請先完成信箱或手機驗證。';
   if (code === 'feature_disabled') return '自助試用目前尚未開放。';
   if (code === 'rate_limited') return '操作過於頻繁，請稍後再試。';
+  if (code === 'not_configured') return '驗證式試用尚未完成設定，請聯絡客服。';
   if (code === 'invalid_request') return '請確認品牌名稱、方案與條款勾選。';
   return '建立試用工作區失敗，請稍後再試。';
 }
 
-export function SelfServiceTrialForm({ email, initialPlan }: SelfServiceTrialFormProps) {
+export function SelfServiceTrialForm({ identityLabel, initialPlan }: SelfServiceTrialFormProps) {
   const router = useRouter();
   const idempotencyKeyRef = useRef<string | null>(null);
   const [orgName, setOrgName] = useState('');
@@ -116,7 +118,7 @@ export function SelfServiceTrialForm({ email, initialPlan }: SelfServiceTrialFor
           required
           disabled={isSubmitting}
         />
-        <p className="mt-2 text-xs text-neutral-500">登入帳號：{email}</p>
+        <p className="mt-2 text-xs text-neutral-500">登入帳號：{identityLabel}</p>
       </div>
 
       <fieldset>

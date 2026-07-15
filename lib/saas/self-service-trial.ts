@@ -1,15 +1,22 @@
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
+import {
+  normalizeEmailIdentifier,
+  normalizeTaiwanPhoneIdentifier,
+  resolveVerifiedSignupAvailability,
+} from '@/lib/auth/verified-signup';
 import { createInMemoryRateLimiter } from '@/lib/security/request-rate-limit';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 
 export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-15-v2';
 
 export type SelfServiceTrialPlan = 'basic' | 'growth';
+export type SelfServiceTrialIdentityProvider = 'google' | 'email_otp' | 'phone_otp';
 
 export type SelfServiceTrialErrorCode =
   | 'feature_disabled'
   | 'unauthenticated'
   | 'google_identity_required'
+  | 'verified_identity_required'
   | 'invalid_request'
   | 'rate_limited'
   | 'trial_already_claimed'
@@ -29,8 +36,11 @@ export class SelfServiceTrialError extends Error {
 
 export interface SelfServiceTrialIdentity {
   userId: string;
-  email: string;
-  hasGoogleIdentity: boolean;
+  provider: SelfServiceTrialIdentityProvider;
+  email: string | null;
+  phone: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
 }
 
 export interface SelfServiceTrialInput {
@@ -42,7 +52,9 @@ export interface SelfServiceTrialInput {
 
 export interface SelfServiceTrialProvisioningInput extends SelfServiceTrialInput {
   ownerUserId: string;
-  ownerEmail: string;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+  identityProvider: SelfServiceTrialIdentityProvider;
   termsAcceptedAt: string;
 }
 
@@ -179,12 +191,33 @@ export function buildSelfServiceTrialRpcArgs(
   };
 }
 
+export function buildVerifiedIdentityTrialRpcArgs(
+  input: SelfServiceTrialProvisioningInput
+): Record<string, unknown> {
+  return {
+    p_owner_user_id: input.ownerUserId,
+    p_identity_provider: input.identityProvider,
+    p_owner_email: input.ownerEmail,
+    p_owner_phone: input.ownerPhone,
+    p_org_name: input.orgName,
+    p_plan: input.plan,
+    p_terms_version: input.termsVersion,
+    p_terms_accepted_at: input.termsAcceptedAt,
+    p_idempotency_key: input.idempotencyKey,
+  };
+}
+
 export function createSelfServiceTrialRepository(client: RpcClient): SelfServiceTrialRepository {
   return {
     async provision(input) {
+      const isGoogle = input.identityProvider === 'google';
       const { data, error } = await client.rpc(
-        'create_google_self_service_trial',
-        buildSelfServiceTrialRpcArgs(input)
+        isGoogle
+          ? 'create_google_self_service_trial'
+          : 'create_verified_identity_self_service_trial',
+        isGoogle
+          ? buildSelfServiceTrialRpcArgs(input)
+          : buildVerifiedIdentityTrialRpcArgs(input)
       );
 
       if (error) {
@@ -193,9 +226,41 @@ export function createSelfServiceTrialRepository(client: RpcClient): SelfService
           message.includes('already has organization membership') ||
           message.includes('trial already claimed')
         ) {
-          throw new SelfServiceTrialError('trial_already_claimed', 409, message);
+          throw new SelfServiceTrialError(
+            'trial_already_claimed',
+            409,
+            'This identity has already used or joined a trial workspace.'
+          );
         }
-        throw new SelfServiceTrialError('provision_failed', 500, message);
+        if (
+          message.includes('verified auth') ||
+          message.includes('verified Taiwan mobile') ||
+          message.includes('identity provider does not match')
+        ) {
+          throw new SelfServiceTrialError(
+            input.identityProvider === 'google'
+              ? 'google_identity_required'
+              : 'verified_identity_required',
+            403,
+            'A matching verified identity is required.'
+          );
+        }
+        if (
+          message.includes('create_verified_identity_self_service_trial') ||
+          message.includes('schema cache') ||
+          message.includes('Could not find the function')
+        ) {
+          throw new SelfServiceTrialError(
+            'not_configured',
+            503,
+            'Verified trial provisioning is not configured.'
+          );
+        }
+        throw new SelfServiceTrialError(
+          'provision_failed',
+          500,
+          'Failed to provision self-service trial.'
+        );
       }
 
       return normalizeResult(data);
@@ -205,6 +270,53 @@ export function createSelfServiceTrialRepository(client: RpcClient): SelfService
 
 export function createDefaultSelfServiceTrialRepository(): SelfServiceTrialRepository {
   return createSelfServiceTrialRepository(createUntypedAdminClient());
+}
+
+function requireEnabledIdentityProvider(
+  identity: SelfServiceTrialIdentity,
+  flags: ReturnType<typeof resolveSaaSFeatureFlags>,
+  env: Record<string, string | undefined> | undefined
+): void {
+  if (identity.provider === 'google') {
+    if (!flags.google_auth || !flags.google_trial_signup) {
+      throw new SelfServiceTrialError(
+        'feature_disabled',
+        403,
+        'Google self-service trial signup is not enabled.'
+      );
+    }
+    if (!identity.emailVerified || !identity.email) {
+      throw new SelfServiceTrialError(
+        'google_identity_required',
+        403,
+        'A verified Google email is required.'
+      );
+    }
+    return;
+  }
+
+  const availability = resolveVerifiedSignupAvailability(env);
+  const enabled = identity.provider === 'email_otp'
+    ? flags.email_otp_signup && availability.emailEnabled
+    : flags.phone_otp_signup && availability.phoneEnabled;
+  if (!enabled) {
+    throw new SelfServiceTrialError(
+      'feature_disabled',
+      403,
+      'Verified self-service signup is not enabled for this identity.'
+    );
+  }
+
+  const verified = identity.provider === 'email_otp'
+    ? identity.emailVerified && Boolean(identity.email)
+    : identity.phoneVerified && Boolean(identity.phone);
+  if (!verified) {
+    throw new SelfServiceTrialError(
+      'verified_identity_required',
+      403,
+      'A verified email or phone identity is required.'
+    );
+  }
 }
 
 export async function provisionSelfServiceTrial(
@@ -221,25 +333,11 @@ export async function provisionSelfServiceTrial(
     env: options.env,
     orgPlan: 'basic',
   });
-  if (!flags.google_auth || !flags.google_trial_signup) {
-    throw new SelfServiceTrialError(
-      'feature_disabled',
-      403,
-      'Google self-service trial signup is not enabled.'
-    );
-  }
-
   if (!options.identity) {
     throw new SelfServiceTrialError('unauthenticated', 401, 'Authentication required.');
   }
 
-  if (!options.identity.hasGoogleIdentity) {
-    throw new SelfServiceTrialError(
-      'google_identity_required',
-      403,
-      'A verified Google identity is required.'
-    );
-  }
+  requireEnabledIdentityProvider(options.identity, flags, options.env);
 
   const rateLimit = (options.rateLimiter ?? selfServiceTrialRateLimiter).check(
     `saas_self_service_trial:${options.identity.userId}`,
@@ -253,12 +351,26 @@ export async function provisionSelfServiceTrial(
     );
   }
 
-  const ownerEmail = options.identity.email.trim().toLowerCase();
-  if (!ownerEmail || !ownerEmail.includes('@')) {
+  let ownerEmail: string | null = null;
+  let ownerPhone: string | null = null;
+  try {
+    if (options.identity.email && options.identity.emailVerified) {
+      ownerEmail = normalizeEmailIdentifier(options.identity.email);
+    }
+    if (
+      options.identity.provider === 'phone_otp' &&
+      options.identity.phone &&
+      options.identity.phoneVerified
+    ) {
+      ownerPhone = normalizeTaiwanPhoneIdentifier(options.identity.phone);
+    }
+  } catch {
     throw new SelfServiceTrialError(
-      'google_identity_required',
+      options.identity.provider === 'google'
+        ? 'google_identity_required'
+        : 'verified_identity_required',
       403,
-      'A verified Google email is required.'
+      'Verified identity data is invalid.'
     );
   }
 
@@ -280,6 +392,8 @@ export async function provisionSelfServiceTrial(
     ...input,
     ownerUserId: options.identity.userId,
     ownerEmail,
+    ownerPhone,
+    identityProvider: options.identity.provider,
     termsAcceptedAt: (options.now ?? new Date()).toISOString(),
   });
 }

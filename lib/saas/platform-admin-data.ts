@@ -46,6 +46,7 @@ export interface PlatformOrgSubscriptionSnapshot {
 
 export interface PlatformSelfServiceTrialClaimSnapshot {
   orgId: string;
+  identityProvider?: 'google' | 'email_otp' | 'phone_otp';
   createdAt: string | null;
   analysisReservedAt: string | null;
   analysisCompletedAt: string | null;
@@ -78,6 +79,7 @@ export interface PlatformAdminDataRepository {
 
 interface SupabaseQueryError {
   message?: string;
+  code?: string;
 }
 
 interface SupabaseQueryBuilder {
@@ -159,7 +161,7 @@ function normalizeOrgMember(row: unknown): PlatformOrgDetail['members'][number] 
 
   return {
     id,
-    email: stringOrNull(row.email),
+    email: stringOrNull(row.email) ?? '已驗證手機帳號',
     role: stringOrFallback(row.role, 'viewer'),
     status: stringOrFallback(row.status, 'active'),
   };
@@ -268,6 +270,10 @@ function normalizeSelfServiceTrialClaim(
 
   return {
     orgId,
+    identityProvider:
+      row.identity_provider === 'email_otp' || row.identity_provider === 'phone_otp'
+        ? row.identity_provider
+        : 'google',
     createdAt: stringOrNull(row.created_at),
     analysisReservedAt: stringOrNull(row.analysis_reserved_at),
     analysisCompletedAt: stringOrNull(row.analysis_completed_at),
@@ -450,10 +456,25 @@ export function createPlatformAdminDataRepository(
         return {};
       }
 
-      const { data, error } = await client
+      let { data, error } = await client
         .from('saas_self_service_trial_claims')
-        .select('org_id, created_at, analysis_reserved_at, analysis_completed_at')
+        .select('org_id, identity_provider, created_at, analysis_reserved_at, analysis_completed_at')
         .in('org_id', input.orgIds);
+
+      // Keep deploy-before-migration safe: migration 043 does not yet expose
+      // identity_provider, so a Google-only deployment may use the legacy shape.
+      if (
+        error?.message?.includes('identity_provider') ||
+        error?.code === '42703' ||
+        error?.code === 'PGRST204'
+      ) {
+        const legacyResult = await client
+          .from('saas_self_service_trial_claims')
+          .select('org_id, created_at, analysis_reserved_at, analysis_completed_at')
+          .in('org_id', input.orgIds);
+        data = legacyResult.data;
+        error = legacyResult.error;
+      }
 
       assertNoSupabaseError(error, 'Failed to load self-service trial claims.');
 

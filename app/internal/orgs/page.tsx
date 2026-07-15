@@ -130,9 +130,15 @@ function UsageLine({ org }: { org: PlatformOrg }) {
 }
 
 function TrialSourceLine({ org }: { org: PlatformOrg }) {
-  if (org.provisioningSource !== 'google_self_service' || !org.selfServiceTrialAI) {
+  if (org.provisioningSource === 'manual' || !org.selfServiceTrialAI) {
     return null;
   }
+
+  const sourceLabel = org.provisioningSource === 'email_otp_self_service'
+    ? '信箱驗證自助試用'
+    : org.provisioningSource === 'phone_otp_self_service'
+      ? '手機驗證自助試用'
+      : 'Google 自助試用';
 
   const status = org.selfServiceTrialAI.status === 'in_progress'
     ? '分析中'
@@ -140,7 +146,7 @@ function TrialSourceLine({ org }: { org: PlatformOrg }) {
 
   return (
     <span className="text-xs text-emerald-700">
-      Google 自助試用 · 試用 AI {status}
+      {sourceLabel} · 試用 AI {status}
     </span>
   );
 }
@@ -177,7 +183,7 @@ function OrgCard({ org }: { org: PlatformOrg }) {
           {plan.name} · {PLATFORM_ORG_STATUS_LABEL[org.status]} · {org.ownerEmail ?? '—'}
         </div>
 
-        {org.provisioningSource === 'google_self_service' ? (
+        {org.provisioningSource !== 'manual' ? (
           <div className="mt-1">
             <TrialSourceLine org={org} />
           </div>

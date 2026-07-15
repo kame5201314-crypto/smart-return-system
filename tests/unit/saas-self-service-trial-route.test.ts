@@ -25,7 +25,10 @@ const body = {
 const identity = {
   userId: '22222222-2222-4222-8222-222222222222',
   email: 'owner@example.com',
-  hasGoogleIdentity: true,
+  phone: null,
+  provider: 'google' as const,
+  emailVerified: true,
+  phoneVerified: false,
 };
 
 describe('self-service trial API', () => {
@@ -116,7 +119,7 @@ describe('self-service trial API', () => {
       ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
     };
     const nonGoogle = await handleSelfServiceTrialRequest(buildRequest(body), {
-      identity: { ...identity, hasGoogleIdentity: false },
+      identity: { ...identity, emailVerified: false },
       env,
       repository: { provision: vi.fn() },
     });
@@ -155,5 +158,36 @@ describe('self-service trial API', () => {
     expect(response.status).toBe(429);
     expect(await response.json()).toMatchObject({ code: 'rate_limited' });
     expect(repository.provision).not.toHaveBeenCalled();
+  });
+
+  it('accepts a confirmed email OTP identity only after provider readiness is explicit', async () => {
+    const repository = {
+      provision: vi.fn().mockResolvedValue({
+        orgId: 'org-email',
+        subscriptionId: 'sub-email',
+        ownerMembershipId: 'member-email',
+        auditLogId: 'audit-email',
+        claimId: 'claim-email',
+        trialEnd: '2026-07-28T00:00:00.000Z',
+        reused: false,
+      }),
+    };
+    const response = await handleSelfServiceTrialRequest(buildRequest(body), {
+      identity: { ...identity, provider: 'email_otp' },
+      env: {
+        ENABLE_EMAIL_OTP_SIGNUP: 'true',
+        SAAS_AUTH_CAPTCHA_READY: 'true',
+        SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+        SAAS_EMAIL_OTP_PROVIDER_READY: 'true',
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
+      },
+      repository,
+    });
+
+    expect(response.status).toBe(201);
+    expect(repository.provision).toHaveBeenCalledWith(expect.objectContaining({
+      identityProvider: 'email_otp',
+      ownerEmail: 'owner@example.com',
+    }));
   });
 });

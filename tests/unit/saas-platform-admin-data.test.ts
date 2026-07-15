@@ -116,6 +116,7 @@ describe('SaaS platform admin data repository', () => {
     })).resolves.toEqual({
       'org-a': {
         orgId: 'org-a',
+        identityProvider: 'google',
         createdAt: '2026-07-14T00:00:00.000Z',
         analysisReservedAt: null,
         analysisCompletedAt: '2026-07-14T01:00:00.000Z',
@@ -124,7 +125,7 @@ describe('SaaS platform admin data repository', () => {
 
     expect(from).toHaveBeenCalledWith('saas_self_service_trial_claims');
     expect(claimsChain.select).toHaveBeenCalledWith(
-      'org_id, created_at, analysis_reserved_at, analysis_completed_at'
+      'org_id, identity_provider, created_at, analysis_reserved_at, analysis_completed_at'
     );
     expect(claimsChain.select.mock.calls[0][0]).not.toContain('analysis_reservation_token');
   });

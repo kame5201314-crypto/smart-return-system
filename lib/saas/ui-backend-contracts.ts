@@ -229,7 +229,11 @@ export interface PlatformOrganizationListItem {
   createdAt: string;
   trialEnd: string | null;
   daysUntilTrialEnd: number | null;
-  provisioningSource: 'manual' | 'google_self_service';
+  provisioningSource:
+    | 'manual'
+    | 'google_self_service'
+    | 'email_otp_self_service'
+    | 'phone_otp_self_service';
   selfServiceTrialAI: {
     limit: 1;
     used: 0 | 1;
@@ -977,7 +981,13 @@ function buildPlatformOrganizationListItem(
     createdAt: requireString(org.createdAt, 'organization.createdAt'),
     trialEnd,
     daysUntilTrialEnd: daysUntil(now, trialEnd),
-    provisioningSource: selfServiceTrialClaim ? 'google_self_service' : 'manual',
+    provisioningSource: selfServiceTrialClaim
+      ? selfServiceTrialClaim.identityProvider === 'email_otp'
+        ? 'email_otp_self_service'
+        : selfServiceTrialClaim.identityProvider === 'phone_otp'
+          ? 'phone_otp_self_service'
+          : 'google_self_service'
+      : 'manual',
     selfServiceTrialAI,
     usage,
     health: buildPlatformOrganizationHealth({

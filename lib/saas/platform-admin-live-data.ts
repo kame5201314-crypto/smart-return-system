@@ -195,7 +195,9 @@ export async function loadPlatformOrganizationsView(
       repository.listOrganizationSubscriptions({
         orgIds,
       }),
-      context.featureFlags.google_trial_signup
+      (context.featureFlags.google_trial_signup ||
+        context.featureFlags.email_otp_signup ||
+        context.featureFlags.phone_otp_signup)
         ? repository.listOrganizationSelfServiceTrialClaims({ orgIds })
         : Promise.resolve({}),
     ]);
@@ -319,7 +321,9 @@ export async function loadPlatformOrganizationDetailView(
       repository.listOrganizationSubscriptions({
         orgIds: [organization.id],
       }),
-      context.featureFlags.google_trial_signup
+      (context.featureFlags.google_trial_signup ||
+        context.featureFlags.email_otp_signup ||
+        context.featureFlags.phone_otp_signup)
         ? repository.listOrganizationSelfServiceTrialClaims({ orgIds: [organization.id] })
         : Promise.resolve({}),
       repository.listAuditLogs({
