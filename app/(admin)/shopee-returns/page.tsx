@@ -67,6 +67,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 
 import {
   getShopeeReturns,
@@ -84,6 +85,7 @@ import {
   buildShopeeReturnGroups,
   type ShopeeReturnGroup,
 } from '@/lib/utils/shopee-return-grouping';
+import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 
 // Color tag options
 const COLOR_TAG_OPTIONS: { value: ColorTag; label: string; color: string }[] = [
@@ -188,6 +190,7 @@ function formatShopeeReturnPlatform(platform: ShopeeReturn['platform']): string 
 }
 
 export default function ShopeeReturnsPage() {
+  const { canCreateData, canExport } = useWorkspaceAccess();
   const [returns, setReturns] = useState<ShopeeReturn[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ShopeeReturn[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -491,6 +494,11 @@ export default function ShopeeReturnsPage() {
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, platform: 'shopee' | 'mall') {
+    if (!canCreateData) {
+      e.target.value = '';
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -867,6 +875,10 @@ export default function ShopeeReturnsPage() {
   }
 
   async function handleManualSubmit() {
+    if (!canCreateData) {
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     if (!manualForm.orderNumber.trim()) {
       toast.error('請輸入訂單編號');
       return;
@@ -937,6 +949,7 @@ export default function ShopeeReturnsPage() {
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={(e) => handleFileUpload(e, 'shopee')}
+            disabled={!canCreateData}
             className="hidden"
           />
           <input
@@ -944,13 +957,15 @@ export default function ShopeeReturnsPage() {
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={(e) => handleFileUpload(e, 'mall')}
+            disabled={!canCreateData}
             className="hidden"
           />
           <Button
             variant="outline"
             size="sm"
             onClick={() => shopeeFileRef.current?.click()}
-            disabled={isImporting}
+            disabled={isImporting || !canCreateData}
+            title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
             className="border-orange-300 text-orange-600 hover:bg-orange-50"
           >
             {isImporting && importPlatform === 'shopee' ? (
@@ -964,7 +979,8 @@ export default function ShopeeReturnsPage() {
             variant="outline"
             size="sm"
             onClick={() => mallFileRef.current?.click()}
-            disabled={isImporting}
+            disabled={isImporting || !canCreateData}
+            title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
             className="border-red-300 text-red-600 hover:bg-red-50"
           >
             {isImporting && importPlatform === 'mall' ? (
@@ -978,6 +994,8 @@ export default function ShopeeReturnsPage() {
             variant="outline"
             size="sm"
             onClick={() => setManualDialogOpen(true)}
+            disabled={!canCreateData}
+            title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
             className="border-green-300 text-green-600 hover:bg-green-50"
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -994,17 +1012,30 @@ export default function ShopeeReturnsPage() {
               {'\u6383\u63cf\u5de5\u5177'}
             </Link>
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="border-blue-300 text-blue-600 hover:bg-blue-50"
-          >
-            <a href="/api/v1/admin/shopee-returns/export" target="_blank" rel="noreferrer">
+          {canExport ? (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="border-blue-300 text-blue-600 hover:bg-blue-50"
+            >
+              <a href="/api/v1/admin/shopee-returns/export" target="_blank" rel="noreferrer">
+                <Download className="w-4 h-4 mr-1" />
+                {'\u532f\u51fa'}
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              title={WORKSPACE_RESTRICTED_ACTION_TITLE}
+              className="border-blue-300 text-blue-600"
+            >
               <Download className="w-4 h-4 mr-1" />
               {'\u532f\u51fa'}
-            </a>
-          </Button>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1466,7 +1497,11 @@ export default function ShopeeReturnsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setManualDialogOpen(false)}>取消</Button>
-            <Button onClick={handleManualSubmit} disabled={isManualSubmitting}>
+            <Button
+              onClick={handleManualSubmit}
+              disabled={isManualSubmitting || !canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               {isManualSubmitting ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />新增中...</> : '確認新增'}
             </Button>
           </DialogFooter>

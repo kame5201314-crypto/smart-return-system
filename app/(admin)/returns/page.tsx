@@ -28,9 +28,11 @@ import {
 import { KanbanBoard } from '@/components/kanban/kanban-board';
 import { ReturnsTable, SortField, SortDirection } from '@/components/shared/returns-table';
 import { PageHeader } from '@/components/saas/page-header';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 
 import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
+import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 import { filterAndSortReturns } from '@/lib/utils/return-filtering';
 
 // Status order for sorting
@@ -82,6 +84,7 @@ const RETURN_IMPORT_COLUMN_MAPPINGS: Record<string, string> = {
 };
 
 export default function ReturnsPage() {
+  const { canCreateData, canExport } = useWorkspaceAccess();
   const [returns, setReturns] = useState<ReturnItem[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +163,10 @@ export default function ReturnsPage() {
   }
 
   async function handleManualSubmit() {
+    if (!canCreateData) {
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     if (!manualForm.orderNumber.trim()) {
       toast.error('請輸入訂單編號');
       return;
@@ -262,6 +269,11 @@ export default function ReturnsPage() {
   }
 
   async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    if (!canCreateData) {
+      e.target.value = '';
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -424,6 +436,10 @@ export default function ReturnsPage() {
   }
 
   async function handleExport() {
+    if (!canExport) {
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     const ExcelJS = (await import('exceljs')).default;
 
     const workbook = new ExcelJS.Workbook();
@@ -492,21 +508,32 @@ export default function ReturnsPage() {
               type="file"
               accept=".xlsx,.xls"
               onChange={handleImportFile}
+              disabled={!canCreateData}
               className="hidden"
             />
-            <Button onClick={() => setManualDialogOpen(true)}>
+            <Button
+              onClick={() => setManualDialogOpen(true)}
+              disabled={!canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               <Plus className="w-4 h-4 mr-2" />
               手動新增
             </Button>
             <Button
               variant="outline"
               onClick={() => importFileRef.current?.click()}
-              disabled={isImporting}
+              disabled={isImporting || !canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
             >
               <Upload className="w-4 h-4 mr-2" />
               {isImporting ? '匯入中...' : '匯入'}
             </Button>
-            <Button variant="outline" onClick={handleExport}>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={!canExport}
+              title={!canExport ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               <Download className="w-4 h-4 mr-2" />
               匯出 Excel
             </Button>
@@ -608,7 +635,11 @@ export default function ReturnsPage() {
                 可調整搜尋與篩選條件，或匯入、手動新增第一筆退貨單。
               </p>
             </div>
-            <Button onClick={() => setManualDialogOpen(true)}>
+            <Button
+              onClick={() => setManualDialogOpen(true)}
+              disabled={!canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               <Plus className="mr-2 size-4" />
               手動新增退貨單
             </Button>
@@ -786,7 +817,11 @@ export default function ReturnsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setManualDialogOpen(false)}>取消</Button>
-            <Button onClick={handleManualSubmit} disabled={isManualSubmitting}>
+            <Button
+              onClick={handleManualSubmit}
+              disabled={isManualSubmitting || !canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               {isManualSubmitting ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />建立中...</> : '確認建立'}
             </Button>
           </DialogFooter>

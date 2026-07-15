@@ -29,7 +29,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/saas/confirm-dialog';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 import type { SelfServiceTrialAIQuotaSnapshot } from '@/lib/saas/self-service-trial-ai-quota';
+import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 import { normalizeAISkuAnalysisOutput } from '@/lib/utils/ai-sku-analysis';
 
 interface AIAnalysisResult {
@@ -167,6 +169,7 @@ function getRankingLabel(index: number): string {
 }
 
 export default function AIReportPage() {
+  const { canUseAI } = useWorkspaceAccess();
   const [selectedPeriod, setSelectedPeriod] = useState(
     format(new Date(), 'yyyy-MM')
   );
@@ -261,6 +264,10 @@ export default function AIReportPage() {
   }, [loadTrialQuota]);
 
   async function handleAnalyze() {
+    if (!canUseAI) {
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     try {
       setLoading(true);
 
@@ -325,6 +332,10 @@ export default function AIReportPage() {
 
   function handleAnalyzeClick(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
+    if (!canUseAI) {
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     if (trialQuota?.applies) {
       if (trialQuota.reason === 'in_progress') {
         toast.info('AI 分析正在處理中，請稍候再重新整理。');
@@ -430,7 +441,8 @@ export default function AIReportPage() {
             <Button
               type="button"
               onClick={handleAnalyzeClick}
-              disabled={loading || loadingExisting || trialAnalysisBlocked}
+              disabled={loading || loadingExisting || trialAnalysisBlocked || !canUseAI}
+              title={!canUseAI ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
             >
               {loading ? (
                 <>
@@ -449,6 +461,20 @@ export default function AIReportPage() {
                 </>
               )}
             </Button>
+
+            {!canUseAI && (
+              <p className="text-sm text-amber-800" role="status">
+                工作區目前為唯讀，AI 分析已停用。請
+                <Link className="mx-1 font-medium underline underline-offset-2" href="/pricing">
+                  升級方案
+                </Link>
+                或
+                <Link className="ml-1 font-medium underline underline-offset-2" href="/contact">
+                  聯絡客服
+                </Link>
+                。
+              </p>
+            )}
 
             {showingDemo && !loading && (
               <Badge variant="outline" className="border-blue-300 text-blue-700">
@@ -757,7 +783,7 @@ export default function AIReportPage() {
       )}
 
       <ConfirmDialog
-        open={trialConfirmOpen}
+        open={trialConfirmOpen && canUseAI}
         onOpenChange={setTrialConfirmOpen}
         title="使用本次試用唯一的 AI 分析額度？"
         description="送出後會使用你的退貨資料產生真實報告。只有成功完成的真實 AI 分析才會扣除這次額度；失敗或固定示範報告都不扣額度。"

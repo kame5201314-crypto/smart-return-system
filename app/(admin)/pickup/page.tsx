@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/saas/page-header';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 import {
   Table,
   TableBody,
@@ -61,6 +62,7 @@ import {
   batchUpdatePickupPrinted,
 } from '@/lib/actions/pickup.actions';
 import type { PickupRecord } from '@/lib/actions/pickup.actions';
+import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 
 const PLATFORMS = ['商城', '蝦皮', '官網', 'MOMO', '其他'];
 const LOGISTICS_PROVIDERS = ['黑貓', '新竹物流', '7-11', '全家', '宅配通', '其他'];
@@ -80,6 +82,7 @@ const PICKUP_IMPORT_COLUMN_MAPPINGS: Record<string, string> = {
 };
 
 export default function PickupPage() {
+  const { canCreateData, canExport } = useWorkspaceAccess();
   const [records, setRecords] = useState<PickupRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<PickupRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,6 +155,11 @@ export default function PickupPage() {
   }
 
   async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    if (!canCreateData) {
+      e.target.value = '';
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -301,6 +309,10 @@ export default function PickupPage() {
   }
 
   async function handleSave() {
+    if (!canCreateData) {
+      toast.info(WORKSPACE_RESTRICTED_ACTION_TITLE);
+      return;
+    }
     if (!formData.orderNumber.trim()) {
       toast.error('請填寫訂單編號');
       return;
@@ -588,22 +600,35 @@ export default function PickupPage() {
               accept=".xlsx,.xls"
               aria-label="匯入派車收件 Excel 檔案"
               onChange={handleImportFile}
+              disabled={!canCreateData}
               className="hidden"
             />
             <Button
               variant="outline"
               onClick={() => importFileRef.current?.click()}
-              disabled={isImporting}
+              disabled={isImporting || !canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
             >
               <Upload className="w-4 h-4 mr-2" />
               {isImporting ? '匯入中...' : '匯入'}
             </Button>
-            <Button asChild variant="outline">
-              <a href="/api/v1/admin/pickup/export" target="_blank" rel="noreferrer">
+            {canExport ? (
+              <Button asChild variant="outline">
+                <a href="/api/v1/admin/pickup/export" target="_blank" rel="noreferrer">
+                  <Download className="w-4 h-4 mr-2" />
+                  匯出
+                </a>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                disabled
+                title={WORKSPACE_RESTRICTED_ACTION_TITLE}
+              >
                 <Download className="w-4 h-4 mr-2" />
                 匯出
-              </a>
-            </Button>
+              </Button>
+            )}
             <Button asChild variant="outline">
               <Link href="/pickup/scan">
                 <ScanLine className="w-4 h-4 mr-2" />
@@ -614,7 +639,11 @@ export default function PickupPage() {
               <Printer className="w-4 h-4 mr-2" />
               列印 {selectedIds.size > 0 && `(${selectedIds.size})`}
             </Button>
-            <Button onClick={() => handleOpenDialog()}>
+            <Button
+              onClick={() => handleOpenDialog()}
+              disabled={!canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               <Plus className="w-4 h-4 mr-2" />
               新增記錄
             </Button>
@@ -957,7 +986,11 @@ export default function PickupPage() {
               <X className="w-4 h-4 mr-2" />
               取消
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || !canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               <Save className="w-4 h-4 mr-2" />
               {isSaving ? '儲存中...' : editingRecord ? '更新' : '新增'}
             </Button>

@@ -22,12 +22,12 @@ export function buildWorkspaceAccessNotice(input: {
     return {
       kind: 'trial_expired',
       title: '3 天免費試用已結束',
-      message: '目前仍可查看歷史資料；新增退貨、AI 分析與資料匯出已暫停。',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請升級方案或聯絡客服恢復使用。',
     };
   }
   return {
     kind: 'suspended',
     title: '工作區目前為唯讀',
-    message: '目前仍可查看歷史資料；需要恢復新增、AI 分析與匯出時，請聯絡客服。',
+    message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請升級方案或聯絡客服恢復使用。',
   };
 }
