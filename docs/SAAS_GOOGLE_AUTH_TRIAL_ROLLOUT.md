@@ -10,8 +10,10 @@ Supabase、Vercel、migration、env 或 Production deployment。
 
 1. 既有商家成員可用 Google 登入原工作區。
 2. 無工作區且未用過試用的 Google 使用者，可建立一次 14 天試用。
-3. 試用到期後只從 `trialing` 變為 `suspended`，保留唯讀查看。
-4. 不自動扣款、不自動變成 `cancelled`、不刪除資料。
+3. Google 自助試用期間包含 1 次成功的真實 AI 分析；固定示範報告不呼叫
+   Gemini、不扣額度。
+4. 試用到期後只從 `trialing` 變為 `suspended`，保留唯讀查看。
+5. 不自動扣款、不自動變成 `cancelled`、不刪除資料。
 
 ## 程式已完成
 
@@ -21,6 +23,14 @@ Supabase、Vercel、migration、env 或 Production deployment。
 - Rollout gate：自助試用不得在 Google Auth 或到期排程關閉時啟用。
 - OAuth 導向來源：回呼與錯誤導向優先使用 `NEXT_PUBLIC_APP_URL`，不信任來訪 request host。
 - 試用開通限流：驗證身分後、呼叫 service-role RPC 前，以使用者為單位做每小時 20 次的 best-effort 限流。
+- 試用 AI 額度：migration `040` 使用 token-owned 原子 reservation，確保多個
+  Vercel instance 同時請求時只有一個請求能取得 1 次額度。
+- 額度結算：真實 Gemini 分析成功才完成 reservation；固定示範報告、快取、
+  local fallback、解析失敗或其他失敗不扣額度並釋放 reservation。
+- 中斷復原：未完成的 reservation 超過 10 分鐘可重新取得；不需要清理排程。
+- 付費轉換：組織狀態轉為 `active` 後恢復依 Basic/Growth 方案計算的每月 AI 額度。
+- 營運可見性：`/internal` 顯示自助試用來源、試用到期日與 AI `0/1`、
+  `分析中` 或 `1/1`；read model 不讀取 reservation token。
 
 ## 外部設定順序
 
@@ -79,6 +89,9 @@ ENABLE_TRIAL_EXPIRY_CRON=false
 
 - `saas_self_service_trial_claims` 為 service-role only。
 - `create_google_self_service_trial(...)` 僅 service role 可執行。
+- `reserve_google_self_service_trial_ai_analysis(...)`、
+  `complete_google_self_service_trial_ai_analysis(...)`、
+  `release_google_self_service_trial_ai_analysis(...)` 僅 service role 可執行。
 - `suspend_expired_trial_organization(...)` 僅 service role 可執行。
 - migration history 依序記錄 `040` 與 `041`。
 - `npm run saas:migration-plan:strict` 與 `npm run saas:schema-gate:strict` 通過。
@@ -97,6 +110,13 @@ ENABLE_TRIAL_EXPIRY_CRON=false
 | 重複 callback/code | 失敗關閉，不重複建立 session/org |
 | `next=//evil.test` 或 `/internal/*` | 回 `/analytics`，不開放導向、不越權 |
 | 同一 idempotency key 重送試用 | 回傳原 org，不建第二個 org |
+| 自助試用首次查看 AI 頁 | 顯示 `0/1`，固定示範報告可查看且不呼叫 Gemini |
+| 同時送出兩個真實 AI 分析 | 只有一個取得 reservation；另一個回分析進行中，不呼叫 Gemini |
+| 真實 Gemini 分析成功 | 顯示 `1/1`，後續請求被拒絕 |
+| Gemini/local fallback/解析失敗 | reservation 釋放，仍顯示 `0/1`，可安全重試 |
+| 程序中斷留下 reservation | 10 分鐘內回分析進行中；逾時後可重新取得 |
+| 試用轉成 active 付費方案 | 不再套 1 次試用限制，改用方案每月額度 |
+| 平台營運後台查看自助試用租戶 | 顯示來源、到期日、AI 狀態，但不暴露 reservation token |
 | 未到期 trial | 排程重跑不改狀態 |
 | 已到期 trial | 只變 `suspended`，歷史資料仍可讀 |
 | active/suspended/cancelled | 排程不改狀態、不刪資料 |
@@ -116,6 +136,10 @@ Production 必須同時有有效 `CRON_SECRET`、Sentry DSN 與正確 app URL。
 ```powershell
 npm run saas:predeploy
 ```
+
+目前 `040` 與 `041` 仍是未套用草稿。Repository 完成不代表 Production 已
+啟用；未取得 Owner 對 migration、env 與部署的逐項授權前，所有 Google
+自助試用旗標必須維持關閉。
 
 ## 回滾順序
 

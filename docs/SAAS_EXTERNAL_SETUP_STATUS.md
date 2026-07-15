@@ -10,6 +10,13 @@
   - `ceb42ae` migration/readiness checks aligned through `041`.
   - `4782088` rollout dependencies fail closed when self-service trial is
     enabled without Google Auth or the scoped expiry cron.
+  - `c47c752` adds token-owned atomic reservation RPCs to draft migration `040`.
+  - `c022f2a` enforces one successful real AI analysis for Google self-service
+    trials while releasing failed/fallback runs.
+  - `25a0cda` adds `0/1` trial quota UI, a non-billable static demo, confirmation,
+    and the used-quota upgrade path.
+  - `be1569d` exposes Google self-service source, trial expiry, and token-free AI
+    quota status in the commercial operations backend and UI.
 - All Google rollout flags remain disabled by default. No Google Cloud OAuth
   client, Supabase Google provider, migration `040`/`041`, Production env,
   or deployment change was made by these repository commits.
@@ -18,6 +25,9 @@
   including same-email identity-linking QA and disposable-org lifecycle QA.
 - Migrations `040` and `041` are draft-only and require separate, explicit
   owner authorization for SaaS project `auyznbwtjvemyamujmgt`.
+- No migration, Google/Supabase provider, Production env, deployment, billing,
+  email provider, or master/live/internal Supabase change was made by the
+  single-use trial AI commits.
 
 Last updated: 2026-07-14
 

@@ -1,5 +1,22 @@
 # Handoff Log
 
+## 2026-07-15 - Single-Use Google Trial AI Handoff
+
+- Added token-owned, atomic reservation/complete/release RPCs to unapplied
+  draft migration `040` (`c47c752`). A stale reservation is recoverable after
+  10 minutes and every RPC remains service-role only.
+- Enforced one successful real AI analysis for Google self-service trials
+  (`c022f2a`). Cached reports, fixed demos, local fallback, parse failures, and
+  provider failures do not consume the trial run.
+- Added merchant `0/1` status, fixed no-cost demo, confirmation, and upgrade CTA
+  (`25a0cda`), plus commercial operations source/expiry/token-free AI status
+  (`be1569d`).
+- No migration, env/secret, Google/Supabase provider, deployment, billing,
+  email provider, or master/live/internal Supabase change was made.
+- Next owner-blocked step remains the rollout sequence in
+  `docs/SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`, including disposable concurrent
+  reservation and expiry QA before enabling Google self-service trial.
+
 ## 2026-07-14 - Google OAuth / Self-Service Trial Handoff
 
 - Implemented and pushed existing-merchant Google OAuth (`d05f89f`),

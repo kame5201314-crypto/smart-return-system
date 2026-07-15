@@ -282,7 +282,9 @@ function checkCommercialFoundation() {
     'supabase/migrations/041_saas_scoped_trial_expiry.sql',
     'lib/saas/lead-capture-service.ts',
     'lib/saas/self-service-trial.ts',
+    'lib/saas/self-service-trial-ai-quota.ts',
     'lib/saas/trial-expiry-worker.ts',
+    'app/api/saas/trial/ai-quota/route.ts',
     'app/api/cron/saas/trial-expiry/route.ts',
   ];
 
@@ -372,6 +374,27 @@ function checkCommercialFoundation() {
   const googleOAuthStartPath = path.resolve(process.cwd(), 'app/auth/google/route.ts');
   const googleOAuthCallbackPath = path.resolve(process.cwd(), 'app/auth/callback/route.ts');
   const selfServiceTrialPath = path.resolve(process.cwd(), 'lib/saas/self-service-trial.ts');
+  const selfServiceTrialAIQuotaPath = path.resolve(
+    process.cwd(),
+    'lib/saas/self-service-trial-ai-quota.ts'
+  );
+  const selfServiceTrialAIQuotaRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/saas/trial/ai-quota/route.ts'
+  );
+  const selfServiceTrialMigrationPath = path.resolve(
+    process.cwd(),
+    'supabase/migrations/040_saas_google_self_service_trial.sql'
+  );
+  const aiAnalyzeRoutePath = path.resolve(process.cwd(), 'app/api/v1/ai/analyze/route.ts');
+  const aiReportPagePath = path.resolve(
+    process.cwd(),
+    'app/(admin)/analytics/ai-report/page.tsx'
+  );
+  const trialPlatformAdminDataPath = path.resolve(
+    process.cwd(),
+    'lib/saas/platform-admin-data.ts'
+  );
   const adminLoginPagePath = path.resolve(process.cwd(), 'app/admin/login/page.tsx');
   const proxyPath = path.resolve(process.cwd(), 'proxy.ts');
   if (fs.existsSync(publicRoutesPath) && fs.existsSync(proxyPath)) {
@@ -521,6 +544,54 @@ function checkCommercialFoundation() {
         'fail',
         'SaaS self-service trial rate limit',
         'self-service trial provisioning must throttle repeated requests before invoking the service-role RPC'
+      );
+    }
+  }
+
+  if (
+    fs.existsSync(selfServiceTrialAIQuotaPath) &&
+    fs.existsSync(selfServiceTrialAIQuotaRoutePath) &&
+    fs.existsSync(selfServiceTrialMigrationPath) &&
+    fs.existsSync(aiAnalyzeRoutePath) &&
+    fs.existsSync(aiReportPagePath) &&
+    fs.existsSync(trialPlatformAdminDataPath)
+  ) {
+    const quotaSource = fs.readFileSync(selfServiceTrialAIQuotaPath, 'utf8');
+    const quotaRouteSource = fs.readFileSync(selfServiceTrialAIQuotaRoutePath, 'utf8');
+    const migrationSource = fs.readFileSync(selfServiceTrialMigrationPath, 'utf8');
+    const analyzeSource = fs.readFileSync(aiAnalyzeRoutePath, 'utf8');
+    const reportPageSource = fs.readFileSync(aiReportPagePath, 'utf8');
+    const platformAdminDataSource = fs.readFileSync(trialPlatformAdminDataPath, 'utf8');
+    if (
+      quotaSource.includes('SELF_SERVICE_TRIAL_AI_LIMIT = 1') &&
+      quotaSource.includes('reserve_google_self_service_trial_ai_analysis') &&
+      quotaSource.includes('complete_google_self_service_trial_ai_analysis') &&
+      quotaSource.includes('release_google_self_service_trial_ai_analysis') &&
+      quotaRouteSource.includes('loadSelfServiceTrialAIQuotaSnapshot') &&
+      migrationSource.includes('analysis_reservation_token UUID') &&
+      migrationSource.includes("effective_at - INTERVAL '10 minutes'") &&
+      migrationSource.includes('TO service_role') &&
+      analyzeSource.includes('reserveSelfServiceTrialAIAnalysis') &&
+      analyzeSource.includes('trialAIQuotaRepository.complete') &&
+      analyzeSource.includes('trialAIQuotaRepository.release') &&
+      reportPageSource.includes("model: 'static-demo'") &&
+      reportPageSource.includes('/api/saas/trial/ai-quota') &&
+      reportPageSource.includes('示範資料，不會扣額度') &&
+      platformAdminDataSource.includes(
+        ".select('org_id, created_at, analysis_reserved_at, analysis_completed_at')"
+      ) &&
+      !platformAdminDataSource.includes('analysis_reservation_token')
+    ) {
+      record(
+        'pass',
+        'SaaS self-service trial AI quota',
+        'single-use trial AI is atomically reserved, success-counted, safely recoverable, and exposed without reservation tokens'
+      );
+    } else {
+      record(
+        'fail',
+        'SaaS self-service trial AI quota',
+        'trial AI must keep a service-role reservation contract, one successful run, static demo, and token-free operator read model'
       );
     }
   }
