@@ -9,7 +9,7 @@ Supabase、Vercel、migration、env 或 Production deployment。
 ## 目標流程
 
 1. 既有商家成員可用 Google 登入原工作區。
-2. 無工作區且未用過試用的 Google 使用者，可建立一次 14 天試用。
+2. 無工作區且未用過試用的 Google 使用者，可建立一次 3 天試用。
 3. Google 自助試用期間包含 1 次成功的真實 AI 分析；固定示範報告不呼叫
    Gemini、不扣額度。
 4. 試用到期後只從 `trialing` 變為 `suspended`，保留唯讀查看。

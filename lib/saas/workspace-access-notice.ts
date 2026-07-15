@@ -21,7 +21,7 @@ export function buildWorkspaceAccessNotice(input: {
   if (isReached(input.trialEnd, input.now ?? new Date())) {
     return {
       kind: 'trial_expired',
-      title: '14 天免費試用已結束',
+      title: '3 天免費試用已結束',
       message: '目前仍可查看歷史資料；新增退貨、AI 分析與資料匯出已暫停。',
     };
   }

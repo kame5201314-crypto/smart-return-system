@@ -14,7 +14,7 @@
 
 - **Beta 期不接金流、手動開通**。Stage 2 才接綠界，Stage 5 才接 Stripe；TapPay 短期不接。
 - **角色四層**：Owner / Admin / Staff / Viewer（取代 023 的 owner/admin/member），由 `024_extend_member_roles.sql` 擴充 CHECK。
-- **Trial**：Beta 期 = 不限期 `trialing`；Stage 3 公開註冊後改 14 天。
+- **Trial**：Beta 期 = 不限期 `trialing`；Stage 3 公開註冊後改 3 天。
 - **MVP 不做**：AI Pack 加購、升降級 proration、退貨筆數超額計費、API key 管理 UI。延後到 Stage 4+。
 - **退貨筆數軟限制**：80% 黃條、100% 紅條，連續 2 個月超量才建議升級；不自動加收、不擋作業。
 - **AI 額度硬上限**：命中相同 fingerprint 快取不扣額度；未命中且額度用完時阻擋 AI 分析。
@@ -32,7 +32,7 @@
 - 每月固定費用、依方案分兩個公開方案（入門版 / 成長版）與大量需求洽談。
 - 計費幣別：TWD。
 - 計費週期：每月，自動續訂。
-- 試用期：新註冊組織 14 天 trial，期間功能完整可用、不需信用卡。
+- 試用期：新註冊組織 3 天 trial，期間功能完整可用、不需信用卡。
 - 主金流（台灣）：ECPay 定期定額 → 信用卡定期授權；含電子發票。
 - 國際備案：Stripe Subscription（先以 feature flag 關閉，第二階段才開放）。
 - 行動支付備案：TapPay（同上）。
@@ -118,7 +118,7 @@
 
 ```
 未登入訪客
-  → /pricing 點 [免費試用 14 天]
+  → /pricing 點 [免費試用 3 天]
   → /signup
       欄位：公司名稱、Email、密碼、用途（dropdown）
       勾選：同意條款 + 隱私
@@ -126,7 +126,7 @@
       建立 auth.users
       建立 organizations: status=trialing, plan=basic
       建立 organization_members: role=owner
-      建立 subscriptions: status=trialing, current_period_end=now+14d
+      建立 subscriptions: status=trialing, current_period_end=now+3d
       寄 magic link 驗證
   → 驗證成功
   → /app/onboarding/welcome（首入精靈）
@@ -558,7 +558,7 @@ internal (multi-tenant admin):
 
 | 任務 | 範圍 |
 |---|---|
-| S3.1 公開註冊 | 開 `public_signup` 旗標；14 天 trial；onboarding 精靈 |
+| S3.1 公開註冊 | 開 `public_signup` 旗標；3 天 trial；onboarding 精靈 |
 | S3.2 Landing + 行銷頁 | `/`、`/features/*`、`/contact`、FAQ |
 | S3.3 Viewer 角色 + 進階分析 | `advanced_analytics` 旗標、成長版以上才可用 |
 | S3.4 自助升降級 | 升級下個 cycle 生效（MVP 不做 proration）|

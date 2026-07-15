@@ -2,7 +2,7 @@ import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { createInMemoryRateLimiter } from '@/lib/security/request-rate-limit';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 
-export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-14-v1';
+export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-15-v2';
 
 export type SelfServiceTrialPlan = 'basic' | 'growth';
 

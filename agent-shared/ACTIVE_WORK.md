@@ -1,6 +1,6 @@
 # Active Work
 
-## 2026-07-14 Google OAuth And Trial Rollout Foundation
+## 2026-07-15 Google OAuth And Trial Rollout Foundation
 
 Status: blocked
 
@@ -10,10 +10,12 @@ trial expiry.
 Notes: Repository work now includes atomic single-use trial AI through
 `be1569d`: draft `040` reserves one successful real analysis, failed/fallback
 runs release it, the merchant UI provides `0/1` plus a static demo, and
-`/internal` exposes token-free source/expiry/AI status. Google OAuth, draft
-`040`, draft `041`, and fail-closed rollout dependencies remain disabled. No
-migration was applied, no Google/Supabase provider was configured, no
-env/secret changed, and no deploy was performed. Continue only from
+`/internal` exposes token-free source/expiry/AI status. The self-service trial
+contract and customer-facing copy now use a 3-day trial, with terms version
+`2026-07-15-v2`; draft `040` remains unapplied. Google OAuth, draft `040`,
+draft `041`, and fail-closed rollout dependencies remain disabled. No migration
+was applied, no Google/Supabase provider was configured, no env/secret changed,
+and no deploy was performed. Continue only from
 `docs/SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md` after explicit owner authorization and
 external provider inputs.
 

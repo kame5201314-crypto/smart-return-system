@@ -71,7 +71,7 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
             {membershipDisabled
               ? '你的帳號目前沒有可使用的商家工作區。請聯絡原商家管理員或 Smart Return 客服確認權限。'
               : selfServiceEnabled
-                ? '確認品牌名稱與方案後，即可建立 14 天免費試用。試用不需信用卡，也不會自動扣款。'
+                ? '確認品牌名稱與方案後，即可建立 3 天免費試用。試用不需信用卡，也不會自動扣款。'
                 : '這個 Google 帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}
           </CardDescription>
         </CardHeader>
@@ -85,7 +85,7 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
             <div className="flex flex-col gap-3 sm:flex-row">
               {!membershipDisabled && (
                 <Button asChild className="sm:flex-1">
-                  <Link href="/signup">申請 14 天免費試用</Link>
+                  <Link href="/signup">申請 3 天免費試用</Link>
                 </Button>
               )}
               <form action={signOut} className="sm:flex-1">

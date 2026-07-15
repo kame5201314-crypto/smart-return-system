@@ -22,9 +22,9 @@ import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 
 export const metadata: Metadata = {
-  title: '申請 14 天免費試用 | Smart Return',
+  title: '申請 3 天免費試用 | Smart Return',
   description:
-    '使用 Google 建立 Smart Return 14 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
+    '使用 Google 建立 Smart Return 3 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
 };
 
 const onboardingSteps = [
@@ -53,12 +53,12 @@ const onboardingSteps = [
 const selfServiceSteps = [
   [LogIn, '使用 Google 登入', '以 Google 帳號完成驗證，既有商家成員會直接回到原工作區。'],
   [Building2, '設定品牌與方案', '填寫品牌名稱並選擇入門版或成長版試用方案。'],
-  [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，14 天試用從現在開始。'],
+  [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，3 天試用從現在開始。'],
   [Sparkles, '匯入第一批退貨資料', '從蝦皮匯出資料開始，或手動建立第一筆退貨。'],
 ] as const;
 
 const reassurances = [
-  [BadgeCheck, '不需信用卡', '14 天試用完全不綁卡。試用結束不會自動扣款。'],
+  [BadgeCheck, '不需信用卡', '3 天試用完全不綁卡。試用結束不會自動扣款。'],
   [Clock3, '隨時取消', '試用期內或付費後皆可隨時停用，不綁約。'],
   [ShieldCheck, '資料獨立隔離', '你的退貨與客戶資料只屬於你，不會跟其他品牌混在一起。'],
   [Sparkles, 'Beta 限 5 家免費導入', '前 5 家品牌享免費協助匯入第一批退貨資料，現在還有名額。'],
@@ -88,7 +88,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
     <MarketingShell>
       <PageHeader
         eyebrow="申請試用"
-        title={googleTrialEnabled ? '使用 Google 開始 14 天免費試用。' : '申請 14 天免費試用 + Beta 期免費協助導入。'}
+        title={googleTrialEnabled ? '使用 Google 開始 3 天免費試用。' : '申請 3 天免費試用 + Beta 期免費協助導入。'}
         description={googleTrialEnabled
           ? '不需信用卡。登入後確認品牌與方案即可建立工作區；需要導入協助，也可提交申請由專人聯絡。'
           : '不需信用卡。送出申請後我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助你匯入第一批退貨資料。'}
@@ -123,7 +123,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                     </Link>
                   </Button>
                   <p className="mt-2 text-center text-xs text-neutral-500">
-                    14 天免費、不需信用卡、不會自動扣款
+                    3 天免費、不需信用卡、不會自動扣款
                   </p>
                   <div className="my-5 flex items-center gap-3" aria-hidden="true">
                     <div className="h-px flex-1 bg-neutral-200" />

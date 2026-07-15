@@ -65,7 +65,7 @@ DECLARE
   created_claim_id UUID;
   created_slug TEXT;
   effective_at TIMESTAMPTZ := NOW();
-  trial_end_at TIMESTAMPTZ := NOW() + INTERVAL '14 days';
+  trial_end_at TIMESTAMPTZ := NOW() + INTERVAL '3 days';
 BEGIN
   IF p_owner_user_id IS NULL THEN
     RAISE EXCEPTION 'owner_user_id is required';

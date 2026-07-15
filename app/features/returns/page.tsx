@@ -138,7 +138,7 @@ export default function ReturnsFeaturePage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild className="min-h-11 bg-white text-neutral-950 hover:bg-neutral-100">
               <Link href="/signup">
-                14 天免費試用
+                3 天免費試用
                 <ArrowRight className="size-4" />
               </Link>
             </Button>

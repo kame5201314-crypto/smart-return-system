@@ -42,7 +42,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
             </Button>
             <Button asChild size="sm" className="h-11">
               <Link href="/signup">
-                免費試用 14 天
+                免費試用 3 天
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -107,7 +107,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-7xl items-center gap-2">
           <Button asChild className="h-11 flex-1">
             <Link href="/signup">
-              免費試用 14 天
+              免費試用 3 天
               <ArrowRight className="size-4" />
             </Link>
           </Button>

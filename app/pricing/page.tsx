@@ -16,7 +16,7 @@ import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 export const metadata: Metadata = {
   title: '價格方案｜固定月費、不需信用卡試用 | Smart Return',
   description:
-    '入門版 NT$499、成長版 NT$699，退貨量是軟提醒不擋作業、AI 額度有上限不怕成本失控。14 天免費試用，不需信用卡。',
+    '入門版 NT$499、成長版 NT$699，退貨量是軟提醒不擋作業、AI 額度有上限不怕成本失控。3 天免費試用，不需信用卡。',
 };
 
 const comparisonRows = [
@@ -34,7 +34,7 @@ const planRecommendation = [
 const pricingFaq = [
   {
     q: '試用要綁信用卡嗎？',
-    a: '不需要。14 天免費試用完全不綁卡，試用結束不會自動扣款。',
+    a: '不需要。3 天免費試用完全不綁卡，試用結束不會自動扣款。',
   },
   {
     q: '退貨量超過軟上限會怎樣？',
@@ -273,7 +273,7 @@ export default function PricingPage() {
       <section className="bg-neutral-950 py-14 text-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 px-4 text-center sm:px-6 md:flex-row md:text-left lg:px-8">
           <div>
-            <h2 className="text-2xl font-semibold">先試 14 天，再決定要不要付費。</h2>
+            <h2 className="text-2xl font-semibold">先試 3 天，再決定要不要付費。</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-300">
               不需信用卡、隨時取消。Beta 期前 5 家品牌享免費協助導入。
             </p>
@@ -281,7 +281,7 @@ export default function PricingPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild className="bg-white text-neutral-950 hover:bg-neutral-100">
               <Link href="/signup?plan=growth">
-                申請 14 天免費試用
+                申請 3 天免費試用
                 <ArrowRight className="size-4" />
               </Link>
             </Button>

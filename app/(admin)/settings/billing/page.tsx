@@ -53,7 +53,7 @@ const INVOICE_LABEL: Record<NonNullable<BillingSettingsView['invoiceSummary']['l
 };
 
 const billingTimeline: ReadonlyArray<readonly [BillingStatus, string]> = [
-  ['trialing', '提供 14 天試用，期間享有方案完整功能。'],
+  ['trialing', '提供 3 天試用，期間享有方案完整功能。'],
   ['active', '訂閱已生效，可使用方案內所有功能。'],
   ['past_due', '扣款失敗，提供 7 天寬限期可補繳。'],
   ['suspended', '可查看歷史資料與帳單，暫無法新增或匯出資料。'],

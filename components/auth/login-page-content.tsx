@@ -235,7 +235,7 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
                   href="/signup"
                   className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
                 >
-                  申請 14 天免費試用
+                  申請 3 天免費試用
                 </Link>
               </p>
             )}

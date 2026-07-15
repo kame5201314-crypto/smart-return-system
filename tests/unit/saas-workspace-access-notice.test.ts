@@ -10,7 +10,7 @@ describe('workspace access notice', () => {
       status: 'suspended',
       trialEnd: '2026-07-13T00:00:00.000Z',
       now: new Date('2026-07-14T00:00:00.000Z'),
-    })).toMatchObject({ kind: 'trial_expired', title: '14 天免費試用已結束' });
+    })).toMatchObject({ kind: 'trial_expired', title: '3 天免費試用已結束' });
   });
 
   it('shows a generic readonly notice for other suspended workspaces', () => {

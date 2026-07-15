@@ -1,5 +1,16 @@
 # Handoff Log
 
+## 2026-07-15 - Three-Day Google Trial Contract Handoff
+
+- Shortened the Google self-service trial contract from 14 days to 3 days in
+  draft migration `040` and updated the public marketing, signup, login,
+  billing-status, expiry-notice, and rollout/spec copy to match.
+- Bumped the self-service trial terms version to `2026-07-15-v2` so the material
+  duration change is explicitly accepted when trial signup is enabled.
+- The single successful real AI analysis policy remains unchanged.
+- No migration, env/secret, Google/Supabase provider, deployment, billing,
+  email provider, or master/live/internal Supabase change was made.
+
 ## 2026-07-15 - Single-Use Google Trial AI Handoff
 
 - Added token-owned, atomic reservation/complete/release RPCs to unapplied

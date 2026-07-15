@@ -22,7 +22,7 @@ describe('Google self-service trial migration', () => {
   it('records one-time claims, terms acceptance, trial end, and audit evidence', () => {
     expect(source).toContain('UNIQUE (user_id)');
     expect(source).toContain('UNIQUE (normalized_email)');
-    expect(source).toContain("NOW() + INTERVAL '14 days'");
+    expect(source).toContain("NOW() + INTERVAL '3 days'");
     expect(source).toContain('terms_accepted_at');
     expect(source).toContain('org.google_self_service_trial_created');
     expect(source).toContain("p_plan NOT IN ('basic', 'growth')");

@@ -90,7 +90,7 @@ export function SelfServiceTrialForm({ email, initialPlan }: SelfServiceTrialFor
         return;
       }
 
-      toast.success('14 天試用工作區已建立。');
+      toast.success('3 天試用工作區已建立。');
       router.replace(payload.redirectTo || '/analytics');
       router.refresh();
     } catch {
@@ -168,7 +168,7 @@ export function SelfServiceTrialForm({ email, initialPlan }: SelfServiceTrialFor
           <Link href="/legal/privacy" target="_blank" className="mx-1 text-emerald-700 underline">
             隱私權政策
           </Link>
-          ，並了解試用期為 14 天且不會自動扣款。
+          ，並了解試用期為 3 天且不會自動扣款。
         </span>
       </label>
 
@@ -179,7 +179,7 @@ export function SelfServiceTrialForm({ email, initialPlan }: SelfServiceTrialFor
             建立工作區中...
           </>
         ) : (
-          '開始 14 天免費試用'
+          '開始 3 天免費試用'
         )}
       </Button>
     </form>

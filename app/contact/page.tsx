@@ -27,7 +27,7 @@ const contactReasons = [
   [
     Building2,
     '申請 Beta 試用',
-    '14 天免費試用、不需信用卡。前 5 家品牌享免費協助導入第一批退貨資料。',
+    '3 天免費試用、不需信用卡。前 5 家品牌享免費協助導入第一批退貨資料。',
   ],
   [
     MessageSquareText,

@@ -114,7 +114,7 @@ export default async function OpengraphImage() {
               fontWeight: 700,
             }}
           >
-            14 Days Free Trial
+            3 Days Free Trial
           </div>
         </div>
       </div>
