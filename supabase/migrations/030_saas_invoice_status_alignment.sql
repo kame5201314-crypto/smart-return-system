@@ -1,6 +1,5 @@
--- DRAFT: SaaS invoice status alignment.
--- Not applied to any database.
--- Apply to the SaaS Supabase project only after review, credentials, and backup are confirmed.
+-- Applied to SaaS project auyznbwtjvemyamujmgt as part of the migration chain through 032.
+-- Do not reapply; use a new migration for future schema changes.
 -- Do not apply to the internal/live production Supabase project.
 
 DO $$

@@ -204,7 +204,7 @@ merchant or platform backends.
 |---|---|---|---|
 | B1 | Invoice/receipt capability | Confirm the business can legally issue an invoice or receipt before collecting the first payment. Manual ECPay invoice console or accountant-issued invoice is acceptable for Stage 2. | Owner/legal/accounting |
 | B2 | Legal pages no longer say draft for paying customers | Terms, privacy, and refund pages currently describe Beta/draft posture. Before paid launch, finalize company entity, tax/invoice handling, data retention, subprocessors, and refund rules. | Owner/legal plus UI/docs update |
-| B3 | Invoice status alignment if storing invoices in-app | If invoice rows are written to the SaaS DB, apply `030_saas_invoice_status_alignment.sql` first so DB status values match billing UI/backend DTOs. | Owner authorization + Codex |
+| B3 | Invoice status alignment if storing invoices in-app | Migration `030_saas_invoice_status_alignment.sql` is already applied as part of the chain through `032`. Before writing invoice rows, verify remote history and the live schema/DTO contract; do not rerun `030`. Any future change requires a new migration. | Codex read-only verification; owner authorization for any new migration |
 | B4 | Manual payment tracking SOP | Record who paid, period covered, invoice/receipt number, refund decisions, and any manual account status changes. | Repo-side SOP drafted in `SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`; future platform billing ops use `033` |
 | B5 | Support SLA and onboarding checklist | Low-price plans only work if support load is controlled. Define response channel, response window, and self-serve onboarding steps. | Repo-side SOP drafted in `SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md`; owner still confirms real support policy |
 | B6 | Privacy, DPA, retention, and deletion SOP | Paid customers may ask how buyer data is retained, deleted, processed by subprocessors, and handled during incidents. | Repo-side SOP drafted in `SAAS_PRIVACY_DPA_DELETION_SOP.md`; owner/legal still finalizes public legal wording |
@@ -303,8 +303,9 @@ signals and account state, not customer PII.
 
 4. Confirm invoice/receipt capability.
 5. Finalize terms/privacy/refund pages for paying customers.
-6. Decide whether invoice rows will be stored in-app; if yes, authorize only
-   migration `030`.
+6. Decide whether invoice rows will be stored in-app; if yes, verify remote
+   history and the live schema include already-applied migration `030`. Do not
+   rerun it; use a new separately authorized migration for any future change.
 7. Use the manual payment/refund/support SOP.
 8. Review the privacy/DPA/deletion SOP with legal/accounting support.
 
@@ -330,14 +331,12 @@ enable email/billing/provider, and do not touch master/live/internal Supabase.
 Status: completed on 2026-07-01. Remote migration history records `038` as
 applied. Do not reapply unless a future repair is explicitly authorized.
 
-### Apply Invoice Status Migration 030
+### Historical: Invoice Status Migration 030
 
-```text
-I authorize applying only supabase/migrations/030_saas_invoice_status_alignment.sql
-to SaaS Supabase project auyznbwtjvemyamujmgt.
-Do not deploy, do not apply other migrations, do not edit env/secrets, do not
-enable email/billing/provider, and do not touch master/live/internal Supabase.
-```
+Status: already applied to SaaS project `auyznbwtjvemyamujmgt` as part of the
+migration chain through `032`. The old apply template is retired. Do not
+reapply `030`; verify remote history/schema read-only and create a new migration
+for any future change.
 
 ### Verify Production Platform Admin Env
 
