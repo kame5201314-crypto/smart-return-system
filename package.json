@@ -12,7 +12,7 @@
     "test:scripts": "node scripts/testing/validate-node-scripts.mjs",
     "test:backend": "vitest run tests/backend tests/unit/upload-session.route.test.ts tests/unit/upload-signed-url.route.test.ts tests/unit/shopee-scan.actions.test.ts tests/unit/shopee-status-separation.test.ts",
     "test:scripts-backend": "npm run test:scripts && npm run test:backend",
-    "test:all": "npm run test:scripts-backend && npm run test:unit && npm run test:e2e && npm run test:integration",
+    "test:all": "npm run test:scripts-backend && npm run test:unit && npm run test:ui && npm run test:e2e && npm run test:integration",
     "test:unit": "vitest run tests/unit",
     "test:ui": "vitest run tests/ui",
     "test:e2e": "vitest run tests/e2e",
