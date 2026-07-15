@@ -40,7 +40,9 @@ describe('SaaS migration plan check', () => {
 
     expect(result.status).toBe(0);
     expect(result.output).toContain('SAAS_SUPABASE_PROJECT_ID - auyznbwtjvemyamujmgt');
-    expect(result.output).toContain('Migration chain end - 041_saas_scoped_trial_expiry.sql');
+    expect(result.output).toContain(
+      'Migration chain end - 042_saas_scope_trial_expiry_to_self_service.sql'
+    );
     expect(result.output).toContain('No migrations were applied by this check.');
   });
 

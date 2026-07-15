@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -8,9 +8,42 @@ environment changes, billing/provider enablement, or DNS changes by itself.
 
 For the Google login and self-service trial rollout, use
 [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md).
-The code is present on `develop-saas`, but Google Cloud/Supabase provider setup,
-migrations `040`/`041`, rollout flags, deployment, and disposable-account QA
-remain separate owner-authorized actions.
+Google Cloud/Supabase provider setup and migrations `040`/`041` are complete.
+The remaining callback-origin fix, migration `042`, new-HEAD deployment, rollout
+flags, and disposable-account QA remain separate owner-authorized actions.
+
+## 2026-07-15 Google Rollout Follow-up Authorization Required
+
+The Google Cloud OAuth client, SaaS Supabase Google provider, migrations `040`
+and `041`, and deployment of exact HEAD `d6250b3` are complete. Public route and
+3-day marker smoke passed, but authenticated/lifecycle smoke found two blockers.
+The three Google rollout flags were therefore reset to `false` and Production
+was redeployed fail-closed.
+
+Do not re-enable self-service trial until the owner separately authorizes all
+three actions below:
+
+1. Change Vercel Production `NEXT_PUBLIC_APP_URL` to
+   `https://smart-return-system-saas.vercel.app` and redeploy. The current value
+   is the different Vercel project alias
+   `https://smart-return-system-saas-kaweis-projects.vercel.app`; because that
+   callback is not the approved public callback, the OAuth code returns to `/`
+   rather than `/auth/callback`.
+2. Apply only `042_saas_scope_trial_expiry_to_self_service.sql` to SaaS project
+   `auyznbwtjvemyamujmgt`. This prevents the expiry cron from suspending manual
+   Beta organizations that have no self-service trial claim.
+3. Push/deploy the resulting new `develop-saas` HEAD, then repeat the disposable
+   Google identity, 3-day trial, concurrent `0/1` AI, and expired-to-read-only
+   smoke matrix before setting all three rollout flags to `true`.
+
+Current safe Production state:
+
+- Runtime: `d6250b3`
+- Deployment: `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz` (Ready)
+- `ENABLE_GOOGLE_AUTH=false`
+- `ENABLE_GOOGLE_TRIAL_SIGNUP=false`
+- `ENABLE_TRIAL_EXPIRY_CRON=false`
+- migrations `040` and `041` applied; draft `042` unapplied
 
 ## Current Verified State
 

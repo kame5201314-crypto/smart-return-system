@@ -5906,3 +5906,55 @@ Remaining boundary:
   SaaS Supabase Google provider configuration, explicit migrations `040` and
   `041` authorization, Production flags/deploy authorization, and disposable
   QA accounts for the identity and lifecycle matrix.
+
+## 2026-07-15 Codex -> Owner / Claude / Codex
+
+Google Production activation was attempted under the owner's exact scope and
+then returned fail-closed after smoke exposed two blockers.
+
+Completed external actions:
+
+- Created a dedicated Google Web OAuth client without writing credentials to
+  chat, repo, or docs.
+- Enabled Google Auth only on SaaS Supabase project
+  `auyznbwtjvemyamujmgt`; configured the stable Production Site URL and allowed
+  Production/local callback URLs.
+- Applied only migrations `040` and `041` in order and verified service-role RPC
+  access plus remote migration history.
+- Ran full `npm run saas:predeploy`, deployed exact HEAD `d6250b3`, and passed
+  public/protected-route plus 3-day trial marker smoke.
+
+Blockers found by real smoke:
+
+- Production `NEXT_PUBLIC_APP_URL` uses
+  `https://smart-return-system-saas-kaweis-projects.vercel.app`, which differs
+  from the Supabase-allowed public callback on
+  `https://smart-return-system-saas.vercel.app`. Google authorization therefore
+  returns to the public site root with `?code=` instead of `/auth/callback`, so
+  no app session is exchanged.
+- Migration `041` does not require a self-service claim before suspending an
+  expired trial. Enabling the cron could therefore suspend manually provisioned
+  Beta organizations.
+
+Fail-closed response:
+
+- Reset `ENABLE_GOOGLE_AUTH`, `ENABLE_GOOGLE_TRIAL_SIGNUP`, and
+  `ENABLE_TRIAL_EXPIRY_CRON` to `false`.
+- Redeployed exact `d6250b3`; current Ready deployment is
+  `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz`.
+- Verified Google login is hidden and the cron returns
+  `trial_expiry_cron_disabled`.
+- Added unapplied draft migration
+  `042_saas_scope_trial_expiry_to_self_service.sql` plus readiness/migration
+  tests. It requires a matching `saas_self_service_trial_claims` row and returns
+  `not_self_service_trial` without mutation for manual Beta organizations.
+
+Owner follow-up authorization required before resuming:
+
+1. Set stable Production `NEXT_PUBLIC_APP_URL`.
+2. Apply only migration `042` to the same SaaS project.
+3. Push/deploy the resulting new HEAD and rerun the disposable Google identity,
+   3-day trial, concurrent `0/1` AI, and expiry-to-read-only matrix.
+
+No billing/email provider, domain/DNS, master/live/internal Supabase, automatic
+cancel, or data deletion action was performed.

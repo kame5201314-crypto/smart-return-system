@@ -1,7 +1,7 @@
 # SaaS Google 登入與自助試用啟用手冊
 
-狀態：程式基礎已完成，Production 尚未啟用  
-更新：2026-07-14
+狀態：外部基礎已設定，Production 目前 fail-closed，待修正後重新驗收
+更新：2026-07-15
 
 這份手冊只定義安全啟用順序，不授權變更 Google Cloud、
 Supabase、Vercel、migration、env 或 Production deployment。
@@ -20,6 +20,8 @@ Supabase、Vercel、migration、env 或 Production deployment。
 - Phase 1：Google OAuth PKCE start/callback、安全 `next` 路徑、商家/平台管理員分流。
 - Phase 2：`/signup/complete`、自助試用 API、migration `040` 專用 RPC 草稿。
 - Phase 3：scoped 到期 worker/cron、migration `041` RPC 草稿、暫停後唯讀提示。
+- Phase 3 防誤停：migration `042` 草稿要求組織存在 Google 自助試用
+  claim，避免自動排程誤停人工開通的 Beta 租戶。
 - Rollout gate：自助試用不得在 Google Auth 或到期排程關閉時啟用。
 - OAuth 導向來源：回呼與錯誤導向優先使用 `NEXT_PUBLIC_APP_URL`，不信任來訪 request host。
 - 試用開通限流：驗證身分後、呼叫 service-role RPC 前，以使用者為單位做每小時 20 次的 best-effort 限流。
@@ -65,6 +67,11 @@ Production Site URL 應是：
 https://smart-return-system-saas.vercel.app
 ```
 
+Vercel Production 的 `NEXT_PUBLIC_APP_URL` 也必須是同一個穩定網址；不可
+使用未列入 Supabase redirect allow-list 的其他 Vercel alias，否則 Supabase
+會把 OAuth code 回傳到站點根目錄，應用程式無法在 `/auth/callback` 交換
+session。
+
 ### 3. Phase 1：只開既有商家 Google 登入
 
 Production 只設：
@@ -84,6 +91,7 @@ ENABLE_TRIAL_EXPIRY_CRON=false
 
 1. `040_saas_google_self_service_trial.sql`
 2. `041_saas_scoped_trial_expiry.sql`
+3. `042_saas_scope_trial_expiry_to_self_service.sql`
 
 套用後驗證：
 
@@ -93,7 +101,10 @@ ENABLE_TRIAL_EXPIRY_CRON=false
   `complete_google_self_service_trial_ai_analysis(...)`、
   `release_google_self_service_trial_ai_analysis(...)` 僅 service role 可執行。
 - `suspend_expired_trial_organization(...)` 僅 service role 可執行。
-- migration history 依序記錄 `040` 與 `041`。
+- `suspend_expired_trial_organization(...)` 對沒有
+  `saas_self_service_trial_claims` 的人工 Beta 組織回傳
+  `not_self_service_trial` 且不改狀態。
+- migration history 依序記錄 `040`、`041` 與 `042`。
 - `npm run saas:migration-plan:strict` 與 `npm run saas:schema-gate:strict` 通過。
 
 ### 5. Disposable QA 驗收矩陣
@@ -137,16 +148,18 @@ Production 必須同時有有效 `CRON_SECRET`、Sentry DSN 與正確 app URL。
 npm run saas:predeploy
 ```
 
-目前 `040` 與 `041` 仍是未套用草稿。Repository 完成不代表 Production 已
-啟用；未取得 Owner 對 migration、env 與部署的逐項授權前，所有 Google
-自助試用旗標必須維持關閉。
+目前 `040` 與 `041` 已套用；`042` 仍是未套用草稿。Google provider 已設定，
+但 2026-07-15 實測發現 `NEXT_PUBLIC_APP_URL` 與允許的公開 callback 網址不一致，且
+`041` 尚未排除人工 Beta 租戶。Production 三個 Google rollout flags 已回復
+`false`。在 `NEXT_PUBLIC_APP_URL`、`042` 與新 HEAD 部署分別取得授權並完成
+整套 disposable QA 前，旗標必須維持關閉。
 
 ## 回滾順序
 
 1. 先將 `ENABLE_GOOGLE_TRIAL_SIGNUP=false`，阻止新試用建立。
 2. 若到期排程異常，再將 `ENABLE_TRIAL_EXPIRY_CRON=false`。
 3. 若 Google 登入本身異常，最後將 `ENABLE_GOOGLE_AUTH=false`，保留密碼登入。
-4. 不回滾/刪除 `040/041` schema；以新 migration 修正。
+4. 不回滾/刪除 `040/041/042` schema；以新 migration 修正。
 5. 不刪除已建立的 org、membership、subscription 或試用 claim。
 
 ## 不在本次範圍

@@ -1,23 +1,26 @@
 # Active Work
 
-## 2026-07-15 Google OAuth And Trial Rollout Foundation
+## 2026-07-15 Google OAuth And Trial Rollout Activation Follow-up
 
 Status: blocked
 
-Scope: Production activation of Google login, self-service trial, and scoped
-trial expiry.
+Scope: Safe completion of Google login, 3-day self-service trial, single-use AI,
+and self-service-only expiry.
 
-Notes: Repository work now includes atomic single-use trial AI through
-`be1569d`: draft `040` reserves one successful real analysis, failed/fallback
-runs release it, the merchant UI provides `0/1` plus a static demo, and
-`/internal` exposes token-free source/expiry/AI status. The self-service trial
-contract and customer-facing copy now use a 3-day trial, with terms version
-`2026-07-15-v2`; draft `040` remains unapplied. Google OAuth, draft `040`,
-draft `041`, and fail-closed rollout dependencies remain disabled. No migration
-was applied, no Google/Supabase provider was configured, no env/secret changed,
-and no deploy was performed. Continue only from
-`docs/SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md` after explicit owner authorization and
-external provider inputs.
+Notes: Google Cloud OAuth and SaaS Supabase provider setup are complete.
+Owner-authorized migrations `040` and `041` are applied only to
+`auyznbwtjvemyamujmgt`. Exact HEAD `d6250b3` passed predeploy, deployed Ready,
+and passed public/protected-route plus 3-day marker smoke. Authenticated OAuth
+then exposed that Production `NEXT_PUBLIC_APP_URL` uses a different Vercel
+project alias than the allowed public callback, returning the code to `/`
+instead of `/auth/callback`. Expiry inspection also found `041` can
+suspend manual Beta trials because it does not require a self-service claim.
+Production was returned fail-closed with all three Google rollout flags false;
+deployment `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz` is Ready. Draft migration `042`
+adds the missing claim gate and focused tests pass, but it is not applied.
+Continue only after separate owner authorization for the stable app URL,
+migration `042`, push/deploy of the new HEAD, and disposable full smoke. Billing,
+email, domain/DNS, and master/live/internal Supabase remain out of scope.
 
 
 Use this file to avoid Claude / Codex editing the same files at the same time.

@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const EXPECTED_BRANCH = 'develop-saas';
-const EXPECTED_LAST_MIGRATION = '041_saas_scoped_trial_expiry.sql';
+const EXPECTED_LAST_MIGRATION = '042_saas_scope_trial_expiry_to_self_service.sql';
 const REQUIRED_BASE_MIGRATIONS = [
   '001_return_system_schema.sql',
   '002_rls_and_init_data.sql',
@@ -32,6 +32,7 @@ const REQUIRED_SAAS_MIGRATIONS = [
   '039_saas_public_lead_capture.sql',
   '040_saas_google_self_service_trial.sql',
   '041_saas_scoped_trial_expiry.sql',
+  '042_saas_scope_trial_expiry_to_self_service.sql',
 ];
 const DEFAULT_FORBIDDEN_SUPABASE_REFS = [
   'fdzfnenizyppxglypden',

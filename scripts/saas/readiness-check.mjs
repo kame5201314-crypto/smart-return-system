@@ -280,6 +280,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/039_saas_public_lead_capture.sql',
     'supabase/migrations/040_saas_google_self_service_trial.sql',
     'supabase/migrations/041_saas_scoped_trial_expiry.sql',
+    'supabase/migrations/042_saas_scope_trial_expiry_to_self_service.sql',
     'lib/saas/lead-capture-service.ts',
     'lib/saas/self-service-trial.ts',
     'lib/saas/self-service-trial-ai-quota.ts',
@@ -890,12 +891,12 @@ function checkCommercialFoundation() {
       source.includes('SUPABASE_DB_PASSWORD') &&
       source.includes('DEFAULT_FORBIDDEN_SUPABASE_REFS') &&
       source.includes('REQUIRED_SAAS_MIGRATIONS') &&
-      source.includes('041_saas_scoped_trial_expiry.sql') &&
+      source.includes('042_saas_scope_trial_expiry_to_self_service.sql') &&
       source.includes('No migrations were applied by this check')
     ) {
-      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-041 migration chain before apply');
+      record('pass', 'SaaS migration plan check', 'validates target ref, DB password, and full 001-042 migration chain before apply');
     } else {
-      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-041 migration chain without applying migrations');
+      record('fail', 'SaaS migration plan check', 'must validate SaaS target, DB password, and full 001-042 migration chain without applying migrations');
     }
   }
 
