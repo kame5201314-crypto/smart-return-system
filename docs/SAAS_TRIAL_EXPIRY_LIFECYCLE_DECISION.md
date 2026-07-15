@@ -4,6 +4,10 @@
 日期：2026-07-08；修訂：2026-07-14
 背景：`lib/saas/subscription-lifecycle.ts` 已定義完整的訂閱生命週期規則。Google 自助試用會提高租戶建立速度，因此達成原決策的自動化觸發條件；本次只啟用最小必要的「試用到期暫停」，不啟用完整付款或資料保留生命週期。
 
+現況（2026-07-15）：migrations `040`–`043` 已套用且不得重跑；Production
+`ENABLE_TRIAL_EXPIRY_CRON=true`，Google 三天試用、scoped expiry 與到期唯讀
+已完成 smoke/驗收。下方「啟用前置」保留為歷史 rollout 證據，不是待辦。
+
 ## 決策
 
 Google 自助試用啟用時，以每日 scoped cron 處理到期租戶：
@@ -13,7 +17,7 @@ Google 自助試用啟用時，以每日 scoped cron 處理到期租戶：
 - 不處理 `active`、`past_due`、既有 `suspended` 或 `cancelled`。
 - 不自動轉為 `cancelled`，不刪除任何客戶、會員、退貨或圖片資料。
 - 每次成功暫停都寫入 `audit_logs`。
-- `ENABLE_TRIAL_EXPIRY_CRON` 預設關閉；040、041 套用並完成 smoke test 後才能啟用。
+- `ENABLE_TRIAL_EXPIRY_CRON` 在 shared defaults 預設關閉；Production 已在 040–043 套用及 smoke 通過後獲授權啟用。
 
 ## 理由
 
@@ -30,7 +34,7 @@ Google 自助試用啟用時，以每日 scoped cron 處理到期租戶：
 3. migration 041 RPC 在資料庫交易內重新驗證後，原子更新 organization、subscription 並寫 audit log。
 4. 平台管理員仍可於 `/internal` 人工恢復或處理付款。
 
-## 啟用前置
+## 啟用前置（已完成的歷史驗收）
 
 1. migration 040 與 041 只套用到 SaaS Supabase project `auyznbwtjvemyamujmgt`。
 2. Production 已設定有效 `CRON_SECRET`。

@@ -30,22 +30,17 @@ handoff. It is no longer an outstanding owner-action blocker.
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Current owner-confirmed Production URL is
-  `https://smart-return-system-saas.vercel.app`; this local-only update did not
-  re-query the exact deployed commit or deployment ID.
-- Historical signed-image rollout baseline ran
-  `f009621 fix(saas): sign return image storage URLs`,
-  which includes the post-`796a02a` Shopee workspace-error localization, SEO
-  infrastructure, public access for `robots.txt`, `sitemap.xml`, and
-  `opengraph-image`, the 499/699 pricing contract, the multi-channel honesty
-  copy, platform tenant suspend/resume controls, `/internal` non-admin redirect
-  hardening, tenant list operations UI, and signed return-image storage URL
-  handling.
-- Historical signed-image deployment:
-  `dpl_qJfFc3z5UFc7Qqb6u5DmNCSoae8v` (Ready)
-- Owner-authorized production smoke on 2026-07-14 passed 16/16 and confirms
-  `/pricing` still shows 499/699 markers. Checked response no longer exposes
-  old `1,490` / `2,990` pricing markers.
+- Current Production runtime: `a29f725` on Ready Vercel deployment
+  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`, aliased to
+  `https://smart-return-system-saas.vercel.app`.
+- The 2026-07-15 post-deploy smoke passed 16/16, OAuth recovery browser QA
+  passed, and the deployment error-log scan returned zero errors.
+- Repository hardening commits through `6905ce3` are pushed to
+  `origin/develop-saas`; migration-status correction `d397ea2` is also pushed.
+  They have not been deployed. Production therefore
+  remains at `a29f725` until a separately authorized deployment.
+- Historical signed-image runtime `f009621` and lead-capture runtime `ba70e90`
+  are superseded deployment records, not the current Production source.
 - SaaS Supabase bucket `return-images` is now private (`public=false`) after
   the signed URL runtime was deployed. Bucket verification found no existing
   stored objects to live-fetch during the smoke, but the private visibility
@@ -57,6 +52,9 @@ handoff. It is no longer an outstanding owner-action blocker.
   - `ENABLE_GOOGLE_AUTH=true`
   - `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
   - `ENABLE_TRIAL_EXPIRY_CRON=true`
+  - `ENABLE_PUBLIC_LEAD_CAPTURE=true`
+  - `ENABLE_MULTI_TENANT_ADMIN=true` (owner-authorized platform operations;
+    merchant-denial QA passed)
   - email delivery remains dry-run; a disabled-by-default Resend adapter
     skeleton exists, but no provider env or enablement flag is configured
   - owner deferred custom domain purchase/setup and chose to use

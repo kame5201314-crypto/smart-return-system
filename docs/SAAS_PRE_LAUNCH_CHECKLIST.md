@@ -1,6 +1,6 @@
 # SaaS Pre-Launch Checklist
 
-Last verified: 2026-05-23
+Last verified: 2026-07-15
 
 This checklist is for the SaaS commercial checkout on `develop-saas`.
 It does not authorize production deployment, Supabase migrations, or Vercel
@@ -8,7 +8,8 @@ setting changes by itself. External changes still need explicit owner approval.
 
 ## Current Gate Status
 
-The following read-only checks passed on 2026-05-23:
+The full env-backed predeploy gates passed before runtime `a29f725` was deployed
+on 2026-07-15, followed by Production smoke 16/16 and zero deployment errors:
 
 - `npm run safety:agent-boundary`
 - `npm run verify-env`
@@ -21,14 +22,13 @@ The following read-only checks passed on 2026-05-23:
 - `ADMIN_USERNAME` must be set.
 - `ADMIN_PASSWORD` must be non-placeholder and at least 12 characters.
 
-After admin credential rotation, the expected manual-Beta non-blocking warnings are:
+Production Sentry DSNs are configured. The remaining expected Manual Beta
+non-blocking warning is that Billing is disabled; this is intentional for the
+current free/manual posture but not sufficient for paid self-serve launch.
 
-- Sentry/logging DSN is missing.
-- Billing is disabled. This is acceptable for manual Beta, but not for paid
-  self-serve launch.
-
-For public signup, subscription, or paid billing rollout, missing
-Sentry/logging DSN becomes a blocker.
+Repository hardening after `a29f725` passed lint, typecheck, `test:all`, and the
+Production build. It is pushed but not deployed. The clean clone has no
+`.env.saas.local`, so do not fabricate placeholders to rerun strict env gates.
 
 ## Launch Mode Decision
 
@@ -50,9 +50,10 @@ local file `.env.saas.local` may temporarily set:
 ENABLE_MULTI_TENANT_ADMIN=true
 ```
 
-Restart the local dev server after changing this flag. This is not a rollout
-setting and should remain `false` in shared examples and public environments
-unless platform admin rollout is explicitly approved.
+Restart the local dev server after changing this flag. Shared examples should
+remain closed by default. Production is an explicit approved exception:
+`ENABLE_MULTI_TENANT_ADMIN=true`, with authenticated admin and merchant-denial
+QA already completed; do not change that value without new authorization.
 
 ## Must Confirm Before Manual Beta Deploy
 

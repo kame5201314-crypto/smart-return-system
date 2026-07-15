@@ -66,6 +66,13 @@ ENABLE_IMAGE_AI=false
 
 `ENABLE_AI_USAGE_LIMIT=true` should remain enabled.
 
+Current Production is an explicitly approved exception to the generic admin
+default: `ENABLE_MULTI_TENANT_ADMIN=true` for platform operations, with
+authenticated-admin and merchant-denial QA completed. Google Auth, Google trial
+signup, trial-expiry cron, and public lead capture are also enabled. Do not use
+this defaults block to turn an active Production flag off without separate
+authorization.
+
 ## External Changes Need Approval
 
 The following require explicit owner approval before execution:

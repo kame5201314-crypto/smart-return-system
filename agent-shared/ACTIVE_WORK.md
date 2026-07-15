@@ -22,6 +22,25 @@ Production smoke passed 16/16 and the deployment error scan returned zero
 errors. No migration or env value change was needed; migrations `040`–`043`
 were not rerun.
 
+## 2026-07-15 Post-Rollout Repository Hardening
+
+Status: done
+
+Scope: Finish the remaining safe local UI, regression, dependency, security,
+and status-documentation backlog without changing external systems.
+
+Notes: Commits `6298418`, `9995b90`, `b40797b`, `e2fdab9`, `0bfb118`,
+`632d11e`, `6905ce3`, and `d397ea2` are pushed to `origin/develop-saas`. They localize all
+billing fallback states, explain every read-only workspace state, include UI
+regressions in `test:all`, update Vitest and Sentry security fixes, mark the
+already-applied migrations `030` and `040`–`043` accurately, and lock the dev-auth and
+schema-drift endpoints fail-closed with regression tests. The full audit is now
+1 low / 5 moderate / 0 high / 0 critical; production dependencies are 1 low /
+4 moderate / 0 high / 0 critical. These follow-up commits have not been
+deployed. Production remains runtime `a29f725` on Ready deployment
+`dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`. No migration, env/secret, Vercel,
+Supabase, DNS, billing, or email-provider setting was changed in this work.
+
 
 Use this file to avoid Claude / Codex editing the same files at the same time.
 
@@ -60,11 +79,15 @@ Notes: Lead capture is independently gated from public signup. Owner-authorized 
 
 ## Current
 
-Authoritative 2026-07-14 update: Production runs runtime HEAD `ba70e90` on
-deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2` (Ready), with migration `039`
-applied and `ENABLE_PUBLIC_LEAD_CAPTURE=true`. Public signup, billing, email
-delivery, and providers remain disabled. The older snapshot below is retained
-for detailed historical context where it does not conflict with this update.
+Authoritative 2026-07-15 update: Production runs runtime HEAD `a29f725` on
+deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). Production smoke passed
+16/16, OAuth recovery browser QA passed, and the deployment error scan returned
+zero errors. Google Auth, automatic 3-day trials, single-use trial AI, scoped
+expiry, public lead capture, and platform admin operations are enabled. Public
+signup, billing, email delivery, and providers remain disabled. Repository
+hardening through `6905ce3` is pushed but not deployed. The older snapshot below
+is retained only as historical context where it does not conflict with this
+update.
 
 ```text
 Owner: none

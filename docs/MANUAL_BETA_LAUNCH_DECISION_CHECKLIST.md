@@ -68,7 +68,7 @@ operations.
   - Email provider remains dry-run only.
   - No migration was run for this deployment.
   - No beta custom domain is configured.
-  - Sentry SDK is installed and wired, but Sentry DSN is not configured, so monitoring is not active.
+  - Sentry SDK is installed and Production DSNs are configured; do not expose or replace their values without authorization.
   - Keep rollback readiness for the first 24 hours after launch.
 
 ## Completed For Manual Beta

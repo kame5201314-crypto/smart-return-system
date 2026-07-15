@@ -1,10 +1,13 @@
 # SaaS 資安稽核報告（Security Launch Audit）
 
-- 日期：2026-06-13
+- 原始稽核：2026-06-13；完成狀態更新：2026-07-15
 - 分支：`develop-saas`
 - 方法：Claude 與 Codex **兩個獨立稽核**交叉驗證，結論零分歧。
-- 性質：唯讀稽核。本文件只記錄稽核結論與待辦交辦，**不含任何後端程式修改**。
-- Production 現況：`f634bc0` 部署於 `https://smart-return-system-saas.vercel.app`（Closed Manual Beta）。
+- 性質：原始稽核為唯讀；本次同步已完成修正與驗收證據。
+- Production 現況：runtime `a29f725`、Ready deployment
+  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`，網址
+  `https://smart-return-system-saas.vercel.app`（Closed Manual Beta）。後續安全
+  hardening through `6905ce3` 已推送、尚未部署。
 
 ---
 
@@ -36,7 +39,7 @@
 | Rate limiting（真實程式碼） | `lib/auth/admin-login-rate-limit.ts`、`lib/actions/auth.ts`、`lib/actions/customer-return.actions.ts`、`app/api/saas/signup`、`app/api/v1/upload/*` | ✅ |
 | 公開寫入面驗證 | 消費者退貨 portal 寫入經 `customerReturnSchema`（zod）驗證 + 欄位長度上限 + 手機 regex | ✅ |
 | ECPay webhook | `app/api/billing/ecpay/webhook/route.ts` + `CheckMacValue` 簽章驗證（Billing 目前停用） | ✅ |
-| 相依套件漏洞 | `npm audit --omit=dev`：**0 high / 0 critical**，餘 1 low / 10 moderate（production deps）；high/critical 僅存在 dev-only 建置工具，不 ship 至 production | ✅ |
+| 相依套件漏洞 | `npm audit --omit=dev`：1 low / 4 moderate / **0 high / 0 critical**；完整 audit 為 1 low / 5 moderate / **0 high / 0 critical**。剩餘 Next/PostCSS 與 ExcelJS/UUID 路徑需 breaking upgrade，不使用 `--force` 自動修正 | ✅ |
 
 > **備份說明（需 owner 確認，非本稽核可驗證）**：repo 內已實作**應用層 backup cron gating**；但 Supabase **平台層的每日自動備份是否啟用**屬 Supabase Dashboard 設定，無法從 repo 驗證。owner 應於 Supabase Dashboard 確認 daily backup 已開啟。
 
@@ -48,18 +51,20 @@
 
 - **確認 Vercel Production `ADMIN_PASSWORD` 為強密碼**：至少 12 字，不可為 `admin123`、生日、電話或常見字。這是 Closed Manual Beta 上線前唯一需要 owner 親自確認的安全項。
 
-### P1 — Codex 後端修正（公開上市前必補；Manual Beta 建議一併處理）
+### P1 — Codex 後端修正（已完成）
 
-1. **`scripts/fix-auth.ts` 弱密碼風險**
-   - 現況：該 script 會建立/重設 `admin@example.com` 密碼為硬寫的 `admin888`（`scripts/fix-auth.ts:37`），並使用 service role key。
-   - 風險：非 runtime route，但若誤對 SaaS production DB 執行，會製造「公開已知帳密」的管理員帳號。
-   - 修法（擇一）：(a) 加 `APP_MODE=development/local` + `ALLOW_DEV_AUTH_FIX=true` 雙重 gate，缺任一即 `process.exit(1)`；或 (b) 刪除/封存該 script。
-   - owner 並應確認 production SaaS DB 中 `admin@example.com` 帳號不存在，或已改強密碼/刪除。
+1. **`scripts/fix-auth.ts` 弱密碼風險：完成**
+   - Commit `632d11e` 加入 `APP_MODE=development/local` 與
+     `ALLOW_DEV_AUTH_FIX=true` 雙重 gate，移除硬寫密碼，並要求
+     `DEV_ADMIN_FIX_PASSWORD` 至少 12 字。
+   - 純函式回歸測試證明 SaaS/Production、缺旗標及錯誤值全部拒絕；
+     測試沒有連線或寫入任何 Supabase project。
 
-2. **`app/api/internal/schema-drift-alert/route.ts` 改 fail-closed**
-   - 現況：`SCHEMA_DRIFT_ALERT_TOKEN` 未設定時 `isAuthorized` 直接 `return true`（`route.ts:9-12`），形成 fail-open。
-   - 現況風險等級：production 已設該 token（docs 確認），故非立即 blocker。
-   - 修法：缺 token 時改回 `401/503`（fail-closed）；token **只接受 `x-schema-drift-token` header**，移除 query `?token=`（避免 token 進入 log/referrer）。
+2. **`schema-drift-alert` fail-closed：完成**
+   - Commit `632d11e` 讓缺 server token 回 503、缺/錯 token 回 401，且只
+     接受 `x-schema-drift-token` header；query token 不再授權。
+   - Route 回歸測試涵蓋缺設定、缺 header、錯 header、query token 與正確
+     header 共 5 條路徑。
 
 ### P2 — 公開 / 收費前再做（非 Beta blocker）
 
@@ -74,43 +79,35 @@
 
 - ❌ 不要開 `ENABLE_PUBLIC_SIGNUP=true`
 - ❌ 不要啟用 Billing / ECPay（`ENABLE_BILLING`）
-- ❌ 不要套用 draft migration `033` / `034` / `036`
+- ❌ 不要套用 draft migration `034` / `036`；不要重跑已套用的 `030`、
+  `033`、`035` 或 `037`–`043`
 - ❌ 不要為了自訂網域卡住 Beta — 先用 `https://smart-return-system-saas.vercel.app`
 
 ---
 
 ## 5. 建議執行順序
 
-1. Owner 確認 Vercel Production `ADMIN_PASSWORD` 強度（P0）。
-2. Codex 修 `scripts/fix-auth.ts`（P1）。
-3. Codex 修 `schema-drift-alert` fail-closed（P1）。
-4. Codex 跑 `lint / typecheck / test:all / saas:doctor / saas:rollout-check` 全綠。
-5. 全部通過後，開始 Closed Manual Beta，**不再加新功能**。
+1. `fix-auth` 與 `schema-drift-alert` P1 已完成並有回歸測試。
+2. Closed Manual Beta 已上線；Production smoke 16/16，錯誤 log 為 0。
+3. Owner 仍應持續維持強 `ADMIN_PASSWORD`，並確認 Supabase 平台層 daily
+   backup 設定。
+4. 公開付費前再完成 Email、Billing/ECPay、法務/個資與 MFA 等 P2 工作。
 
 ---
 
-## 6. Codex P1 Handoff（交辦清單與驗收標準）
+## 6. Codex P1 Completion Record
 
-> 以下兩項屬後端 / scripts / API scope，由 Codex 執行。UI（Claude）不碰。
+- [x] dev-auth 雙重 gate、無硬寫密碼與 fail-closed 純函式測試。
+- [x] schema-drift server token 必填、header-only token 與 route 回歸測試。
+- [x] `npm run lint`
+- [x] `npm run typecheck`
+- [x] `npm run test:all`（含 UI suite）
+- [x] `npm run build`
+- [x] commit `632d11e` 已推送 `origin/develop-saas`
 
-### 任務 A：`scripts/fix-auth.ts` 弱密碼防護
-- [ ] 加雙重 gate：`APP_MODE` 為 `development`/`local` **且** `ALLOW_DEV_AUTH_FIX=true` 才允許執行；否則立即 `process.exit(1)` 並印出拒絕訊息。（或刪除/封存該 script。）
-- [ ] 驗收：在 `APP_MODE=saas`（或未設旗標）環境下執行該 script **必須拒絕**，不得對 production/SaaS DB 建立或重設任何帳號。
-
-### 任務 B：`app/api/internal/schema-drift-alert/route.ts` fail-closed
-- [ ] `SCHEMA_DRIFT_ALERT_TOKEN` 未設定時回 `401`（或 `503`），不再 `return true`。
-- [ ] token 只從 `x-schema-drift-token` header 讀取。
-- [ ] 移除 query `?token=` 讀取路徑。
-- [ ] 驗收：缺 token 的請求回 401/503；帶錯 token 回 401；帶正確 header token 回 200。
-
-### 共同驗收（Codex 完成後）
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm run test:all`
-- [ ] `npm run saas:doctor`
-- [ ] `npm run saas:rollout-check`
-- [ ] `git status` 乾淨
-- [ ] commit + push `origin/develop-saas`
+乾淨副本沒有 `.env.saas.local`，因此本輪沒有偽造 placeholder 來重跑
+env-backed doctor/rollout strict gates；下一次獲授權的外部 rollout 應在安全取得
+SaaS-only env 後執行完整 predeploy。
 
 ---
 

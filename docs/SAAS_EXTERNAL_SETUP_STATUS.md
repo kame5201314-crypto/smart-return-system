@@ -17,8 +17,10 @@
   Email provider is enabled. Those items remain separate from the completed
   Google rollout.
 - This current status supersedes the fail-closed activation-attempt record
-  below. This local documentation update did not re-query or change any
-  Production setting.
+  below. Production runtime `a29f725` is verified Ready on deployment
+  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`; smoke passed 16/16 and the deployment
+  error scan returned zero errors. This documentation update did not change
+  any Production setting.
 
 ## Historical: 2026-07-15 Google Trial Production Activation Attempt
 
@@ -45,9 +47,9 @@
   suspend manually provisioned Beta organizations. Draft migration
   `042_saas_scope_trial_expiry_to_self_service.sql` now adds that fail-closed
   claim check, but it has not been applied.
-- Production was returned to a safe disabled state:
+- At that historical attempt, Production was returned to a safe disabled state:
   `ENABLE_GOOGLE_AUTH=false`, `ENABLE_GOOGLE_TRIAL_SIGNUP=false`, and
-  `ENABLE_TRIAL_EXPIRY_CRON=false`. Current Ready deployment is
+  `ENABLE_TRIAL_EXPIRY_CRON=false`. The Ready deployment at that time was
   `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz`, still running exact HEAD `d6250b3`.
 - Billing, email delivery, domain/DNS, and master/live/internal Supabase were not
   changed. Full self-service smoke remains blocked until the owner separately
@@ -104,6 +106,12 @@ for the controlled customer handoff and first-session walkthrough.
 
 - Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
 - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
+- Current Production runtime is `a29f725` on Ready Vercel deployment
+  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`, aliased to
+  `https://smart-return-system-saas.vercel.app`. The 2026-07-15 smoke passed
+  16/16, OAuth recovery browser QA passed, and the error-log scan found zero
+  errors. Repository hardening through `6905ce3` and migration-status correction
+  `d397ea2` are pushed but not deployed.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - Migration `033_saas_platform_billing_operations.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `033` as applied. It adds `perform_platform_billing_operation()` for manual payment marking, suspend/resume, refund request, and audit logging.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
@@ -113,7 +121,7 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - Migration `039_saas_public_lead_capture.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `039` as applied. It extends `signup_requests` for Basic/Growth/Enterprise leads, LINE/email/phone contact, monthly return bands, and operator follow-up timestamps.
 - Migrations `040_saas_google_self_service_trial.sql`, `041_saas_scoped_trial_expiry.sql`, `042_saas_scope_trial_expiry_to_self_service.sql`, and `043_saas_google_trial_claims_service_role_read.sql` have been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization. Do not apply them again. Google provider setup and the Production rollout are complete, with all three Google rollout flags enabled.
-- Vercel Production project `smart-return-system-saas` now has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`, active in Ready deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2`.
+- Vercel Production project `smart-return-system-saas` has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`, active in current Ready deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
@@ -144,18 +152,18 @@ for the controlled customer handoff and first-session walkthrough.
 - Browser-driven mutation APIs now share a same-origin guard that rejects explicit cross-site `Origin`, `Referer`, or Fetch Metadata requests before route handlers run. ECPay webhook, cron, and schema alert routes are intentionally excluded because they are provider/secret-gated server-to-server endpoints.
 - Public signup API now has best-effort, per-runtime request throttling. Public signup is still closed by `ENABLE_PUBLIC_SIGNUP=false`, but the route is safer for a future controlled rollout.
 - Non-UI lint cleanup removed unused local variables from Codex-owned `lib/**` and `scripts/**` paths. The 2026-06-05 UI QA pass observed `npm run lint` with no warnings.
-- Production dependency audit no longer reports high-severity advisories after non-breaking updates. Remaining production audit findings are 4 moderate advisories in nested `next -> postcss` and `exceljs -> uuid`; npm only offers `--force` fixes that would make breaking dependency changes, so they are tracked as residual risk instead of being force-applied before launch.
+- Dependency hardening through `6905ce3` leaves the full audit at 1 low / 5 moderate / 0 high / 0 critical and production dependencies at 1 low / 4 moderate / 0 high / 0 critical. Remaining findings are in Babel/Next/PostCSS and ExcelJS/UUID paths; npm only offers breaking `--force` changes for the unresolved production paths, so they remain tracked instead of being force-applied.
 - `GEMINI_API_KEY` is set for the SaaS environment.
 - Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
 - Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- The owner handoff confirms the current Production Google rollout is enabled at `https://smart-return-system-saas.vercel.app`; this local-only task did not re-inspect the exact Vercel deployment ID or deployed commit.
+- The current Production Google rollout is enabled at `https://smart-return-system-saas.vercel.app` on runtime `a29f725`, deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready).
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Current owner-confirmed Production URL is `https://smart-return-system-saas.vercel.app`. Google Auth, trial signup, and trial expiry are enabled; Billing and Email delivery remain disabled. Historical deployment IDs below are retained only as earlier rollout records.
-- Production includes the lead capture contract/API/form/operations queue and manual payment UI through `e7695e8`, plus all previously deployed 499/699, isolation, operator, and signed return-image changes.
-- A 2026-07-14 production smoke test after deployment passed 16/16 and confirms `/pricing` exposes 499/699 markers and no longer exposes the old `1,490` / `2,990` pricing markers. Additional non-persisting lead smoke confirmed `/signup?plan=growth` form markers, `POST /api/saas/leads` reached enabled validation with `400 invalid_request`, `/internal/leads` redirects unauthenticated users to platform login, and `signup_requests` remained empty. Deployment error-log scan returned no errors.
+- Production includes the lead capture contract/API/form/operations queue and manual payment UI, plus all previously deployed 499/699, isolation, operator, signed return-image, expired-workspace, OAuth recovery, billing-copy, and regression changes through runtime `a29f725`.
+- The latest 2026-07-15 production smoke passed 16/16. OAuth recovery browser QA passed and the deployment error-log scan returned zero errors. The earlier non-persisting lead smoke confirmed `/signup?plan=growth` form markers, `POST /api/saas/leads` reached enabled validation with `400 invalid_request`, `/internal/leads` redirects unauthenticated users to platform login, and `signup_requests` remained empty.
 - Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, `038`, and `039` are applied, and migrations `034` and `036` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
@@ -2147,10 +2155,13 @@ for the controlled customer handoff and first-session walkthrough.
   - Adds `billing_events.status` with `received`, `processed`, `failed`, and `ignored` values to match the platform admin UI/backend contract.
   - Backend billing event records now default to `status='received'`.
   - No Supabase data was changed and billing remains disabled by `ENABLE_BILLING=false`.
-- Invoice status schema and DTO alignment draft was added without applying migrations:
+- Historical repository milestone: invoice status schema and DTO alignment was
+  initially added as a draft without applying migrations:
   - `supabase/migrations/030_saas_invoice_status_alignment.sql`
   - Aligns `invoices.status` and billing settings DTOs on `draft`, `issued`, `paid`, `failed`, and `void`.
-  - No Supabase data was changed and no billing provider was enabled.
+  - At that historical milestone no Supabase data was changed and no billing
+    provider was enabled. Current state: `030` was later applied as part of the
+    complete migration chain through `032`; do not reapply it.
 - SaaS settings billing data repository foundation was added without exposing live routes:
   - `lib/saas/settings-billing-data.ts`
   - Builds the future `/settings/billing` DTO input from `organizations`, `subscriptions`, and latest `invoices` rows.
@@ -2195,32 +2206,47 @@ for the controlled customer handoff and first-session walkthrough.
 
 ## Verification Notes
 
-- Local build was intentionally run without SaaS Supabase secrets.
-- Because `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` were not set, Supabase-dependent predeploy checks ran in non-strict mode and skipped DB validation.
-- `npm ci` reported existing dependency audit issues:
-  - 2 moderate
-  - 6 high
-- Do not run `npm audit fix` automatically; review dependency changes before applying because it may modify production dependencies.
+- The post-rollout repository hardening run completed `npm ci`, lint, typecheck,
+  `test:all`, and the 68-page Production build. `test:all` now includes backend,
+  unit (97 files / 538 tests), UI (5 files / 8 tests), E2E (3 files / 4 tests),
+  and integration (2 files / 5 tests).
+- The full dependency audit is 1 low / 5 moderate / 0 high / 0 critical;
+  production dependencies are 1 low / 4 moderate / 0 high / 0 critical.
+- This clean clone does not contain `.env.saas.local`, so env-backed strict
+  checks correctly refuse to run. No placeholder or Production secret was
+  created. Static migration tests and encoding checks pass.
+- Do not run `npm audit fix --force` automatically; the remaining production
+  findings require breaking dependency changes and should be handled as a
+  separately reviewed upgrade.
 
 ## Not Completed Yet
 
-These are intentionally not completed because they require private credentials, billing setup, rollout approval, or deployment authorization.
+These remain intentionally blocked on owner decisions, private credentials, or
+separate external-change authorization:
 
-- SaaS Gemini API key is set locally for Manual Beta; confirm/rotate the SaaS Vercel value before public rollout.
-- SaaS `NEXT_PUBLIC_APP_URL` currently points to `https://smart-return-system-saas.vercel.app`; replace it with the final custom domain before public rollout if a custom Beta domain is approved.
-- SaaS logging/Sentry DSN has not been added.
-- Billing credentials have not been added.
-- Billing webhook CheckMacValue verification exists in code, but live provider credentials have not been added.
-- Billing remains disabled until owner explicitly provides ECPay credentials and authorizes `ENABLE_BILLING=true`.
-- Vercel Preview SSO/protection still needs a bypass/access decision for external testers, or a final custom domain before public rollout.
-- SaaS production deployment has already been run for Closed Manual Beta; do not redeploy without explicit owner approval.
-- Platform admin live views are closed by default with `ENABLE_MULTI_TENANT_ADMIN=false`; they can be opened locally for owner inspection by setting the ignored local SaaS env value to `true`.
-- Public signup is still gated closed by `ENABLE_PUBLIC_SIGNUP=false`; `/signup` collects Beta interest only.
-- Public signup org creation and subscription creation are not wired yet; `/api/saas/signup` records a request only after the flag and DB are ready.
+- Final company/legal/tax/invoice/refund/retention details before collecting
+  payment from customers.
+- Resend account, verified sender domain/address, `RESEND_API_KEY`, delivery
+  scope, migration `034`, and explicit email-provider/delivery authorization.
+- ECPay merchant credentials, sandbox/Production decision, lifecycle and
+  reconciliation validation, and explicit `ENABLE_BILLING=true` authorization.
+- Public-signup posture and provisioning beyond the live Google self-service
+  trial path. `ENABLE_PUBLIC_SIGNUP=false` does not disable the separately
+  enabled Google trial flow.
+- Optional per-email platform operator roles (`PLATFORM_ADMIN_ROLES`) and
+  migration `036` if DB-backed assignments are chosen. Current Production
+  platform admin access is enabled and merchant-denial QA has passed.
+- Custom-domain purchase/DNS only if the owner later chooses to replace the
+  working Vercel URL. It is intentionally deferred, not a current blocker.
+- Vercel Preview SSO/protection policy if external Preview testers are added.
+- A separately authorized deployment if repository hardening after `a29f725`
+  should go live. Do not infer deployment permission from this document.
 
-## Required Values Before Deployment
+Production Sentry DSNs and Gemini are already configured; do not replace or
+rotate them without a separate explicit request. Applied migrations `030`,
+`033`, `035`, and `037`–`043` must not be rerun.
 
-## 2026-07-14 Public Lead Capture Readiness
+## Historical: 2026-07-14 Public Lead Capture Activation
 
 Repository-side implementation is complete through the public plan-aware form,
 lead-only API, platform operations queue, and manual payment control.
@@ -2231,8 +2257,9 @@ lead-only API, platform operations queue, and manual payment control.
 - Remote history records `039` as applied; the five new columns and six lead
   constraints were verified. Migrations `034` and `036` remain unapplied.
 - `ENABLE_PUBLIC_LEAD_CAPTURE=true` is configured only for Vercel Production;
-  it remains independently scoped from `ENABLE_PUBLIC_SIGNUP` and is active in
-  deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2`.
+  it remains independently scoped from `ENABLE_PUBLIC_SIGNUP`. It was activated
+  in deployment `dpl_J7UaqC7ag1QQ1dTEcTp8CrxRaeR2` and remains active in the
+  current Ready deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`.
 - The existing LINE/copy/Email Manual Beta paths remain usable without the flag.
 - The lead API never creates an account, organization, subscription, payment, or
   email delivery job.
@@ -2247,7 +2274,11 @@ smoke testing; the invalid payload intentionally stopped at validation.
 Do not combine these steps with `ENABLE_PUBLIC_SIGNUP`, billing, email delivery,
 or provider activation.
 
-Create `.env.saas.local` locally from `.env.saas.example`, or set the same values in the SaaS Vercel Project.
+## Required Values for Future External Rollouts
+
+Use an ignored `.env.saas.local` only after it is securely supplied with real
+SaaS-only values. If it is absent, stop; do not copy placeholders from the
+example merely to bypass strict checks.
 
 Required before migration/deployment:
 
@@ -2289,20 +2320,28 @@ Optional before billing launch:
 - `TAPPAY_APP_KEY`
 - `TAPPAY_MODE`
 
-Feature flags before controlled rollout:
+Current Production feature-flag posture (names/booleans only; no secrets):
 
 - `ENABLE_PUBLIC_SIGNUP=false`
 - `ENABLE_BILLING=false`
 - `ENABLE_SUBSCRIPTION_PLAN=false`
 - `ENABLE_AI_USAGE_LIMIT=true`
 - `ENABLE_ADVANCED_ANALYTICS=false`
-- `ENABLE_MULTI_TENANT_ADMIN=false`
+- `ENABLE_PUBLIC_LEAD_CAPTURE=true`
+- `ENABLE_GOOGLE_AUTH=true`
+- `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
+- `ENABLE_TRIAL_EXPIRY_CRON=true`
+- `ENABLE_MULTI_TENANT_ADMIN=true`
 - `ENABLE_IMAGE_AI=false`
 
 ## SaaS Values Still Needed From Owner
 
-- Billing credentials for the selected provider when Stage 2 starts.
-- SaaS domain, logging, and deployment settings when rollout is approved.
+- Company/legal/tax/invoice/refund/retention decisions before paid service.
+- Resend credentials, verified sender details, and delivery authorization if
+  email delivery is selected.
+- Billing/ECPay credentials and rollout decision when Stage 2 starts.
+- Public-signup provisioning decision beyond the live Google trial path.
+- Optional platform-role mapping and custom-domain details only if selected.
 
 Do not use the internal/live Supabase project for any SaaS values.
 
@@ -2317,20 +2356,21 @@ Do not use the internal/live Supabase project for any SaaS values.
 
 ## Next Safe Execution Steps
 
-After the remaining SaaS secret values and rollout approvals exist:
+For any future external rollout, first obtain an explicit, narrowly scoped owner
+authorization and the real values required for that one action:
 
-1. Fill `.env.saas.local` in the SaaS checkout.
-2. Run `npm run saas:verify-checkout`.
-3. Run `npm run saas:doctor`.
-4. Run `npm run saas:verify-env`.
-5. Add a real `GEMINI_API_KEY` to the SaaS environment only.
-6. Run `npm run saas:doctor:strict`.
-7. Run `npm run saas:migration-plan:strict`.
-8. Run `npm run saas:schema-gate:strict`.
-9. Run `npm run saas:rollout-check:strict`.
-10. Run `npm run saas:predeploy`.
-11. Deploy the SaaS Vercel Project only after explicit approval.
-12. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
+1. Confirm a clean, synchronized `develop-saas` checkout and run
+   `npm run safety:agent-boundary`.
+2. Use an existing ignored `.env.saas.local` only if it is securely supplied;
+   never create placeholders or print/commit secrets.
+3. Verify remote migration history before planning DB work. Never rerun applied
+   migrations `030`, `033`, `035`, or `037`–`043`.
+4. Run checkout, env, doctor, migration-plan, schema, and rollout strict gates.
+5. Run lint, typecheck, `test:all`, and the Production build.
+6. Execute only the specifically authorized deploy/migration/env/provider
+   action; do not bundle unrelated external changes.
+7. Smoke test the affected customer/platform paths and record the exact runtime,
+   deployment, migration, and unchanged safety boundaries.
 
 If you need to run the individual checks:
 
