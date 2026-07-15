@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
+import { isDevAuthFixAllowed } from '../lib/security/dev-auth-fix';
+
 // Dev-only double gate. This script uses the service role to create/reset an
 // admin account; it must NEVER run against a SaaS/production database.
 // Requires BOTH: APP_MODE=development|local AND ALLOW_DEV_AUTH_FIX=true.
-const appMode = (process.env.APP_MODE || '').trim().toLowerCase();
-const allowDevAuthFix = (process.env.ALLOW_DEV_AUTH_FIX || '').trim().toLowerCase() === 'true';
-if (!((appMode === 'development' || appMode === 'local') && allowDevAuthFix)) {
+if (!isDevAuthFixAllowed(process.env)) {
   console.error(
     '❌ Refused: fix-auth is dev-only. Set APP_MODE=development (or local) AND ALLOW_DEV_AUTH_FIX=true to run. Never run against SaaS/production.'
   );
