@@ -79,6 +79,12 @@ Notes: Lead capture is independently gated from public signup. Owner-authorized 
 
 ## Current
 
+2026-07-15 verified Email/Phone signup repository work is complete and pushed
+in commits `a71e3a9` and `de3f052`. The implementation remains behind independent
+fail-closed flags. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA
+provider or Production env is configured, and no deploy has occurred. Existing
+Google Production rollout and applied migrations `040`–`043` remain unchanged.
+
 Authoritative 2026-07-15 update: Production runs runtime HEAD `a29f725` on
 deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). Production smoke passed
 16/16, OAuth recovery browser QA passed, and the deployment error scan returned

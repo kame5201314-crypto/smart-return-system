@@ -1,5 +1,23 @@
 # SaaS External Setup Status
 
+## 2026-07-15 Verified Email/Phone Signup Repository Work
+
+- Repository code now contains a guarded Email/Phone verification signup flow,
+  independent disabled-by-default flags, CAPTCHA/provider readiness gates,
+  phone password login support, regression tests, and draft migration
+  `044_saas_verified_identity_self_service_trial.sql`.
+- Repository implementation commits `a71e3a9` and `de3f052` are pushed to
+  `origin/develop-saas`; this is not a Production deployment.
+- Migration `044` has **not** been applied anywhere. Migrations `040`–`043`
+  remain the latest applied self-service chain on SaaS project
+  `auyznbwtjvemyamujmgt` and must not be rerun.
+- No Custom SMTP, SMS provider, Turnstile secret/site configuration,
+  Production env, deployment, DNS, billing, or external setting was changed.
+- Both `ENABLE_EMAIL_OTP_SIGNUP` and `ENABLE_PHONE_OTP_SIGNUP` remain off until
+  the owner completes the provider prerequisites and separately authorizes the
+  migration/deploy/env rollout described in
+  [`SAAS_VERIFIED_SIGNUP_ROLLOUT.md`](./SAAS_VERIFIED_SIGNUP_ROLLOUT.md).
+
 ## 2026-07-15 Google Production Rollout Completed
 
 - The owner handoff confirms the Google Production rollout is complete at

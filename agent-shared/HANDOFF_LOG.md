@@ -5996,3 +5996,27 @@ The owner subsequently authorized completing the Production rollout:
   `036` remain unchanged.
 - No Production env value was changed. Google/trial/expiry flags remain enabled,
   Billing remains false, and Email delivery remains disabled.
+
+## 2026-07-15 Verified Email/Phone Signup Local Implementation
+
+- Added independent fail-closed Email OTP and Phone OTP signup flags plus
+  explicit CAPTCHA/provider readiness markers.
+- Added a two-step Traditional Chinese signup UI: Email/Taiwan phone + password,
+  Turnstile, terms, optional referral code, 6-digit OTP, 60-second resend, and
+  redirect to the existing 3-day trial workspace setup only after server-backed
+  Supabase Auth identity verification.
+- Passwords and OTP values are never handled by a custom application API or
+  persisted by the repository; the browser talks directly to Supabase Auth.
+- Added phone/password login normalization for `09...` / `+8869...` accounts.
+- Generalized the trial service to Google, verified Email, and verified Phone,
+  while preserving the existing Google RPC until draft migration `044` exists.
+- Draft migration `044_saas_verified_identity_self_service_trial.sql` adds
+  provider/contact claim data, phone-only owner/member support, a service-role
+  verified identity RPC, dedupe locks, and a backward-compatible Google wrapper.
+- Added rollout documentation and regression coverage. Migration `044` remains
+  unapplied; both OTP flags remain false; no SMTP, SMS, CAPTCHA secret,
+  Production env, deploy, DNS, billing, or external setting was changed.
+- Repository commits `a71e3a9` and `de3f052` are pushed to
+  `origin/develop-saas`. Final validation passed: lint, typecheck, backend 16,
+  unit 558, UI 12, E2E 4, integration 5, production build (68 generated pages),
+  and the agent-boundary safety check.
