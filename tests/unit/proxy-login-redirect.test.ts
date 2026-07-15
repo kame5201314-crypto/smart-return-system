@@ -44,19 +44,13 @@ describe('proxy authenticated login redirect policy', () => {
     })).toBe('/internal');
   });
 
-  it('routes authenticated merchants away from platform admin entries', () => {
+  it.each([
+    '/admin',
+    '/internal',
+    '/internal/orgs',
+  ])('routes an authenticated merchant away from platform entry %s', (pathname) => {
     expect(resolveAuthenticatedAdminEntryRedirect({
-      pathname: '/admin',
-      isAuthenticated: true,
-      isPlatformAdminAuthenticated: false,
-    })).toBe('/analytics');
-    expect(resolveAuthenticatedAdminEntryRedirect({
-      pathname: '/internal',
-      isAuthenticated: true,
-      isPlatformAdminAuthenticated: false,
-    })).toBe('/analytics');
-    expect(resolveAuthenticatedAdminEntryRedirect({
-      pathname: '/internal/orgs',
+      pathname,
       isAuthenticated: true,
       isPlatformAdminAuthenticated: false,
     })).toBe('/analytics');

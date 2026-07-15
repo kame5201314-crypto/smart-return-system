@@ -7,6 +7,7 @@ import {
   getSaaSSubscriptionAccessPolicy,
   normalizeSaaSSubscriptionStatus,
 } from '@/lib/saas/subscription-access';
+import { resolveSaaSSubscriptionTimedStatus } from '@/lib/saas/subscription-lifecycle';
 
 describe('SaaS subscription access policy', () => {
   it('allows trialing and active organizations to use the core product', () => {
@@ -47,6 +48,31 @@ describe('SaaS subscription access policy', () => {
         canManageBilling: true,
       });
     }
+  });
+
+  it('keeps an expired trial readable while blocking create, AI, and export operations', () => {
+    const expiry = resolveSaaSSubscriptionTimedStatus({
+      status: 'trialing',
+      trialEnd: '2026-07-14T23:59:59.000Z',
+      now: '2026-07-15T00:00:00.000Z',
+    });
+
+    expect(expiry).toMatchObject({
+      changed: true,
+      nextStatus: 'suspended',
+      reason: 'trial_expired',
+    });
+    expect(getSaaSSubscriptionAccessPolicy(expiry.nextStatus)).toEqual({
+      canLogin: true,
+      canViewData: true,
+      canCreateData: false,
+      canUseAI: false,
+      canExport: false,
+      canManageBilling: true,
+    });
+    expect(canCreateSaaSData(expiry.nextStatus)).toBe(false);
+    expect(canUseSaaSAI(expiry.nextStatus)).toBe(false);
+    expect(canExportSaaSData(expiry.nextStatus)).toBe(false);
   });
 
   it('normalizes unknown statuses to suspended', () => {

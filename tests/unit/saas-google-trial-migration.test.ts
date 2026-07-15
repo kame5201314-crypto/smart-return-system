@@ -28,6 +28,22 @@ describe('Google self-service trial migration', () => {
     expect(source).toContain("p_plan NOT IN ('basic', 'growth')");
   });
 
+  it('returns the existing claim before any tenant insert on an idempotent retry', () => {
+    const existingClaimLookup = source.indexOf('INTO existing_claim');
+    const reusedResult = source.indexOf("'reused', true", existingClaimLookup);
+    const existingMembershipGuard = source.indexOf('INTO existing_membership_org_id');
+    const organizationInsert = source.indexOf('INSERT INTO public.organizations');
+
+    expect(existingClaimLookup).toBeGreaterThan(-1);
+    expect(reusedResult).toBeGreaterThan(existingClaimLookup);
+    expect(existingMembershipGuard).toBeGreaterThan(reusedResult);
+    expect(organizationInsert).toBeGreaterThan(existingMembershipGuard);
+    expect(source).toContain('UNIQUE (user_id)');
+    expect(source).toContain('UNIQUE (normalized_email)');
+    expect(source).toContain('UNIQUE (idempotency_key)');
+    expect(source).toContain("RAISE EXCEPTION 'user already has organization membership'");
+  });
+
   it('uses a token-owned atomic reservation for the single trial AI analysis', () => {
     expect(source).toContain('analysis_reserved_at TIMESTAMPTZ');
     expect(source).toContain('analysis_reservation_token UUID');

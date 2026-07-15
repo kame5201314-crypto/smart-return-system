@@ -115,6 +115,45 @@ describe('Google OAuth routes', () => {
     expect(response.headers.get('location')).toBe('https://app.example.test/analytics');
   });
 
+  it('keeps repeated Google logins on the existing workspace instead of entering provisioning', async () => {
+    const exchangeCodeForSession = vi.fn().mockResolvedValue({ error: null });
+    const getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: 'existing-user', email: 'merchant@example.com' } },
+      error: null,
+    });
+    const listMemberships = vi.fn().mockResolvedValue([
+      { orgId: 'org-existing', status: 'active' },
+    ]);
+    const client = {
+      auth: { exchangeCodeForSession, getUser },
+      from: vi.fn(),
+    };
+    const repository = { listMemberships };
+
+    const first = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=first-code&plan=growth'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client,
+        repository,
+      }
+    );
+    const second = await handleGoogleOAuthCallback(
+      request('/auth/callback?code=second-code&plan=growth'),
+      {
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        client,
+        repository,
+      }
+    );
+
+    expect(first.headers.get('location')).toBe('https://app.example.test/analytics');
+    expect(second.headers.get('location')).toBe('https://app.example.test/analytics');
+    expect(listMemberships).toHaveBeenNthCalledWith(1, 'existing-user');
+    expect(listMemberships).toHaveBeenNthCalledWith(2, 'existing-user');
+    expect(client.from).not.toHaveBeenCalled();
+  });
+
   it('routes a different Google identity without membership to completion', async () => {
     const response = await handleGoogleOAuthCallback(
       request('/auth/callback?code=valid-code&plan=growth'),

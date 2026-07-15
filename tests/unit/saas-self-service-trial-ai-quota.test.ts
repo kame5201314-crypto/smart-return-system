@@ -78,6 +78,53 @@ describe('self-service trial AI quota policy', () => {
     );
   });
 
+  it('allows the first completed trial analysis and rejects the second reservation', async () => {
+    let completed = false;
+    const rpc = vi.fn(async (functionName: string) => {
+      if (functionName === 'complete_google_self_service_trial_ai_analysis') {
+        completed = true;
+        return {
+          data: { completed: true, reused: false, claim_id: claimId },
+          error: null,
+        };
+      }
+
+      return completed
+        ? {
+            data: {
+              applies: true,
+              allowed: false,
+              reason: 'limit_reached',
+              claim_id: claimId,
+            },
+            error: null,
+          }
+        : {
+            data: {
+              applies: true,
+              allowed: true,
+              reason: 'reserved',
+              claim_id: claimId,
+              reservation_token: reservationToken,
+              reserved_at: now.toISOString(),
+            },
+            error: null,
+          };
+    });
+    const repository = createSelfServiceTrialAIQuotaRepository({ rpc });
+
+    const firstReservation = await repository.reserve(orgId, now.toISOString());
+    expect(firstReservation).toMatchObject({ orgId, claimId, reservationToken });
+    await repository.complete(firstReservation!, now.toISOString());
+
+    await expect(repository.reserve(orgId, now.toISOString())).rejects.toMatchObject({
+      code: 'trial_ai_quota_exceeded',
+      status: 402,
+      quota: { limit: 1, used: 1, remaining: 0 },
+    });
+    expect(rpc).toHaveBeenCalledTimes(3);
+  });
+
   it.each([
     ['limit_reached', 'trial_ai_quota_exceeded', 402, 1],
     ['in_progress', 'trial_ai_analysis_in_progress', 409, 0],
