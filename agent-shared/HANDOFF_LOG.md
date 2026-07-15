@@ -5978,3 +5978,21 @@ The current owner handoff supersedes the fail-closed snapshot above:
 - Billing remains `ENABLE_BILLING=false`; no Email provider is enabled.
 - This handoff only updates local tests and documentation. It does not push,
   deploy, apply migrations, or change env/external settings.
+
+## 2026-07-15 Expired Workspace And OAuth Recovery Deployment Resolution
+
+The owner subsequently authorized completing the Production rollout:
+
+- Exact runtime HEAD `a29f725` was deployed from `develop-saas` to Vercel
+  Production deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready).
+- Stable URL: `https://smart-return-system-saas.vercel.app`.
+- Full `npm run saas:predeploy` passed against the SaaS Production env and
+  schema. Post-deploy smoke passed 16/16 and the error-log scan returned zero
+  errors.
+- Browser QA confirmed the Traditional Chinese expired Google flow message and
+  its retry entry. A cookie-free probe confirmed the redirect chain through
+  SaaS Supabase to Google without completing a login or creating data.
+- No migration was required or applied. `040`–`043` were not rerun; `034` and
+  `036` remain unchanged.
+- No Production env value was changed. Google/trial/expiry flags remain enabled,
+  Billing remains false, and Email delivery remains disabled.

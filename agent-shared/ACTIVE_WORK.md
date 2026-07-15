@@ -15,8 +15,12 @@ must not be applied again. Production `ENABLE_GOOGLE_AUTH`,
 Existing-merchant Google login, automatic 3-day trials, single-use trial AI,
 scoped expiry, and post-expiry read-only behavior are complete. Billing remains
 `ENABLE_BILLING=false`, and no Email provider is enabled; those separate queues
-remain unchanged. No migration, env, deployment, or external setting was changed
-by this local handoff update.
+remain unchanged. The expired-workspace UI, OAuth recovery, billing-disabled
+copy, and regression suite at exact runtime HEAD `a29f725` are now live on
+Vercel Production deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready).
+Production smoke passed 16/16 and the deployment error scan returned zero
+errors. No migration or env value change was needed; migrations `040`–`043`
+were not rerun.
 
 
 Use this file to avoid Claude / Codex editing the same files at the same time.

@@ -932,3 +932,23 @@ Scope:
 - Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
 - Do not change `master`.
 - Do not touch internal/live Supabase projects.
+
+## 2026-07-15 Expired Workspace UX Production Rollout
+
+- Owner-authorized Production deployment completed from the clean
+  `develop-saas` checkout at exact runtime HEAD `a29f725`.
+- `npm run saas:predeploy` passed against the existing SaaS Production env and
+  schema before deployment.
+- Vercel project: `smart-return-system-saas`
+  (`prj_VdkRrS4UJEvipSG8OMCXXkUmt3i8`).
+- Ready deployment: `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`.
+- Stable Production alias: `https://smart-return-system-saas.vercel.app`.
+- Production smoke passed 16/16, OAuth expired-flow UI/retry QA passed, the
+  Google redirect chain reaches `accounts.google.com`, and the deployment error
+  scan returned zero errors.
+- No migration was required or applied. Migrations `040`–`043` remain already
+  applied and must not be rerun; drafts `034` and `036` remain outside this
+  rollout.
+- No env value was changed. The temporary ignored Production env file used for
+  predeploy was deleted after verification. Billing remains disabled and no
+  Email provider was enabled.

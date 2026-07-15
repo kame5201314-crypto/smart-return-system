@@ -2344,3 +2344,35 @@ If you need to run the individual checks:
 8. Run `npm run build`.
 9. Deploy the SaaS Vercel Project only after explicit approval.
 10. Smoke test login, import, returns list, return detail, scan tool, AI report, notes, invite acceptance, team invites, billing/settings pages, and export.
+
+## 2026-07-15 Expired Workspace And OAuth Recovery Production Deployment
+
+- The owner explicitly authorized completing the SaaS Production deployment
+  from `develop-saas`. Preflight confirmed a clean worktree with local HEAD and
+  `origin/develop-saas` both at `a29f725652e737caf66493d300d08e84054f006c`.
+- This runtime includes the expired-workspace action lockout, Google OAuth
+  expired-flow recovery copy and retry entry, Traditional Chinese
+  billing-disabled guidance, regression coverage, and rollout documentation.
+- The five changes contain no migration diff. Migrations `040`–`043` remain
+  already applied only to SaaS project `auyznbwtjvemyamujmgt` and were not
+  rerun. Unrelated drafts `034` and `036` remain unchanged.
+- Existing Production env was pulled only into an ignored temporary
+  `.env.saas.local` for verification, without displaying or committing values,
+  and the file was deleted after deployment. No Vercel env value or Supabase
+  setting was changed because this runtime adds no new configuration contract.
+- `npm run saas:predeploy` passed, including env verification, rollout and
+  schema gates, lint, typecheck, 16 backend tests, 526 unit tests, 4 E2E tests,
+  5 integration tests, and the 68-page Production build.
+- Vercel Production deployment
+  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` is Ready. Its deployment URL is
+  `https://smart-return-system-saas-pj86v47yw-kaweis-projects.vercel.app`, and
+  the stable alias `https://smart-return-system-saas.vercel.app` resolves to it.
+- Vercel metadata confirms source commit `a29f725` on `develop-saas`.
+- Post-deploy smoke passed 16/16. Browser QA confirmed the visible message
+  `登入流程已失效，請重新使用 Google 登入`, a unique retry link to
+  `/auth/google?next=%2Fanalytics`, and no browser console errors. A cookie-free
+  redirect probe confirmed the app routes through the SaaS Supabase project to
+  `accounts.google.com` without completing a user login or creating test data.
+- Deployment error-log scan returned zero errors. Google Auth, Google trial
+  signup, trial-expiry cron, and AI usage limits remain enabled; Billing remains
+  disabled and no Email provider was enabled.
