@@ -2,9 +2,11 @@ import { Suspense } from 'react';
 
 import { LoginPageContent } from '@/components/auth/login-page-content';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
+import { resolveAuthCaptchaAvailability } from '@/lib/auth/verified-signup';
 
 export default function LoginPage() {
   const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
+  const captcha = resolveAuthCaptchaAvailability();
 
   return (
     <Suspense
@@ -14,7 +16,12 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginPageContent googleAuthEnabled={featureFlags.google_auth} />
+      <LoginPageContent
+        googleAuthEnabled={featureFlags.google_auth}
+        captchaRequired={captcha.required}
+        captchaReady={captcha.ready}
+        turnstileSiteKey={captcha.turnstileSiteKey}
+      />
     </Suspense>
   );
 }

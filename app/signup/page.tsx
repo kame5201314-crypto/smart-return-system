@@ -13,10 +13,12 @@ import {
   UserRoundPlus,
 } from 'lucide-react';
 
+import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { resolveVerifiedSignupAvailability } from '@/lib/auth/verified-signup';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
@@ -24,7 +26,7 @@ import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 export const metadata: Metadata = {
   title: '申請 3 天免費試用 | Smart Return',
   description:
-    '使用 Google 建立 Smart Return 3 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
+    '使用 Google、電子信箱或手機驗證建立 Smart Return 3 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
 };
 
 const onboardingSteps = [
@@ -51,7 +53,7 @@ const onboardingSteps = [
 ] as const;
 
 const selfServiceSteps = [
-  [LogIn, '使用 Google 登入', '以 Google 帳號完成驗證，既有商家成員會直接回到原工作區。'],
+  [LogIn, '驗證登入帳號', '可使用 Google，或以電子信箱／台灣手機號碼接收驗證碼。'],
   [Building2, '設定品牌與方案', '填寫品牌名稱並選擇入門版或成長版試用方案。'],
   [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，3 天試用從現在開始。'],
   [Sparkles, '匯入第一批退貨資料', '從蝦皮匯出資料開始，或手動建立第一筆退貨。'],
@@ -81,16 +83,19 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
   const initialPlan = resolveInitialPlan(params?.plan);
   const googleTrialEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
-  const steps = googleTrialEnabled ? selfServiceSteps : onboardingSteps;
+  const verifiedSignup = resolveVerifiedSignupAvailability();
+  const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
+  const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
+  const steps = selfServiceEnabled ? selfServiceSteps : onboardingSteps;
   const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
     <MarketingShell>
       <PageHeader
         eyebrow="申請試用"
-        title={googleTrialEnabled ? '使用 Google 開始 3 天免費試用。' : '申請 3 天免費試用 + Beta 期免費協助導入。'}
-        description={googleTrialEnabled
-          ? '不需信用卡。登入後確認品牌與方案即可建立工作區；需要導入協助，也可提交申請由專人聯絡。'
+        title={selfServiceEnabled ? '驗證帳號，開始 3 天免費試用。' : '申請 3 天免費試用 + Beta 期免費協助導入。'}
+        description={selfServiceEnabled
+          ? '不需信用卡。完成帳號驗證後確認品牌與方案即可建立工作區；需要導入協助，也可提交申請由專人聯絡。'
           : '不需信用卡。送出申請後我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助你匯入第一批退貨資料。'}
       />
 
@@ -101,15 +106,15 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             <div className="flex items-center justify-between gap-3">
               <UserRoundPlus className="size-6 text-emerald-700" />
               <Badge className="bg-amber-500 hover:bg-amber-500">
-                {googleTrialEnabled ? '自助試用開放' : signupState.statusLabel}
+                {selfServiceEnabled ? '自助試用開放' : signupState.statusLabel}
               </Badge>
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-neutral-950">
-              {googleTrialEnabled ? '立即建立試用，或申請專人協助' : signupState.headline}
+              {selfServiceEnabled ? '立即建立試用，或申請專人協助' : signupState.headline}
             </h2>
             <p className="mt-3 text-sm leading-6 text-neutral-700">
-              {googleTrialEnabled
-                ? 'Google 登入可立即建立工作區；若有資料匯入或流程評估需求，可再填寫下方表單。'
+              {selfServiceEnabled
+                ? '完成帳號驗證即可建立工作區；若有資料匯入或流程評估需求，可再填寫下方表單。'
                 : signupState.description}
             </p>
 
@@ -127,11 +132,28 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                   </p>
                   <div className="my-5 flex items-center gap-3" aria-hidden="true">
                     <div className="h-px flex-1 bg-neutral-200" />
-                    <span className="text-xs text-neutral-400">需要導入協助？提交申請</span>
+                    <span className="text-xs text-neutral-400">
+                      {verifiedSignupEnabled ? '或使用驗證碼註冊' : '需要導入協助？提交申請'}
+                    </span>
                     <div className="h-px flex-1 bg-neutral-200" />
                   </div>
                 </>
               )}
+              {verifiedSignupEnabled ? (
+                <VerifiedSignupForm
+                  emailEnabled={verifiedSignup.emailEnabled}
+                  phoneEnabled={verifiedSignup.phoneEnabled}
+                  initialPlan={initialPlan}
+                  turnstileSiteKey={verifiedSignup.turnstileSiteKey}
+                />
+              ) : null}
+              {verifiedSignupEnabled ? (
+                <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                  <div className="h-px flex-1 bg-neutral-200" />
+                  <span className="text-xs text-neutral-400">需要導入協助？提交申請</span>
+                  <div className="h-px flex-1 bg-neutral-200" />
+                </div>
+              ) : null}
               <LeadCaptureForm
                 variant="signup"
                 contactEmail={contactEmail}
@@ -146,7 +168,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           <div className="grid gap-4">
             <div className="mb-2">
               <p className="text-sm font-semibold text-emerald-700">
-                {googleTrialEnabled ? '自助試用會發生什麼' : '送出申請後會發生什麼'}
+                {selfServiceEnabled ? '自助試用會發生什麼' : '送出申請後會發生什麼'}
               </p>
               <h3 className="mt-1 text-lg font-semibold text-neutral-950">
                 清楚告訴你接下來 4 步。

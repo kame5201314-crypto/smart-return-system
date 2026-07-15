@@ -5,6 +5,8 @@ export type SaaSFeatureFlag =
   | 'public_lead_capture'
   | 'google_auth'
   | 'google_trial_signup'
+  | 'email_otp_signup'
+  | 'phone_otp_signup'
   | 'billing'
   | 'subscription_plan'
   | 'ai_usage_limit'
@@ -17,6 +19,8 @@ export const SAAS_FEATURE_FLAG_ENV: Record<SaaSFeatureFlag, string> = {
   public_lead_capture: 'ENABLE_PUBLIC_LEAD_CAPTURE',
   google_auth: 'ENABLE_GOOGLE_AUTH',
   google_trial_signup: 'ENABLE_GOOGLE_TRIAL_SIGNUP',
+  email_otp_signup: 'ENABLE_EMAIL_OTP_SIGNUP',
+  phone_otp_signup: 'ENABLE_PHONE_OTP_SIGNUP',
   billing: 'ENABLE_BILLING',
   subscription_plan: 'ENABLE_SUBSCRIPTION_PLAN',
   ai_usage_limit: 'ENABLE_AI_USAGE_LIMIT',
@@ -30,6 +34,8 @@ export const DEFAULT_SAAS_FEATURE_FLAGS: Record<SaaSFeatureFlag, boolean> = {
   public_lead_capture: false,
   google_auth: false,
   google_trial_signup: false,
+  email_otp_signup: false,
+  phone_otp_signup: false,
   billing: false,
   subscription_plan: false,
   ai_usage_limit: true,

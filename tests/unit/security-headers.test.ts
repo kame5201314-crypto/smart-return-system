@@ -21,5 +21,11 @@ describe('security headers', () => {
     expect(CONTENT_SECURITY_POLICY).toContain("object-src 'none'");
     expect(CONTENT_SECURITY_POLICY).toContain("base-uri 'self'");
     expect(CONTENT_SECURITY_POLICY).toContain("form-action 'self'");
+    expect(CONTENT_SECURITY_POLICY).toContain(
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://challenges.cloudflare.com"
+    );
+    expect(CONTENT_SECURITY_POLICY).toContain(
+      "frame-src 'self' https://challenges.cloudflare.com"
+    );
   });
 });

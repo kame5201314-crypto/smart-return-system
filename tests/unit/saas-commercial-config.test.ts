@@ -77,6 +77,8 @@ describe('SaaS commercial configuration', () => {
       public_lead_capture: false,
       google_auth: false,
       google_trial_signup: false,
+      email_otp_signup: false,
+      phone_otp_signup: false,
       billing: false,
       subscription_plan: false,
       ai_usage_limit: true,
@@ -123,6 +125,25 @@ describe('SaaS commercial configuration', () => {
     ).toMatchObject({
       google_auth: true,
       google_trial_signup: true,
+    });
+  });
+
+  it('keeps email and phone verified signup behind independent flags', () => {
+    expect(resolveSaaSFeatureFlags({
+      env: { ENABLE_EMAIL_OTP_SIGNUP: 'true' },
+      orgPlan: 'basic',
+    })).toMatchObject({
+      email_otp_signup: true,
+      phone_otp_signup: false,
+      google_auth: false,
+    });
+    expect(resolveSaaSFeatureFlags({
+      env: { ENABLE_PHONE_OTP_SIGNUP: 'true' },
+      orgPlan: 'basic',
+    })).toMatchObject({
+      email_otp_signup: false,
+      phone_otp_signup: true,
+      google_trial_signup: false,
     });
   });
 

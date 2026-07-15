@@ -21,6 +21,7 @@ import {
 } from '@/lib/auth/admin-login-rate-limit';
 import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
+import { normalizeTaiwanPhoneIdentifier } from '@/lib/auth/verified-signup';
 
 // Defensive trim: Vercel env values can accidentally include trailing newlines.
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
@@ -32,18 +33,18 @@ export interface AuthResult {
 }
 
 export async function signIn(
-  email: string,
+  identifier: string,
   password: string,
-  requestedPath?: string
+  requestedPath?: string,
+  captchaToken?: string
 ): Promise<AuthResult> {
   try {
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
+    const normalizedLoginId = identifier.trim().toLowerCase();
 
-    if (isAdminLoginId(trimmedEmail)) {
+    if (isAdminLoginId(normalizedLoginId)) {
       const requestHeaders = await headers();
       const rateLimitKey = buildAdminLoginRateLimitKey({
-        loginId: trimmedEmail,
+        loginId: normalizedLoginId,
         clientIp: getClientIpFromHeaders(requestHeaders),
       });
       const rateLimit = checkAdminLoginRateLimit(rateLimitKey);
@@ -61,7 +62,7 @@ export async function signIn(
         };
       }
 
-      if (trimmedPassword !== ADMIN_PASSWORD) {
+      if (password !== ADMIN_PASSWORD) {
         recordAdminLoginFailure(rateLimitKey);
         return {
           success: false,
@@ -84,29 +85,39 @@ export async function signIn(
       };
     }
 
-    if (!trimmedEmail.includes('@')) {
-      return {
-        success: false,
-        error: 'Please use email or configured admin username',
-      };
+    const isEmail = normalizedLoginId.includes('@');
+    let phone: string | null = null;
+    if (!isEmail) {
+      try {
+        phone = normalizeTaiwanPhoneIdentifier(normalizedLoginId);
+      } catch {
+        return { success: false, error: '請輸入電子信箱、台灣手機號碼或管理員帳號' };
+      }
     }
 
     const supabase = await createClient();
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({
-      email: trimmedEmail,
-      password: trimmedPassword,
-    });
+    const { data: signInData, error } = isEmail
+      ? await supabase.auth.signInWithPassword({
+          email: normalizedLoginId,
+          password,
+          options: captchaToken ? { captchaToken } : undefined,
+        })
+      : await supabase.auth.signInWithPassword({
+          phone: phone!,
+          password,
+          options: captchaToken ? { captchaToken } : undefined,
+        });
 
     if (error) {
       return {
         success: false,
-        error: error.message === 'Invalid login credentials' ? 'Invalid login credentials' : error.message,
+        error: error.message === 'Invalid login credentials' ? '帳號或密碼錯誤' : '登入失敗，請稍後再試',
       };
     }
 
     const isPlatformAdmin = isExplicitPlatformAdminPrincipal({
       userId: signInData.user?.id ?? null,
-      userEmail: trimmedEmail,
+      userEmail: signInData.user?.email ?? (isEmail ? normalizedLoginId : null),
     });
 
     revalidatePath('/', 'layout');
@@ -195,11 +206,15 @@ export async function checkAuth(): Promise<boolean> {
   return !!user;
 }
 
-export async function requestPasswordReset(email: string): Promise<AuthResult> {
+export async function requestPasswordReset(
+  email: string,
+  captchaToken: string
+): Promise<AuthResult> {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+    captchaToken,
   });
 
   if (error) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const navigationMocks = vi.hoisted(() => ({
@@ -11,6 +11,10 @@ const navigationMocks = vi.hoisted(() => ({
 const toastMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
+}));
+
+const authActionMocks = vi.hoisted(() => ({
+  signIn: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -26,7 +30,15 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/lib/actions/auth', () => ({
-  signIn: vi.fn(),
+  signIn: authActionMocks.signIn,
+}));
+
+vi.mock('@marsidev/react-turnstile', () => ({
+  Turnstile: ({ onSuccess }: { onSuccess?: (token: string) => void }) => (
+    <button type="button" onClick={() => onSuccess?.('login-captcha-token')}>
+      完成登入安全驗證
+    </button>
+  ),
 }));
 
 import { LoginPageContent } from '@/components/auth/login-page-content';
@@ -34,6 +46,8 @@ import { LoginPageContent } from '@/components/auth/login-page-content';
 describe('LoginPageContent', () => {
   beforeEach(() => {
     navigationMocks.search = '';
+    window.history.replaceState({}, '', '/login');
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -55,5 +69,65 @@ describe('LoginPageContent', () => {
     expect(toastMocks.error).toHaveBeenCalledWith(
       '登入流程已失效，請重新使用 Google 登入'
     );
+  });
+
+  it('passes a fresh CAPTCHA token to merchant password login when Auth CAPTCHA is enabled', async () => {
+    authActionMocks.signIn.mockResolvedValue({ success: true, redirectTo: '/analytics' });
+    render(
+      <LoginPageContent
+        googleAuthEnabled={false}
+        captchaRequired
+        captchaReady
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+      target: { value: 'owner@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('密碼'), {
+      target: { value: 'Password8' },
+    });
+    expect(screen.getByRole('button', { name: '登入' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '完成登入安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '登入' }));
+
+    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith(
+      'owner@example.com',
+      'Password8',
+      undefined,
+      'login-captcha-token'
+    ));
+    expect(navigationMocks.push).toHaveBeenCalledWith('/analytics');
+  });
+
+  it('also challenges the platform login page so Supabase admin principals are not locked out', async () => {
+    navigationMocks.search = 'next=%2Finternal';
+    window.history.replaceState({}, '', '/login?next=%2Finternal');
+    authActionMocks.signIn.mockResolvedValue({ success: true, redirectTo: '/internal' });
+    render(
+      <LoginPageContent
+        googleAuthEnabled={false}
+        captchaRequired
+        captchaReady
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+      target: { value: 'operator@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('密碼'), {
+      target: { value: 'Password8' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '完成登入安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '登入' }));
+
+    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith(
+      'operator@example.com',
+      'Password8',
+      '/internal',
+      'login-captcha-token'
+    ));
   });
 });

@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { Turnstile } from '@marsidev/react-turnstile';
 import {
   AlertCircle,
   ArrowLeft,
@@ -35,6 +36,9 @@ type LoginInput = z.infer<typeof loginSchema>;
 
 interface LoginPageContentProps {
   googleAuthEnabled: boolean;
+  captchaRequired?: boolean;
+  captchaReady?: boolean;
+  turnstileSiteKey?: string;
 }
 
 function isPlatformAdminNext(value: string | null): boolean {
@@ -49,7 +53,12 @@ function getGoogleErrorMessage(value: string | null): string | null {
   return null;
 }
 
-export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
+export function LoginPageContent({
+  googleAuthEnabled,
+  captchaRequired = false,
+  captchaReady = false,
+  turnstileSiteKey = '',
+}: LoginPageContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
@@ -57,9 +66,13 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
   const isPlatformAdminLogin = isPlatformAdminNext(nextParam);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
   const googleErrorCode = searchParams.get('error');
   const googleError = getGoogleErrorMessage(googleErrorCode);
   const googleAuthExpired = googleErrorCode === 'google_auth_expired';
+  const authCaptchaRequired = captchaRequired;
+  const authCaptchaReady = !authCaptchaRequired || captchaReady;
 
   const googleHref = useMemo(() => {
     const params = new URLSearchParams();
@@ -84,10 +97,19 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
 
   async function onSubmit(data: LoginInput) {
     try {
+      if (authCaptchaRequired && !captchaToken) {
+        toast.error('請先完成安全驗證。');
+        return;
+      }
       setIsLoading(true);
       const nextPath =
         typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('next');
-      const result = await signIn(data.email, data.password, nextPath ?? undefined);
+      const result = await signIn(
+        data.email,
+        data.password,
+        nextPath ?? undefined,
+        captchaToken ?? undefined
+      );
 
       if (!result.success) {
         toast.error(result.error || '登入失敗');
@@ -101,6 +123,10 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
       toast.error('登入失敗，請稍後再試');
     } finally {
       setIsLoading(false);
+      if (authCaptchaRequired) {
+        setCaptchaToken(null);
+        setCaptchaResetNonce((value) => value + 1);
+      }
     }
   }
 
@@ -137,7 +163,7 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
             <CardDescription>
               {isPlatformAdminLogin
                 ? '請使用平台管理員帳號登入。商家請改用一般登入入口。'
-                : '使用 Google 或帳號密碼進入退貨工作區。'}
+                : '使用 Google，或以電子信箱／手機號碼與密碼進入退貨工作區。'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -170,7 +196,7 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
                 </Button>
                 <div className="my-5 flex items-center gap-3" aria-hidden="true">
                   <div className="h-px flex-1 bg-neutral-200" />
-                  <span className="text-xs text-neutral-400">或使用帳號密碼</span>
+                  <span className="text-xs text-neutral-400">或使用信箱／手機與密碼</span>
                   <div className="h-px flex-1 bg-neutral-200" />
                 </div>
               </>
@@ -183,19 +209,19 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>帳號</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                      <FormLabel>電子信箱／手機號碼</FormLabel>
+                      <div className="relative">
+                        <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                        <FormControl>
                           <Input
                             type="text"
-                            placeholder="輸入帳號"
+                            placeholder="name@example.com 或 0912345678"
                             className="pl-10"
                             disabled={isLoading}
                             {...field}
                           />
-                        </div>
-                      </FormControl>
+                        </FormControl>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -207,9 +233,9 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>密碼</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                      <div className="relative">
+                        <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                        <FormControl>
                           <Input
                             type={showPassword ? 'text' : 'password'}
                             placeholder="••••••••"
@@ -217,22 +243,46 @@ export function LoginPageContent({ googleAuthEnabled }: LoginPageContentProps) {
                             disabled={isLoading}
                             {...field}
                           />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
-                          >
-                            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
+                        </FormControl>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                        >
+                          {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                {authCaptchaRequired ? (
+                  authCaptchaReady ? (
+                    <Turnstile
+                      key={`login-${captchaResetNonce}`}
+                      siteKey={turnstileSiteKey}
+                      onSuccess={setCaptchaToken}
+                      onExpire={() => setCaptchaToken(null)}
+                      onError={() => {
+                        setCaptchaToken(null);
+                        toast.error('安全驗證載入失敗，請重新整理後再試。');
+                      }}
+                      options={{ language: 'zh-TW', size: 'flexible', action: 'password_login' }}
+                    />
+                  ) : (
+                    <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                      登入安全驗證設定不完整，請聯絡客服。
+                    </p>
+                  )
+                ) : null}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading || !authCaptchaReady || (authCaptchaRequired && !captchaToken)}
+                >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
