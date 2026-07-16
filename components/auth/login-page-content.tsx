@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -15,7 +16,6 @@ import {
   EyeOff,
   Loader2,
   Lock,
-  LogIn,
   PackageCheck,
   ShieldCheck,
   User,
@@ -55,6 +55,21 @@ function getGoogleErrorMessage(value: string | null): string | null {
   if (value === 'google_auth_expired') return '登入流程已失效，請重新使用 Google 登入';
   if (value === 'google_auth_failed') return 'Google 登入失敗，請重新嘗試。';
   return null;
+}
+
+function GoogleSignInIcon({ className = 'size-6' }: { className?: string }) {
+  return (
+    <Image
+      src="/brand/google-sign-in-light-square.png"
+      alt=""
+      width={40}
+      height={40}
+      className={className}
+      aria-hidden="true"
+      draggable={false}
+      data-testid="google-sign-in-icon"
+    />
+  );
 }
 
 export function LoginPageContent({
@@ -182,7 +197,7 @@ export function LoginPageContent({
             <CardDescription>
               {isPlatformAdminLogin
                 ? '請使用平台管理員帳號登入。商家請改用一般登入入口。'
-                : '使用 Google，或以電子信箱／手機號碼與密碼進入退貨工作區。'}
+                : '以電子信箱／手機號碼與密碼登入，或使用 Google 進入退貨工作區。'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -197,7 +212,10 @@ export function LoginPageContent({
                     <p className="text-sm font-medium">{googleError}</p>
                     {googleAuthExpired && googleAuthEnabled && !isPlatformAdminLogin ? (
                       <Button asChild size="sm" variant="outline" className="mt-3 bg-white">
-                        <Link href={googleHref}>重新使用 Google 登入</Link>
+                        <Link href={googleHref}>
+                          <GoogleSignInIcon className="size-5" />
+                          重新使用 Google 登入
+                        </Link>
                       </Button>
                     ) : null}
                   </div>
@@ -213,22 +231,6 @@ export function LoginPageContent({
                 密碼已更新，請使用新密碼登入。
               </div>
             ) : null}
-
-            {!isPlatformAdminLogin && googleAuthEnabled && (
-              <>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={googleHref}>
-                    <LogIn className="size-4" aria-hidden="true" />
-                    使用 Google 登入
-                  </Link>
-                </Button>
-                <div className="my-5 flex items-center gap-3" aria-hidden="true">
-                  <div className="h-px flex-1 bg-neutral-200" />
-                  <span className="text-xs text-neutral-400">或使用信箱／手機與密碼</span>
-                  <div className="h-px flex-1 bg-neutral-200" />
-                </div>
-              </>
-            )}
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -332,6 +334,22 @@ export function LoginPageContent({
                   忘記密碼？使用驗證碼復原
                 </Link>
               </p>
+            ) : null}
+
+            {!isPlatformAdminLogin && googleAuthEnabled ? (
+              <div className="mt-6">
+                <div className="mb-5 flex items-center gap-3" aria-hidden="true">
+                  <div className="h-px flex-1 bg-neutral-200" />
+                  <span className="text-xs text-neutral-400">或使用 Google 帳號</span>
+                  <div className="h-px flex-1 bg-neutral-200" />
+                </div>
+                <Button asChild variant="outline" className="h-11 w-full bg-white">
+                  <Link href={googleHref}>
+                    <GoogleSignInIcon />
+                    使用 Google 登入
+                  </Link>
+                </Button>
+              </div>
             ) : null}
 
             {isPlatformAdminLogin ? (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const navigationMocks = vi.hoisted(() => ({
@@ -62,10 +62,12 @@ describe('LoginPageContent', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       '登入流程已失效，請重新使用 Google 登入'
     );
-    expect(screen.getByRole('link', { name: '重新使用 Google 登入' })).toHaveAttribute(
+    const retryLink = screen.getByRole('link', { name: '重新使用 Google 登入' });
+    expect(retryLink).toHaveAttribute(
       'href',
       '/auth/google?next=%2Freturns&plan=growth'
     );
+    expect(within(retryLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
     expect(toastMocks.error).toHaveBeenCalledWith(
       '登入流程已失效，請重新使用 Google 登入'
     );
@@ -164,6 +166,20 @@ describe('LoginPageContent', () => {
     expect(screen.getByText(/可使用 Google 註冊/)).toBeInTheDocument();
   });
 
+  it('places password login before the branded Google login action', () => {
+    render(<LoginPageContent googleAuthEnabled />);
+
+    const passwordLoginButton = screen.getByRole('button', { name: '登入' });
+    const googleLoginLink = screen.getByRole('link', { name: '使用 Google 登入' });
+
+    expect(
+      passwordLoginButton.compareDocumentPosition(googleLoginLink)
+      & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(within(googleLoginLink).getByTestId('google-sign-in-icon'))
+      .toHaveAttribute('src', expect.stringContaining('google-sign-in-light-square.png'));
+  });
+
   it('does not forward an unsupported plan or expose merchant signup to platform admins', () => {
     navigationMocks.search = 'plan=enterprise';
     const { rerender } = render(
@@ -177,6 +193,8 @@ describe('LoginPageContent', () => {
     rerender(<LoginPageContent googleAuthEnabled accountRegistrationEnabled />);
 
     expect(screen.queryByRole('link', { name: '註冊新帳號' }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '使用 Google 登入' }))
       .not.toBeInTheDocument();
   });
 });
