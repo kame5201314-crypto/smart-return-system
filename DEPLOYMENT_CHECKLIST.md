@@ -62,6 +62,11 @@ ENABLE_BILLING=false
 ENABLE_SUBSCRIPTION_PLAN=false
 ENABLE_MULTI_TENANT_ADMIN=false
 ENABLE_IMAGE_AI=false
+ENABLE_EMAIL_OTP_SIGNUP=false
+ENABLE_PHONE_OTP_SIGNUP=false
+ENABLE_EMAIL_PASSWORD_RECOVERY=false
+ENABLE_PHONE_PASSWORD_RECOVERY=false
+SAAS_AUTH_CAPTCHA_READY=false
 ```
 
 `ENABLE_AI_USAGE_LIMIT=true` should remain enabled.
@@ -72,6 +77,11 @@ authenticated-admin and merchant-denial QA completed. Google Auth, Google trial
 signup, trial-expiry cron, and public lead capture are also enabled. Do not use
 this defaults block to turn an active Production flag off without separate
 authorization.
+
+If Auth CAPTCHA is intentionally enabled, deployment readiness must also verify
+a real public site key, server-only `TURNSTILE_SECRET_KEY`, trusted HTTPS app
+hostname, the separate Supabase Dashboard secret, and Email/Phone/admin login
+smoke. Never put either secret in this file, Git, logs, or chat.
 
 ## External Changes Need Approval
 

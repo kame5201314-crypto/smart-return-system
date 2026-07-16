@@ -1,6 +1,6 @@
 # SaaS 信箱／手機驗證註冊 Rollout
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## 目前狀態
 
@@ -10,8 +10,10 @@ Last updated: 2026-07-15
 - 驗證碼與密碼交由 Supabase Auth 處理；應用程式不產生、不保存、不記錄驗證碼或密碼。
 - Cloudflare Turnstile token 直接傳給 Supabase Auth CAPTCHA 驗證；每次寄送或重送後都會失效並重新取得。
 - Supabase Auth CAPTCHA 是 project-wide；Email／手機與平台管理員登入頁都已接上
-  Turnstile。legacy 管理員 cookie 驗證不呼叫 Supabase，但仍保留相同的前端挑戰；
-  Supabase platform-admin principal 則會把 token 傳入密碼登入端點。
+  Turnstile。legacy 管理員 cookie 驗證不呼叫 Supabase，因此 commit `36e21fd`
+  另以 Cloudflare Siteverify 在 server 驗證 token、`password_login` action 與
+  trusted app hostname；Supabase platform-admin principal 則仍由 Supabase
+  密碼登入端點消耗 token。
 - Migration `044_saas_verified_identity_self_service_trial.sql` 目前只是草稿，尚未套用到任何資料庫。
 - 尚未設定 Custom SMTP、SMS provider、Turnstile 或 Production env，因此目前 Production 不會顯示新註冊入口，也不能實際收取驗證碼。
 
@@ -20,11 +22,14 @@ Last updated: 2026-07-15
 ```env
 ENABLE_EMAIL_OTP_SIGNUP=false
 ENABLE_PHONE_OTP_SIGNUP=false
+ENABLE_EMAIL_PASSWORD_RECOVERY=false
+ENABLE_PHONE_PASSWORD_RECOVERY=false
 SAAS_AUTH_CAPTCHA_READY=false
 SAAS_VERIFIED_SIGNUP_MIGRATION_READY=false
 SAAS_EMAIL_OTP_PROVIDER_READY=false
 SAAS_PHONE_OTP_PROVIDER_READY=false
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
 ```
 
 入口只有在下列條件同時滿足時才會顯示：
@@ -60,10 +65,17 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 
 1. 在 Cloudflare Turnstile 建立 Production widget，加入正式網域。
 2. 將 public site key 放入 `NEXT_PUBLIC_TURNSTILE_SITE_KEY`。
-3. 只在 Supabase Auth Dashboard 安全設定 Turnstile secret；不得放入 repo。
-4. 驗證 Supabase Auth CAPTCHA 已啟用後，才可將 `SAAS_AUTH_CAPTCHA_READY=true`。
-5. 啟用後立即驗證既有 Email 密碼登入、Phone 密碼登入、signup 與 password
-   reset；這些 Supabase Auth endpoints 共用 CAPTCHA 設定。
+3. 在 Supabase Auth Dashboard 安全設定 Supabase endpoints 使用的 Turnstile
+   secret；不得放入 repo。
+4. 在 SaaS Vercel project 另設 server-only `TURNSTILE_SECRET_KEY`，供 legacy
+   管理員 action 呼叫 Siteverify；不得使用 Supabase Dashboard secret 的
+   明文交接或把任何 secret 寫入 Git／聊天。
+5. 確認正式環境不是 Cloudflare test key，且
+   `NEXT_PUBLIC_APP_URL` 是可信 HTTPS hostname。
+6. 驗證 Supabase Auth CAPTCHA 與 legacy admin Siteverify 後，才可將
+   `SAAS_AUTH_CAPTCHA_READY=true`。
+7. 啟用後立即驗證既有 Email 密碼登入、Phone 密碼登入、Google 登入、legacy
+   管理員、Supabase platform-admin、signup 與 password reset。
 
 官方參考：
 
@@ -73,6 +85,8 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 - [Supabase CAPTCHA](https://supabase.com/docs/guides/auth/auth-captcha)
 - [Supabase Custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp)
 - [Supabase Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits)
+- [Cloudflare Turnstile server-side validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/)
+- [Cloudflare Turnstile test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
 
 ## Migration 044
 
@@ -107,5 +121,9 @@ phone 重複領取；跨 channel 的同一人合併必須走受控 identity link
 7. 先只開 Email OTP，執行 disposable account 完整驗收。
 8. 驗證 Google 重複登入不建立第二租戶、AI 只能成功一次、到期仍可讀但不可寫、商家不可進 `/internal`。
 9. Email 穩定後，再單獨評估 Phone OTP 與簡訊成本/fraud 風險。
+
+既有帳號的 Email／Phone 密碼復原使用獨立旗標，且不依賴 migration 044；
+詳細安全與 rollout 契約見
+[`SAAS_PASSWORD_RECOVERY_ROLLOUT.md`](./SAAS_PASSWORD_RECOVERY_ROLLOUT.md)。
 
 任何 deploy、migration、Vercel/Supabase/env/provider 設定仍需個別明確授權。

@@ -1,6 +1,6 @@
 # SaaS Pre-Launch Checklist
 
-Last verified: 2026-07-15
+Last verified: 2026-07-16
 
 This checklist is for the SaaS commercial checkout on `develop-saas`.
 It does not authorize production deployment, Supabase migrations, or Vercel
@@ -71,6 +71,16 @@ QA already completed; do not change that value without new authorization.
 - `ENABLE_MULTI_TENANT_ADMIN=false` unless the platform admin rollout is explicitly approved.
 - `ENABLE_PUBLIC_SIGNUP=false` unless public signup is explicitly approved.
 - `ENABLE_BILLING=false` unless billing rollout is explicitly approved.
+- `ENABLE_EMAIL_OTP_SIGNUP=false` and `ENABLE_PHONE_OTP_SIGNUP=false` until
+  migration `044`, matching provider, CAPTCHA, and disposable-account smoke are
+  separately approved.
+- `ENABLE_EMAIL_PASSWORD_RECOVERY=false` and
+  `ENABLE_PHONE_PASSWORD_RECOVERY=false` until the matching six-digit
+  Email/SMS delivery flow is verified.
+- If `SAAS_AUTH_CAPTCHA_READY=true`, require a real
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, server-only `TURNSTILE_SECRET_KEY`, trusted
+  HTTPS `NEXT_PUBLIC_APP_URL`, Supabase Auth CAPTCHA secret, and successful old
+  Email/Phone/admin login smoke. Cloudflare test keys are not Production keys.
 
 ## Recommended Verification Order
 
@@ -98,6 +108,10 @@ After deployment approval and deploy completion, test:
 
 - Public marketing pages: `/`, `/pricing`, `/features/*`, `/contact`, `/legal/*`.
 - Login and protected app route access.
+- Existing Email/Phone password login and both legacy/Supabase platform-admin
+  login paths after any Auth CAPTCHA change.
+- If enabled, `/forgot-password` Email/Phone delivery, generic nonexistent-user
+  response, expired/wrong OTP, guarded `/reset-password`, and global logout.
 - Return list, return detail, notes, inspection fields, and export routes.
 - Customer portal apply flow with image upload.
 - Shopee scan smoke route or maintenance script.

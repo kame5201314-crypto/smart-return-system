@@ -1,5 +1,21 @@
 # SaaS External Setup Status
 
+## 2026-07-16 Auth Recovery And CAPTCHA Repository Hardening
+
+- `6eafe1a` lets phone-only owners load `/settings/team` without a fake Email.
+- `efe50ee` adds independently gated Email/Phone OTP password recovery,
+  anti-enumeration responses, and a short-lived signed HttpOnly recovery proof.
+- `36e21fd` adds server-side Cloudflare Siteverify for the legacy admin password
+  action, including token, action, trusted hostname, timeout, and fail-closed
+  rollout checks.
+- `54bbeb7` reads the legacy admin credential at request time and stabilizes the
+  regression suite under the complete 104-file unit run.
+- These commits are pushed to `origin/develop-saas` but are not a Production
+  deployment. Recovery flags remain `false`; no CAPTCHA, SMTP/SMS provider,
+  Vercel/Supabase env, migration, billing, DNS, or external setting changed.
+- Rollout requirements are documented in
+  [`SAAS_PASSWORD_RECOVERY_ROLLOUT.md`](./SAAS_PASSWORD_RECOVERY_ROLLOUT.md).
+
 ## 2026-07-15 Verified Email/Phone Signup Repository Work
 
 - Repository code now contains a guarded Email/Phone verification signup flow,
@@ -70,9 +86,8 @@
   `ENABLE_TRIAL_EXPIRY_CRON=false`. The Ready deployment at that time was
   `dpl_FfcR7djeH4ji1c4tmtf8ctZCHyHz`, still running exact HEAD `d6250b3`.
 - Billing, email delivery, domain/DNS, and master/live/internal Supabase were not
-  changed. Full self-service smoke remains blocked until the owner separately
-  authorizes the stable `NEXT_PUBLIC_APP_URL`, migration `042`, and deployment
-  of the resulting new HEAD.
+  changed. At that historical attempt, full self-service smoke was blocked;
+  the completed Google Production status above supersedes that blocker.
 
 ## 2026-07-15 Google Login And Self-Service Trial Foundation
 
@@ -96,10 +111,11 @@
   or deployment change was made by these repository commits.
 - The current self-service contract is a 3-day trial with terms version
   `2026-07-15-v2`; draft migration `040` and all customer-facing trial copy are
-  aligned to that duration. This remains repository-only until migration `040`,
-  Google provider settings, rollout flags, and deployment are separately
-  authorized and verified.
-- Activation must follow
+  aligned to that duration. At that milestone, this remained repository-only
+  until migration `040`, Google provider settings, rollout flags, and deployment
+  were separately authorized and verified; the current status above records
+  that rollout as complete.
+- At that milestone, any future activation was required to follow
   [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md),
   including same-email identity-linking QA and disposable-org lifecycle QA.
 - At that milestone, migrations `040` and `041` were draft-only and required
@@ -109,13 +125,14 @@
   email provider, or master/live/internal Supabase change was made by the
   single-use trial AI commits.
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 This file tracks external SaaS setup work that must stay separate from the live internal project.
 
 See also: [`SAAS_EXTERNAL_OWNER_ACTIONS.md`](./SAAS_EXTERNAL_OWNER_ACTIONS.md)
 for owner-provided values, handoff templates, and the recommended order for
-Sentry, domain, email provider, Billing/ECPay, and migrations `034` and `036`.
+Sentry, domain, auth providers, Billing/ECPay, and migrations `034`, `036`, and
+`044`.
 See also:
 [`SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`](./SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md)
 for the controlled customer handoff and first-session walkthrough.
@@ -139,6 +156,10 @@ for the controlled customer handoff and first-session walkthrough.
 - Migration `038_saas_org_member_visibility.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `038` as applied. It lets active same-org members read `organization_members` rows through helper-backed non-recursive RLS so owner/admin team-member QA is no longer schema-blocked.
 - Migration `039_saas_public_lead_capture.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `039` as applied. It extends `signup_requests` for Basic/Growth/Enterprise leads, LINE/email/phone contact, monthly return bands, and operator follow-up timestamps.
 - Migrations `040_saas_google_self_service_trial.sql`, `041_saas_scoped_trial_expiry.sql`, `042_saas_scope_trial_expiry_to_self_service.sql`, and `043_saas_google_trial_claims_service_role_read.sql` have been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization. Do not apply them again. Google provider setup and the Production rollout are complete, with all three Google rollout flags enabled.
+- Draft migration `044_saas_verified_identity_self_service_trial.sql` exists for
+  verified Email/Phone trial provisioning but has not been applied anywhere.
+  It requires a separate, SaaS-project-only authorization and must not be
+  bundled with `034` or `036`.
 - Vercel Production project `smart-return-system-saas` has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`, active in current Ready deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
@@ -182,11 +203,17 @@ for the controlled customer handoff and first-session walkthrough.
 - Current owner-confirmed Production URL is `https://smart-return-system-saas.vercel.app`. Google Auth, trial signup, and trial expiry are enabled; Billing and Email delivery remain disabled. Historical deployment IDs below are retained only as earlier rollout records.
 - Production includes the lead capture contract/API/form/operations queue and manual payment UI, plus all previously deployed 499/699, isolation, operator, signed return-image, expired-workspace, OAuth recovery, billing-copy, and regression changes through runtime `a29f725`.
 - The latest 2026-07-15 production smoke passed 16/16. OAuth recovery browser QA passed and the deployment error-log scan returned zero errors. The earlier non-persisting lead smoke confirmed `/signup?plan=growth` form markers, `POST /api/saas/leads` reached enabled validation with `400 invalid_request`, `/internal/leads` redirects unauthenticated users to platform login, and `signup_requests` remained empty.
-- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, `037`, `038`, and `039` are applied, and migrations `034` and `036` remain unapplied.
+- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, and `037`–`043` are applied; draft migrations `034`, `036`, and `044` remain unapplied.
 - Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
-- No unblocked local Codex backend implementation task is currently recorded. Remaining work requires owner/external values or explicit per-action authorization: production `PLATFORM_ADMIN_ROLES`, public signup posture, email provider credentials, Stage 2 Billing/ECPay, and draft migrations `034`/`036`. Custom domain work is intentionally deferred while the owner uses the Vercel production URL.
+- Repository-side phone-only team settings, password recovery, and legacy admin
+  Turnstile validation are complete. Remaining work requires owner/external
+  values or explicit per-action authorization: production
+  `PLATFORM_ADMIN_ROLES`, Custom SMTP/SMS/Turnstile setup, OTP/recovery rollout,
+  public signup posture, email delivery credentials, Stage 2 Billing/ECPay, and
+  draft migrations `034`/`036`/`044`. Custom domain work is intentionally
+  deferred while the owner uses the Vercel production URL.
 
 ## 2026-07-14 Owner-Authorized Signed Return Image Production Rollout
 
@@ -2338,7 +2365,8 @@ Optional before billing launch:
 - `TAPPAY_APP_KEY`
 - `TAPPAY_MODE`
 
-Current Production feature-flag posture (names/booleans only; no secrets):
+Current Production effective feature-flag posture (names/booleans only; no
+secrets; an absent disabled-by-default variable is shown as `false`):
 
 - `ENABLE_PUBLIC_SIGNUP=false`
 - `ENABLE_BILLING=false`
@@ -2349,8 +2377,17 @@ Current Production feature-flag posture (names/booleans only; no secrets):
 - `ENABLE_GOOGLE_AUTH=true`
 - `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
 - `ENABLE_TRIAL_EXPIRY_CRON=true`
+- `ENABLE_EMAIL_OTP_SIGNUP=false`
+- `ENABLE_PHONE_OTP_SIGNUP=false`
+- `ENABLE_EMAIL_PASSWORD_RECOVERY=false`
+- `ENABLE_PHONE_PASSWORD_RECOVERY=false`
+- `SAAS_AUTH_CAPTCHA_READY=false`
+- `ENABLE_EMAIL_DELIVERY=false`
 - `ENABLE_MULTI_TENANT_ADMIN=true`
 - `ENABLE_IMAGE_AI=false`
+
+Custom SMTP, SMS provider, application/Supabase Turnstile values, and Email
+delivery provider are not configured or enabled.
 
 ## SaaS Values Still Needed From Owner
 

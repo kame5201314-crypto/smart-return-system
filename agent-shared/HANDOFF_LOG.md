@@ -5817,10 +5817,12 @@ Public lead capture production rollout completed.
 - Public signup, billing, email delivery, ECPay/other providers, domain/DNS,
   and migrations `034`/`036` were not enabled or changed.
 
-## 2026-07-14 Codex -> Owner / Claude / Codex
+## Historical Snapshot: 2026-07-14 Google Repository Foundation
 
-Google merchant login and self-service trial foundations are implemented,
-verified, and pushed without activating external services.
+This snapshot is superseded by the 2026-07-15 Google Production Rollout
+Resolution below. At this point, Google merchant login and self-service trial
+foundations were implemented, verified, and pushed without activating external
+services.
 
 Commits:
 
@@ -5834,7 +5836,7 @@ ceb42ae fix(saas): align readiness gates with Google trial phases
 cb4b203 test(saas): cover Google trial identity matrix
 ```
 
-Current behavior:
+Historical behavior at that snapshot:
 
 - Google OAuth is disabled by default and existing email/password login remains
   unchanged.
@@ -5858,7 +5860,7 @@ Final verification:
   `npm run safety:agent-boundary`, and `git diff --check` passed.
 - `saas:doctor` reported 190 pass / 1 existing local flag warning / 0 fail.
 
-Activation boundary:
+Historical activation boundary:
 
 - No migration was applied, no OAuth provider was configured, no env or secret
   was changed, and no deployment was performed.
@@ -6020,3 +6022,74 @@ The owner subsequently authorized completing the Production rollout:
   `origin/develop-saas`. Final validation passed: lint, typecheck, backend 16,
   unit 558, UI 12, E2E 4, integration 5, production build (68 generated pages),
   and the agent-boundary safety check.
+
+## 2026-07-16 Phone-Only Team Settings Compatibility
+
+- Commit `6eafe1a fix(saas): support phone-only team settings` is pushed to
+  `origin/develop-saas`.
+- Team settings no longer assume every membership has an Email; phone-only
+  owners render `已驗證手機帳號` without querying the unapplied migration `044`
+  phone column.
+- Focused team settings/live-data tests passed 15/15 and typecheck passed.
+- No migration, deploy, env/secret, Supabase, Vercel, provider, Billing, DNS,
+  or Production setting changed.
+
+## 2026-07-16 Guarded Email/Phone Password Recovery
+
+- Commit `efe50ee feat(auth): add guarded password recovery` is pushed to
+  `origin/develop-saas`.
+- Added disabled-by-default Email/Phone OTP recovery, generic send responses,
+  SMS `shouldCreateUser=false`, confirmed identity/new-session checks, a
+  10-minute signed HttpOnly proof, guarded reset action, global sign-out, and a
+  merchant-only login entry.
+- Recovery actions re-check feature readiness server-side. Migration `044` is
+  not needed for existing-account recovery and remains unapplied.
+- Focused regression suite passed 47/47; typecheck, targeted lint, script
+  validation, SaaS doctor, and agent-boundary passed.
+- No SMTP/SMS/CAPTCHA provider, migration, deploy, env/secret, Billing, DNS,
+  Vercel/Supabase, or Production setting changed. Both recovery flags remain
+  false.
+
+## 2026-07-16 Legacy Admin Server-Side Turnstile
+
+- Commit `36e21fd fix(auth): verify admin Turnstile server-side` is pushed to
+  `origin/develop-saas`.
+- Legacy cookie-admin password login now calls Cloudflare Siteverify before
+  password comparison and validates token length, provider success,
+  `password_login` action, trusted `NEXT_PUBLIC_APP_URL` hostname, timeout, and
+  Production test-key rejection. Failure is rate-limited and fail-closed.
+- Supabase Email/Phone/platform-admin paths still pass their token to Supabase;
+  the same token is never consumed twice.
+- Focused suite passed 35/35; typecheck, targeted lint, script validation, SaaS
+  doctor (including the new static contract), and agent-boundary passed.
+- `TURNSTILE_SECRET_KEY` was added only to the example/readiness contract. No
+  real secret, env, provider, deploy, migration, Supabase/Vercel, Billing, DNS,
+  or Production setting changed.
+
+## 2026-07-16 Admin Auth Regression Stability
+
+- Commit `54bbeb7 fix(auth): read admin password per request` is pushed to
+  `origin/develop-saas`.
+- Legacy admin credentials are resolved at request time instead of module load;
+  the regression test no longer resets and re-imports the complete auth module
+  per case.
+- Focused tests passed 4/4 and the complete unit suite passed 104 files / 587
+  tests. Typecheck and targeted lint also passed.
+- No credential value was printed or stored. No deploy, migration, env/secret,
+  Supabase/Vercel, provider, Billing, DNS, or Production setting changed.
+
+## 2026-07-16 Auth Rollout Documentation And Final Validation
+
+- This commit synchronizes the password-recovery, verified-signup, CAPTCHA,
+  owner-action, prelaunch, security, product, task-board, and handoff contracts.
+- Google Production rollout remains recorded as completed. Migrations
+  `040`–`043` remain applied and must not be rerun; migration `044` remains an
+  unapplied draft. Billing, OTP signup/recovery, Email delivery, SMS, and
+  Turnstile rollout remain disabled or unconfigured.
+- Final validation passed: lint, typecheck, script checks 21/21, backend 16/16,
+  unit 587/587, UI 23/23, E2E 4/4, integration 5/5, Production build with 68
+  generated pages, encoding hygiene, agent-boundary, and `git diff --check`.
+- `.env.saas.local` is absent in this clean checkout. Env-backed non-strict
+  build gates were skipped as designed; no placeholder, secret, migration,
+  deploy, provider, Vercel/Supabase, Billing, DNS, or Production change was
+  made.

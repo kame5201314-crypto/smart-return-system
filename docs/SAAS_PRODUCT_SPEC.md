@@ -104,8 +104,10 @@
 | `/legal/terms` | 服務條款 | 必備 |
 | `/legal/privacy` | 隱私權政策 | 必備 |
 | `/legal/refund` | 退費政策 | 7 天內人工審核退費條件 |
-| `/login` | 登入（已存在） | Email + Supabase OTP |
-| `/signup` | 註冊（旗標控管） | 建立 org + Owner |
+| `/login` | 商家登入 | Google、Email/Phone + password；平台 `/internal` 使用同頁但不顯示商家復原入口 |
+| `/forgot-password` | 帳號復原（旗標控管） | Email/Phone 6 位數 OTP + CAPTCHA；泛化寄送回應 |
+| `/reset-password` | 設定新密碼（受保護） | 需新 recovery session + 短效 signed HttpOnly proof |
+| `/signup` | 註冊（旗標控管） | Google 3 天試用已上線；Email/Phone verified signup 尚未啟用 |
 | `/invite/[token]` | 受邀加入 | 接受邀請、建立帳號 |
 
 註：landing 與 legal 三頁是必要法律與信任素材，沒有就無法正式開放公開註冊。
@@ -114,25 +116,32 @@
 
 ## 5. 註冊與試用流程
 
-### 5.1 公開註冊（`public_signup` 開啟）
+### 5.1 Google 三天自助試用（Production 已完成）
 
 ```
-未登入訪客
-  → /pricing 點 [免費試用 3 天]
-  → /signup
-      欄位：公司名稱、Email、密碼、用途（dropdown）
-      勾選：同意條款 + 隱私
-  → 送出
-      建立 auth.users
-      建立 organizations: status=trialing, plan=basic
-      建立 organization_members: role=owner
-      建立 subscriptions: status=trialing, current_period_end=now+3d
-      寄 magic link 驗證
-  → 驗證成功
-  → /app/onboarding/welcome（首入精靈）
+未登入訪客 → Google OAuth → verified Google identity
+  → /signup/complete 確認品牌與方案
+  → service-role RPC 建立唯一 org / owner membership / 3-day subscription
+  → 試用 real AI 僅一次；到期 cron 只處理 self-service claim
+  → 到期後保留讀取、禁止新增/匯入/匯出/AI
 ```
 
-### 5.2 封閉 Beta 註冊（`public_signup` 關閉，預設）
+Migrations `040`–`043` 已套用到 SaaS project，禁止重跑。Google rollout
+不依賴 Billing 或 Email provider。
+
+### 5.2 Email／Phone 驗證碼註冊（Repository 完成、尚未啟用）
+
+```
+Email 或台灣手機 + password + terms + CAPTCHA
+  → 6-digit signup OTP
+  → confirmed identity
+  → migration 044 的 provider-neutral RPC 建立同一種 3-day trial
+```
+
+兩個 channel 使用獨立 disabled-by-default flags。Migration `044` 尚未套用；
+Custom SMTP、SMS provider、CAPTCHA/env 與 Production deploy 尚未完成。
+
+### 5.3 封閉 Beta 註冊（`public_signup` 關閉，預設）
 
 ```
 訪客
@@ -142,7 +151,7 @@
   → 使用者點連結 → 設定密碼 → /app/onboarding/welcome
 ```
 
-### 5.3 Onboarding 精靈（首次登入）
+### 5.4 Onboarding 精靈（首次登入）
 
 `/app/onboarding/[step]`
 
@@ -454,6 +463,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_org_created
 auth:
   - signupOrgWithOwner
   - acceptInvite
+  - verifyPasswordRecoveryOtp
+  - updateRecoveredPassword
 
 org:
   - inviteMember / cancelInvite / removeMember / changeRole

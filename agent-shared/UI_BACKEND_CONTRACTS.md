@@ -35,7 +35,7 @@ app/login/page.tsx
 Server action:
 
 ```text
-signIn(email, password, requestedPath?)
+signIn(identifier, password, requestedPath?, captchaToken?)
 ```
 
 Success response:
@@ -67,6 +67,53 @@ Rules:
 - Login UI should consume `redirectTo` and should not hard-code role
   detection in the client.
 - `/internal/*` remains protected by Codex-owned platform admin guards.
+- When `SAAS_AUTH_CAPTCHA_READY=true`, Supabase Email/Phone principals pass
+  the token to Supabase Auth, while the legacy cookie-admin branch calls
+  Cloudflare Siteverify itself and validates `password_login` plus the trusted
+  app hostname before comparing the password.
+- The merchant password-recovery link is never rendered for
+  `/login?next=/internal`.
+
+## Password Recovery
+
+Backend owner: Codex.
+
+UI paths:
+
+```text
+app/forgot-password/page.tsx
+app/reset-password/page.tsx
+components/auth/password-recovery-form.tsx
+components/auth/update-password-form.tsx
+```
+
+Server actions:
+
+```text
+verifyPasswordRecoveryOtp(channel, identifier, otp)
+updateRecoveredPassword(password, confirmation)
+```
+
+Rules:
+
+- `/forgot-password` is public only when the user navigates to it; channel
+  availability still requires its independent recovery flag, Auth CAPTCHA,
+  and matching provider readiness.
+- `/reset-password` is not public and requires both a newly verified Supabase
+  recovery session and a 10-minute signed HttpOnly proof bound to the same
+  user ID. A normal Google/password session is insufficient.
+- Email uses `resetPasswordForEmail` + `verifyOtp(type='recovery')`; its
+  provider template must render a six-digit `{{ .Token }}`.
+- Phone uses `signInWithOtp(... shouldCreateUser=false)` +
+  `verifyOtp(type='sms')`; recovery cannot create an account.
+- Send responses are generic so UI does not reveal whether an account exists.
+- OTP success must return a new session/user, and server verification must
+  match user ID plus confirmed Email/Phone. Any mismatch fails closed and
+  clears the newly created session.
+- Password update consumes the proof and attempts global sign-out. UI must not
+  claim all devices are signed out if both global and local sign-out fail.
+- Migration `044` is not required for existing-account recovery. It remains an
+  unapplied draft only for Email/Phone verified self-service trial creation.
 
 ## Internal Admin Access Redirect
 
@@ -540,8 +587,8 @@ Schema prerequisite:
   authorization.
 - `organization_invites.status` now exists in the applied SaaS schema, so real
   DB QA for `/settings/team` invite revoke/resend can proceed.
-- Migrations `033`, `034`, and `036` remain unapplied and still require
-  separate owner authorization.
+- Migration `033` is applied. Draft migrations `034`, `036`, and `044` remain
+  unapplied and still require separate owner authorization.
 
 Request contracts:
 
@@ -903,7 +950,9 @@ Backend rules:
 - `resume_org` requires `reason`; it moves org/subscription to `active`.
 - `request_refund` requires `amountTwd` and `reason`; it records a refund request event and audit log only. It does not call a payment provider or issue money.
 - Every operation is designed to write `audit_logs` in the RPC. UI must not mutate status locally or bypass this route.
-- Migration `033_saas_platform_billing_operations.sql` is a draft only in this commit. No migration was applied.
+- Migration `033_saas_platform_billing_operations.sql` is applied to SaaS
+  project `auyznbwtjvemyamujmgt`; do not rerun it. Billing provider enablement
+  remains separate and disabled.
 
 ## Platform Billing Event Retry And Reconciliation
 

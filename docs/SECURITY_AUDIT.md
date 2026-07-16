@@ -1,6 +1,6 @@
 # SaaS 資安稽核報告（Security Launch Audit）
 
-- 原始稽核：2026-06-13；完成狀態更新：2026-07-15
+- 原始稽核：2026-06-13；完成狀態更新：2026-07-16
 - 分支：`develop-saas`
 - 方法：Claude 與 Codex **兩個獨立稽核**交叉驗證，結論零分歧。
 - 性質：原始稽核為唯讀；本次同步已完成修正與驗收證據。
@@ -37,6 +37,8 @@
 | 前端無敏感金鑰 | `NEXT_PUBLIC_*` 僅 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`APP_URL`、`CONTACT_EMAIL`（anon key 設計上即公開）；service role key 未以 `NEXT_PUBLIC_` 暴露 | ✅ |
 | 無 XSS sink | 全專案 0 個 `dangerouslySetInnerHTML` | ✅ |
 | Rate limiting（真實程式碼） | `lib/auth/admin-login-rate-limit.ts`、`lib/actions/auth.ts`、`lib/actions/customer-return.actions.ts`、`app/api/saas/signup`、`app/api/v1/upload/*` | ✅ |
+| Legacy admin CAPTCHA | Commit `36e21fd`：server-side Siteverify 驗證 token、`password_login` action、trusted hostname、timeout；失敗在密碼比對前 fail closed 並計入 rate limit | ✅（repo，未 deploy） |
+| 密碼復原安全 | Commit `efe50ee`：泛化寄送回應、`shouldCreateUser=false`、new-session/user/contact match、10 分鐘 signed HttpOnly proof、guarded reset action、global sign-out | ✅（repo，flags off） |
 | 公開寫入面驗證 | 消費者退貨 portal 寫入經 `customerReturnSchema`（zod）驗證 + 欄位長度上限 + 手機 regex | ✅ |
 | ECPay webhook | `app/api/billing/ecpay/webhook/route.ts` + `CheckMacValue` 簽章驗證（Billing 目前停用） | ✅ |
 | 相依套件漏洞 | `npm audit --omit=dev`：1 low / 4 moderate / **0 high / 0 critical**；完整 audit 為 1 low / 5 moderate / **0 high / 0 critical**。剩餘 Next/PostCSS 與 ExcelJS/UUID 路徑需 breaking upgrade，不使用 `--force` 自動修正 | ✅ |
@@ -71,7 +73,9 @@
 - **CSP 強化**：`lib/security/headers.ts:7` 的 `script-src` 含 `'unsafe-inline' 'unsafe-eval'`（Next.js 常見妥協，且無 XSS sink，殘餘風險低）。正式公開後研究 nonce/hash CSP 逐步移除。
 - **PDPA / 個資營運 SOP**（文件）：客戶要求刪除資料的流程、資料保留期限、誰能接觸消費者姓名/電話/地址、資料外洩通報流程。
 - **平台 admin MFA / 2FA**：營運者帳號為最高價值帳號，公開上市前建議啟用雙因子。
-- **其他強化**：帳號列舉防護（login/signup 失敗訊息一致化）、audit_logs 防竄改、上傳圖片 URL 的 SSRF 評估、WAF/bot 防護。
+- **其他強化**：密碼復原的帳號列舉防護已完成；login/signup 其餘失敗訊息
+  仍需持續檢查一致性。另追蹤 audit_logs 防竄改、上傳圖片 URL 的 SSRF
+  評估、WAF/bot 防護。
 
 ---
 
@@ -79,7 +83,7 @@
 
 - ❌ 不要開 `ENABLE_PUBLIC_SIGNUP=true`
 - ❌ 不要啟用 Billing / ECPay（`ENABLE_BILLING`）
-- ❌ 不要套用 draft migration `034` / `036`；不要重跑已套用的 `030`、
+- ❌ 不要套用 draft migration `034` / `036` / `044`；不要重跑已套用的 `030`、
   `033`、`035` 或 `037`–`043`
 - ❌ 不要為了自訂網域卡住 Beta — 先用 `https://smart-return-system-saas.vercel.app`
 
@@ -99,6 +103,8 @@
 
 - [x] dev-auth 雙重 gate、無硬寫密碼與 fail-closed 純函式測試。
 - [x] schema-drift server token 必填、header-only token 與 route 回歸測試。
+- [x] Email/Phone password recovery 使用短效 server proof 並防帳號列舉。
+- [x] legacy admin Turnstile 已補 server-side Siteverify；rollout flags 仍關閉。
 - [x] `npm run lint`
 - [x] `npm run typecheck`
 - [x] `npm run test:all`（含 UI suite）

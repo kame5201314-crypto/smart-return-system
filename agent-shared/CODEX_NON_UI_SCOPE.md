@@ -35,12 +35,21 @@ domain / billing / secret changes
 
 ## Current External Blockers
 
-- SaaS migrations are applied on the dedicated SaaS project through `032`; newer local drafts extend the chain beyond that and still require explicit owner approval before apply.
+- SaaS migrations `040`–`043` are applied only to project
+  `auyznbwtjvemyamujmgt` and must not be rerun. Drafts `034`, `036`, and `044`
+  remain unapplied and each requires a separate feature-matched authorization.
 - `npm run saas:migration-plan:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:schema-gate:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:rollout-check` reports the remaining rollout blockers without changing external state.
-- Final public rollout remains blocked by owner decisions and external setup: rotate the local shortcut `ADMIN_PASSWORD`, add Sentry/logging or explicitly accept closed-Beta log-only monitoring, configure billing for paid self-serve, and authorize deployment.
-- Billing credentials, SaaS domain, logging/Sentry, and production deployment remain separate future approvals.
+- Google login, 3-day self-service trial, single-use AI, scoped expiry, Sentry,
+  and post-expiry read-only are already live. They are not current blockers.
+- Repository auth hardening through `54bbeb7` is pushed but not deployed.
+- OTP signup/recovery remains blocked on Custom SMTP/SMS, Cloudflare and
+  Supabase CAPTCHA secrets, per-channel smoke, deployment/env authorization,
+  and migration `044` only if new verified signup provisioning is selected.
+- Paid self-serve remains blocked on legal/invoice decisions, Email delivery,
+  Billing/ECPay, and paid lifecycle automation. Optional domain and DB-backed
+  platform roles remain separate future approvals.
 
 ## Routing Strategy
 

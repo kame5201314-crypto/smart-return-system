@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -10,6 +10,23 @@ For the Google login and self-service trial rollout, use
 [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md).
 The Google Production rollout is complete according to the current owner
 handoff. It is no longer an outstanding owner-action blocker.
+
+For the repository-complete but disabled Email/Phone signup and password
+recovery rollout, use
+[`SAAS_VERIFIED_SIGNUP_ROLLOUT.md`](./SAAS_VERIFIED_SIGNUP_ROLLOUT.md) and
+[`SAAS_PASSWORD_RECOVERY_ROLLOUT.md`](./SAAS_PASSWORD_RECOVERY_ROLLOUT.md).
+
+## 2026-07-16 Auth Repository Work Completed
+
+- `6eafe1a`, `efe50ee`, `36e21fd`, and `54bbeb7` are pushed to
+  `origin/develop-saas`.
+- Phone-only team settings, guarded Email/Phone password recovery, and legacy
+  admin server-side Turnstile validation are repository-complete.
+- This is not a Production deployment. OTP signup and recovery flags remain
+  off; no SMTP/SMS/Turnstile env or provider setting changed.
+- Migration `044` remains draft-only and must be authorized separately. It is
+  not required for recovery of existing accounts, only verified Email/Phone
+  self-service trial provisioning.
 
 ## 2026-07-15 Google Production Rollout Completed
 
@@ -35,7 +52,7 @@ handoff. It is no longer an outstanding owner-action blocker.
   `https://smart-return-system-saas.vercel.app`.
 - The 2026-07-15 post-deploy smoke passed 16/16, OAuth recovery browser QA
   passed, and the deployment error-log scan returned zero errors.
-- Repository hardening commits through `6905ce3` are pushed to
+- Repository hardening commits through `54bbeb7` are pushed to
   `origin/develop-saas`; migration-status correction `d397ea2` is also pushed.
   They have not been deployed. Production therefore
   remains at `a29f725` until a separately authorized deployment.
@@ -69,7 +86,11 @@ handoff. It is no longer an outstanding owner-action blocker.
   - migration `038_saas_org_member_visibility.sql` is applied
   - migrations `040`, `041`, `042`, and `043` are applied only to SaaS project
     `auyznbwtjvemyamujmgt` and must not be applied again
-  - draft migrations `034` and `036` remain unapplied
+  - draft migrations `034`, `036`, and `044` remain unapplied
+  - `ENABLE_EMAIL_OTP_SIGNUP`, `ENABLE_PHONE_OTP_SIGNUP`,
+    `ENABLE_EMAIL_PASSWORD_RECOVERY`, and
+    `ENABLE_PHONE_PASSWORD_RECOVERY` remain disabled pending provider and
+    rollout authorization
   - production env-name inspection found `ENABLE_MULTI_TENANT_ADMIN`,
     `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET`; it did not
     list `PLATFORM_ADMIN_ROLES`
@@ -130,6 +151,9 @@ The next owner-authorized technical actions, in order, are:
 5. Review `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md` with legal/accounting
    support before promising DPA, deletion, retention, or incident-notice terms
    to paying customers.
+6. If Email/Phone account flows are desired, provide Custom SMTP/SMS and
+   Cloudflare Turnstile values out of band, authorize one channel at a time,
+   and authorize migration `044` separately only for new verified signup.
 
 ## Paid Customer Invoice / Legal Owner Inputs
 
@@ -688,6 +712,40 @@ ENABLE_EMAIL_DELIVERY=true only after I provide values and authorize it. Keep
 dry-run behavior available, run tests, then update docs and push develop-saas.
 ```
 
+## Email/Phone Verification And Password Recovery
+
+Owner must provide or complete out of band:
+
+- Cloudflare Production widget with the Production hostname allow-listed.
+- Public site key for `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- Server-only secret for SaaS Vercel `TURNSTILE_SECRET_KEY`.
+- A separately configured Supabase Auth CAPTCHA secret.
+- Custom SMTP with verified sender domain and a recovery/signup template that
+  renders a 6-digit `{{ .Token }}`.
+- For Phone, a Supabase-supported SMS provider with Taiwan delivery, spend
+  limit, fraud protection, and tested `+8869XXXXXXXX` delivery.
+- Explicit per-channel authorization for signup and/or password recovery.
+- Separate migration `044` authorization only if verified Email/Phone signup
+  should create self-service trial organizations.
+
+Safe handoff template:
+
+```text
+I authorize a controlled <Email|Phone> auth rollout for
+smart-return-system-saas only.
+
+Scope:
+- Configure secrets out of band; never write them to Git, docs, logs, or chat.
+- Keep Billing and Email queue delivery disabled.
+- Keep the other auth channel disabled.
+- Enable only the named signup/recovery flag(s).
+- Run existing Email/Phone/Google/legacy-admin/Supabase-admin login smoke.
+- Use disposable accounts for OTP and recovery QA.
+- Do not apply migration 044 unless this authorization explicitly says
+  "apply migration 044 to auyznbwtjvemyamujmgt only".
+- Do not touch master/live/internal Supabase.
+```
+
 ## Billing / ECPay
 
 Owner must provide:
@@ -730,12 +788,12 @@ Scope:
 - Update docs and push develop-saas.
 ```
 
-## Draft Migrations 033-038 Status
+## Migrations 033-044 Status
 
-These require explicit per-migration authorization. Do not apply them as a
-bundle. Migrations `033`, `035`, `037`, and `038` have already been applied to
-the SaaS project after explicit owner authorization; the remaining unapplied
-drafts are `034` and `036`.
+Applied migrations must not be rerun, and unapplied drafts require explicit
+per-migration authorization; never apply this range as a bundle. Migrations
+`033`, `035`, and `037`–`043` have already been applied to the SaaS project;
+the remaining unapplied drafts are only `034`, `036`, and `044`.
 
 ### `033_saas_platform_billing_operations.sql`
 
@@ -899,12 +957,40 @@ Recommendation:
 - Completed. Do not bundle or rerun `038` with future `033`, `034`, or `036`
   work.
 
+### `044_saas_verified_identity_self_service_trial.sql`
+
+Purpose:
+
+- Extends the applied Google self-service trial foundation so confirmed Email
+  or Phone identities can provision the same 3-day trial without fake Email
+  values.
+- Preserves the existing Google RPC and applied migrations `040`–`043`.
+- Adds provider/contact uniqueness and service-role-only provisioning checks.
+
+Recommended timing:
+
+- Only after the chosen Custom SMTP/SMS provider, six-digit OTP template,
+  CAPTCHA, login regression smoke, and disposable-account flow are ready.
+- Recovery for existing accounts may be rolled out without `044`; do not use
+  password recovery as a reason to apply this migration early.
+
+Risk:
+
+- Medium. It changes self-service provisioning and trial claim identity data.
+- Apply only to SaaS project `auyznbwtjvemyamujmgt`, after backup/review and a
+  migration-specific authorization. Never rerun `040`–`043`.
+
+Status:
+
+- Draft-only; not applied anywhere.
+- Do not bundle with `034` or `036`.
+
 ## Migration Authorization Template
 
 Use this only after choosing one migration:
 
 ```text
-I authorize applying migration <034|036> to the SaaS Supabase project
+I authorize applying migration <034|036|044> to the SaaS Supabase project
 auyznbwtjvemyamujmgt only.
 
 Scope:
@@ -923,9 +1009,9 @@ Scope:
   safe to use that way.
 - Do not commit DSN, API keys, ECPay credentials, SMTP credentials, or DNS
   tokens.
-- Do not apply migrations `033`-`038` as a bundle. `033`, `035`, `037`, and
-  `038` are already applied; the remaining unapplied drafts are `034` and
-  `036`.
+- Do not apply migrations `033`-`044` as a bundle. `033`, `035`, `037`–`043`
+  are already applied; the remaining unapplied drafts are `034`, `036`, and
+  `044`.
 - Do not enable `ENABLE_PUBLIC_SIGNUP=true` as part of these actions.
 - Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
 - Do not change `master`.

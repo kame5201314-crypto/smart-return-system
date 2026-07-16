@@ -1,5 +1,32 @@
 # Active Work
 
+## 2026-07-16 Auth Recovery And CAPTCHA Hardening
+
+Status: done
+
+Scope: Finish phone-only team compatibility, Email/Phone OTP password recovery,
+and legacy admin server-side Turnstile without external changes.
+
+Notes: Commits `6eafe1a`, `efe50ee`, `36e21fd`, and `54bbeb7` are pushed to
+`origin/develop-saas`. Phone-only owners no longer fail `/settings/team`;
+password recovery is independently flag-gated and uses an anti-enumeration
+response plus a short-lived signed HttpOnly proof; legacy admin password login
+now validates Turnstile through server-side Siteverify before password
+comparison. Admin credentials are read at request time, and the regression suite
+no longer reloads the auth module per test. Focused tests, lint, typecheck,
+script validation, SaaS doctor, and agent-boundary passed for each change. These
+commits are not deployed. Migration
+`044` remains unapplied; OTP/recovery flags remain false; no SMTP/SMS/CAPTCHA
+provider, env/secret, Vercel, Supabase, Billing, DNS, or Production setting was
+changed. Google Production rollout and applied migrations `040`–`043` remain
+complete and unchanged.
+
+Final repository validation passed: lint, typecheck, script/backend tests,
+104 unit files / 587 tests, 8 UI files / 23 tests, 3 E2E files / 4 tests,
+2 integration files / 5 tests, Production build (68 generated pages), encoding
+hygiene, and agent-boundary. The clean checkout has no `.env.saas.local`, so
+env-backed non-strict build gates were skipped without adding placeholders.
+
 ## 2026-07-15 Google OAuth And Trial Rollout Activation Follow-up
 
 Status: done
@@ -79,11 +106,12 @@ Notes: Lead capture is independently gated from public signup. Owner-authorized 
 
 ## Current
 
-2026-07-15 verified Email/Phone signup repository work is complete and pushed
-in commits `a71e3a9` and `de3f052`. The implementation remains behind independent
-fail-closed flags. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA
-provider or Production env is configured, and no deploy has occurred. Existing
-Google Production rollout and applied migrations `040`–`043` remain unchanged.
+2026-07-16 auth repository work is complete and pushed through `54bbeb7`,
+including verified signup, phone-only team settings, guarded password recovery,
+and server-side legacy admin Turnstile. All new signup/recovery flags remain
+fail-closed. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA provider
+or Production env is configured, and no deploy has occurred. Existing Google
+Production rollout and applied migrations `040`–`043` remain unchanged.
 
 Authoritative 2026-07-15 update: Production runs runtime HEAD `a29f725` on
 deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). Production smoke passed
@@ -91,7 +119,7 @@ deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). Production smoke passed
 zero errors. Google Auth, automatic 3-day trials, single-use trial AI, scoped
 expiry, public lead capture, and platform admin operations are enabled. Public
 signup, billing, email delivery, and providers remain disabled. Repository
-hardening through `6905ce3` is pushed but not deployed. The older snapshot below
+hardening through `54bbeb7` is pushed but not deployed. The older snapshot below
 is retained only as historical context where it does not conflict with this
 update.
 

@@ -220,10 +220,11 @@ merchant or platform backends.
 
 | Area | Blocker | Required solution |
 |---|---|---|
-| Public signup | Signup is still controlled/manual; public self-serve org creation is not the active rollout posture. | Decide public signup posture, wire form -> request/provisioning flow, and keep abuse/rate limits. |
+| Public signup | Google 3-day self-service trial is live；Email/Phone verified signup and paid self-serve remain closed. | For OTP signup, complete provider/CAPTCHA setup, separately authorize migration `044`, and keep abuse/rate limits. Decide paid self-serve posture independently from the completed Google path. |
+| Account recovery | Repository recovery is complete but both channel flags and providers remain off. | Complete six-digit SMTP/SMS templates, CAPTCHA secrets, disposable-account smoke, then enable one channel at a time. |
 | Email | Email queue is dry-run only. | Add provider adapter, preferably Resend first, with templates, retry/status updates, and delivery tests. |
 | ECPay billing | Webhook foundation exists but recurring authorization, processor, subscription updates, invoice issuing, and reconciliation are not ready. | Build and sandbox-test recurring payment lifecycle before enabling billing. |
-| Subscription lifecycle | Trial expiry, failed payment, grace period, read-only/past_due/suspended transitions must be automatic. | Add scheduled jobs and operator alerts, then test past_due/suspended/cancelled cases. |
+| Subscription lifecycle | Google self-service trial expiry and post-expiry read-only are live; failed payment, grace period, and paid cancellation remain incomplete. | Add paid lifecycle jobs and operator alerts, then test past_due/suspended/cancelled cases before Billing. |
 | Platform admin roles | DB-backed platform admin role management uses draft `036`. | Apply `036` only when owner wants DB-managed platform admin roles; keep env mapping until then. |
 | Operational monitoring | Sentry is configured, but business alerts for trial expiry, quota overage, payment failure, and AI cost are still manual. | Add notification/ops alert pipeline after email/provider decision. |
 
