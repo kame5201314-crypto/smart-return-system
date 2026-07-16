@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const headerMocks = vi.hoisted(() => ({
   headers: new Headers({ 'x-forwarded-for': '203.0.113.9' }),
@@ -42,27 +42,28 @@ vi.mock('@/lib/auth/admin-session', async (importOriginal) => {
 });
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 
-async function loadSignIn(captchaReady: boolean) {
-  vi.resetModules();
-  vi.stubEnv('ADMIN_USERNAME', 'admin');
-  vi.stubEnv('ADMIN_PASSWORD', 'strong-admin-password');
-  vi.stubEnv('ADMIN_SESSION_SECRET', 'admin-session-secret');
+import { signIn } from '@/lib/actions/auth';
+
+function configureCaptcha(captchaReady: boolean) {
   vi.stubEnv('SAAS_AUTH_CAPTCHA_READY', captchaReady ? 'true' : 'false');
   vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', captchaReady ? 'site-key' : '');
-  return (await import('@/lib/actions/auth')).signIn;
 }
 
 describe('legacy admin auth action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv('ADMIN_USERNAME', 'admin');
+    vi.stubEnv('ADMIN_PASSWORD', 'strong-admin-password');
+    vi.stubEnv('ADMIN_SESSION_SECRET', 'admin-session-secret');
+    configureCaptcha(false);
     rateLimitMocks.check.mockReturnValue({ allowed: true, retryAfterSeconds: 0 });
     turnstileMocks.verify.mockResolvedValue({ ok: true });
     adminSessionMocks.create.mockResolvedValue('admin-session-token');
   });
 
-  it('preserves legacy behavior while the CAPTCHA rollout flag is closed', async () => {
-    const signIn = await loadSignIn(false);
+  afterEach(() => vi.unstubAllEnvs());
 
+  it('preserves legacy behavior while the CAPTCHA rollout flag is closed', async () => {
     const result = await signIn('admin', 'strong-admin-password', '/internal');
 
     expect(result).toEqual({ success: true, redirectTo: '/internal' });
@@ -72,7 +73,7 @@ describe('legacy admin auth action', () => {
 
   it('fails closed and records a failure when server-side verification is rejected', async () => {
     turnstileMocks.verify.mockResolvedValue({ ok: false, reason: 'challenge_rejected' });
-    const signIn = await loadSignIn(true);
+    configureCaptcha(true);
 
     const result = await signIn(
       'admin',
@@ -94,7 +95,7 @@ describe('legacy admin auth action', () => {
   });
 
   it('creates the admin cookie only after server verification succeeds', async () => {
-    const signIn = await loadSignIn(true);
+    configureCaptcha(true);
 
     const result = await signIn(
       'admin',
@@ -111,7 +112,7 @@ describe('legacy admin auth action', () => {
 
   it('does not spend a Turnstile token after the rate limit is already locked', async () => {
     rateLimitMocks.check.mockReturnValue({ allowed: false, retryAfterSeconds: 60 });
-    const signIn = await loadSignIn(true);
+    configureCaptcha(true);
 
     const result = await signIn('admin', 'strong-admin-password', '/internal', 'token');
 

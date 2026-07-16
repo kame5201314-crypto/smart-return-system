@@ -27,8 +27,10 @@ import {
 } from '@/lib/auth/verified-signup';
 import { verifyPasswordLoginTurnstile } from '@/lib/auth/turnstile-verification';
 
-// Defensive trim: Vercel env values can accidentally include trailing newlines.
-const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
+function getConfiguredAdminPassword(): string {
+  // Defensive trim: Vercel env values can accidentally include trailing newlines.
+  return (process.env.ADMIN_PASSWORD || '').trim();
+}
 
 export interface AuthResult {
   success: boolean;
@@ -46,6 +48,7 @@ export async function signIn(
     const normalizedLoginId = identifier.trim().toLowerCase();
 
     if (isAdminLoginId(normalizedLoginId)) {
+      const adminPassword = getConfiguredAdminPassword();
       const requestHeaders = await headers();
       const clientIp = getClientIpFromHeaders(requestHeaders);
       const rateLimitKey = buildAdminLoginRateLimitKey({
@@ -60,7 +63,7 @@ export async function signIn(
         };
       }
 
-      if (!ADMIN_PASSWORD) {
+      if (!adminPassword) {
         return {
           success: false,
           error: 'Admin password is not configured',
@@ -81,7 +84,7 @@ export async function signIn(
         }
       }
 
-      if (password !== ADMIN_PASSWORD) {
+      if (password !== adminPassword) {
         recordAdminLoginFailure(rateLimitKey);
         return {
           success: false,
