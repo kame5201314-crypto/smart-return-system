@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -53,6 +53,7 @@ export function VerifiedSignupForm({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const inFlight = useRef(false);
 
   const resendSeconds = useMemo(
     () => Math.max(0, Math.ceil((resendAvailableAt - clock) / 1000)),
@@ -71,7 +72,7 @@ export function VerifiedSignupForm({
   }
 
   function selectChannel(nextChannel: VerifiedSignupChannel) {
-    if (isSubmitting || nextChannel === channel) return;
+    if (inFlight.current || isSubmitting || nextChannel === channel) return;
     setChannel(nextChannel);
     setIdentifier('');
     setError(null);
@@ -81,6 +82,7 @@ export function VerifiedSignupForm({
 
   async function handleStart(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (inFlight.current) return;
     setError(null);
     setMessage(null);
 
@@ -96,6 +98,7 @@ export function VerifiedSignupForm({
 
       const normalized = normalizeVerifiedSignupIdentifier(channel, identifier);
       validateVerifiedSignupPassword(password, passwordConfirmation);
+      inFlight.current = true;
       setIsSubmitting(true);
 
       const client = createClient();
@@ -120,7 +123,7 @@ export function VerifiedSignupForm({
       // A public verified-signup rollout must require confirmation in Supabase Auth.
       // If a session is returned immediately, fail closed instead of silently bypassing OTP.
       if (response.data.session) {
-        await client.auth.signOut();
+        await client.auth.signOut({ scope: 'local' });
         throw new Error('OTP confirmation provider is not configured');
       }
 
@@ -138,12 +141,14 @@ export function VerifiedSignupForm({
       setError(getVerifiedSignupErrorMessage(caughtError));
       resetCaptcha();
     } finally {
+      inFlight.current = false;
       setIsSubmitting(false);
     }
   }
 
   async function handleVerify(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (inFlight.current) return;
     setError(null);
     setMessage(null);
     if (!/^\d{6}$/.test(otp)) {
@@ -151,9 +156,11 @@ export function VerifiedSignupForm({
       return;
     }
 
+    inFlight.current = true;
     setIsSubmitting(true);
+    const client = createClient();
+    let createdVerifiedSession = false;
     try {
-      const client = createClient();
       const response = channel === 'email'
         ? await client.auth.verifyOtp({
             email: normalizedIdentifier,
@@ -166,9 +173,19 @@ export function VerifiedSignupForm({
             type: 'sms',
           });
       if (response.error) throw response.error;
+      if (!response.data.session || !response.data.user) {
+        throw new Error('Verified signup session missing');
+      }
+      createdVerifiedSession = true;
 
       const { data, error: userError } = await client.auth.getUser();
-      if (userError || !data.user) throw userError || new Error('Verified user missing');
+      if (
+        userError ||
+        !data.user ||
+        data.user.id !== response.data.user.id
+      ) {
+        throw userError || new Error('Verified user missing or mismatched');
+      }
 
       const verified = channel === 'email'
         ? Boolean(
@@ -182,7 +199,6 @@ export function VerifiedSignupForm({
             normalizeTaiwanPhoneIdentifier(data.user.phone) === normalizedIdentifier
           );
       if (!verified) {
-        await client.auth.signOut();
         throw new Error('Verified identity mismatch');
       }
 
@@ -190,8 +206,12 @@ export function VerifiedSignupForm({
       router.replace(`/signup/complete?plan=${plan}`);
       router.refresh();
     } catch (caughtError) {
+      if (createdVerifiedSession) {
+        await client.auth.signOut({ scope: 'local' });
+      }
       setError(getVerifiedSignupErrorMessage(caughtError));
     } finally {
+      inFlight.current = false;
       setIsSubmitting(false);
     }
   }
@@ -199,12 +219,13 @@ export function VerifiedSignupForm({
   async function handleResend() {
     setError(null);
     setMessage(null);
-    if (resendSeconds > 0 || isSubmitting) return;
+    if (inFlight.current || resendSeconds > 0 || isSubmitting) return;
     if (!captchaToken) {
       setError('請先完成安全驗證，再重新傳送驗證碼。');
       return;
     }
 
+    inFlight.current = true;
     setIsSubmitting(true);
     try {
       const client = createClient();
@@ -230,6 +251,7 @@ export function VerifiedSignupForm({
       setError(getVerifiedSignupErrorMessage(caughtError));
       resetCaptcha();
     } finally {
+      inFlight.current = false;
       setIsSubmitting(false);
     }
   }

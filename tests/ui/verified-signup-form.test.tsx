@@ -33,11 +33,25 @@ vi.mock('@marsidev/react-turnstile', () => ({
 
 import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver;
+  });
+  return { promise, resolve };
+}
+
 describe('VerifiedSignupForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMocks.signUp.mockResolvedValue({ data: { session: null, user: { id: 'user-1' } }, error: null });
-    authMocks.verifyOtp.mockResolvedValue({ data: {}, error: null });
+    authMocks.verifyOtp.mockResolvedValue({
+      data: {
+        session: { access_token: 'verified-session' },
+        user: { id: 'user-1' },
+      },
+      error: null,
+    });
     authMocks.getUser.mockResolvedValue({
       data: {
         user: {
@@ -150,7 +164,7 @@ describe('VerifiedSignupForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
     fireEvent.click(screen.getByRole('button', { name: '傳送驗證碼' }));
 
-    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledWith({ scope: 'local' }));
     expect(screen.getByRole('alert')).toHaveTextContent('此驗證方式目前尚未開放，請改用其他方式。');
     expect(screen.queryByText('輸入驗證碼')).not.toBeInTheDocument();
     expect(navigationMocks.replace).not.toHaveBeenCalled();
@@ -190,8 +204,143 @@ describe('VerifiedSignupForm', () => {
     fireEvent.change(screen.getByLabelText('信箱驗證碼'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: '驗證並建立帳號' }));
 
-    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledWith({ scope: 'local' }));
     expect(screen.getByRole('alert')).toHaveTextContent('驗證服務暫時無法使用，請稍後再試。');
     expect(navigationMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('clears the newly verified session when the authenticated user cannot be confirmed', async () => {
+    authMocks.signOut.mockResolvedValue({ error: null });
+    authMocks.getUser.mockResolvedValue({
+      data: { user: null },
+      error: new Error('network error'),
+    });
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱'), { target: { value: 'owner@example.com' } });
+    fireEvent.change(screen.getByLabelText('密碼'), { target: { value: 'Password8' } });
+    fireEvent.change(screen.getByLabelText('確認密碼'), { target: { value: 'Password8' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '傳送驗證碼' }));
+    await screen.findByText('輸入驗證碼');
+
+    fireEvent.change(screen.getByLabelText('信箱驗證碼'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: '驗證並建立帳號' }));
+
+    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledWith({ scope: 'local' }));
+    expect(navigationMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('requires verifyOtp to create a new session before trusting getUser', async () => {
+    authMocks.verifyOtp.mockResolvedValue({
+      data: { session: null, user: { id: 'user-1' } },
+      error: null,
+    });
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱'), { target: { value: 'owner@example.com' } });
+    fireEvent.change(screen.getByLabelText('密碼'), { target: { value: 'Password8' } });
+    fireEvent.change(screen.getByLabelText('確認密碼'), { target: { value: 'Password8' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '傳送驗證碼' }));
+    await screen.findByText('輸入驗證碼');
+
+    fireEvent.change(screen.getByLabelText('信箱驗證碼'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: '驗證並建立帳號' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('驗證服務暫時無法使用');
+    expect(authMocks.getUser).not.toHaveBeenCalled();
+    expect(authMocks.signOut).not.toHaveBeenCalled();
+    expect(navigationMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('coalesces rapid credential submissions into one signup request', async () => {
+    const pendingSignup = deferred<{
+      data: { session: null; user: { id: string } };
+      error: null;
+    }>();
+    authMocks.signUp.mockReturnValue(pendingSignup.promise);
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱'), { target: { value: 'owner@example.com' } });
+    fireEvent.change(screen.getByLabelText('密碼'), { target: { value: 'Password8' } });
+    fireEvent.change(screen.getByLabelText('確認密碼'), { target: { value: 'Password8' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    const form = screen.getByTestId('verified-signup-form');
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    expect(authMocks.signUp).toHaveBeenCalledTimes(1);
+    pendingSignup.resolve({ data: { session: null, user: { id: 'user-1' } }, error: null });
+    expect(await screen.findByText('輸入驗證碼')).toBeInTheDocument();
+  });
+
+  it('coalesces rapid OTP submissions into one verification request', async () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱'), { target: { value: 'owner@example.com' } });
+    fireEvent.change(screen.getByLabelText('密碼'), { target: { value: 'Password8' } });
+    fireEvent.change(screen.getByLabelText('確認密碼'), { target: { value: 'Password8' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '傳送驗證碼' }));
+    await screen.findByText('輸入驗證碼');
+
+    const pendingVerification = deferred<{
+      data: {
+        session: { access_token: string };
+        user: { id: string };
+      };
+      error: null;
+    }>();
+    authMocks.verifyOtp.mockReturnValue(pendingVerification.promise);
+    fireEvent.change(screen.getByLabelText('信箱驗證碼'), { target: { value: '123456' } });
+    const form = screen.getByTestId('verified-signup-otp-form');
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    expect(authMocks.verifyOtp).toHaveBeenCalledTimes(1);
+    pendingVerification.resolve({
+      data: {
+        session: { access_token: 'verified-session' },
+        user: { id: 'user-1' },
+      },
+      error: null,
+    });
+    await waitFor(() => expect(navigationMocks.replace)
+      .toHaveBeenCalledWith('/signup/complete?plan=basic'));
   });
 });
