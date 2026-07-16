@@ -6,12 +6,24 @@ const DEFAULT_BASE_URL = 'https://smart-return-system-saas.vercel.app';
 
 const args = process.argv.slice(2);
 const explicitUrl = args.find((arg) => arg.startsWith('--url='))?.slice('--url='.length);
+const explicitTimeout = args.find((arg) => arg.startsWith('--timeout-ms='))
+  ?.slice('--timeout-ms='.length);
 const baseUrl = normalizeBaseUrl(explicitUrl || process.env.SAAS_PRODUCTION_URL || DEFAULT_BASE_URL);
+const requestTimeoutMs = normalizeTimeoutMs(
+  explicitTimeout || process.env.SAAS_PRODUCTION_SMOKE_TIMEOUT_MS
+);
 
 const checks = [];
 
 function normalizeBaseUrl(value) {
   return String(value || DEFAULT_BASE_URL).replace(/\/+$/, '');
+}
+
+function normalizeTimeoutMs(value) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) && parsed >= 250 && parsed <= 30_000
+    ? parsed
+    : 10_000;
 }
 
 function record(status, label, detail = '') {
@@ -26,14 +38,21 @@ function statusIcon(status) {
 
 async function get(path, options = {}) {
   const url = `${baseUrl}${path}`;
-  const response = await fetch(url, {
-    redirect: options.redirect || 'follow',
-    headers: {
-      'user-agent': 'smart-return-saas-production-smoke/1.0',
-    },
-  });
-  const text = options.text ? await response.text() : '';
-  return { url, response, text };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+  try {
+    const response = await fetch(url, {
+      redirect: options.redirect || 'follow',
+      headers: {
+        'user-agent': 'smart-return-saas-production-smoke/1.0',
+      },
+      signal: controller.signal,
+    });
+    const text = options.text ? await response.text() : '';
+    return { url, response, text };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function expectStatus(path, expectedStatus) {
@@ -93,9 +112,17 @@ async function checkPricing() {
 }
 
 async function main() {
-  console.log(`[saas-production-smoke] baseUrl=${baseUrl}`);
+  console.log(`[saas-production-smoke] baseUrl=${baseUrl} timeoutMs=${requestTimeoutMs}`);
 
-  for (const path of ['/', '/pricing', '/signup', '/login', '/robots.txt', '/sitemap.xml']) {
+  for (const path of [
+    '/',
+    '/pricing',
+    '/signup',
+    '/login',
+    '/forgot-password',
+    '/robots.txt',
+    '/sitemap.xml',
+  ]) {
     await expectStatus(path, 200);
   }
 
@@ -107,6 +134,7 @@ async function main() {
 
   await expectRedirect('/internal', /\/admin\/login\?next=%2Finternal/);
   await expectRedirect('/admin', /\/admin\/login\?next=%2Finternal|\/login\?next=%2Finternal/);
+  await expectRedirect('/reset-password', /\/forgot-password(?:\?|$)/);
 
   let failed = 0;
   let warned = 0;
@@ -127,4 +155,3 @@ main().catch((error) => {
   console.error(`[saas-production-smoke] fatal: ${error.message}`);
   process.exit(1);
 });
-
