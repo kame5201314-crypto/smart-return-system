@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const signupMocks = vi.hoisted(() => ({
@@ -36,17 +36,27 @@ vi.mock('@/components/auth/verified-signup-form', () => ({
     emailEnabled,
     phoneEnabled,
     initialPlan,
+    googleSignupHref,
   }: {
     emailEnabled: boolean;
     phoneEnabled: boolean;
     initialPlan: string;
+    googleSignupHref?: string;
   }) => (
     <div
       data-testid="verified-signup-form"
       data-email-enabled={String(emailEnabled)}
       data-phone-enabled={String(phoneEnabled)}
       data-plan={initialPlan}
-    />
+      data-google-signup-href={googleSignupHref}
+    >
+      {googleSignupHref ? (
+        <a href={googleSignupHref} data-testid="google-signup-option">
+          <span data-testid="google-sign-in-icon" />
+          使用 Google 註冊或登入
+        </a>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -83,12 +93,38 @@ describe('SignupPage feature composition', () => {
 
     expect(screen.getByRole('heading', { name: '建立帳號' })).toBeInTheDocument();
     expect(screen.getByText(/使用 Google 完成註冊/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '使用 Google 註冊或登入' }))
-      .toHaveAttribute('href', '/auth/google?plan=growth');
+    const googleLink = screen.getByRole('link', { name: '使用 Google 註冊或登入' });
+    expect(googleLink).toHaveAttribute('href', '/auth/google?plan=growth');
+    expect(within(googleLink).getByTestId('google-sign-in-icon'))
+      .toHaveAttribute('src', expect.stringContaining('google-sign-in-light-square.png'));
     expect(screen.queryByTestId('verified-signup-form')).not.toBeInTheDocument();
+    expect(screen.queryByText('或使用 Google 快速註冊')).not.toBeInTheDocument();
     expect(screen.getByTestId('lead-capture-form')).toHaveAttribute('data-plan', 'growth');
     expect(screen.getByTestId('signup-support-details')).not.toHaveAttribute('open');
     expect(screen.queryByText('清楚告訴你接下來 4 步。')).not.toBeInTheDocument();
+  });
+
+  it('places verified signup before Google and preserves the selected plan for both paths', async () => {
+    signupMocks.flags.google_auth = true;
+    signupMocks.flags.google_trial_signup = true;
+    signupMocks.verified.emailEnabled = true;
+    signupMocks.verified.phoneEnabled = true;
+    signupMocks.verified.turnstileSiteKey = 'site-key';
+
+    await renderSignup('growth');
+
+    const verifiedForm = screen.getByTestId('verified-signup-form');
+    const googleLink = screen.getByRole('link', { name: '使用 Google 註冊或登入' });
+
+    expect(screen.getByText(/使用手機號碼或電子信箱完成驗證/))
+      .toBeInTheDocument();
+    expect(verifiedForm).toHaveAttribute('data-plan', 'growth');
+    expect(googleLink).toHaveAttribute('href', '/auth/google?plan=growth');
+    expect(
+      verifiedForm.compareDocumentPosition(googleLink)
+      & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(within(googleLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
   });
 
   it('renders only the enabled Email verification channel', async () => {
@@ -97,7 +133,7 @@ describe('SignupPage feature composition', () => {
 
     await renderSignup('basic');
 
-    expect(screen.getByText(/使用 電子信箱驗證碼 完成註冊/)).toBeInTheDocument();
+    expect(screen.getByText(/使用電子信箱完成驗證/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '使用 Google 註冊或登入' }))
       .not.toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
@@ -112,7 +148,7 @@ describe('SignupPage feature composition', () => {
 
     await renderSignup('growth');
 
-    expect(screen.getByText(/使用 台灣手機驗證碼 完成註冊/)).toBeInTheDocument();
+    expect(screen.getByText(/使用台灣手機號碼完成驗證/)).toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-email-enabled', 'false');
     expect(screen.getByTestId('verified-signup-form'))

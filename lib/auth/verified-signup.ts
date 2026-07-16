@@ -15,6 +15,11 @@ export interface AuthCaptchaAvailability {
   turnstileSiteKey: string;
 }
 
+export interface ResolvedVerifiedSignupInput {
+  channel: VerifiedSignupChannel;
+  normalizedIdentifier: string;
+}
+
 export function selectEnabledVerifiedSignupProvider(input: {
   signupChannel?: unknown;
   hasGoogleIdentity: boolean;
@@ -45,7 +50,14 @@ export function selectEnabledVerifiedSignupProvider(input: {
 }
 
 export class VerifiedSignupValidationError extends Error {
-  constructor(public readonly code: 'invalid_email' | 'invalid_phone' | 'weak_password' | 'password_mismatch') {
+  constructor(
+    public readonly code:
+      | 'invalid_identifier'
+      | 'invalid_email'
+      | 'invalid_phone'
+      | 'weak_password'
+      | 'password_mismatch'
+  ) {
     super(code);
     this.name = 'VerifiedSignupValidationError';
   }
@@ -99,6 +111,44 @@ export function normalizeVerifiedSignupIdentifier(
   return channel === 'email'
     ? normalizeEmailIdentifier(value)
     : normalizeTaiwanPhoneIdentifier(value);
+}
+
+export function resolveVerifiedSignupInput(
+  value: string,
+  availability: Pick<VerifiedSignupAvailability, 'emailEnabled' | 'phoneEnabled'>
+): ResolvedVerifiedSignupInput {
+  if (availability.emailEnabled && availability.phoneEnabled) {
+    try {
+      if (value.includes('@')) {
+        return {
+          channel: 'email',
+          normalizedIdentifier: normalizeEmailIdentifier(value),
+        };
+      }
+      return {
+        channel: 'phone',
+        normalizedIdentifier: normalizeTaiwanPhoneIdentifier(value),
+      };
+    } catch {
+      throw new VerifiedSignupValidationError('invalid_identifier');
+    }
+  }
+
+  if (availability.emailEnabled) {
+    return {
+      channel: 'email',
+      normalizedIdentifier: normalizeEmailIdentifier(value),
+    };
+  }
+
+  if (availability.phoneEnabled) {
+    return {
+      channel: 'phone',
+      normalizedIdentifier: normalizeTaiwanPhoneIdentifier(value),
+    };
+  }
+
+  throw new VerifiedSignupValidationError('invalid_identifier');
 }
 
 export function validateVerifiedSignupPassword(password: string, confirmation: string): void {
@@ -159,6 +209,7 @@ export function resolveAuthCaptchaAvailability(
 
 export function getVerifiedSignupErrorMessage(error: unknown): string {
   if (error instanceof VerifiedSignupValidationError) {
+    if (error.code === 'invalid_identifier') return '請輸入有效的台灣手機號碼或電子信箱。';
     if (error.code === 'invalid_email') return '請輸入有效的電子信箱。';
     if (error.code === 'invalid_phone') return '請輸入台灣手機號碼，例如 0912345678。';
     if (error.code === 'password_mismatch') return '兩次輸入的密碼不一致。';

@@ -38,10 +38,11 @@ async function readJsonBody(request: NextRequest): Promise<unknown> {
   }
 }
 
-async function loadVerifiedIdentity(
-  env?: Record<string, string | undefined>
+export async function loadVerifiedIdentity(
+  env?: Record<string, string | undefined>,
+  clientOverride?: Awaited<ReturnType<typeof createClient>>
 ): Promise<SelfServiceTrialIdentity | null> {
-  const client = await createClient();
+  const client = clientOverride ?? await createClient();
   const { data, error } = await client.auth.getUser();
   const user = data.user;
   if (error || !user?.id) return null;
@@ -75,15 +76,7 @@ async function loadVerifiedIdentity(
     googleEnabled,
     emailEnabled: verifiedSignup.emailEnabled,
     phoneEnabled: verifiedSignup.phoneEnabled,
-  }) ?? (
-    hasGoogleIdentity
-      ? 'google'
-      : emailVerified && hasEmailIdentity
-        ? 'email_otp'
-        : phoneVerified && hasPhoneIdentity
-          ? 'phone_otp'
-          : null
-  );
+  });
   if (!provider) return null;
 
   return {

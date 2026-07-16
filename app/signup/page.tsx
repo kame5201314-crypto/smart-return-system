@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, LogIn, PackageCheck } from 'lucide-react';
+import { ArrowLeft, PackageCheck } from 'lucide-react';
 
+import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { resolveSignupMethodLabel } from '@/lib/auth/signup-presentation';
 import { resolveVerifiedSignupAvailability } from '@/lib/auth/verified-signup';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
@@ -44,16 +44,16 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const verifiedSignup = resolveVerifiedSignupAvailability();
   const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
   const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
-  const signupMethodLabel = resolveSignupMethodLabel({
-    googleEnabled: googleTrialEnabled,
-    emailEnabled: verifiedSignup.emailEnabled,
-    phoneEnabled: verifiedSignup.phoneEnabled,
-  });
+  const verifiedSignupDescription = verifiedSignup.emailEnabled && verifiedSignup.phoneEnabled
+    ? '使用手機號碼或電子信箱完成驗證，立即開始 3 天免費試用。'
+    : verifiedSignup.emailEnabled
+      ? '使用電子信箱完成驗證，立即開始 3 天免費試用。'
+      : '使用台灣手機號碼完成驗證，立即開始 3 天免費試用。';
   const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-50 p-4 py-10 sm:py-14">
-      <div className="w-full max-w-md">
+    <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10 sm:py-14">
+      <div className="w-full max-w-lg">
         <div className="mb-8 text-center">
           <Link
             href="/"
@@ -66,24 +66,41 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           <p className="mt-2 text-neutral-500">建立你的退貨工作區</p>
         </div>
 
-        <Card className="border bg-white shadow-lg" data-testid="signup-card">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl">
+        <Card className="border-neutral-200 bg-white shadow-lg" data-testid="signup-card">
+          <CardHeader className="space-y-2 pb-5 sm:px-8 sm:pt-8">
+            <CardTitle className="text-2xl">
               <h1>建立帳號</h1>
             </CardTitle>
             <CardDescription className="leading-6">
               {selfServiceEnabled
-                ? `使用 ${signupMethodLabel} 完成註冊，立即開始 3 天免費試用。`
+                ? verifiedSignupEnabled
+                  ? verifiedSignupDescription
+                  : '使用 Google 完成註冊，立即開始 3 天免費試用。'
                 : signupState.description}
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
-            {googleTrialEnabled ? (
+          <CardContent className="sm:px-8 sm:pb-8">
+            {verifiedSignupEnabled ? (
+              <VerifiedSignupForm
+                emailEnabled={verifiedSignup.emailEnabled}
+                phoneEnabled={verifiedSignup.phoneEnabled}
+                initialPlan={initialPlan}
+                turnstileSiteKey={verifiedSignup.turnstileSiteKey}
+                googleSignupHref={googleTrialEnabled ? `/auth/google?plan=${googleTrialPlan}` : undefined}
+              />
+            ) : null}
+
+            {googleTrialEnabled && !verifiedSignupEnabled ? (
               <>
-                <Button asChild variant="outline" className="w-full">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 w-full bg-white text-base"
+                  data-testid="google-signup-link"
+                >
                   <Link href={`/auth/google?plan=${googleTrialPlan}`}>
-                    <LogIn className="size-4" aria-hidden="true" />
+                    <GoogleSignInIcon className="size-5" />
                     使用 Google 註冊或登入
                   </Link>
                 </Button>
@@ -93,37 +110,22 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               </>
             ) : null}
 
-            {googleTrialEnabled && verifiedSignupEnabled ? (
-              <div className="my-5 flex items-center gap-3" aria-hidden="true">
-                <div className="h-px flex-1 bg-neutral-200" />
-                <span className="text-xs text-neutral-400">或使用手機／信箱驗證碼</span>
-                <div className="h-px flex-1 bg-neutral-200" />
-              </div>
-            ) : null}
-
-            {verifiedSignupEnabled ? (
-              <VerifiedSignupForm
-                emailEnabled={verifiedSignup.emailEnabled}
-                phoneEnabled={verifiedSignup.phoneEnabled}
-                initialPlan={initialPlan}
-                turnstileSiteKey={verifiedSignup.turnstileSiteKey}
-              />
-            ) : null}
-
             {selfServiceEnabled ? (
               <>
-                <p className="mt-6 text-center text-sm text-neutral-600">
-                  已有帳號？
-                  <Link
-                    href="/login"
-                    className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
-                  >
-                    返回登入
-                  </Link>
-                </p>
+                {!verifiedSignupEnabled ? (
+                  <p className="mt-6 text-center text-sm text-neutral-600">
+                    已有帳號？
+                    <Link
+                      href="/login"
+                      className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
+                    >
+                      返回登入
+                    </Link>
+                  </p>
+                ) : null}
 
                 <details
-                  className="mt-5 border-t border-neutral-200 pt-5"
+                  className="mt-6 border-t border-neutral-200 pt-5"
                   data-testid="signup-support-details"
                 >
                   <summary className="cursor-pointer text-center text-sm font-medium text-neutral-600 hover:text-neutral-950">

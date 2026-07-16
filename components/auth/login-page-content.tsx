@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -55,21 +55,6 @@ function getGoogleErrorMessage(value: string | null): string | null {
   if (value === 'google_auth_expired') return '登入流程已失效，請重新使用 Google 登入';
   if (value === 'google_auth_failed') return 'Google 登入失敗，請重新嘗試。';
   return null;
-}
-
-function GoogleSignInIcon({ className = 'size-6' }: { className?: string }) {
-  return (
-    <Image
-      src="/brand/google-sign-in-light-square.png"
-      alt=""
-      width={40}
-      height={40}
-      className={className}
-      aria-hidden="true"
-      draggable={false}
-      data-testid="google-sign-in-icon"
-    />
-  );
 }
 
 export function LoginPageContent({

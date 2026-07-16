@@ -3,7 +3,10 @@
 import { NextRequest } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleSelfServiceTrialRequest } from '@/app/api/saas/trial/route';
+import {
+  handleSelfServiceTrialRequest,
+  loadVerifiedIdentity,
+} from '@/app/api/saas/trial/route';
 import { CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION } from '@/lib/saas/self-service-trial';
 
 function buildRequest(body: unknown): NextRequest {
@@ -32,6 +35,36 @@ const identity = {
 };
 
 describe('self-service trial API', () => {
+  it('rejects a verified linked identity when its rollout flags are disabled', async () => {
+    const authClient = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: identity.userId,
+              email: identity.email,
+              email_confirmed_at: '2026-07-14T00:00:00.000Z',
+              phone: null,
+              phone_confirmed_at: null,
+              identities: [{ provider: 'google' }],
+              user_metadata: {},
+            },
+          },
+          error: null,
+        }),
+      },
+    } as unknown as NonNullable<Parameters<typeof loadVerifiedIdentity>[1]>;
+
+    expect(await loadVerifiedIdentity({}, authClient)).toBeNull();
+    expect(await loadVerifiedIdentity({
+      ENABLE_GOOGLE_AUTH: 'true',
+      ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+    }, authClient)).toMatchObject({
+      userId: identity.userId,
+      provider: 'google',
+    });
+  });
+
   it('creates a trial and returns the merchant workspace destination', async () => {
     const repository = {
       provision: vi.fn().mockResolvedValue({

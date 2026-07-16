@@ -6,6 +6,7 @@ import {
   normalizeEmailIdentifier,
   normalizeTaiwanPhoneIdentifier,
   resolveAuthCaptchaAvailability,
+  resolveVerifiedSignupInput,
   resolveVerifiedSignupAvailability,
   selectEnabledVerifiedSignupProvider,
   validateVerifiedSignupPassword,
@@ -18,6 +19,44 @@ describe('verified signup contract', () => {
     expect(normalizeTaiwanPhoneIdentifier('0912-345-678')).toBe('+886912345678');
     expect(normalizeTaiwanPhoneIdentifier('886 912 345 678')).toBe('+886912345678');
     expect(normalizeTaiwanPhoneIdentifier('+886912345678')).toBe('+886912345678');
+  });
+
+  it('automatically resolves Email or Taiwan phone input when both channels are enabled', () => {
+    const availability = { emailEnabled: true, phoneEnabled: true };
+
+    expect(resolveVerifiedSignupInput(' Owner@Example.COM ', availability)).toEqual({
+      channel: 'email',
+      normalizedIdentifier: 'owner@example.com',
+    });
+    expect(resolveVerifiedSignupInput('0912-345-678', availability)).toEqual({
+      channel: 'phone',
+      normalizedIdentifier: '+886912345678',
+    });
+  });
+
+  it('honors a single enabled channel and rejects unavailable or invalid input', () => {
+    expect(resolveVerifiedSignupInput(' Owner@Example.COM ', {
+      emailEnabled: true,
+      phoneEnabled: false,
+    })).toEqual({
+      channel: 'email',
+      normalizedIdentifier: 'owner@example.com',
+    });
+    expect(resolveVerifiedSignupInput('0912-345-678', {
+      emailEnabled: false,
+      phoneEnabled: true,
+    })).toEqual({
+      channel: 'phone',
+      normalizedIdentifier: '+886912345678',
+    });
+    expect(() => resolveVerifiedSignupInput('not-a-destination', {
+      emailEnabled: true,
+      phoneEnabled: true,
+    })).toThrowError(expect.objectContaining({ code: 'invalid_identifier' }));
+    expect(() => resolveVerifiedSignupInput('owner@example.com', {
+      emailEnabled: false,
+      phoneEnabled: false,
+    })).toThrowError(expect.objectContaining({ code: 'invalid_identifier' }));
   });
 
   it('rejects invalid destinations and weak or mismatched passwords', () => {
@@ -88,6 +127,8 @@ describe('verified signup contract', () => {
   });
 
   it('maps provider errors to safe Traditional Chinese messages', () => {
+    expect(getVerifiedSignupErrorMessage(new VerifiedSignupValidationError('invalid_identifier')))
+      .toBe('請輸入有效的台灣手機號碼或電子信箱。');
     expect(getVerifiedSignupErrorMessage(new Error('captcha verification failed')))
       .toBe('安全驗證已失效，請重新驗證。');
     expect(getVerifiedSignupErrorMessage(new Error('rate limit exceeded')))
@@ -123,6 +164,18 @@ describe('verified signup contract', () => {
       phoneVerified: false,
       googleEnabled: false,
       emailEnabled: true,
+      phoneEnabled: false,
+    })).toBeNull();
+
+    expect(selectEnabledVerifiedSignupProvider({
+      signupChannel: 'phone',
+      hasGoogleIdentity: true,
+      hasEmailIdentity: true,
+      hasPhoneIdentity: true,
+      emailVerified: true,
+      phoneVerified: true,
+      googleEnabled: false,
+      emailEnabled: false,
       phoneEnabled: false,
     })).toBeNull();
   });

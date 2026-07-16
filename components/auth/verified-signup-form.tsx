@@ -4,18 +4,27 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { ArrowLeft, Eye, EyeOff, Loader2, Mail, Phone, ShieldCheck } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Link2,
+  Loader2,
+  LockKeyhole,
+  MailCheck,
+  UserRound,
+} from 'lucide-react';
 
+import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   getVerifiedSignupErrorMessage,
-  maskVerifiedSignupIdentifier,
   normalizeEmailIdentifier,
   normalizeTaiwanPhoneIdentifier,
-  normalizeVerifiedSignupIdentifier,
+  resolveVerifiedSignupInput,
   validateVerifiedSignupPassword,
   type VerifiedSignupChannel,
+  VerifiedSignupValidationError,
 } from '@/lib/auth/verified-signup';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 import { createClient } from '@/lib/supabase/client';
@@ -25,20 +34,24 @@ interface VerifiedSignupFormProps {
   phoneEnabled: boolean;
   initialPlan: SaaSPlanCode;
   turnstileSiteKey: string;
+  googleSignupHref?: string;
 }
 
 const RESEND_COOLDOWN_SECONDS = 60;
+type SignupErrorField = 'identifier' | 'password' | 'passwordConfirmation' | 'terms' | 'otp';
 
 export function VerifiedSignupForm({
   emailEnabled,
   phoneEnabled,
   initialPlan,
   turnstileSiteKey,
+  googleSignupHref,
 }: VerifiedSignupFormProps) {
   const router = useRouter();
   const [channel, setChannel] = useState<VerifiedSignupChannel>(emailEnabled ? 'email' : 'phone');
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [identifier, setIdentifier] = useState('');
+  const [displayIdentifier, setDisplayIdentifier] = useState('');
   const [normalizedIdentifier, setNormalizedIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -52,8 +65,14 @@ export function VerifiedSignupForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<SignupErrorField | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const inFlight = useRef(false);
+  const identifierInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const passwordConfirmationInputRef = useRef<HTMLInputElement>(null);
+  const termsInputRef = useRef<HTMLInputElement>(null);
+  const otpInputRef = useRef<HTMLInputElement>(null);
 
   const resendSeconds = useMemo(
     () => Math.max(0, Math.ceil((resendAvailableAt - clock) / 1000)),
@@ -66,18 +85,17 @@ export function VerifiedSignupForm({
     return () => window.clearInterval(timer);
   }, [resendSeconds, step]);
 
+  useEffect(() => {
+    if (step === 'otp') {
+      otpInputRef.current?.focus();
+      return;
+    }
+    identifierInputRef.current?.focus();
+  }, [step]);
+
   function resetCaptcha() {
     setCaptchaToken(null);
     setCaptchaResetNonce((value) => value + 1);
-  }
-
-  function selectChannel(nextChannel: VerifiedSignupChannel) {
-    if (inFlight.current || isSubmitting || nextChannel === channel) return;
-    setChannel(nextChannel);
-    setIdentifier('');
-    setError(null);
-    setMessage(null);
-    resetCaptcha();
   }
 
   async function handleStart(event: React.FormEvent<HTMLFormElement>) {
@@ -85,10 +103,13 @@ export function VerifiedSignupForm({
     if (inFlight.current) return;
     setError(null);
     setMessage(null);
+    setErrorField(null);
 
     try {
       if (!termsAccepted) {
         setError('請先同意使用者註冊協議與隱私權政策。');
+        setErrorField('terms');
+        termsInputRef.current?.focus();
         return;
       }
       if (!captchaToken) {
@@ -96,17 +117,22 @@ export function VerifiedSignupForm({
         return;
       }
 
-      const normalized = normalizeVerifiedSignupIdentifier(channel, identifier);
+      const resolvedInput = resolveVerifiedSignupInput(identifier, {
+        emailEnabled,
+        phoneEnabled,
+      });
+      const nextChannel = resolvedInput.channel;
+      const normalized = resolvedInput.normalizedIdentifier;
       validateVerifiedSignupPassword(password, passwordConfirmation);
       inFlight.current = true;
       setIsSubmitting(true);
 
       const client = createClient();
       const metadata = {
-        signup_channel: channel,
+        signup_channel: nextChannel,
         referral_code: referralCode.trim().slice(0, 64) || undefined,
       };
-      const response = channel === 'email'
+      const response = nextChannel === 'email'
         ? await client.auth.signUp({
             email: normalized,
             password,
@@ -123,11 +149,16 @@ export function VerifiedSignupForm({
       // A public verified-signup rollout must require confirmation in Supabase Auth.
       // If a session is returned immediately, fail closed instead of silently bypassing OTP.
       if (response.data.session) {
-        await client.auth.signOut({ scope: 'local' });
+        const signOutResponse = await client.auth.signOut({ scope: 'local' });
+        if (signOutResponse.error) {
+          throw new Error('Unverified signup session cleanup failed');
+        }
         throw new Error('OTP confirmation provider is not configured');
       }
 
+      setChannel(nextChannel);
       setNormalizedIdentifier(normalized);
+      setDisplayIdentifier(identifier.trim());
       setPassword('');
       setPasswordConfirmation('');
       setOtp('');
@@ -139,6 +170,18 @@ export function VerifiedSignupForm({
       resetCaptcha();
     } catch (caughtError) {
       setError(getVerifiedSignupErrorMessage(caughtError));
+      if (caughtError instanceof VerifiedSignupValidationError) {
+        if (caughtError.code === 'weak_password') {
+          setErrorField('password');
+          passwordInputRef.current?.focus();
+        } else if (caughtError.code === 'password_mismatch') {
+          setErrorField('passwordConfirmation');
+          passwordConfirmationInputRef.current?.focus();
+        } else {
+          setErrorField('identifier');
+          identifierInputRef.current?.focus();
+        }
+      }
       resetCaptcha();
     } finally {
       inFlight.current = false;
@@ -151,8 +194,11 @@ export function VerifiedSignupForm({
     if (inFlight.current) return;
     setError(null);
     setMessage(null);
+    setErrorField(null);
     if (!/^\d{6}$/.test(otp)) {
       setError('請輸入 6 位數驗證碼。');
+      setErrorField('otp');
+      otpInputRef.current?.focus();
       return;
     }
 
@@ -206,10 +252,20 @@ export function VerifiedSignupForm({
       router.replace(`/signup/complete?plan=${plan}`);
       router.refresh();
     } catch (caughtError) {
+      let safeError = caughtError;
       if (createdVerifiedSession) {
-        await client.auth.signOut({ scope: 'local' });
+        try {
+          const signOutResponse = await client.auth.signOut({ scope: 'local' });
+          if (signOutResponse.error) {
+            throw signOutResponse.error;
+          }
+        } catch {
+          safeError = new Error('Verified signup session cleanup failed');
+        }
       }
-      setError(getVerifiedSignupErrorMessage(caughtError));
+      setError(getVerifiedSignupErrorMessage(safeError));
+      setErrorField('otp');
+      otpInputRef.current?.focus();
     } finally {
       inFlight.current = false;
       setIsSubmitting(false);
@@ -219,6 +275,7 @@ export function VerifiedSignupForm({
   async function handleResend() {
     setError(null);
     setMessage(null);
+    setErrorField(null);
     if (inFlight.current || resendSeconds > 0 || isSubmitting) return;
     if (!captchaToken) {
       setError('請先完成安全驗證，再重新傳送驗證碼。');
@@ -258,58 +315,73 @@ export function VerifiedSignupForm({
 
   if (!emailEnabled && !phoneEnabled) return null;
 
-  return (
-    <div className="space-y-5">
-      {step === 'credentials' ? (
-        <form onSubmit={handleStart} className="space-y-4" data-testid="verified-signup-form">
-          {emailEnabled && phoneEnabled ? (
-            <div className="grid grid-cols-2 rounded-md bg-neutral-100 p-1" role="tablist" aria-label="驗證方式">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={channel === 'email'}
-                onClick={() => selectChannel('email')}
-                className={`rounded px-3 py-2 text-sm font-medium ${channel === 'email' ? 'bg-white text-neutral-950 shadow-sm' : 'text-neutral-500'}`}
-              >
-                <Mail className="mr-1 inline size-4" aria-hidden="true" />
-                電子信箱
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={channel === 'phone'}
-                onClick={() => selectChannel('phone')}
-                className={`rounded px-3 py-2 text-sm font-medium ${channel === 'phone' ? 'bg-white text-neutral-950 shadow-sm' : 'text-neutral-500'}`}
-              >
-                <Phone className="mr-1 inline size-4" aria-hidden="true" />
-                手機號碼
-              </button>
-            </div>
-          ) : null}
+  const combinedChannels = emailEnabled && phoneEnabled;
+  const identifierLabel = combinedChannels
+    ? '手機號碼或電子信箱'
+    : emailEnabled
+      ? '電子信箱'
+      : '手機號碼';
+  const identifierPlaceholder = combinedChannels
+    ? '請輸入手機號碼或電子信箱'
+    : emailEnabled
+      ? 'name@example.com'
+      : '0912345678';
+  const otpLabel = combinedChannels
+    ? '手機或信箱驗證碼'
+    : channel === 'email'
+      ? '信箱驗證碼'
+      : '手機驗證碼';
 
+  return (
+    <div className="space-y-6">
+      {step === 'credentials' ? (
+        <>
+          <form onSubmit={handleStart} className="space-y-5" data-testid="verified-signup-form">
           <div>
-            <label htmlFor="signup-identifier" className="text-sm font-medium text-neutral-900">
-              {channel === 'email' ? '電子信箱' : '手機號碼'}
-            </label>
-            <Input
-              id="signup-identifier"
-              type={channel === 'email' ? 'email' : 'tel'}
-              inputMode={channel === 'email' ? 'email' : 'tel'}
-              autoComplete={channel === 'email' ? 'email' : 'tel'}
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value)}
-              placeholder={channel === 'email' ? 'name@example.com' : '0912345678'}
-              maxLength={254}
-              required
-              disabled={isSubmitting}
-              className="mt-2"
-            />
+            <div className="flex items-center">
+              <span className="mr-1 text-red-500" aria-hidden="true">*</span>
+              <label htmlFor="signup-identifier" className="text-sm font-medium text-neutral-900">
+                {identifierLabel}
+              </label>
+            </div>
+            <div className="relative mt-2">
+              <UserRound
+                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                aria-hidden="true"
+              />
+              <Input
+                ref={identifierInputRef}
+                id="signup-identifier"
+                type={combinedChannels ? 'text' : channel === 'email' ? 'email' : 'tel'}
+                inputMode={combinedChannels ? 'email' : channel === 'email' ? 'email' : 'tel'}
+                autoComplete={combinedChannels ? 'username' : channel === 'email' ? 'email' : 'tel'}
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder={identifierPlaceholder}
+                maxLength={254}
+                required
+                disabled={isSubmitting}
+                aria-invalid={errorField === 'identifier'}
+                aria-describedby={errorField === 'identifier' ? 'verified-signup-error' : undefined}
+                className="h-12 pl-10"
+              />
+            </div>
           </div>
 
           <div>
-            <label htmlFor="signup-password" className="text-sm font-medium text-neutral-900">密碼</label>
+            <div className="flex items-center">
+              <span className="mr-1 text-red-500" aria-hidden="true">*</span>
+              <label htmlFor="signup-password" className="text-sm font-medium text-neutral-900">
+                密碼
+              </label>
+            </div>
             <div className="relative mt-2">
+              <LockKeyhole
+                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                aria-hidden="true"
+              />
               <Input
+                ref={passwordInputRef}
                 id="signup-password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
@@ -319,63 +391,112 @@ export function VerifiedSignupForm({
                 maxLength={72}
                 required
                 disabled={isSubmitting}
-                className="pr-10"
+                aria-invalid={errorField === 'password'}
+                aria-describedby={
+                  errorField === 'password'
+                    ? 'signup-password-requirements verified-signup-error'
+                    : 'signup-password-requirements'
+                }
+                placeholder="請輸入密碼"
+                className="h-12 pl-10 pr-11"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((value) => !value)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
+                className="absolute right-3 top-1/2 rounded-sm p-1 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
-            <p className="mt-1 text-xs text-neutral-500">8 至 72 碼，需包含英文字母與數字。</p>
+            <p id="signup-password-requirements" className="mt-1 text-xs text-neutral-500">
+              8 至 72 碼，需包含英文字母與數字。
+            </p>
           </div>
 
           <div>
-            <label htmlFor="signup-password-confirmation" className="text-sm font-medium text-neutral-900">確認密碼</label>
-            <Input
-              id="signup-password-confirmation"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-              value={passwordConfirmation}
-              onChange={(event) => setPasswordConfirmation(event.target.value)}
-              minLength={8}
-              maxLength={72}
-              required
-              disabled={isSubmitting}
-              className="mt-2"
-            />
+            <div className="flex items-center">
+              <span className="mr-1 text-red-500" aria-hidden="true">*</span>
+              <label htmlFor="signup-password-confirmation" className="text-sm font-medium text-neutral-900">
+                確認密碼
+              </label>
+            </div>
+            <div className="relative mt-2">
+              <LockKeyhole
+                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                aria-hidden="true"
+              />
+              <Input
+                ref={passwordConfirmationInputRef}
+                id="signup-password-confirmation"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={passwordConfirmation}
+                onChange={(event) => setPasswordConfirmation(event.target.value)}
+                minLength={8}
+                maxLength={72}
+                required
+                disabled={isSubmitting}
+                aria-invalid={errorField === 'passwordConfirmation'}
+                aria-describedby={
+                  errorField === 'passwordConfirmation' ? 'verified-signup-error' : undefined
+                }
+                placeholder="請再次輸入密碼"
+                className="h-12 pl-10"
+              />
+            </div>
           </div>
 
           <div>
-            <label htmlFor="signup-referral-code" className="text-sm font-medium text-neutral-900">推薦碼（選填）</label>
-            <Input
-              id="signup-referral-code"
-              value={referralCode}
-              onChange={(event) => setReferralCode(event.target.value)}
-              maxLength={64}
-              disabled={isSubmitting}
-              className="mt-2"
-            />
+            <label htmlFor="signup-referral-code" className="text-sm font-medium text-neutral-900">推薦碼</label>
+            <div className="relative mt-2">
+              <Link2
+                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                aria-hidden="true"
+              />
+              <Input
+                id="signup-referral-code"
+                value={referralCode}
+                onChange={(event) => setReferralCode(event.target.value)}
+                maxLength={64}
+                disabled={isSubmitting}
+                placeholder="請輸入推薦碼（選填）"
+                className="h-12 pl-10"
+              />
+            </div>
           </div>
 
-          <label className="flex items-start gap-3 text-sm leading-6 text-neutral-700">
+          <p className="text-sm text-neutral-700">
+            已有帳號？
+            <Link
+              href="/login"
+              className="ml-1 font-medium text-neutral-950 underline-offset-4 hover:text-emerald-700 hover:underline"
+            >
+              返回登入
+            </Link>
+          </p>
+
+          <div className="flex items-start gap-3 text-sm leading-6 text-neutral-700">
             <input
+              ref={termsInputRef}
+              id="signup-terms"
               type="checkbox"
               checked={termsAccepted}
               onChange={(event) => setTermsAccepted(event.target.checked)}
+              required
               disabled={isSubmitting}
+              aria-invalid={errorField === 'terms'}
+              aria-describedby={errorField === 'terms' ? 'verified-signup-error' : undefined}
               className="mt-1 size-4 accent-emerald-700"
             />
             <span>
-              我已閱讀並同意
-              <Link href="/legal/terms" target="_blank" className="mx-1 text-emerald-700 underline">使用者註冊協議</Link>
+              <span className="mr-1 text-red-500" aria-hidden="true">*</span>
+              <label htmlFor="signup-terms">我已閱讀並同意</label>
+              <Link href="/legal/terms" target="_blank" className="mx-1 text-emerald-700 underline underline-offset-2">使用者註冊協議</Link>
               與
-              <Link href="/legal/privacy" target="_blank" className="mx-1 text-emerald-700 underline">隱私權政策</Link>
+              <Link href="/legal/privacy" target="_blank" className="mx-1 text-emerald-700 underline underline-offset-2">隱私權政策</Link>
             </span>
-          </label>
+          </div>
 
           <Turnstile
             key={`credentials-${captchaResetNonce}`}
@@ -386,91 +507,137 @@ export function VerifiedSignupForm({
               setCaptchaToken(null);
               setError('安全驗證載入失敗，請重新整理後再試。');
             }}
-            options={{ language: 'zh-TW', size: 'flexible', action: `signup_${channel}` }}
+            options={{
+              language: 'zh-tw',
+              size: 'flexible',
+              action: combinedChannels ? 'signup_identity' : `signup_${channel}`,
+            }}
           />
 
           <Feedback message={message} error={error} />
-          <Button type="submit" className="w-full" disabled={isSubmitting || !captchaToken}>
-            {isSubmitting ? <><Loader2 className="size-4 animate-spin" />傳送中...</> : '傳送驗證碼'}
-          </Button>
-        </form>
+            <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting || !captchaToken}>
+              {isSubmitting ? <><Loader2 className="size-4 animate-spin" />傳送中...</> : '註冊'}
+            </Button>
+          </form>
+
+          {googleSignupHref ? <GoogleSignupOption href={googleSignupHref} /> : null}
+        </>
       ) : (
-        <form onSubmit={handleVerify} className="space-y-5" data-testid="verified-signup-otp-form">
+        <form onSubmit={handleVerify} className="space-y-6" data-testid="verified-signup-otp-form">
           <div>
-            <div className="flex size-11 items-center justify-center rounded-md bg-emerald-100 text-emerald-800">
-              <ShieldCheck className="size-5" aria-hidden="true" />
-            </div>
-            <h3 className="mt-4 text-xl font-semibold text-neutral-950">輸入驗證碼</h3>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">
-              請查收傳送至 <span className="font-medium text-neutral-900">{maskVerifiedSignupIdentifier(channel, normalizedIdentifier)}</span> 的 6 位數驗證碼。
+            <h2 className="text-lg font-semibold leading-7 text-neutral-950">
+              請查收並輸入手機或信箱中的驗證碼
+            </h2>
+            <p className="mt-2 break-all text-base text-neutral-500">
+              {displayIdentifier || normalizedIdentifier}
             </p>
           </div>
 
           <div>
-            <label htmlFor="signup-otp" className="text-sm font-medium text-neutral-900">
-              {channel === 'email' ? '信箱驗證碼' : '手機驗證碼'}
+            <label htmlFor="signup-referral-code-confirmation" className="text-sm font-medium text-neutral-900">
+              推薦碼
             </label>
-            <Input
-              id="signup-otp"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={otp}
-              onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-              pattern="[0-9]{6}"
-              maxLength={6}
-              required
-              disabled={isSubmitting}
-              className="mt-2 text-center text-lg tracking-[0.4em]"
-            />
+            <div className="relative mt-2">
+              <Link2
+                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                aria-hidden="true"
+              />
+              <Input
+                id="signup-referral-code-confirmation"
+                value={referralCode}
+                placeholder="未填寫推薦碼"
+                readOnly
+                aria-readonly="true"
+                className="h-12 bg-neutral-50 pl-10 text-neutral-600"
+              />
+            </div>
+            <p className="mt-1 text-xs text-neutral-500">若需修改，請返回上一步。</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setStep('credentials');
-              setOtp('');
-              setError(null);
-              setMessage(null);
-              resetCaptcha();
-            }}
-            disabled={isSubmitting}
-            className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-950"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            修改{channel === 'email' ? '信箱' : '手機號碼'}
-          </button>
-          <p className="text-sm text-neutral-600">
-            已有帳號或一直沒收到驗證碼？
-            <Link href="/login" className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline">
-              返回登入
-            </Link>
+          <div>
+            <div className="flex items-center">
+              <span className="mr-1 text-red-500" aria-hidden="true">*</span>
+              <label htmlFor="signup-otp" className="text-sm font-medium text-neutral-900">
+                {otpLabel}
+              </label>
+            </div>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:gap-0">
+              <div className="relative min-w-0 flex-1">
+                <MailCheck
+                  className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400"
+                  aria-hidden="true"
+                />
+                <Input
+                  ref={otpInputRef}
+                  id="signup-otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  required
+                  disabled={isSubmitting}
+                  aria-invalid={errorField === 'otp'}
+                  aria-describedby={errorField === 'otp' ? 'verified-signup-error' : undefined}
+                  placeholder="請輸入 6 位數驗證碼"
+                  className="h-12 pl-10 tracking-[0.18em] sm:rounded-r-none"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full bg-white px-3 text-sm sm:min-w-40 sm:w-auto sm:rounded-l-none sm:border-l-0"
+                onClick={handleResend}
+                disabled={isSubmitting || resendSeconds > 0 || !captchaToken}
+              >
+                {resendSeconds > 0 ? `重新傳送（${resendSeconds}）` : '重新傳送'}
+              </Button>
+            </div>
+          </div>
+
+          {resendSeconds === 0 ? (
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+              <p className="mb-3 text-xs leading-5 text-neutral-500">
+                重新傳送前，請先完成安全驗證。
+              </p>
+              <Turnstile
+                key={`otp-${captchaResetNonce}`}
+                siteKey={turnstileSiteKey}
+                onSuccess={setCaptchaToken}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => {
+                  setCaptchaToken(null);
+                  setError('安全驗證載入失敗，請重新整理後再試。');
+                }}
+                options={{ language: 'zh-tw', size: 'flexible', action: `resend_${channel}` }}
+              />
+            </div>
+          ) : null}
+
+          <p className="text-sm text-neutral-700">
+            手機或信箱有誤？
+            <button
+              type="button"
+              onClick={() => {
+                setStep('credentials');
+                setOtp('');
+                setError(null);
+                setMessage(null);
+                setErrorField(null);
+                resetCaptcha();
+              }}
+              disabled={isSubmitting}
+              className="ml-1 font-medium text-neutral-950 underline-offset-4 hover:text-emerald-700 hover:underline"
+            >
+              返回上一步
+            </button>
           </p>
 
-          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
-            <p className="mb-3 text-xs text-neutral-500">重新傳送前請完成安全驗證。</p>
-            <Turnstile
-              key={`otp-${captchaResetNonce}`}
-              siteKey={turnstileSiteKey}
-              onSuccess={setCaptchaToken}
-              onExpire={() => setCaptchaToken(null)}
-              onError={() => setCaptchaToken(null)}
-              options={{ language: 'zh-TW', size: 'flexible', action: `resend_${channel}` }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-3 w-full bg-white"
-              onClick={handleResend}
-              disabled={isSubmitting || resendSeconds > 0 || !captchaToken}
-            >
-              {resendSeconds > 0 ? `重新傳送（${resendSeconds}）` : '重新傳送驗證碼'}
-            </Button>
-          </div>
-
           <Feedback message={message} error={error} />
-          <Button type="submit" className="w-full" disabled={isSubmitting || otp.length !== 6}>
-            {isSubmitting ? <><Loader2 className="size-4 animate-spin" />驗證中...</> : '驗證並建立帳號'}
+          <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting || otp.length !== 6}>
+            {isSubmitting ? <><Loader2 className="size-4 animate-spin" />驗證中...</> : '註冊'}
           </Button>
         </form>
       )}
@@ -481,8 +648,45 @@ export function VerifiedSignupForm({
 function Feedback({ message, error }: { message: string | null; error: string | null }) {
   return (
     <>
-      {message ? <p role="status" className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p> : null}
-      {error ? <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
+      {message ? (
+        <p
+          id="verified-signup-status"
+          role="status"
+          className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-900"
+        >
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p
+          id="verified-signup-error"
+          role="alert"
+          className="rounded-md bg-red-50 p-3 text-sm text-red-800"
+        >
+          {error}
+        </p>
+      ) : null}
     </>
+  );
+}
+
+function GoogleSignupOption({ href }: { href: string }) {
+  return (
+    <div className="pt-1" data-testid="google-signup-option">
+      <div className="mb-5 flex items-center gap-3" aria-hidden="true">
+        <div className="h-px flex-1 bg-neutral-200" />
+        <span className="text-xs text-neutral-400">或使用 Google 快速註冊</span>
+        <div className="h-px flex-1 bg-neutral-200" />
+      </div>
+      <Button asChild variant="outline" className="h-12 w-full bg-white text-base">
+        <Link href={href}>
+          <GoogleSignInIcon className="size-5" />
+          使用 Google 註冊或登入
+        </Link>
+      </Button>
+      <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
+        3 天免費、不需信用卡、不會自動扣款
+      </p>
+    </div>
   );
 }
