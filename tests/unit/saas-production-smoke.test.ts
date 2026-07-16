@@ -25,4 +25,16 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain('clearTimeout(timeout)');
     expect(source.indexOf('await response.text()')).toBeLessThan(source.indexOf('clearTimeout(timeout)'));
   });
+
+  it('offers an explicit post-deploy account-registration smoke without changing the default probe', () => {
+    expect(source).toContain("args.includes('--expect-account-registration')");
+    expect(source).toContain('SAAS_PRODUCTION_SMOKE_EXPECT_ACCOUNT_REGISTRATION');
+    expect(source).toContain("get('/login?plan=growth', { text: true })");
+    expect(source).toContain("text.includes('註冊新帳號')");
+    expect(source).toContain("text.includes('/signup?plan=growth')");
+    expect(source).toContain("get('/signup?plan=growth', { text: true })");
+    expect(source).toContain("text.includes('使用 Google 註冊或登入')");
+    expect(source).toContain("text.includes('/auth/google?plan=growth')");
+    expect(source).toMatch(/if \(expectAccountRegistration\) \{\s+await checkAccountRegistration\(\);/);
+  });
 });

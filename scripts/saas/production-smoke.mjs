@@ -8,6 +8,12 @@ const args = process.argv.slice(2);
 const explicitUrl = args.find((arg) => arg.startsWith('--url='))?.slice('--url='.length);
 const explicitTimeout = args.find((arg) => arg.startsWith('--timeout-ms='))
   ?.slice('--timeout-ms='.length);
+const expectAccountRegistration = args.includes('--expect-account-registration')
+  || ['1', 'true', 'yes', 'on'].includes(
+    String(process.env.SAAS_PRODUCTION_SMOKE_EXPECT_ACCOUNT_REGISTRATION || '')
+      .trim()
+      .toLowerCase()
+  );
 const baseUrl = normalizeBaseUrl(explicitUrl || process.env.SAAS_PRODUCTION_URL || DEFAULT_BASE_URL);
 const requestTimeoutMs = normalizeTimeoutMs(
   explicitTimeout || process.env.SAAS_PRODUCTION_SMOKE_TIMEOUT_MS
@@ -111,8 +117,50 @@ async function checkPricing() {
   }
 }
 
+async function checkAccountRegistration() {
+  try {
+    const { response, text } = await get('/login?plan=growth', { text: true });
+    if (response.status !== 200) {
+      record('fail', '/login account registration content', `expected 200, got ${response.status}`);
+    } else {
+      record(
+        text.includes('註冊新帳號') ? 'pass' : 'fail',
+        '/login has account registration action'
+      );
+      record(
+        text.includes('/signup?plan=growth') ? 'pass' : 'fail',
+        '/login preserves growth signup plan'
+      );
+    }
+  } catch (error) {
+    record('fail', '/login account registration content', error.message);
+  }
+
+  try {
+    const { response, text } = await get('/signup?plan=growth', { text: true });
+    if (response.status !== 200) {
+      record('fail', '/signup account registration content', `expected 200, got ${response.status}`);
+      return;
+    }
+
+    record(
+      text.includes('使用 Google 註冊或登入') ? 'pass' : 'fail',
+      '/signup has Google registration action'
+    );
+    record(
+      text.includes('/auth/google?plan=growth') ? 'pass' : 'fail',
+      '/signup preserves growth Google plan'
+    );
+  } catch (error) {
+    record('fail', '/signup account registration content', error.message);
+  }
+}
+
 async function main() {
-  console.log(`[saas-production-smoke] baseUrl=${baseUrl} timeoutMs=${requestTimeoutMs}`);
+  console.log(
+    `[saas-production-smoke] baseUrl=${baseUrl} timeoutMs=${requestTimeoutMs} `
+      + `expectAccountRegistration=${expectAccountRegistration}`
+  );
 
   for (const path of [
     '/',
@@ -127,6 +175,9 @@ async function main() {
   }
 
   await checkPricing();
+  if (expectAccountRegistration) {
+    await checkAccountRegistration();
+  }
 
   for (const path of ['/analytics', '/shopee-returns', '/analytics/ai-report', '/settings/team']) {
     await expectRedirect(path, /\/login(?:\?|$)/);
