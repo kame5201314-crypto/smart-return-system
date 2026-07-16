@@ -92,6 +92,8 @@ describe('verified signup contract', () => {
       .toBe('安全驗證已失效，請重新驗證。');
     expect(getVerifiedSignupErrorMessage(new Error('rate limit exceeded')))
       .toBe('操作過於頻繁，請稍後再試。');
+    expect(getVerifiedSignupErrorMessage(new Error('Failed to generate recovery link')))
+      .toBe('驗證服務暫時無法使用，請稍後再試。');
     expect(getVerifiedSignupErrorMessage(new Error('token expired')))
       .toBe('驗證碼已失效，請重新傳送。');
     expect(getVerifiedSignupErrorMessage(new Error('OTP confirmation provider is not configured')))

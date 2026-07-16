@@ -116,8 +116,43 @@ describe('legacy admin auth action', () => {
 
     const result = await signIn('admin', 'strong-admin-password', '/internal', 'token');
 
-    expect(result.success).toBe(false);
+    expect(result).toEqual({
+      success: false,
+      error: '管理員登入嘗試次數過多，請在 60 秒後再試。',
+    });
     expect(turnstileMocks.verify).not.toHaveBeenCalled();
     expect(cookieMocks.set).not.toHaveBeenCalled();
+  });
+
+  it('does not count CAPTCHA provider or configuration outages as login failures', async () => {
+    configureCaptcha(true);
+
+    for (const [reason, error] of [
+      ['provider_error', '登入安全驗證服務暫時無法使用，請稍後再試。'],
+      ['configuration_error', '登入安全驗證尚未正確設定，請聯絡系統管理員。'],
+    ] as const) {
+      turnstileMocks.verify.mockResolvedValueOnce({ ok: false, reason });
+
+      expect(await signIn('admin', 'strong-admin-password', '/internal', 'token'))
+        .toEqual({ success: false, error });
+    }
+
+    expect(rateLimitMocks.failure).not.toHaveBeenCalled();
+    expect(cookieMocks.set).not.toHaveBeenCalled();
+  });
+
+  it('returns Traditional Chinese messages for missing configuration and bad passwords', async () => {
+    vi.stubEnv('ADMIN_PASSWORD', '');
+    expect(await signIn('admin', 'anything', '/internal')).toEqual({
+      success: false,
+      error: '管理員登入尚未完成設定，請聯絡系統管理員。',
+    });
+
+    vi.stubEnv('ADMIN_PASSWORD', 'strong-admin-password');
+    expect(await signIn('admin', 'wrong-password', '/internal')).toEqual({
+      success: false,
+      error: '管理員帳號或密碼錯誤',
+    });
+    expect(rateLimitMocks.failure).toHaveBeenCalledTimes(1);
   });
 });

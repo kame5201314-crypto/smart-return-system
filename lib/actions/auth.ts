@@ -59,14 +59,14 @@ export async function signIn(
       if (!rateLimit.allowed) {
         return {
           success: false,
-          error: `Too many admin login attempts. Try again in ${rateLimit.retryAfterSeconds} seconds.`,
+          error: `管理員登入嘗試次數過多，請在 ${rateLimit.retryAfterSeconds} 秒後再試。`,
         };
       }
 
       if (!adminPassword) {
         return {
           success: false,
-          error: 'Admin password is not configured',
+          error: '管理員登入尚未完成設定，請聯絡系統管理員。',
         };
       }
 
@@ -76,10 +76,19 @@ export async function signIn(
           remoteIp: clientIp,
         });
         if (!captcha.ok) {
-          recordAdminLoginFailure(rateLimitKey);
+          const providerUnavailable =
+            captcha.reason === 'configuration_error' ||
+            captcha.reason === 'provider_error';
+          if (!providerUnavailable) {
+            recordAdminLoginFailure(rateLimitKey);
+          }
           return {
             success: false,
-            error: '安全驗證失敗，請重新完成驗證後再試。',
+            error: captcha.reason === 'configuration_error'
+              ? '登入安全驗證尚未正確設定，請聯絡系統管理員。'
+              : captcha.reason === 'provider_error'
+                ? '登入安全驗證服務暫時無法使用，請稍後再試。'
+                : '安全驗證失敗，請重新完成驗證後再試。',
           };
         }
       }
@@ -88,7 +97,7 @@ export async function signIn(
         recordAdminLoginFailure(rateLimitKey);
         return {
           success: false,
-          error: 'Invalid password',
+          error: '管理員帳號或密碼錯誤',
         };
       }
 
@@ -154,7 +163,7 @@ export async function signIn(
     console.error('Login error:', err);
     return {
       success: false,
-      error: 'Login failed, please try again later',
+      error: '登入失敗，請稍後再試',
     };
   }
 }

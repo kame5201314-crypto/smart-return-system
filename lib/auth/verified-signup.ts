@@ -167,7 +167,15 @@ export function getVerifiedSignupErrorMessage(error: unknown): string {
 
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   if (message.includes('captcha')) return '安全驗證已失效，請重新驗證。';
-  if (message.includes('rate') || message.includes('too many')) return '操作過於頻繁，請稍後再試。';
+  if (
+    message.includes('rate limit') ||
+    message.includes('rate-limit') ||
+    message.includes('rate_limit') ||
+    message.includes('too many') ||
+    message.includes('too frequently')
+  ) {
+    return '操作過於頻繁，請稍後再試。';
+  }
   if (message.includes('expired')) return '驗證碼已失效，請重新傳送。';
   if (message.includes('provider') || message.includes('phone')) {
     return '此驗證方式目前尚未開放，請改用其他方式。';
