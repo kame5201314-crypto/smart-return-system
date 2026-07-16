@@ -3,10 +3,12 @@ import { Suspense } from 'react';
 import { LoginPageContent } from '@/components/auth/login-page-content';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { resolveAuthCaptchaAvailability } from '@/lib/auth/verified-signup';
+import { resolvePasswordRecoveryAvailability } from '@/lib/auth/password-recovery';
 
 export default function LoginPage() {
   const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
   const captcha = resolveAuthCaptchaAvailability();
+  const passwordRecovery = resolvePasswordRecoveryAvailability();
 
   return (
     <Suspense
@@ -18,6 +20,7 @@ export default function LoginPage() {
     >
       <LoginPageContent
         googleAuthEnabled={featureFlags.google_auth}
+        passwordRecoveryEnabled={passwordRecovery.emailEnabled || passwordRecovery.phoneEnabled}
         captchaRequired={captcha.required}
         captchaReady={captcha.ready}
         turnstileSiteKey={captcha.turnstileSiteKey}

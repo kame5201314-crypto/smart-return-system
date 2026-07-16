@@ -36,6 +36,7 @@ type LoginInput = z.infer<typeof loginSchema>;
 
 interface LoginPageContentProps {
   googleAuthEnabled: boolean;
+  passwordRecoveryEnabled?: boolean;
   captchaRequired?: boolean;
   captchaReady?: boolean;
   turnstileSiteKey?: string;
@@ -55,6 +56,7 @@ function getGoogleErrorMessage(value: string | null): string | null {
 
 export function LoginPageContent({
   googleAuthEnabled,
+  passwordRecoveryEnabled = false,
   captchaRequired = false,
   captchaReady = false,
   turnstileSiteKey = '',
@@ -71,6 +73,7 @@ export function LoginPageContent({
   const googleErrorCode = searchParams.get('error');
   const googleError = getGoogleErrorMessage(googleErrorCode);
   const googleAuthExpired = googleErrorCode === 'google_auth_expired';
+  const passwordResetSucceeded = searchParams.get('password_reset') === 'success';
   const authCaptchaRequired = captchaRequired;
   const authCaptchaReady = !authCaptchaRequired || captchaReady;
 
@@ -86,6 +89,10 @@ export function LoginPageContent({
   useEffect(() => {
     if (googleError) toast.error(googleError);
   }, [googleError]);
+
+  useEffect(() => {
+    if (passwordResetSucceeded) toast.success('密碼已更新，請使用新密碼登入。');
+  }, [passwordResetSucceeded]);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -183,6 +190,15 @@ export function LoginPageContent({
                     ) : null}
                   </div>
                 </div>
+              </div>
+            ) : null}
+
+            {passwordResetSucceeded ? (
+              <div
+                role="status"
+                className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-950"
+              >
+                密碼已更新，請使用新密碼登入。
               </div>
             ) : null}
 
@@ -294,6 +310,17 @@ export function LoginPageContent({
                 </Button>
               </form>
             </Form>
+
+            {!isPlatformAdminLogin && passwordRecoveryEnabled ? (
+              <p className="mt-4 text-center text-sm">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-emerald-700 underline-offset-2 hover:underline"
+                >
+                  忘記密碼？使用驗證碼復原
+                </Link>
+              </p>
+            ) : null}
 
             {isPlatformAdminLogin ? (
               <p className="mt-6 text-center text-sm text-neutral-600">

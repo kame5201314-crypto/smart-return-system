@@ -2,6 +2,7 @@ const PUBLIC_ROUTE_EXACT_PATHS = new Set([
   '/',
   '/admin/login',
   '/contact',
+  '/forgot-password',
   '/login',
   '/opengraph-image',
   '/pricing',

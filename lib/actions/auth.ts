@@ -205,24 +205,3 @@ export async function checkAuth(): Promise<boolean> {
   } = await supabase.auth.getUser();
   return !!user;
 }
-
-export async function requestPasswordReset(
-  email: string,
-  captchaToken: string
-): Promise<AuthResult> {
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
-    captchaToken,
-  });
-
-  if (error) {
-    return {
-      success: false,
-      error: 'Failed to send password reset email',
-    };
-  }
-
-  return { success: true };
-}

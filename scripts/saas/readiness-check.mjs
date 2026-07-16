@@ -189,6 +189,8 @@ function checkCommercialFoundation() {
     'lib/auth/admin-login-rate-limit.ts',
     'lib/auth/post-login-redirect.ts',
     'lib/auth/google-oauth.ts',
+    'lib/auth/password-recovery.ts',
+    'lib/auth/password-recovery-session.ts',
     'lib/auth/internal-login-redirect.ts',
     'lib/auth/public-routes.ts',
     'lib/saas/org-context.ts',
@@ -234,6 +236,11 @@ function checkCommercialFoundation() {
     'lib/saas/lead-attribution.ts',
     'components/marketing/lead-capture-form.tsx',
     'components/auth/login-page-content.tsx',
+    'components/auth/password-recovery-form.tsx',
+    'components/auth/update-password-form.tsx',
+    'lib/actions/password-recovery.ts',
+    'app/forgot-password/page.tsx',
+    'app/reset-password/page.tsx',
     'app/auth/google/route.ts',
     'app/auth/callback/route.ts',
     'app/api/saas/signup/route.ts',
@@ -379,6 +386,20 @@ function checkCommercialFoundation() {
     process.cwd(),
     'components/auth/login-page-content.tsx'
   );
+  const passwordRecoveryPath = path.resolve(process.cwd(), 'lib/auth/password-recovery.ts');
+  const passwordRecoverySessionPath = path.resolve(
+    process.cwd(),
+    'lib/auth/password-recovery-session.ts'
+  );
+  const passwordRecoveryActionPath = path.resolve(
+    process.cwd(),
+    'lib/actions/password-recovery.ts'
+  );
+  const passwordRecoveryFormPath = path.resolve(
+    process.cwd(),
+    'components/auth/password-recovery-form.tsx'
+  );
+  const resetPasswordPagePath = path.resolve(process.cwd(), 'app/reset-password/page.tsx');
   const googleOAuthPath = path.resolve(process.cwd(), 'lib/auth/google-oauth.ts');
   const googleOAuthStartPath = path.resolve(process.cwd(), 'app/auth/google/route.ts');
   const googleOAuthCallbackPath = path.resolve(process.cwd(), 'app/auth/callback/route.ts');
@@ -419,6 +440,7 @@ function checkCommercialFoundation() {
       "'/legal'",
       "'/portal'",
       "'/login'",
+      "'/forgot-password'",
       "'/admin/login'",
     ];
     const missing = requiredPublicRouteSnippets.filter(
@@ -433,6 +455,39 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS public routes', 'commercial, portal, login, and platform admin login routes stay reachable before login');
     } else {
       record('fail', 'SaaS public routes', `missing allowlist or platform admin proxy wiring: ${missing.join(', ')}`);
+    }
+  }
+
+  if (
+    fs.existsSync(passwordRecoveryPath) &&
+    fs.existsSync(passwordRecoverySessionPath) &&
+    fs.existsSync(passwordRecoveryActionPath) &&
+    fs.existsSync(passwordRecoveryFormPath) &&
+    fs.existsSync(resetPasswordPagePath)
+  ) {
+    const policySource = fs.readFileSync(passwordRecoveryPath, 'utf8');
+    const proofSource = fs.readFileSync(passwordRecoverySessionPath, 'utf8');
+    const actionSource = fs.readFileSync(passwordRecoveryActionPath, 'utf8');
+    const formSource = fs.readFileSync(passwordRecoveryFormPath, 'utf8');
+    const resetPageSource = fs.readFileSync(resetPasswordPagePath, 'utf8');
+    if (
+      policySource.includes('ENABLE_EMAIL_PASSWORD_RECOVERY') &&
+      policySource.includes('ENABLE_PHONE_PASSWORD_RECOVERY') &&
+      policySource.includes('resolveAuthCaptchaAvailability') &&
+      policySource.includes('PASSWORD_RECOVERY_GENERIC_SENT_MESSAGE') &&
+      proofSource.includes("purpose: 'password_recovery'") &&
+      proofSource.includes('httpOnly: true') &&
+      actionSource.includes('verifyPasswordRecoveryOtp') &&
+      actionSource.includes('updateRecoveredPassword') &&
+      actionSource.includes('response.data.session') &&
+      actionSource.includes("scope: 'global'") &&
+      formSource.includes('shouldCreateUser: false') &&
+      formSource.includes('verifyPasswordRecoveryOtp') &&
+      resetPageSource.includes('verifyPasswordRecoverySessionToken')
+    ) {
+      record('pass', 'SaaS password recovery', 'email and phone OTP recovery is fail-closed behind independent flags and a short-lived signed proof');
+    } else {
+      record('fail', 'SaaS password recovery', 'recovery must prevent account enumeration, require a new verified session, and guard password updates with an HttpOnly proof');
     }
   }
 

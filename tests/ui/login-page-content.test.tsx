@@ -130,4 +130,22 @@ describe('LoginPageContent', () => {
       'login-captcha-token'
     ));
   });
+
+  it('shows recovery only for merchant login and reports a completed reset', () => {
+    navigationMocks.search = 'password_reset=success';
+    render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);
+
+    expect(screen.getByRole('link', { name: '忘記密碼？使用驗證碼復原' }))
+      .toHaveAttribute('href', '/forgot-password');
+    expect(screen.getByRole('status')).toHaveTextContent('密碼已更新，請使用新密碼登入。');
+    expect(toastMocks.success).toHaveBeenCalledWith('密碼已更新，請使用新密碼登入。');
+  });
+
+  it('never exposes merchant password recovery on the platform admin login', () => {
+    navigationMocks.search = 'next=%2Finternal';
+    render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);
+
+    expect(screen.queryByRole('link', { name: '忘記密碼？使用驗證碼復原' }))
+      .not.toBeInTheDocument();
+  });
 });

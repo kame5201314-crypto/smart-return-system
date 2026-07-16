@@ -35,6 +35,8 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       ENABLE_GOOGLE_TRIAL_SIGNUP: 'false',
       ENABLE_EMAIL_OTP_SIGNUP: 'false',
       ENABLE_PHONE_OTP_SIGNUP: 'false',
+      ENABLE_EMAIL_PASSWORD_RECOVERY: 'false',
+      ENABLE_PHONE_PASSWORD_RECOVERY: 'false',
       SAAS_AUTH_CAPTCHA_READY: 'false',
       SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'false',
       SAAS_EMAIL_OTP_PROVIDER_READY: 'false',
@@ -248,5 +250,31 @@ describe('SaaS rollout readiness check', () => {
 
     expect(result.status).toBe(1);
     expect(result.output).toContain('Phone OTP provider');
+  });
+
+  it('fails closed when email password recovery lacks CAPTCHA or provider readiness', () => {
+    const result = runRolloutCheck({
+      ENABLE_EMAIL_PASSWORD_RECOVERY: 'true',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Password recovery CAPTCHA');
+    expect(result.output).toContain('Password recovery site key');
+    expect(result.output).toContain('Email recovery provider');
+  });
+
+  it('passes an independently gated email recovery rollout without requiring migration 044', () => {
+    const result = runRolloutCheck({
+      ENABLE_EMAIL_PASSWORD_RECOVERY: 'true',
+      SAAS_AUTH_CAPTCHA_READY: 'true',
+      SAAS_EMAIL_OTP_PROVIDER_READY: 'true',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('ENABLE_EMAIL_PASSWORD_RECOVERY - enabled intentionally');
+    expect(result.output).toContain('Email recovery provider - marked ready');
   });
 });

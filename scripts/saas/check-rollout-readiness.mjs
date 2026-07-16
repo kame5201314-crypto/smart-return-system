@@ -192,6 +192,8 @@ function checkAppUrlAndObservability() {
     parseBool(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP) ||
     parseBool(process.env.ENABLE_EMAIL_OTP_SIGNUP) ||
     parseBool(process.env.ENABLE_PHONE_OTP_SIGNUP) ||
+    parseBool(process.env.ENABLE_EMAIL_PASSWORD_RECOVERY) ||
+    parseBool(process.env.ENABLE_PHONE_PASSWORD_RECOVERY) ||
     parseBool(process.env.ENABLE_BILLING) ||
     parseBool(process.env.ENABLE_SUBSCRIPTION_PLAN)
   ) {
@@ -234,6 +236,8 @@ function checkControlledRolloutFlags() {
   const googleTrialSignup = normalizeEnvValue(process.env.ENABLE_GOOGLE_TRIAL_SIGNUP).toLowerCase();
   const emailOtpSignup = normalizeEnvValue(process.env.ENABLE_EMAIL_OTP_SIGNUP).toLowerCase();
   const phoneOtpSignup = normalizeEnvValue(process.env.ENABLE_PHONE_OTP_SIGNUP).toLowerCase();
+  const emailPasswordRecovery = normalizeEnvValue(process.env.ENABLE_EMAIL_PASSWORD_RECOVERY).toLowerCase();
+  const phonePasswordRecovery = normalizeEnvValue(process.env.ENABLE_PHONE_PASSWORD_RECOVERY).toLowerCase();
   const trialExpiryCron = normalizeEnvValue(process.env.ENABLE_TRIAL_EXPIRY_CRON).toLowerCase();
   const multiTenantAdmin = normalizeEnvValue(process.env.ENABLE_MULTI_TENANT_ADMIN).toLowerCase();
   const subscriptionPlan = normalizeEnvValue(process.env.ENABLE_SUBSCRIPTION_PLAN).toLowerCase();
@@ -245,6 +249,8 @@ function checkControlledRolloutFlags() {
   record('pass', 'ENABLE_GOOGLE_TRIAL_SIGNUP', googleTrialSignup === 'true' ? 'enabled intentionally' : 'closed until self-service trial rollout');
   record('pass', 'ENABLE_EMAIL_OTP_SIGNUP', emailOtpSignup === 'true' ? 'enabled intentionally' : 'closed until verified email rollout');
   record('pass', 'ENABLE_PHONE_OTP_SIGNUP', phoneOtpSignup === 'true' ? 'enabled intentionally' : 'closed until verified SMS rollout');
+  record('pass', 'ENABLE_EMAIL_PASSWORD_RECOVERY', emailPasswordRecovery === 'true' ? 'enabled intentionally' : 'closed until verified recovery rollout');
+  record('pass', 'ENABLE_PHONE_PASSWORD_RECOVERY', phonePasswordRecovery === 'true' ? 'enabled intentionally' : 'closed until verified recovery rollout');
   record('pass', 'ENABLE_TRIAL_EXPIRY_CRON', trialExpiryCron === 'true' ? 'enabled intentionally' : 'closed until scoped lifecycle rollout');
   record('pass', 'ENABLE_MULTI_TENANT_ADMIN', multiTenantAdmin === 'true' ? 'enabled intentionally' : 'closed until platform admin rollout');
   record('pass', 'ENABLE_SUBSCRIPTION_PLAN', subscriptionPlan === 'true' ? 'enabled intentionally' : 'closed until billing rollout');
@@ -332,6 +338,43 @@ function checkVerifiedSignupReadiness() {
   }
 }
 
+function checkPasswordRecoveryReadiness() {
+  const emailEnabled = parseBool(process.env.ENABLE_EMAIL_PASSWORD_RECOVERY);
+  const phoneEnabled = parseBool(process.env.ENABLE_PHONE_PASSWORD_RECOVERY);
+  if (!emailEnabled && !phoneEnabled) {
+    record('pass', 'Password recovery rollout', 'email and phone recovery remain closed');
+    return;
+  }
+
+  if (!parseBool(process.env.SAAS_AUTH_CAPTCHA_READY)) {
+    record('fail', 'Password recovery CAPTCHA', 'SAAS_AUTH_CAPTCHA_READY=true is required');
+  }
+
+  if (isPlaceholder(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)) {
+    record('fail', 'Password recovery site key', 'a real public Turnstile site key is required');
+  }
+
+  if (emailEnabled && !parseBool(process.env.SAAS_EMAIL_OTP_PROVIDER_READY)) {
+    record(
+      'fail',
+      'Email recovery provider',
+      'SAAS_EMAIL_OTP_PROVIDER_READY=true requires a six-digit recovery template and delivery smoke test'
+    );
+  } else if (emailEnabled) {
+    record('pass', 'Email recovery provider', 'marked ready for controlled rollout');
+  }
+
+  if (phoneEnabled && !parseBool(process.env.SAAS_PHONE_OTP_PROVIDER_READY)) {
+    record(
+      'fail',
+      'Phone recovery provider',
+      'SAAS_PHONE_OTP_PROVIDER_READY=true requires an SMS delivery smoke test'
+    );
+  } else if (phoneEnabled) {
+    record('pass', 'Phone recovery provider', 'marked ready for controlled rollout');
+  }
+}
+
 function checkBillingReadiness() {
   const billingEnabled = parseBool(process.env.ENABLE_BILLING);
   const provider = normalizeEnvValue(process.env.BILLING_PROVIDER).toLowerCase();
@@ -382,5 +425,6 @@ checkAiSafety();
 checkControlledRolloutFlags();
 checkGoogleTrialReadiness();
 checkVerifiedSignupReadiness();
+checkPasswordRecoveryReadiness();
 checkBillingReadiness();
 printSummary();

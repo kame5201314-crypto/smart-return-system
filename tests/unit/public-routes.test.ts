@@ -19,6 +19,7 @@ describe('public route allowlist', () => {
 
   it('keeps customer portal and login routes public', () => {
     expect(isPublicRoute('/login')).toBe(true);
+    expect(isPublicRoute('/forgot-password')).toBe(true);
     expect(isPublicRoute('/admin/login')).toBe(true);
     expect(isPublicRoute('/auth/google')).toBe(true);
     expect(isPublicRoute('/auth/callback')).toBe(true);
@@ -38,6 +39,7 @@ describe('public route allowlist', () => {
     expect(isPublicRoute('/analytics')).toBe(false);
     expect(isPublicRoute('/returns')).toBe(false);
     expect(isPublicRoute('/settings/billing')).toBe(false);
+    expect(isPublicRoute('/reset-password')).toBe(false);
     expect(isPublicRoute('/internal/orgs')).toBe(false);
     expect(isPublicRoute('/api/v1/ai/analyze')).toBe(false);
   });
