@@ -99,15 +99,32 @@ export async function updateRecoveredPassword(
     if (updateError) throw updateError;
 
     cookieStore.delete(PASSWORD_RECOVERY_SESSION_COOKIE);
-    const { error: globalSignOutError } = await client.auth.signOut({ scope: 'global' });
-    if (globalSignOutError) {
-      const { error: localSignOutError } = await client.auth.signOut({ scope: 'local' });
-      if (localSignOutError) {
-        return {
-          success: false,
-          error: '密碼已更新，但無法自動登出所有裝置。請關閉瀏覽器並聯絡客服。',
-        };
+    let globalSignOutFailed = false;
+    try {
+      const { error: globalSignOutError } = await client.auth.signOut({ scope: 'global' });
+      globalSignOutFailed = Boolean(globalSignOutError);
+    } catch {
+      globalSignOutFailed = true;
+    }
+
+    if (globalSignOutFailed) {
+      let localSignOutFailed = false;
+      try {
+        const { error: localSignOutError } = await client.auth.signOut({ scope: 'local' });
+        localSignOutFailed = Boolean(localSignOutError);
+      } catch {
+        localSignOutFailed = true;
       }
+
+      return localSignOutFailed
+        ? {
+            success: false,
+            error: '密碼已更新，但無法自動登出此裝置或其他裝置。請立即關閉瀏覽器並聯絡客服。',
+          }
+        : {
+            success: false,
+            error: '密碼已更新，且此裝置已登出，但無法確認其他裝置已全部登出。請使用新密碼重新登入並聯絡客服。',
+          };
     }
 
     return { success: true };

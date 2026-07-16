@@ -49,14 +49,14 @@ describe('UpdatePasswordForm', () => {
   it('shows a server safety warning without claiming success', async () => {
     actionMocks.updateRecoveredPassword.mockResolvedValue({
       success: false,
-      error: '密碼已更新，但無法自動登出所有裝置。請關閉瀏覽器並聯絡客服。',
+      error: '密碼已更新，且此裝置已登出，但無法確認其他裝置已全部登出。請使用新密碼重新登入並聯絡客服。',
     });
     const { container } = render(<UpdatePasswordForm />);
     fireEvent.change(screen.getByLabelText('新密碼'), { target: { value: 'Password9' } });
     fireEvent.change(screen.getByLabelText('確認新密碼'), { target: { value: 'Password9' } });
     fireEvent.submit(container.querySelector('form')!);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('無法自動登出所有裝置');
+    expect(await screen.findByRole('alert')).toHaveTextContent('無法確認其他裝置已全部登出');
     expect(navigationMocks.replace).not.toHaveBeenCalled();
   });
 });

@@ -131,4 +131,34 @@ describe('password recovery server actions', () => {
     expect(result.success).toBe(false);
     expect(authMocks.updateUser).not.toHaveBeenCalled();
   });
+
+  it('reports incomplete global logout even when the current device signs out', async () => {
+    authMocks.signOut
+      .mockResolvedValueOnce({ error: new Error('global logout unavailable') })
+      .mockResolvedValueOnce({ error: null });
+
+    const result = await updateRecoveredPassword('Password9', 'Password9');
+
+    expect(result).toEqual({
+      success: false,
+      error: '密碼已更新，且此裝置已登出，但無法確認其他裝置已全部登出。請使用新密碼重新登入並聯絡客服。',
+    });
+    expect(authMocks.signOut).toHaveBeenNthCalledWith(1, { scope: 'global' });
+    expect(authMocks.signOut).toHaveBeenNthCalledWith(2, { scope: 'local' });
+  });
+
+  it('reports the stronger warning when neither global nor local logout succeeds', async () => {
+    authMocks.signOut
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce({ error: new Error('local logout unavailable') });
+
+    const result = await updateRecoveredPassword('Password9', 'Password9');
+
+    expect(result).toEqual({
+      success: false,
+      error: '密碼已更新，但無法自動登出此裝置或其他裝置。請立即關閉瀏覽器並聯絡客服。',
+    });
+    expect(authMocks.signOut).toHaveBeenNthCalledWith(1, { scope: 'global' });
+    expect(authMocks.signOut).toHaveBeenNthCalledWith(2, { scope: 'local' });
+  });
 });
