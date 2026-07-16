@@ -71,6 +71,61 @@ describe('VerifiedSignupForm', () => {
     cleanup();
   });
 
+  it('keeps the Email/password registration form visible but fail closed while Email OTP is unavailable', () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled={false}
+        phoneEnabled={false}
+        showEmailWhenUnavailable
+        initialPlan="basic"
+        turnstileSiteKey=""
+        googleSignupHref="/auth/google?plan=basic"
+      />
+    );
+
+    const credentialsForm = screen.getByTestId('verified-signup-form');
+    const unavailableNotice = screen.getByTestId('email-signup-unavailable-notice');
+    const googleOption = screen.getByTestId('google-signup-option');
+
+    expect(unavailableNotice).toHaveTextContent('信箱驗證服務準備中');
+    expect(unavailableNotice).toHaveTextContent('驗證碼寄送正在設定，目前暫停輸入與送出');
+    expect(screen.getByLabelText('電子信箱')).toHaveAttribute('type', 'email');
+    expect(screen.getByLabelText('電子信箱')).toBeDisabled();
+    expect(screen.getByLabelText(/^密碼/)).toBeDisabled();
+    expect(screen.getByLabelText('確認密碼')).toBeDisabled();
+    expect(screen.getByLabelText('推薦碼')).toBeDisabled();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '完成安全驗證' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '信箱註冊即將開放' })).toBeDisabled();
+    expect(within(googleOption).getByRole('link', { name: '使用 Google 繼續' }))
+      .toHaveAttribute('href', '/auth/google?plan=basic');
+    expect(
+      credentialsForm.compareDocumentPosition(googleOption)
+      & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    fireEvent.submit(credentialsForm);
+
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
+    );
+  });
+
+  it('does not render an unavailable registration form without the explicit fallback prop', () => {
+    const { container } = render(
+      <VerifiedSignupForm
+        emailEnabled={false}
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey=""
+      />
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+  });
+
   it('uses one combined identity field, preserves referral metadata, and verifies Email OTP', async () => {
     render(
       <VerifiedSignupForm

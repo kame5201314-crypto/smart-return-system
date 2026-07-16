@@ -144,7 +144,7 @@ async function checkAccountRegistration() {
     }
 
     record(
-      text.includes('使用 Google 註冊或登入') ? 'pass' : 'fail',
+      text.includes('使用 Google 繼續') ? 'pass' : 'fail',
       '/signup has Google registration action'
     );
     record(

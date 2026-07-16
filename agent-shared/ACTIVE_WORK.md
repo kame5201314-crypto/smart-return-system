@@ -1,5 +1,24 @@
 # Active Work
 
+## 2026-07-16 Email Signup Fallback Visibility
+
+Status: done
+
+Scope: Keep non-Google customers represented on the public signup page while
+preserving the verified-signup rollout boundary.
+
+Notes: `/signup` now keeps the Email/password/confirmation/referral/terms form
+above the Google option and explicitly states that any Email domain is accepted,
+not only Gmail. Until Custom SMTP, Turnstile, migration `044`, and the Email OTP
+readiness gates are complete, every credential control and the submit action are
+disabled, Turnstile is not mounted, and programmatic submission cannot call
+Supabase Auth. Google remains usable below the form. No migration, provider,
+env/secret, deploy, Vercel, Supabase, Billing, DNS, or Production setting changed.
+
+Final validation passed: lint, typecheck, 21 script checks, 16 backend tests,
+616 unit tests, 42 UI tests, 4 E2E tests, 5 integration tests, Production build
+(68 generated pages), browser desktop/mobile QA, and agent-boundary safety.
+
 ## 2026-07-16 Account Registration Entry And QA
 
 Status: done

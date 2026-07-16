@@ -7,6 +7,13 @@ Last updated: 2026-07-16
 - 本機程式已加入「信箱或台灣手機號碼 + 密碼 → 6 位數驗證碼 → 建立 3 天試用」流程。
 - Google 登入保持原樣且使用獨立旗標，不會因 OTP 功能關閉而受影響。
 - Email OTP 與 Phone OTP 使用獨立旗標，預設皆為 `false`。
+- 當 Google 自助註冊已開啟、但 Email OTP 前置條件尚未完成時，`/signup`
+  仍會保留「任何電子信箱（不限定 Gmail）＋密碼」表單，並將全部欄位與送出
+  按鈕停用；Google 只放在表單下方作為可用的快速選項。
+- 當所有自助註冊方式都關閉時，同一個停用表單仍會保留，並在下方顯示可用的
+  人工申請表，不會退回只剩 Google 或完全看不到 Email 選項的畫面。
+- 上述準備中介面不掛載 Turnstile、不接受密碼、不呼叫 Supabase `auth.signUp`；
+  寄碼能力仍必須等完整 readiness 通過才會啟用。
 - 驗證碼與密碼交由 Supabase Auth 處理；應用程式不產生、不保存、不記錄驗證碼或密碼。
 - Cloudflare Turnstile token 直接傳給 Supabase Auth CAPTCHA 驗證；每次寄送或重送後都會失效並重新取得。
 - Supabase Auth CAPTCHA 是 project-wide；Email／手機與平台管理員登入頁都已接上
@@ -15,7 +22,8 @@ Last updated: 2026-07-16
   trusted app hostname；Supabase platform-admin principal 則仍由 Supabase
   密碼登入端點消耗 token。
 - Migration `044_saas_verified_identity_self_service_trial.sql` 目前只是草稿，尚未套用到任何資料庫。
-- 尚未設定 Custom SMTP、SMS provider、Turnstile 或 Production env，因此目前 Production 不會顯示新註冊入口，也不能實際收取驗證碼。
+- 尚未設定 Custom SMTP、SMS provider、Turnstile 或 Production env，因此目前
+  Production 只能安全顯示停用中的 Email 註冊介面，不能實際寄送或收取驗證碼。
 
 ## 功能旗標與 readiness 標記
 
@@ -32,7 +40,7 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
 ```
 
-入口只有在下列條件同時滿足時才會顯示：
+實際可輸入、送出與寄送驗證碼，只有在下列條件同時滿足時才會啟用：
 
 1. 對應 channel 的 `ENABLE_*_OTP_SIGNUP=true`。
 2. `SAAS_AUTH_CAPTCHA_READY=true` 且有真實 Turnstile site key。

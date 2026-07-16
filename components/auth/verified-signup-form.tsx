@@ -32,6 +32,7 @@ import { createClient } from '@/lib/supabase/client';
 interface VerifiedSignupFormProps {
   emailEnabled: boolean;
   phoneEnabled: boolean;
+  showEmailWhenUnavailable?: boolean;
   initialPlan: SaaSPlanCode;
   turnstileSiteKey: string;
   googleSignupHref?: string;
@@ -43,12 +44,16 @@ type SignupErrorField = 'identifier' | 'password' | 'passwordConfirmation' | 'te
 export function VerifiedSignupForm({
   emailEnabled,
   phoneEnabled,
+  showEmailWhenUnavailable = false,
   initialPlan,
   turnstileSiteKey,
   googleSignupHref,
 }: VerifiedSignupFormProps) {
   const router = useRouter();
-  const [channel, setChannel] = useState<VerifiedSignupChannel>(emailEnabled ? 'email' : 'phone');
+  const unavailableEmailForm = showEmailWhenUnavailable && !emailEnabled && !phoneEnabled;
+  const [channel, setChannel] = useState<VerifiedSignupChannel>(
+    emailEnabled || unavailableEmailForm ? 'email' : 'phone'
+  );
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [identifier, setIdentifier] = useState('');
   const [displayIdentifier, setDisplayIdentifier] = useState('');
@@ -104,6 +109,13 @@ export function VerifiedSignupForm({
     setError(null);
     setMessage(null);
     setErrorField(null);
+
+    // Keep this presentation-only state fail closed. Even a programmatic form
+    // submission must never create an account before Email OTP is ready.
+    if (unavailableEmailForm) {
+      setError('信箱驗證服務準備中，目前暫時無法寄送驗證碼。');
+      return;
+    }
 
     try {
       if (!termsAccepted) {
@@ -313,17 +325,18 @@ export function VerifiedSignupForm({
     }
   }
 
-  if (!emailEnabled && !phoneEnabled) return null;
+  if (!emailEnabled && !phoneEnabled && !showEmailWhenUnavailable) return null;
 
   const combinedChannels = emailEnabled && phoneEnabled;
+  const emailOnlyForm = emailEnabled || unavailableEmailForm;
   const identifierLabel = combinedChannels
     ? '手機號碼或電子信箱'
-    : emailEnabled
+    : emailOnlyForm
       ? '電子信箱'
       : '手機號碼';
   const identifierPlaceholder = combinedChannels
     ? '請輸入手機號碼或電子信箱'
-    : emailEnabled
+    : emailOnlyForm
       ? 'name@example.com'
       : '0912345678';
   const otpLabel = combinedChannels
@@ -337,6 +350,21 @@ export function VerifiedSignupForm({
       {step === 'credentials' ? (
         <>
           <form onSubmit={handleStart} className="space-y-5" data-testid="verified-signup-form">
+            {unavailableEmailForm ? (
+              <div
+                role="status"
+                className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+                data-testid="email-signup-unavailable-notice"
+              >
+                <p className="font-semibold">信箱驗證服務準備中</p>
+                <p className="mt-1 leading-6">
+                  可使用任何電子信箱註冊，不限定 Gmail。驗證碼寄送正在設定，目前暫停輸入與送出；
+                  {googleSignupHref
+                    ? '現在可先使用下方 Google 繼續。'
+                    : '目前請先使用下方申請表聯絡我們。'}
+                </p>
+              </div>
+            ) : null}
           <div>
             <div className="flex items-center">
               <span className="mr-1 text-red-500" aria-hidden="true">*</span>
@@ -360,7 +388,7 @@ export function VerifiedSignupForm({
                 placeholder={identifierPlaceholder}
                 maxLength={254}
                 required
-                disabled={isSubmitting}
+                disabled={unavailableEmailForm || isSubmitting}
                 aria-invalid={errorField === 'identifier'}
                 aria-describedby={errorField === 'identifier' ? 'verified-signup-error' : undefined}
                 className="h-12 pl-10"
@@ -390,7 +418,7 @@ export function VerifiedSignupForm({
                 minLength={8}
                 maxLength={72}
                 required
-                disabled={isSubmitting}
+                disabled={unavailableEmailForm || isSubmitting}
                 aria-invalid={errorField === 'password'}
                 aria-describedby={
                   errorField === 'password'
@@ -403,6 +431,7 @@ export function VerifiedSignupForm({
               <button
                 type="button"
                 onClick={() => setShowPassword((value) => !value)}
+                disabled={unavailableEmailForm || isSubmitting}
                 className="absolute right-3 top-1/2 rounded-sm p-1 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
               >
@@ -436,7 +465,7 @@ export function VerifiedSignupForm({
                 minLength={8}
                 maxLength={72}
                 required
-                disabled={isSubmitting}
+                disabled={unavailableEmailForm || isSubmitting}
                 aria-invalid={errorField === 'passwordConfirmation'}
                 aria-describedby={
                   errorField === 'passwordConfirmation' ? 'verified-signup-error' : undefined
@@ -459,7 +488,7 @@ export function VerifiedSignupForm({
                 value={referralCode}
                 onChange={(event) => setReferralCode(event.target.value)}
                 maxLength={64}
-                disabled={isSubmitting}
+                disabled={unavailableEmailForm || isSubmitting}
                 placeholder="請輸入推薦碼（選填）"
                 className="h-12 pl-10"
               />
@@ -484,7 +513,7 @@ export function VerifiedSignupForm({
               checked={termsAccepted}
               onChange={(event) => setTermsAccepted(event.target.checked)}
               required
-              disabled={isSubmitting}
+              disabled={unavailableEmailForm || isSubmitting}
               aria-invalid={errorField === 'terms'}
               aria-describedby={errorField === 'terms' ? 'verified-signup-error' : undefined}
               className="mt-1 size-4 accent-emerald-700"
@@ -498,25 +527,35 @@ export function VerifiedSignupForm({
             </span>
           </div>
 
-          <Turnstile
-            key={`credentials-${captchaResetNonce}`}
-            siteKey={turnstileSiteKey}
-            onSuccess={setCaptchaToken}
-            onExpire={() => setCaptchaToken(null)}
-            onError={() => {
-              setCaptchaToken(null);
-              setError('安全驗證載入失敗，請重新整理後再試。');
-            }}
-            options={{
-              language: 'zh-tw',
-              size: 'flexible',
-              action: combinedChannels ? 'signup_identity' : `signup_${channel}`,
-            }}
-          />
+          {!unavailableEmailForm ? (
+            <Turnstile
+              key={`credentials-${captchaResetNonce}`}
+              siteKey={turnstileSiteKey}
+              onSuccess={setCaptchaToken}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => {
+                setCaptchaToken(null);
+                setError('安全驗證載入失敗，請重新整理後再試。');
+              }}
+              options={{
+                language: 'zh-tw',
+                size: 'flexible',
+                action: combinedChannels ? 'signup_identity' : `signup_${channel}`,
+              }}
+            />
+          ) : null}
 
           <Feedback message={message} error={error} />
-            <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting || !captchaToken}>
-              {isSubmitting ? <><Loader2 className="size-4 animate-spin" />傳送中...</> : '註冊'}
+            <Button
+              type="submit"
+              className="h-12 w-full text-base"
+              disabled={unavailableEmailForm || isSubmitting || !captchaToken}
+            >
+              {unavailableEmailForm
+                ? '信箱註冊即將開放'
+                : isSubmitting
+                  ? <><Loader2 className="size-4 animate-spin" />傳送中...</>
+                  : '註冊'}
             </Button>
           </form>
 

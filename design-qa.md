@@ -60,6 +60,38 @@ Result: passed
 
 final result: passed
 
+## 非 Google 客戶的信箱註冊保留介面（2026-07-16）
+
+### 比對來源與狀態
+
+- Source visual truth：本次對話附件中的 Google-only `/signup` 畫面，以及使用者指定的「信箱／密碼／確認密碼／推薦碼／條款」註冊表單。
+- Implementation：`http://localhost:3001/signup`，本機旗標為 Google 可用、Email／Phone OTP 尚未 ready。
+- 修改前後使用同一個 Chrome 工作階段與桌面 viewport 並列檢查；另以 390 × 844 viewport 驗證手機版，結束前已重設 viewport。
+- 外部寄信、CAPTCHA、migration `044` 與 Production 設定均未變更，因此本輪驗收的是安全的「準備中」狀態，不是假造可寄碼狀態。
+
+### Full-view comparison
+
+- 修改前卡片只有 Google；修改後先呈現電子信箱、密碼、確認密碼、推薦碼、條款與註冊 CTA，再以分隔線把 Google 放在下方作為次要選項。
+- 標題與狀態文案明確說明可使用任何電子信箱、不限定 Gmail，避免客戶誤以為必須擁有 Google 帳號。
+- 沿用既有 Smart Return 卡片、字級、黑色主操作、白底 Google 按鈕、綠色品牌色與中性色表單元件；沒有引入新的視覺語言。
+- 手機 390px 下維持單欄，`scrollWidth` 未超過 viewport，沒有水平 overflow、欄位重疊或文字裁切。
+
+### Safety、interaction 與 accessibility
+
+- Email readiness 未完成時，電子信箱、兩個密碼欄、推薦碼、條款與註冊 CTA 全部 disabled；使用者不能先輸入或讓瀏覽器保存尚無法送出的密碼。
+- 準備中狀態不掛載 Turnstile，`handleStart` 另有 fail-closed guard；程式化 submit 的測試確認 Supabase `auth.signUp` 為 0 次。
+- Google 連結仍為唯一可用註冊操作，實際檢查為單一可用連結且指向 `/auth/google?plan=basic`；未啟動真實 OAuth。
+- DOM 保留單一 `h1`、完整表單標籤、disabled 語意、條款／隱私權連結與清楚的 readiness status。
+- Console 沒有應用程式 error；僅出現本機 Next.js/Turbopack HMR 的開發模式 warning，不影響正式 build 或頁面操作。
+
+### Findings and comparison history
+
+- Pass 1：Google-only 畫面排除了沒有 Google 帳號的客戶；補回完整 Email/password 表單並把 Google 下移。
+- Pass 2：發現 readiness 未完成時若允許輸入會讓客戶先填入無法送出的密碼；改為全部欄位 disabled，並保留 server/API/database readiness 防線。
+- Pass 3：桌面、手機、DOM、可用連結、disabled 狀態與聚焦測試通過；沒有剩餘 P0／P1／P2 視覺或核心互動問題。
+
+final result: passed
+
 ## 登入與已驗證商家 onboarding 重設計（2026-07-16）
 
 ### 比對來源與測試狀態

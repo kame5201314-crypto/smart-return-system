@@ -2,10 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, PackageCheck } from 'lucide-react';
 
-import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -44,6 +42,8 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const verifiedSignup = resolveVerifiedSignupAvailability();
   const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
   const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
+  const showEmailWhenUnavailable = !verifiedSignupEnabled;
+  const signupFormVisible = selfServiceEnabled || showEmailWhenUnavailable;
   const verifiedSignupDescription = verifiedSignup.emailEnabled && verifiedSignup.phoneEnabled
     ? '先完成手機號碼或電子信箱驗證，再補齊商家資料。'
     : verifiedSignup.emailEnabled
@@ -75,55 +75,25 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               {selfServiceEnabled
                 ? verifiedSignupEnabled
                   ? verifiedSignupDescription
-                  : '使用 Google 驗證登入身分，接著完成商家資料。'
+                  : '信箱／密碼註冊將支援任何電子信箱（不限定 Gmail）；目前也可使用 Google 快速驗證。'
                 : signupState.description}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="sm:px-8 sm:pb-8">
-            {verifiedSignupEnabled ? (
+            {signupFormVisible ? (
               <VerifiedSignupForm
                 emailEnabled={verifiedSignup.emailEnabled}
                 phoneEnabled={verifiedSignup.phoneEnabled}
+                showEmailWhenUnavailable={showEmailWhenUnavailable}
                 initialPlan={initialPlan}
                 turnstileSiteKey={verifiedSignup.turnstileSiteKey}
                 googleSignupHref={googleTrialEnabled ? `/auth/google?plan=${googleTrialPlan}` : undefined}
               />
             ) : null}
 
-            {googleTrialEnabled && !verifiedSignupEnabled ? (
-              <>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="h-12 w-full bg-white text-base"
-                  data-testid="google-signup-link"
-                >
-                  <Link href={`/auth/google?plan=${googleTrialPlan}`}>
-                    <GoogleSignInIcon className="size-5" />
-                    使用 Google 繼續
-                  </Link>
-                </Button>
-                <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
-                  驗證後需完成商家資料；3 天免費、不需信用卡
-                </p>
-              </>
-            ) : null}
-
             {selfServiceEnabled ? (
               <>
-                {!verifiedSignupEnabled ? (
-                  <p className="mt-6 text-center text-sm text-neutral-600">
-                    已有帳號？
-                    <Link
-                      href="/login"
-                      className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
-                    >
-                      返回登入
-                    </Link>
-                  </p>
-                ) : null}
-
                 <details
                   className="mt-6 border-t border-neutral-200 pt-5"
                   data-testid="signup-support-details"
@@ -146,13 +116,18 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                 </details>
               </>
             ) : (
-              <LeadCaptureForm
-                variant="signup"
-                contactEmail={contactEmail}
-                initialPlan={initialPlan}
-                leadCaptureEnabled={featureFlags.public_lead_capture}
-                lineOaId={lineOaId}
-              />
+              <div className="mt-6 border-t border-neutral-200 pt-5">
+                <p className="mb-4 text-sm leading-6 text-neutral-600">
+                  信箱驗證啟用前，請先留下申請資料，我們會協助你建立帳號。
+                </p>
+                <LeadCaptureForm
+                  variant="signup"
+                  contactEmail={contactEmail}
+                  initialPlan={initialPlan}
+                  leadCaptureEnabled={featureFlags.public_lead_capture}
+                  lineOaId={lineOaId}
+                />
+              </div>
             )}
           </CardContent>
         </Card>

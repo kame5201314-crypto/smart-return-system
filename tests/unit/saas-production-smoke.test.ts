@@ -33,7 +33,7 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain("text.includes('註冊新帳號')");
     expect(source).toContain("text.includes('/signup?plan=growth')");
     expect(source).toContain("get('/signup?plan=growth', { text: true })");
-    expect(source).toContain("text.includes('使用 Google 註冊或登入')");
+    expect(source).toContain("text.includes('使用 Google 繼續')");
     expect(source).toContain("text.includes('/auth/google?plan=growth')");
     expect(source).toMatch(/if \(expectAccountRegistration\) \{\s+await checkAccountRegistration\(\);/);
   });

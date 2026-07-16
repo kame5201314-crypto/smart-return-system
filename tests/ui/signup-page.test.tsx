@@ -35,11 +35,13 @@ vi.mock('@/components/auth/verified-signup-form', () => ({
   VerifiedSignupForm: ({
     emailEnabled,
     phoneEnabled,
+    showEmailWhenUnavailable,
     initialPlan,
     googleSignupHref,
   }: {
     emailEnabled: boolean;
     phoneEnabled: boolean;
+    showEmailWhenUnavailable?: boolean;
     initialPlan: string;
     googleSignupHref?: string;
   }) => (
@@ -47,6 +49,7 @@ vi.mock('@/components/auth/verified-signup-form', () => ({
       data-testid="verified-signup-form"
       data-email-enabled={String(emailEnabled)}
       data-phone-enabled={String(phoneEnabled)}
+      data-show-email-when-unavailable={String(showEmailWhenUnavailable)}
       data-plan={initialPlan}
       data-google-signup-href={googleSignupHref}
     >
@@ -85,19 +88,25 @@ describe('SignupPage feature composition', () => {
 
   afterEach(() => cleanup());
 
-  it('renders Google-only registration and preserves a growth selection', async () => {
+  it('retains the Email/password registration shell with Google below and preserves a growth selection', async () => {
     signupMocks.flags.google_auth = true;
     signupMocks.flags.google_trial_signup = true;
 
     await renderSignup('growth');
 
     expect(screen.getByRole('heading', { name: '建立帳號' })).toBeInTheDocument();
-    expect(screen.getByText(/使用 Google 驗證登入身分/)).toBeInTheDocument();
+    expect(screen.getByText(/任何電子信箱（不限定 Gmail）/)).toBeInTheDocument();
+    const verifiedForm = screen.getByTestId('verified-signup-form');
     const googleLink = screen.getByRole('link', { name: '使用 Google 繼續' });
     expect(googleLink).toHaveAttribute('href', '/auth/google?plan=growth');
-    expect(within(googleLink).getByTestId('google-sign-in-icon'))
-      .toHaveAttribute('src', expect.stringContaining('google-sign-in-light-square.png'));
-    expect(screen.queryByTestId('verified-signup-form')).not.toBeInTheDocument();
+    expect(within(googleLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
+    expect(verifiedForm).toHaveAttribute('data-email-enabled', 'false');
+    expect(verifiedForm).toHaveAttribute('data-phone-enabled', 'false');
+    expect(verifiedForm).toHaveAttribute('data-show-email-when-unavailable', 'true');
+    expect(
+      verifiedForm.compareDocumentPosition(googleLink)
+      & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(screen.queryByText('或使用 Google 快速註冊')).not.toBeInTheDocument();
     expect(screen.getByTestId('lead-capture-form')).toHaveAttribute('data-plan', 'growth');
     expect(screen.getByTestId('signup-support-details')).not.toHaveAttribute('open');
@@ -119,6 +128,7 @@ describe('SignupPage feature composition', () => {
     expect(screen.getByText(/先完成手機號碼或電子信箱驗證/))
       .toBeInTheDocument();
     expect(verifiedForm).toHaveAttribute('data-plan', 'growth');
+    expect(verifiedForm).toHaveAttribute('data-show-email-when-unavailable', 'false');
     expect(googleLink).toHaveAttribute('href', '/auth/google?plan=growth');
     expect(
       verifiedForm.compareDocumentPosition(googleLink)
@@ -163,7 +173,11 @@ describe('SignupPage feature composition', () => {
     expect(screen.getByText('請先送出申請。')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '使用 Google 繼續' }))
       .not.toBeInTheDocument();
-    expect(screen.queryByTestId('verified-signup-form')).not.toBeInTheDocument();
+    expect(screen.getByTestId('verified-signup-form'))
+      .toHaveAttribute('data-show-email-when-unavailable', 'true');
+    expect(screen.getByTestId('verified-signup-form'))
+      .not.toHaveAttribute('data-google-signup-href');
+    expect(screen.getByText(/信箱驗證啟用前，請先留下申請資料/)).toBeInTheDocument();
     expect(screen.getByTestId('lead-capture-form')).toBeInTheDocument();
   });
 });
