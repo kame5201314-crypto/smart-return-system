@@ -4,10 +4,12 @@
 - 分支：`develop-saas`
 - 方法：Claude 與 Codex **兩個獨立稽核**交叉驗證，結論零分歧。
 - 性質：原始稽核為唯讀；本次同步已完成修正與驗收證據。
-- Production 現況：runtime `a29f725`、Ready deployment
-  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`，網址
-  `https://smart-return-system-saas.vercel.app`（Closed Manual Beta）。後續安全
-  hardening through `44bd903` 已推送、尚未部署。
+- Production 現況：2026-07-16 唯讀檢查顯示 Ready deployment
+  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`，網址
+  `https://smart-return-system-saas.vercel.app`（Google 免費自助試用 + 人工付費
+  Beta）；Vercel
+  inspect 未提供可歸屬的 Git SHA。既有 Google 自助試用已上線；新的登入頁註冊
+  入口／文案 `dd27745` 已推送但尚未部署，`160a3fa`、`39b8c9f` 為測試 commit。
 
 ---
 
@@ -15,8 +17,8 @@
 
 | 階段 | 判定 | 說明 |
 |---|---|---|
-| **Closed Manual Beta（人工開通、免費）** | 🟢 **GREEN — 可上線** | 唯一上線前安全前置：owner 確認 production `ADMIN_PASSWORD` 強度（P0）。 |
-| **公開註冊 / 付費 SaaS** | 🟡 **YELLOW — 暫不開放** | 需先完成 email provider、Billing/ECPay、資料刪除 SOP、公開註冊流程，以及 P1/P2 安全修正與部分 migration，且每項皆需 owner 另行授權。 |
+| **Google 免費自助試用 + 人工付費 Beta** | 🟢 **GREEN — 已上線** | Google 三天試用已公開；付費轉換及非 Google 帳號仍維持人工控管。 |
+| **Google trial 以外的 Email/Phone／付費公開 rollout** | 🟡 **YELLOW — 暫不開放** | 需先完成 email provider、Billing/ECPay、法務定稿與實際資料保留／刪除責任人、對應 auth rollout，以及 P1/P2 安全修正與部分 migration，且每項皆需 owner 另行授權。 |
 
 兩個獨立稽核對以上判定**完全一致**。
 
@@ -51,7 +53,7 @@
 
 ### P0 — Owner 上線前必做（唯一安全前置）
 
-- **確認 Vercel Production `ADMIN_PASSWORD` 為強密碼**：至少 12 字，不可為 `admin123`、生日、電話或常見字。這是 Closed Manual Beta 上線前唯一需要 owner 親自確認的安全項。
+- **持續確認 Vercel Production `ADMIN_PASSWORD` 為強密碼**：至少 12 字，不可為 `admin123`、生日、電話或常見字。這是現行 Google trial + 人工付費 Beta 的平台管理員安全前置。
 
 ### P1 — Codex 後端修正（已完成）
 
@@ -71,7 +73,9 @@
 ### P2 — 公開 / 收費前再做（非 Beta blocker）
 
 - **CSP 強化**：`lib/security/headers.ts:7` 的 `script-src` 含 `'unsafe-inline' 'unsafe-eval'`（Next.js 常見妥協，且無 XSS sink，殘餘風險低）。正式公開後研究 nonce/hash CSP 逐步移除。
-- **PDPA / 個資營運 SOP**（文件）：客戶要求刪除資料的流程、資料保留期限、誰能接觸消費者姓名/電話/地址、資料外洩通報流程。
+- **PDPA / 個資營運 SOP**：repo-side 草案已完成於
+  `docs/SAAS_PRIVACY_DPA_DELETION_SOP.md`；剩餘項目是 owner／法務核准，並填入
+  真實資料保留期限、責任人與 subprocessor 資料。
 - **平台 admin MFA / 2FA**：營運者帳號為最高價值帳號，公開上市前建議啟用雙因子。
 - **其他強化**：密碼復原的帳號列舉防護已完成；login/signup 其餘失敗訊息
   仍需持續檢查一致性。另追蹤 audit_logs 防竄改、上傳圖片 URL 的 SSRF
@@ -92,7 +96,8 @@
 ## 5. 建議執行順序
 
 1. `fix-auth` 與 `schema-drift-alert` P1 已完成並有回歸測試。
-2. Closed Manual Beta 已上線；Production smoke 16/16，錯誤 log 為 0。
+2. Google 免費自助試用 + 人工付費 Beta 已上線；SHA-attributable
+   `a29f725` deployment 的 Production smoke 16/16，錯誤 log 為 0。
 3. Owner 仍應持續維持強 `ADMIN_PASSWORD`，並確認 Supabase 平台層 daily
    backup 設定。
 4. 公開付費前再完成 Email、Billing/ECPay、法務/個資與 MFA 等 P2 工作。
@@ -111,9 +116,9 @@
 - [x] `npm run build`
 - [x] commit `632d11e` 已推送 `origin/develop-saas`
 
-乾淨副本沒有 `.env.saas.local`，因此本輪沒有偽造 placeholder 來重跑
-env-backed doctor/rollout strict gates；下一次獲授權的外部 rollout 應在安全取得
-SaaS-only env 後執行完整 predeploy。
+在該次 auth-hardening 驗收時，乾淨副本沒有 `.env.saas.local`，因此當時沒有
+偽造 placeholder 來重跑 env-backed doctor/rollout strict gates；下一次獲授權的
+外部 rollout 應在安全取得 SaaS-only env 後執行完整 predeploy。
 
 ---
 

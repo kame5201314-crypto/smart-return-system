@@ -6089,10 +6089,10 @@ The owner subsequently authorized completing the Production rollout:
 - Final validation passed: lint, typecheck, script checks 21/21, backend 16/16,
   unit 587/587, UI 23/23, E2E 4/4, integration 5/5, Production build with 68
   generated pages, encoding hygiene, agent-boundary, and `git diff --check`.
-- `.env.saas.local` is absent in this clean checkout. Env-backed non-strict
-  build gates were skipped as designed; no placeholder, secret, migration,
-  deploy, provider, Vercel/Supabase, Billing, DNS, or Production change was
-  made.
+- At that validation time, `.env.saas.local` was absent in the clean checkout.
+  Env-backed non-strict build gates were skipped as designed; no placeholder,
+  secret, migration, deploy, provider, Vercel/Supabase, Billing, DNS, or
+  Production change was made.
 
 ## 2026-07-16 Auth Follow-up And Dependency Gates
 
@@ -6119,3 +6119,21 @@ The owner subsequently authorized completing the Production rollout:
   provider, Vercel/Supabase, Billing, DNS, or Production setting changed.
   Migration `044` remains unapplied and all OTP/recovery rollout flags remain
   false.
+
+## 2026-07-16 Account Registration Entry And QA
+
+- `dd27745 feat(auth): expose account registration flow` adds an explicit,
+  plan-preserving `註冊新帳號` entry on merchant login and feature-aware signup
+  copy while keeping platform-admin login isolated.
+- `160a3fa test(saas): smoke account registration entry` adds opt-in rollout
+  smoke for the new login/signup markers; the default smoke remains unchanged.
+- `39b8c9f test(auth): cover signup feature matrix` covers Google-only,
+  Email-only, Taiwan-phone-only, and fully closed signup states.
+- Focused validation passed: Production-smoke contracts 4/4, local smoke 22/22,
+  signup/login/form UI regressions 19/19, typecheck, targeted lint, and script
+  validation 21/21.
+- A read-only Vercel inspection shows current Ready deployment
+  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`; the existing Google self-service signup
+  path is live, but Production does not contain the new `dd27745` login
+  entry/copy markers. No deploy, migration, env/secret, Supabase/Vercel setting,
+  provider, Billing, DNS, or Production mutation was performed.

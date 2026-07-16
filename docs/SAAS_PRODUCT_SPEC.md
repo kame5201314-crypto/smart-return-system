@@ -2,7 +2,7 @@
 
 日期：2026-05-20
 版本：v2（對齊 MVP-first 紀律）
-狀態：Draft（封閉 Beta 前最終定案）
+狀態：Draft（Google trial 已上線；付費／Email／Phone rollout 待定案）
 分支：`develop-saas`
 適用：SaaS Vercel Project + SaaS Supabase Project
 
@@ -12,9 +12,11 @@
 
 ## v2 對齊 MVP-first 的決策
 
-- **Beta 期不接金流、手動開通**。Stage 2 才接綠界，Stage 5 才接 Stripe；TapPay 短期不接。
+- **Beta 期不接金流**。Google 三天試用可自助建立；非 Google／付費帳號仍由
+  owner 人工控管。Stage 2 才接綠界，Stage 5 才接 Stripe；TapPay 短期不接。
 - **角色四層**：Owner / Admin / Staff / Viewer（取代 023 的 owner/admin/member），由 `024_extend_member_roles.sql` 擴充 CHECK。
-- **Trial**：Beta 期 = 不限期 `trialing`；Stage 3 公開註冊後改 3 天。
+- **Trial**：人工開通 Beta 可維持 owner 管理的 `trialing`；Google 自助試用已是
+  3 天，且只允許一次成功的 real AI 分析。
 - **MVP 不做**：AI Pack 加購、升降級 proration、退貨筆數超額計費、API key 管理 UI。延後到 Stage 4+。
 - **退貨筆數軟限制**：80% 黃條、100% 紅條，連續 2 個月超量才建議升級；不自動加收、不擋作業。
 - **AI 額度硬上限**：命中相同 fingerprint 快取不扣額度；未命中且額度用完時阻擋 AI 分析。
@@ -36,7 +38,9 @@
 - 主金流（台灣）：ECPay 定期定額 → 信用卡定期授權；含電子發票。
 - 國際備案：Stripe Subscription（先以 feature flag 關閉，第二階段才開放）。
 - 行動支付備案：TapPay（同上）。
-- 公開註冊預設關閉，封閉 Beta 階段由 Owner 後台人工開通。
+- Legacy `ENABLE_PUBLIC_SIGNUP` 申請／provisioning 路徑預設關閉；Google
+  自助三天試用由獨立旗標控制且已啟用。Email/Phone 與付費公開 rollout
+  仍需 owner 逐項授權。
 
 ---
 
@@ -104,10 +108,10 @@
 | `/legal/terms` | 服務條款 | 必備 |
 | `/legal/privacy` | 隱私權政策 | 必備 |
 | `/legal/refund` | 退費政策 | 7 天內人工審核退費條件 |
-| `/login` | 商家登入 | Google、Email/Phone + password；平台 `/internal` 使用同頁但不顯示商家復原入口 |
+| `/login` | 商家登入 | Google、Email/Phone + password；明確的 `註冊新帳號` 入口會保留方案；平台 `/internal` 使用同頁但不顯示商家復原或註冊入口 |
 | `/forgot-password` | 帳號復原（旗標控管） | Email/Phone 6 位數 OTP + CAPTCHA；泛化寄送回應 |
 | `/reset-password` | 設定新密碼（受保護） | 需新 recovery session + 短效 signed HttpOnly proof |
-| `/signup` | 註冊（旗標控管） | Google 3 天試用已上線；Email/Phone verified signup 尚未啟用 |
+| `/signup` | 註冊（旗標控管） | Google 註冊／登入入口已上線；Email/Phone 只在對應旗標與 provider ready 時顯示；全關閉時改走申請流程 |
 | `/invite/[token]` | 受邀加入 | 接受邀請、建立帳號 |
 
 註：landing 與 legal 三頁是必要法律與信任素材，沒有就無法正式開放公開註冊。
@@ -119,12 +123,15 @@
 ### 5.1 Google 三天自助試用（Production 已完成）
 
 ```
-未登入訪客 → Google OAuth → verified Google identity
+未登入訪客 → /signup → Google OAuth → verified Google identity
   → /signup/complete 確認品牌與方案
   → service-role RPC 建立唯一 org / owner membership / 3-day subscription
   → 試用 real AI 僅一次；到期 cron 只處理 self-service claim
   → 到期後保留讀取、禁止新增/匯入/匯出/AI
 ```
+
+`dd27745` 另在 `/login` 增加保留方案的「註冊新帳號」入口；此入口尚待另行
+授權部署，不影響已上線的 `/signup` Google 自助試用路徑。
 
 Migrations `040`–`043` 已套用到 SaaS project，禁止重跑。Google rollout
 不依賴 Billing 或 Email provider。
@@ -141,7 +148,7 @@ Email 或台灣手機 + password + terms + CAPTCHA
 兩個 channel 使用獨立 disabled-by-default flags。Migration `044` 尚未套用；
 Custom SMTP、SMS provider、CAPTCHA/env 與 Production deploy 尚未完成。
 
-### 5.3 封閉 Beta 註冊（`public_signup` 關閉，預設）
+### 5.3 Google 以外的人工 Beta 開通（`public_signup` 關閉，預設）
 
 ```
 訪客

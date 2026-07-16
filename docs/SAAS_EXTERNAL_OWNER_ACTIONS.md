@@ -19,10 +19,13 @@ recovery rollout, use
 ## 2026-07-16 Auth Repository Work Completed
 
 - `6eafe1a`, `efe50ee`, `36e21fd`, `54bbeb7`, `91d1b1c`, `679f067`,
-  `063633b`, `74069ae`, `d411a4b`, and `44bd903` are pushed to
-  `origin/develop-saas`.
+  `063633b`, `74069ae`, `d411a4b`, `44bd903`, `dd27745`, `160a3fa`, and
+  `39b8c9f` are pushed to `origin/develop-saas`.
 - Phone-only team settings, guarded Email/Phone password recovery, and legacy
   admin server-side Turnstile validation are repository-complete.
+- `/login` now exposes an explicit `註冊新帳號` action, `/signup` only describes
+  enabled registration methods, and account-registration rollout smoke plus
+  signup feature-matrix regressions are repository-complete.
 - This is not a Production deployment. OTP signup and recovery flags remain
   off; no SMTP/SMS/Turnstile env or provider setting changed.
 - Migration `044` remains draft-only and must be authorized separately. It is
@@ -48,15 +51,21 @@ recovery rollout, use
 ## Current Verified State
 
 - Branch: `develop-saas`
-- Current Production runtime: `a29f725` on Ready Vercel deployment
-  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`, aliased to
-  `https://smart-return-system-saas.vercel.app`.
-- The 2026-07-15 post-deploy smoke passed 16/16, OAuth recovery browser QA
-  passed, and the deployment error-log scan returned zero errors.
-- Repository hardening commits through `44bd903` are pushed to
-  `origin/develop-saas`; migration-status correction `d397ea2` is also pushed.
-  They have not been deployed. Production therefore
-  remains at `a29f725` until a separately authorized deployment.
+- A read-only Vercel inspection on 2026-07-16 shows Ready Production deployment
+  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`, aliased to
+  `https://smart-return-system-saas.vercel.app`. Vercel inspection metadata does
+  not expose a Git commit SHA for this deployment.
+- For the attributable 2026-07-15 `a29f725` deployment, post-deploy smoke passed
+  16/16, OAuth recovery browser QA passed, and the deployment error-log scan
+  returned zero errors.
+- Runtime `a29f725` on deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` remains the
+  latest historical deployment record with an attributable Git SHA.
+- Repository account-registration work through `39b8c9f` is pushed to
+  `origin/develop-saas`. The existing Google self-service signup path is live,
+  but Public Production does not yet contain the new `dd27745` login entry/copy
+  markers (`註冊新帳號` and `使用 Google 註冊或登入`). That runtime commit still
+  requires a separately authorized deployment; `160a3fa` and `39b8c9f` are
+  test-only commits.
 - Historical signed-image runtime `f009621` and lead-capture runtime `ba70e90`
   are superseded deployment records, not the current Production source.
 - SaaS Supabase bucket `return-images` is now private (`public=false`) after
@@ -64,8 +73,9 @@ recovery rollout, use
   stored objects to live-fetch during the smoke, but the private visibility
   switch itself succeeded against project `auyznbwtjvemyamujmgt`.
 - Latest Sentry setup / redeploy: 2026-06-06
-- Manual Beta posture:
-  - `ENABLE_PUBLIC_SIGNUP=false`
+- Current Google-trial + manual paid-Beta posture:
+  - `ENABLE_PUBLIC_SIGNUP=false` (legacy request/provisioning path; independent
+    Google self-service trial remains enabled)
   - `ENABLE_BILLING=false`
   - `ENABLE_GOOGLE_AUTH=true`
   - `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
@@ -76,7 +86,8 @@ recovery rollout, use
   - email delivery remains dry-run; a disabled-by-default Resend adapter
     skeleton exists, but no provider env or enablement flag is configured
   - owner deferred custom domain purchase/setup and chose to use
-    `https://smart-return-system-saas.vercel.app` for Closed Manual Beta.
+    `https://smart-return-system-saas.vercel.app` for the current Google-trial
+    + manual paid-Beta posture.
     Historical `app.smart-return.tw` DNS notes remain below for future use only;
     do not keep retrying domain verification until the owner buys/registers a
     domain and reauthorizes DNS/Vercel work.
@@ -128,7 +139,8 @@ handling SOP that should be reviewed before paid/public rollout.
 
 Current decision:
 
-- Closed free/manual Beta is acceptable with controlled scope.
+- Google free self-service trial is live; paid conversion, Email/Phone signup,
+  and general public signup remain controlled/manual Beta.
 - First paid manual customers require invoice/receipt capability, finalized
   legal/refund wording, and a manual payment record SOP before collecting
   money.
@@ -196,7 +208,8 @@ legal advice and does not finalize paid-use terms by itself.
     subscription state automation, invoice issuing, refunds, and provider
     replay are not live.
 - Public signup:
-  - `ENABLE_PUBLIC_SIGNUP=false` keeps public signup closed.
+  - `ENABLE_PUBLIC_SIGNUP=false` keeps the legacy signup request/provisioning
+    path closed; it does not disable the independently enabled Google trial.
   - If enabled later, current code records a Basic-plan `signup_requests`
     lead/request only.
   - It does not create a Supabase Auth user, organization, owner membership,

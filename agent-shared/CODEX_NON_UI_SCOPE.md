@@ -43,8 +43,9 @@ domain / billing / secret changes
 - `npm run saas:rollout-check` reports the remaining rollout blockers without changing external state.
 - Google login, 3-day self-service trial, single-use AI, scoped expiry, Sentry,
   and post-expiry read-only are already live. They are not current blockers.
-- Repository auth and dependency hardening through `44bd903` is pushed but not
-  deployed.
+- Repository auth/dependency hardening and account-registration QA through
+  `39b8c9f` are pushed. The runtime login entry in `dd27745` is not deployed;
+  `160a3fa` and `39b8c9f` are test-only commits.
 - OTP signup/recovery remains blocked on Custom SMTP/SMS, Cloudflare and
   Supabase CAPTCHA secrets, per-channel smoke, deployment/env authorization,
   and migration `044` only if new verified signup provisioning is selected.

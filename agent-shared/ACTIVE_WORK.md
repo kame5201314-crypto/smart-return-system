@@ -1,5 +1,20 @@
 # Active Work
 
+## 2026-07-16 Account Registration Entry And QA
+
+Status: done
+
+Scope: Expose the existing guarded signup flow from login, make signup copy
+feature-aware, and add rollout/regression coverage without external changes.
+
+Notes: `dd27745`, `160a3fa`, and `39b8c9f` are pushed to
+`origin/develop-saas`. `/login` now has an explicit plan-preserving
+`註冊新帳號` action; `/signup` only advertises enabled methods. Opt-in
+post-deploy registration smoke coverage is implemented and passed 22/22 against
+the local server; Google/Email/Taiwan-phone/closed feature-matrix tests are
+complete. No migration, deploy, env/secret, Vercel, Supabase, provider, Billing,
+DNS, or Production setting changed.
+
 ## 2026-07-16 Auth Follow-up And Dependency Gates
 
 Status: done
@@ -52,8 +67,9 @@ complete and unchanged.
 Final repository validation passed: lint, typecheck, script/backend tests,
 104 unit files / 587 tests, 8 UI files / 23 tests, 3 E2E files / 4 tests,
 2 integration files / 5 tests, Production build (68 generated pages), encoding
-hygiene, and agent-boundary. The clean checkout has no `.env.saas.local`, so
-env-backed non-strict build gates were skipped without adding placeholders.
+hygiene, and agent-boundary. At that validation time the clean checkout had no
+`.env.saas.local`, so env-backed non-strict build gates were skipped without
+adding placeholders.
 
 ## 2026-07-15 Google OAuth And Trial Rollout Activation Follow-up
 
@@ -134,20 +150,24 @@ Notes: Lead capture is independently gated from public signup. Owner-authorized 
 
 ## Current
 
-2026-07-16 auth repository work is complete and pushed through `44bd903`,
-including verified signup, phone-only team settings, guarded password recovery,
-and server-side legacy admin Turnstile. All new signup/recovery flags remain
-fail-closed. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA provider
-or Production env is configured, and no deploy has occurred. Existing Google
-Production rollout and applied migrations `040`–`043` remain unchanged.
+2026-07-16 auth, dependency, account-registration entry, and registration QA
+work is complete and pushed through `39b8c9f`. All new signup/recovery flags
+remain fail-closed. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA
+provider or Production env is configured, and no deploy occurred in this work.
+Existing Google Production rollout and applied migrations `040`–`043` remain
+unchanged.
 
-Authoritative 2026-07-15 update: Production runs runtime HEAD `a29f725` on
-deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). Production smoke passed
-16/16, OAuth recovery browser QA passed, and the deployment error scan returned
-zero errors. Google Auth, automatic 3-day trials, single-use trial AI, scoped
-expiry, public lead capture, and platform admin operations are enabled. Public
-signup, billing, email delivery, and providers remain disabled. Repository
-hardening through `44bd903` is pushed but not deployed. The older snapshot below
+A 2026-07-16 read-only Vercel inspection shows Ready Production deployment
+`dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`; its metadata does not expose a Git SHA.
+The existing Google self-service signup path is live. Public Production lacks
+the new `dd27745` login entry/copy markers, so that runtime commit is not live;
+`160a3fa` and `39b8c9f` are test-only commits. Runtime `a29f725` / deployment
+`dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` remains the latest historical record with an
+attributable SHA. Google Auth, automatic 3-day trials, single-use trial AI,
+scoped expiry, public lead capture, and platform admin operations remain
+enabled. Legacy public signup, billing, email delivery, and non-Google auth
+providers remain disabled; these flags do not disable the live Google trial.
+The older snapshot below
 is retained only as historical context where it does not conflict with this
 update.
 

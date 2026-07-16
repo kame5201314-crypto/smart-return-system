@@ -26,9 +26,13 @@ Production Sentry DSNs are configured. The remaining expected Manual Beta
 non-blocking warning is that Billing is disabled; this is intentional for the
 current free/manual posture but not sufficient for paid self-serve launch.
 
-Repository hardening after `a29f725` passed lint, typecheck, `test:all`, and the
-Production build. It is pushed but not deployed. The clean clone has no
-`.env.saas.local`, so do not fabricate placeholders to rerun strict env gates.
+The latest read-only Vercel inspection shows Ready Production deployment
+`dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`; its metadata does not expose an attributable
+Git SHA. The existing Google self-service signup path is live, but Public
+Production does not contain the new login entry/copy markers from `dd27745`;
+`160a3fa` and `39b8c9f` are test-only commits. The current working copy has an
+ignored `.env.saas.local`; keep it untracked and never copy its values into Git,
+documentation, commands, or chat.
 
 ## Launch Mode Decision
 
@@ -36,10 +40,11 @@ Choose one launch mode before deployment:
 
 | Mode | Required state |
 | --- | --- |
-| Manual Beta | `ENABLE_PUBLIC_SIGNUP=false`, `ENABLE_BILLING=false`, `ENABLE_SUBSCRIPTION_PLAN=false`; owner manually provisions organizations. |
+| Google trial + manual paid Beta | Google self-service trial flags enabled; `ENABLE_PUBLIC_SIGNUP=false`, `ENABLE_BILLING=false`, and `ENABLE_SUBSCRIPTION_PLAN=false`; owner manually provisions non-Google/manual organizations and handles upgrades. |
 | Paid self-serve | Billing provider credentials configured, webhook verified, public signup/subscription flags intentionally enabled, and payment smoke tests completed. |
 
-Current recommended mode: **Manual Beta**.
+Current mode: **Google 免費自助試用已公開；付費轉換、Email/Phone 註冊及一般
+public signup 仍採人工 Beta**。
 
 ## Local Inspection Mode
 
@@ -69,7 +74,9 @@ QA already completed; do not change that value without new authorization.
 - `ENABLE_IMAGE_AI=false`.
 - `ENABLE_AI_USAGE_LIMIT=true`.
 - `ENABLE_MULTI_TENANT_ADMIN=false` unless the platform admin rollout is explicitly approved.
-- `ENABLE_PUBLIC_SIGNUP=false` unless public signup is explicitly approved.
+- `ENABLE_PUBLIC_SIGNUP=false` unless the legacy signup-request/provisioning
+  path is explicitly approved; this does not disable the independent Google
+  self-service trial flags.
 - `ENABLE_BILLING=false` unless billing rollout is explicitly approved.
 - `ENABLE_EMAIL_OTP_SIGNUP=false` and `ENABLE_PHONE_OTP_SIGNUP=false` until
   migration `044`, matching provider, CAPTCHA, and disposable-account smoke are

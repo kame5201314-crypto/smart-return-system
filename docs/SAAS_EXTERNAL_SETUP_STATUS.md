@@ -1,5 +1,16 @@
 # SaaS External Setup Status
 
+## 2026-07-16 Account Registration Entry And QA
+
+- `dd27745` adds an explicit `註冊新帳號` entry on `/login` and keeps the selected
+  plan when routing to `/signup`.
+- `160a3fa` adds opt-in Production smoke coverage for the registration entry and
+  Google registration copy without changing the default smoke contract.
+- `39b8c9f` covers Google-only, Email-only, Taiwan phone-only, and fully closed
+  signup feature matrices.
+- All three commits are pushed to `origin/develop-saas`. This repository work did
+  not deploy, apply a migration, or change Vercel/Supabase/env/provider state.
+
 ## 2026-07-16 Auth Recovery And CAPTCHA Repository Hardening
 
 - `6eafe1a` lets phone-only owners load `/settings/team` without a fake Email.
@@ -146,11 +157,14 @@ for the controlled customer handoff and first-session walkthrough.
 
 - Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
 - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
-- Current Production runtime is `a29f725` on Ready Vercel deployment
-  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`, aliased to
-  `https://smart-return-system-saas.vercel.app`. The 2026-07-15 smoke passed
-  16/16, OAuth recovery browser QA passed, and the error-log scan found zero
-  errors. Repository hardening through `44bd903` is pushed but not deployed.
+- A read-only Vercel inspection on 2026-07-16 shows Ready Production deployment
+  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`, aliased to
+  `https://smart-return-system-saas.vercel.app`. Its inspection metadata does
+  not expose a Git commit SHA. Runtime `a29f725` / deployment
+  `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` remains the latest historical record with
+  an attributable SHA. The existing Google self-service signup path remains
+  live, but Public Production does not yet contain the login entry/copy markers
+  added in `dd27745`; `160a3fa` and `39b8c9f` are test-only commits.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - Migration `033_saas_platform_billing_operations.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `033` as applied. It adds `perform_platform_billing_operation()` for manual payment marking, suspend/resume, refund request, and audit logging.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
@@ -164,7 +178,9 @@ for the controlled customer handoff and first-session walkthrough.
   verified Email/Phone trial provisioning but has not been applied anywhere.
   It requires a separate, SaaS-project-only authorization and must not be
   bundled with `034` or `036`.
-- Vercel Production project `smart-return-system-saas` has owner-authorized `ENABLE_PUBLIC_LEAD_CAPTURE=true`, active in current Ready deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`.
+- Vercel Production project `smart-return-system-saas` has owner-authorized
+  `ENABLE_PUBLIC_LEAD_CAPTURE=true`; the current Ready deployment is
+  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
@@ -193,7 +209,10 @@ for the controlled customer handoff and first-session walkthrough.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
 - Platform admin password login now has best-effort, per-runtime throttling by login id and client IP. This reduces repeated password guessing against the `/admin/login` / `/login` internal admin path, but it is not a replacement for a persistent edge/WAF rate limit.
 - Browser-driven mutation APIs now share a same-origin guard that rejects explicit cross-site `Origin`, `Referer`, or Fetch Metadata requests before route handlers run. ECPay webhook, cron, and schema alert routes are intentionally excluded because they are provider/secret-gated server-to-server endpoints.
-- Public signup API now has best-effort, per-runtime request throttling. Public signup is still closed by `ENABLE_PUBLIC_SIGNUP=false`, but the route is safer for a future controlled rollout.
+- The legacy public-signup API now has best-effort, per-runtime request
+  throttling. That request/provisioning route is still closed by
+  `ENABLE_PUBLIC_SIGNUP=false`, but the independently enabled Google
+  self-service trial is unaffected.
 - Non-UI lint cleanup removed unused local variables from Codex-owned `lib/**` and `scripts/**` paths. The 2026-06-05 UI QA pass observed `npm run lint` with no warnings.
 - Dependency hardening through `44bd903` leaves both the full and production
   audits at 0 low / 4 moderate / 0 high / 0 critical. The fixable Babel and
@@ -206,18 +225,36 @@ for the controlled customer handoff and first-session walkthrough.
   acceptance, settings, and platform admin read pages were smoke tested from a
   separately configured checkout.
 - That earlier Manual Beta checkout used non-placeholder local admin
-  credentials. This clean clone does not contain `.env.saas.local`; no
-  credential or placeholder was copied or created here.
+  credentials. The current working copy also has a securely supplied, ignored
+  `.env.saas.local`; its values were not printed, copied into docs, or tracked.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- The current Production Google rollout is enabled at `https://smart-return-system-saas.vercel.app` on runtime `a29f725`, deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready).
+- The 2026-07-15 SHA-attributable Google rollout baseline was runtime `a29f725`
+  on deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). The current Ready
+  deployment is `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`, whose inspect metadata does
+  not expose a Git SHA.
 - Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
 - Current owner-confirmed Production URL is `https://smart-return-system-saas.vercel.app`. Google Auth, trial signup, and trial expiry are enabled; Billing and Email delivery remain disabled. Historical deployment IDs below are retained only as earlier rollout records.
-- Production includes the lead capture contract/API/form/operations queue and manual payment UI, plus all previously deployed 499/699, isolation, operator, signed return-image, expired-workspace, OAuth recovery, billing-copy, and regression changes through runtime `a29f725`.
+- The attributable `a29f725` baseline included the lead capture
+  contract/API/form/operations queue and manual payment UI, plus the previously
+  deployed 499/699, isolation, operator, signed return-image, expired-workspace,
+  OAuth recovery, billing-copy, and regression changes.
 - The latest 2026-07-15 production smoke passed 16/16. OAuth recovery browser QA passed and the deployment error-log scan returned zero errors. The earlier non-persisting lead smoke confirmed `/signup?plan=growth` form markers, `POST /api/saas/leads` reached enabled validation with `400 invalid_request`, `/internal/leads` redirects unauthenticated users to platform login, and `signup_requests` remained empty.
-- Latest external checks confirmed Vercel production env names include `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02 flag-lock check confirmed `ENABLE_BILLING=false`, `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured. No custom/beta domain is visible, migrations `033`, `035`, and `037`–`043` are applied; draft migrations `034`, `036`, and `044` remain unapplied.
-- Owner has chosen to defer custom domain purchase/setup and use the Vercel production URL for Closed Manual Beta. Customer traffic should use `https://smart-return-system-saas.vercel.app` until the owner later buys/registers a domain and reauthorizes DNS/Vercel verification. Historical `app.smart-return.tw` notes remain below for future reference only.
+- Latest external checks confirmed Vercel production env names include
+  `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ENABLE_MULTI_TENANT_ADMIN`, and
+  `ADMIN_SESSION_SECRET`; `PLATFORM_ADMIN_ROLES` was not listed. A 2026-07-02
+  flag-lock check confirmed `ENABLE_BILLING=false`, legacy
+  `ENABLE_PUBLIC_SIGNUP=false`, and no Resend/email provider env is configured;
+  the independent Google trial flags are enabled. No custom/beta domain is
+  visible, migrations `033`, `035`, and `037`–`043` are applied; draft
+  migrations `034`, `036`, and `044` remain unapplied.
+- Owner has chosen to defer custom domain purchase/setup and use the Vercel
+  production URL for the current Google-trial + manual paid-Beta posture.
+  Customer traffic should use `https://smart-return-system-saas.vercel.app`
+  until the owner later buys/registers a domain and reauthorizes DNS/Vercel
+  verification. Historical `app.smart-return.tw` notes remain below for future
+  reference only.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - Repository-side phone-only team settings, password recovery, and legacy admin
@@ -2264,15 +2301,15 @@ for the controlled customer handoff and first-session walkthrough.
 
 ## Verification Notes
 
-- The latest repository hardening run completed reproducible `npm ci`, lint,
-  typecheck, `test:all`, and the 68-page Production build. `test:all` includes
-  backend (16/16), unit (105 files / 595 tests), UI (8 files / 27 tests), E2E
-  (3 files / 4 tests), and integration (2 files / 5 tests).
+- The latest repository hardening run completed lint, typecheck, `test:all`, and
+  the 68-page Production build. `test:all` includes backend (16/16), unit
+  (106 files / 598 tests), UI (9 files / 33 tests), E2E (3 files / 4 tests),
+  and integration (2 files / 5 tests).
 - The full and production dependency audits are both 0 low / 4 moderate / 0
   high / 0 critical. CI rejects new high/critical production advisories.
-- This clean clone does not contain `.env.saas.local`, so env-backed strict
-  checks correctly refuse to run. No placeholder or Production secret was
-  created. Static migration tests and encoding checks pass.
+- The current working copy has a securely supplied, ignored `.env.saas.local`.
+  No value was printed or tracked, no placeholder was created, and env-backed
+  build gates plus static migration and encoding checks pass.
 - Do not run `npm audit fix --force` automatically; the remaining production
   findings require breaking dependency changes and should be handled as a
   separately reviewed upgrade.
@@ -2297,7 +2334,7 @@ separate external-change authorization:
 - Custom-domain purchase/DNS only if the owner later chooses to replace the
   working Vercel URL. It is intentionally deferred, not a current blocker.
 - Vercel Preview SSO/protection policy if external Preview testers are added.
-- A separately authorized deployment if repository hardening after `a29f725`
+- A separately authorized deployment if runtime registration entry `dd27745`
   should go live. Do not infer deployment permission from this document.
 
 Production Sentry DSNs and Gemini are already configured; do not replace or
