@@ -145,6 +145,44 @@ describe('SaaS settings team data repository', () => {
     ]);
   });
 
+  it('keeps phone-only verified members loadable without migration 044 columns', async () => {
+    const repository = createSettingsTeamDataRepository({
+      from: vi.fn(() =>
+        createChain([
+          {
+            id: 'phone-owner',
+            user_id: 'phone-user',
+            email: null,
+            role: 'owner',
+            status: 'active',
+            created_at: '2026-07-16T00:00:00.000Z',
+          },
+        ])
+      ),
+    } as SettingsTeamQueryClient);
+
+    const members = await repository.listMembers({ orgId: 'org-phone' });
+
+    expect(members).toEqual([
+      expect.objectContaining({
+        id: 'phone-owner',
+        userId: 'phone-user',
+        email: '已驗證手機帳號',
+        role: 'owner',
+        status: 'active',
+      }),
+    ]);
+    expect(() =>
+      buildTeamSettingsView({
+        orgId: 'org-phone',
+        plan: 'basic',
+        members,
+        invites: [],
+        actions: { canInvite: true, canChangeRoles: true },
+      })
+    ).not.toThrow();
+  });
+
   it('returns null when organization team plan data is missing', async () => {
     const from = vi
       .fn()

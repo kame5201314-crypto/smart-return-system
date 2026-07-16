@@ -101,7 +101,10 @@ function normalizeMember(row: Record<string, unknown>): SettingsTeamMemberData {
   return {
     id: stringOrFallback(row.id, ''),
     userId: stringOrNull(row.user_id),
-    email: stringOrFallback(row.email, ''),
+    // Phone-only verified owners created by migration 044 intentionally have
+    // no email. Keep the pre-migration query shape deploy-safe and expose a
+    // non-secret identity label so the team view remains usable.
+    email: stringOrFallback(row.email, '已驗證手機帳號'),
     displayName: stringOrNull(row.display_name),
     role: stringOrFallback(row.role, 'staff'),
     status: stringOrFallback(row.status, 'active'),

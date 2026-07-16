@@ -298,6 +298,42 @@ describe('SaaS settings live data loaders', () => {
     });
   });
 
+  it('keeps phone-only verified owners in the ready team settings state', async () => {
+    const result = await loadTeamSettingsView({
+      ...createBaseDeps(),
+      teamRepository: {
+        getOrganizationPlan: vi.fn(async () => ({ id: 'org-1', plan: 'basic' })),
+        listMembers: vi.fn(async () => [
+          {
+            id: 'phone-owner',
+            userId: 'owner-user',
+            email: '已驗證手機帳號',
+            displayName: null,
+            role: 'owner',
+            status: 'active',
+            joinedAt: '2026-07-16T00:00:00.000Z',
+          },
+        ]),
+        listInvites: vi.fn(async () => []),
+      },
+      now: new Date('2026-07-16T00:00:00.000Z'),
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        members: [
+          {
+            id: 'phone-owner',
+            email: '已驗證手機帳號',
+            role: 'owner',
+            status: 'active',
+          },
+        ],
+      },
+    });
+  });
+
   it('returns empty state instead of serving fake data when repositories miss the org', async () => {
     const result = await loadUsageSettingsView({
       ...createBaseDeps(),
