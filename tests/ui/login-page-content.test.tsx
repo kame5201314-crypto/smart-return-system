@@ -148,4 +148,35 @@ describe('LoginPageContent', () => {
     expect(screen.queryByRole('link', { name: '忘記密碼？使用驗證碼復原' }))
       .not.toBeInTheDocument();
   });
+
+  it('shows a clear account registration action and preserves the selected plan', () => {
+    navigationMocks.search = 'plan=growth';
+    render(
+      <LoginPageContent
+        googleAuthEnabled
+        googleSignupEnabled
+        accountRegistrationEnabled
+      />
+    );
+
+    expect(screen.getByRole('link', { name: '註冊新帳號' }))
+      .toHaveAttribute('href', '/signup?plan=growth');
+    expect(screen.getByText(/可使用 Google 註冊/)).toBeInTheDocument();
+  });
+
+  it('does not forward an unsupported plan or expose merchant signup to platform admins', () => {
+    navigationMocks.search = 'plan=enterprise';
+    const { rerender } = render(
+      <LoginPageContent googleAuthEnabled accountRegistrationEnabled />
+    );
+
+    expect(screen.getByRole('link', { name: '註冊新帳號' }))
+      .toHaveAttribute('href', '/signup');
+
+    navigationMocks.search = 'next=%2Finternal&plan=growth';
+    rerender(<LoginPageContent googleAuthEnabled accountRegistrationEnabled />);
+
+    expect(screen.queryByRole('link', { name: '註冊新帳號' }))
+      .not.toBeInTheDocument();
+  });
 });

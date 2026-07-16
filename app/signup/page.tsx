@@ -18,15 +18,16 @@ import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { resolveSignupMethodLabel } from '@/lib/auth/signup-presentation';
 import { resolveVerifiedSignupAvailability } from '@/lib/auth/verified-signup';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 
 export const metadata: Metadata = {
-  title: '申請 3 天免費試用 | Smart Return',
+  title: '註冊新帳號 | Smart Return',
   description:
-    '使用 Google、電子信箱或手機驗證建立 Smart Return 3 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
+    '註冊 Smart Return 帳號並開始 3 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
 };
 
 const onboardingSteps = [
@@ -52,12 +53,14 @@ const onboardingSteps = [
   ],
 ] as const;
 
-const selfServiceSteps = [
-  [LogIn, '驗證登入帳號', '可使用 Google，或以電子信箱／台灣手機號碼接收驗證碼。'],
-  [Building2, '設定品牌與方案', '填寫品牌名稱並選擇入門版或成長版試用方案。'],
-  [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，3 天試用從現在開始。'],
-  [Sparkles, '匯入第一批退貨資料', '從蝦皮匯出資料開始，或手動建立第一筆退貨。'],
-] as const;
+function buildSelfServiceSteps(methodLabel: string) {
+  return [
+    [LogIn, '建立並驗證帳號', `使用 ${methodLabel} 完成帳號註冊與身分驗證。`],
+    [Building2, '設定品牌與方案', '填寫品牌名稱並選擇入門版或成長版試用方案。'],
+    [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，3 天試用從現在開始。'],
+    [Sparkles, '匯入第一批退貨資料', '從蝦皮匯出資料開始，或手動建立第一筆退貨。'],
+  ] as const;
+}
 
 const reassurances = [
   [BadgeCheck, '不需信用卡', '3 天試用完全不綁卡。試用結束不會自動扣款。'],
@@ -86,16 +89,23 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const verifiedSignup = resolveVerifiedSignupAvailability();
   const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
   const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
-  const steps = selfServiceEnabled ? selfServiceSteps : onboardingSteps;
+  const signupMethodLabel = resolveSignupMethodLabel({
+    googleEnabled: googleTrialEnabled,
+    emailEnabled: verifiedSignup.emailEnabled,
+    phoneEnabled: verifiedSignup.phoneEnabled,
+  });
+  const steps = selfServiceEnabled && signupMethodLabel
+    ? buildSelfServiceSteps(signupMethodLabel)
+    : onboardingSteps;
   const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
     <MarketingShell>
       <PageHeader
-        eyebrow="申請試用"
-        title={selfServiceEnabled ? '驗證帳號，開始 3 天免費試用。' : '申請 3 天免費試用 + Beta 期免費協助導入。'}
+        eyebrow={selfServiceEnabled ? '註冊帳號' : '申請試用'}
+        title={selfServiceEnabled ? '建立新帳號，開始 3 天免費試用。' : '申請 3 天免費試用 + Beta 期免費協助導入。'}
         description={selfServiceEnabled
-          ? '不需信用卡。完成帳號驗證後確認品牌與方案即可建立工作區；需要導入協助，也可提交申請由專人聯絡。'
+          ? `不需信用卡。使用 ${signupMethodLabel} 建立帳號，確認品牌與方案後即可建立工作區；需要導入協助，也可提交申請由專人聯絡。`
           : '不需信用卡。送出申請後我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助你匯入第一批退貨資料。'}
       />
 
@@ -110,7 +120,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               </Badge>
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-neutral-950">
-              {selfServiceEnabled ? '立即建立試用，或申請專人協助' : signupState.headline}
+              {selfServiceEnabled ? '建立 Smart Return 帳號' : signupState.headline}
             </h2>
             <p className="mt-3 text-sm leading-6 text-neutral-700">
               {selfServiceEnabled
@@ -124,7 +134,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                   <Button asChild className="w-full">
                     <Link href={`/auth/google?plan=${googleTrialPlan}`}>
                       <LogIn className="size-4" aria-hidden="true" />
-                      使用 Google 登入並開始試用
+                      使用 Google 註冊或登入
                     </Link>
                   </Button>
                   <p className="mt-2 text-center text-xs text-neutral-500">
@@ -161,6 +171,17 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                 leadCaptureEnabled={featureFlags.public_lead_capture}
                 lineOaId={lineOaId}
               />
+              {selfServiceEnabled ? (
+                <p className="mt-5 text-center text-sm text-neutral-600">
+                  已經有帳號？
+                  <Link
+                    href="/login"
+                    className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
+                  >
+                    返回登入
+                  </Link>
+                </p>
+              ) : null}
             </div>
           </div>
 

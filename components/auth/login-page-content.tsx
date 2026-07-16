@@ -19,6 +19,7 @@ import {
   PackageCheck,
   ShieldCheck,
   User,
+  UserRoundPlus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ type LoginInput = z.infer<typeof loginSchema>;
 
 interface LoginPageContentProps {
   googleAuthEnabled: boolean;
+  googleSignupEnabled?: boolean;
+  accountRegistrationEnabled?: boolean;
   passwordRecoveryEnabled?: boolean;
   captchaRequired?: boolean;
   captchaReady?: boolean;
@@ -56,6 +59,8 @@ function getGoogleErrorMessage(value: string | null): string | null {
 
 export function LoginPageContent({
   googleAuthEnabled,
+  googleSignupEnabled = false,
+  accountRegistrationEnabled = googleSignupEnabled,
   passwordRecoveryEnabled = false,
   captchaRequired = false,
   captchaReady = false,
@@ -85,6 +90,13 @@ export function LoginPageContent({
     }
     return `/auth/google?${params.toString()}`;
   }, [isPlatformAdminLogin, nextParam, planParam]);
+
+  const signupHref = useMemo(() => {
+    if (planParam === 'basic' || planParam === 'growth') {
+      return `/signup?plan=${planParam}`;
+    }
+    return '/signup';
+  }, [planParam]);
 
   useEffect(() => {
     if (googleError) toast.error(googleError);
@@ -333,15 +345,26 @@ export function LoginPageContent({
                 </Link>
               </p>
             ) : (
-              <p className="mt-6 text-center text-sm text-neutral-600">
-                還沒有帳號？
-                <Link
-                  href="/signup"
-                  className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
-                >
-                  申請 3 天免費試用
-                </Link>
-              </p>
+              <div className="mt-6 border-t border-neutral-200 pt-5 text-center">
+                <p className="text-sm font-medium text-neutral-800">
+                  {accountRegistrationEnabled
+                    ? '還沒有帳號？立即免費建立。'
+                    : '還沒有帳號？先申請免費試用。'}
+                </p>
+                <Button asChild variant="outline" className="mt-3 w-full bg-white">
+                  <Link href={signupHref}>
+                    <UserRoundPlus className="size-4" aria-hidden="true" />
+                    {accountRegistrationEnabled ? '註冊新帳號' : '申請 3 天免費試用'}
+                  </Link>
+                </Button>
+                {accountRegistrationEnabled ? (
+                  <p className="mt-2 text-xs leading-5 text-neutral-500">
+                    {googleSignupEnabled
+                      ? '可使用 Google 註冊，立即開始 3 天免費試用；不需信用卡。'
+                      : '使用註冊頁目前開放的驗證方式建立帳號；不需信用卡。'}
+                  </p>
+                ) : null}
+              </div>
             )}
           </CardContent>
         </Card>

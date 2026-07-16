@@ -2,13 +2,21 @@ import { Suspense } from 'react';
 
 import { LoginPageContent } from '@/components/auth/login-page-content';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
-import { resolveAuthCaptchaAvailability } from '@/lib/auth/verified-signup';
+import {
+  resolveAuthCaptchaAvailability,
+  resolveVerifiedSignupAvailability,
+} from '@/lib/auth/verified-signup';
 import { resolvePasswordRecoveryAvailability } from '@/lib/auth/password-recovery';
 
 export default function LoginPage() {
   const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
   const captcha = resolveAuthCaptchaAvailability();
   const passwordRecovery = resolvePasswordRecoveryAvailability();
+  const verifiedSignup = resolveVerifiedSignupAvailability();
+  const googleSignupEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const accountRegistrationEnabled = googleSignupEnabled
+    || verifiedSignup.emailEnabled
+    || verifiedSignup.phoneEnabled;
 
   return (
     <Suspense
@@ -20,6 +28,8 @@ export default function LoginPage() {
     >
       <LoginPageContent
         googleAuthEnabled={featureFlags.google_auth}
+        googleSignupEnabled={googleSignupEnabled}
+        accountRegistrationEnabled={accountRegistrationEnabled}
         passwordRecoveryEnabled={passwordRecovery.emailEnabled || passwordRecovery.phoneEnabled}
         captchaRequired={captcha.required}
         captchaReady={captcha.ready}
