@@ -1,23 +1,17 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  BadgeCheck,
-  Building2,
-  CalendarClock,
-  CheckCircle2,
-  Clock3,
-  MessageSquareWarning,
-  LogIn,
-  ShieldCheck,
-  Sparkles,
-  UserRoundPlus,
-} from 'lucide-react';
+import { ArrowLeft, LogIn, PackageCheck } from 'lucide-react';
 
 import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
 import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
-import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { resolveSignupMethodLabel } from '@/lib/auth/signup-presentation';
 import { resolveVerifiedSignupAvailability } from '@/lib/auth/verified-signup';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
@@ -27,47 +21,8 @@ import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 export const metadata: Metadata = {
   title: '註冊新帳號 | Smart Return',
   description:
-    '註冊 Smart Return 帳號並開始 3 天免費試用，或提交導入需求由專人協助。不需信用卡，也不會自動扣款。',
+    '註冊 Smart Return 帳號並開始 3 天免費試用。不需信用卡，也不會自動扣款。',
 };
-
-const onboardingSteps = [
-  [
-    CalendarClock,
-    '送出申請',
-    '填寫上述資訊送出。我們會在 1 個工作天內回覆，沒有自動產生帳號的步驟。',
-  ],
-  [
-    MessageSquareWarning,
-    '30 分鐘 Demo',
-    '一起看你目前的退貨流程，確認 Smart Return 是否真的能解決你的問題。',
-  ],
-  [
-    UserRoundPlus,
-    '開通帳號',
-    '建立品牌帳號、Owner 與團隊邀請。Beta 期一切由我們手動協助。',
-  ],
-  [
-    Sparkles,
-    '匯入第一批退貨資料',
-    '協助匯入你現有的退貨資料（Excel / 蝦皮匯出）。第一週內進入日常使用。',
-  ],
-] as const;
-
-function buildSelfServiceSteps(methodLabel: string) {
-  return [
-    [LogIn, '建立並驗證帳號', `使用 ${methodLabel} 完成帳號註冊與身分驗證。`],
-    [Building2, '設定品牌與方案', '填寫品牌名稱並選擇入門版或成長版試用方案。'],
-    [UserRoundPlus, '立即建立工作區', '系統建立品牌工作區與 Owner 權限，3 天試用從現在開始。'],
-    [Sparkles, '匯入第一批退貨資料', '從蝦皮匯出資料開始，或手動建立第一筆退貨。'],
-  ] as const;
-}
-
-const reassurances = [
-  [BadgeCheck, '不需信用卡', '3 天試用完全不綁卡。試用結束不會自動扣款。'],
-  [Clock3, '隨時取消', '試用期內或付費後皆可隨時停用，不綁約。'],
-  [ShieldCheck, '資料獨立隔離', '你的退貨與客戶資料只屬於你，不會跟其他品牌混在一起。'],
-  [Sparkles, 'Beta 限 5 家免費導入', '前 5 家品牌享免費協助匯入第一批退貨資料，現在還有名額。'],
-] as const;
 
 interface SignupPageProps {
   searchParams?: Promise<{ plan?: string | string[] }>;
@@ -94,86 +49,71 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
     emailEnabled: verifiedSignup.emailEnabled,
     phoneEnabled: verifiedSignup.phoneEnabled,
   });
-  const steps = selfServiceEnabled && signupMethodLabel
-    ? buildSelfServiceSteps(signupMethodLabel)
-    : onboardingSteps;
   const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
-    <MarketingShell>
-      <PageHeader
-        eyebrow={selfServiceEnabled ? '註冊帳號' : '申請試用'}
-        title={selfServiceEnabled ? '建立新帳號，開始 3 天免費試用。' : '申請 3 天免費試用 + Beta 期免費協助導入。'}
-        description={selfServiceEnabled
-          ? `不需信用卡。使用 ${signupMethodLabel} 建立帳號，確認品牌與方案後即可建立工作區；需要導入協助，也可提交申請由專人聯絡。`
-          : '不需信用卡。送出申請後我們會在 1 個工作天內回覆，安排 30 分鐘 Demo 並協助你匯入第一批退貨資料。'}
-      />
+    <main className="flex min-h-screen items-center justify-center bg-neutral-50 p-4 py-10 sm:py-14">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <Link
+            href="/"
+            className="mx-auto mb-4 inline-flex size-16 items-center justify-center rounded-2xl bg-emerald-100 transition-colors hover:bg-emerald-200"
+            aria-label="返回首頁"
+          >
+            <PackageCheck className="size-8 text-emerald-700" aria-hidden="true" />
+          </Link>
+          <p className="text-2xl font-bold text-neutral-950">Smart Return</p>
+          <p className="mt-2 text-neutral-500">建立你的退貨工作區</p>
+        </div>
 
-      <section className="bg-white py-14">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          {/* Application card */}
-          <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-6">
-            <div className="flex items-center justify-between gap-3">
-              <UserRoundPlus className="size-6 text-emerald-700" />
-              <Badge className="bg-amber-500 hover:bg-amber-500">
-                {selfServiceEnabled ? '自助試用開放' : signupState.statusLabel}
-              </Badge>
-            </div>
-            <h2 className="mt-5 text-2xl font-semibold text-neutral-950">
-              {selfServiceEnabled ? '建立 Smart Return 帳號' : signupState.headline}
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-700">
+        <Card className="border bg-white shadow-lg" data-testid="signup-card">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl">
+              <h1>建立帳號</h1>
+            </CardTitle>
+            <CardDescription className="leading-6">
               {selfServiceEnabled
-                ? '完成帳號驗證即可建立工作區；若有資料匯入或流程評估需求，可再填寫下方表單。'
+                ? `使用 ${signupMethodLabel} 完成註冊，立即開始 3 天免費試用。`
                 : signupState.description}
-            </p>
+            </CardDescription>
+          </CardHeader>
 
-            <div className="mt-6 rounded-md border border-emerald-200 bg-white p-4">
-              {googleTrialEnabled && (
-                <>
-                  <Button asChild className="w-full">
-                    <Link href={`/auth/google?plan=${googleTrialPlan}`}>
-                      <LogIn className="size-4" aria-hidden="true" />
-                      使用 Google 註冊或登入
-                    </Link>
-                  </Button>
-                  <p className="mt-2 text-center text-xs text-neutral-500">
-                    3 天免費、不需信用卡、不會自動扣款
-                  </p>
-                  <div className="my-5 flex items-center gap-3" aria-hidden="true">
-                    <div className="h-px flex-1 bg-neutral-200" />
-                    <span className="text-xs text-neutral-400">
-                      {verifiedSignupEnabled ? '或使用驗證碼註冊' : '需要導入協助？提交申請'}
-                    </span>
-                    <div className="h-px flex-1 bg-neutral-200" />
-                  </div>
-                </>
-              )}
-              {verifiedSignupEnabled ? (
-                <VerifiedSignupForm
-                  emailEnabled={verifiedSignup.emailEnabled}
-                  phoneEnabled={verifiedSignup.phoneEnabled}
-                  initialPlan={initialPlan}
-                  turnstileSiteKey={verifiedSignup.turnstileSiteKey}
-                />
-              ) : null}
-              {verifiedSignupEnabled ? (
-                <div className="my-5 flex items-center gap-3" aria-hidden="true">
-                  <div className="h-px flex-1 bg-neutral-200" />
-                  <span className="text-xs text-neutral-400">需要導入協助？提交申請</span>
-                  <div className="h-px flex-1 bg-neutral-200" />
-                </div>
-              ) : null}
-              <LeadCaptureForm
-                variant="signup"
-                contactEmail={contactEmail}
+          <CardContent>
+            {googleTrialEnabled ? (
+              <>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/auth/google?plan=${googleTrialPlan}`}>
+                    <LogIn className="size-4" aria-hidden="true" />
+                    使用 Google 註冊或登入
+                  </Link>
+                </Button>
+                <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
+                  3 天免費、不需信用卡、不會自動扣款
+                </p>
+              </>
+            ) : null}
+
+            {googleTrialEnabled && verifiedSignupEnabled ? (
+              <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                <div className="h-px flex-1 bg-neutral-200" />
+                <span className="text-xs text-neutral-400">或使用手機／信箱驗證碼</span>
+                <div className="h-px flex-1 bg-neutral-200" />
+              </div>
+            ) : null}
+
+            {verifiedSignupEnabled ? (
+              <VerifiedSignupForm
+                emailEnabled={verifiedSignup.emailEnabled}
+                phoneEnabled={verifiedSignup.phoneEnabled}
                 initialPlan={initialPlan}
-                leadCaptureEnabled={featureFlags.public_lead_capture}
-                lineOaId={lineOaId}
+                turnstileSiteKey={verifiedSignup.turnstileSiteKey}
               />
-              {selfServiceEnabled ? (
-                <p className="mt-5 text-center text-sm text-neutral-600">
-                  已經有帳號？
+            ) : null}
+
+            {selfServiceEnabled ? (
+              <>
+                <p className="mt-6 text-center text-sm text-neutral-600">
+                  已有帳號？
                   <Link
                     href="/login"
                     className="ml-1 font-medium text-emerald-700 underline-offset-2 hover:underline"
@@ -181,66 +121,54 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                     返回登入
                   </Link>
                 </p>
-              ) : null}
-            </div>
-          </div>
 
-          {/* Onboarding steps */}
-          <div className="grid gap-4">
-            <div className="mb-2">
-              <p className="text-sm font-semibold text-emerald-700">
-                {selfServiceEnabled ? '自助試用會發生什麼' : '送出申請後會發生什麼'}
-              </p>
-              <h3 className="mt-1 text-lg font-semibold text-neutral-950">
-                清楚告訴你接下來 4 步。
-              </h3>
-            </div>
-            {steps.map(([Icon, title, body], index) => (
-              <div
-                key={title}
-                className="grid grid-cols-[2.5rem_1fr] gap-4 rounded-lg border border-neutral-200 p-5"
-              >
-                <div className="flex size-10 items-center justify-center rounded-md bg-neutral-950 text-sm font-semibold text-white">
-                  {index + 1}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Icon className="size-4 text-emerald-700" />
-                    <h2 className="text-base font-semibold text-neutral-950">{title}</h2>
+                <details
+                  className="mt-5 border-t border-neutral-200 pt-5"
+                  data-testid="signup-support-details"
+                >
+                  <summary className="cursor-pointer text-center text-sm font-medium text-neutral-600 hover:text-neutral-950">
+                    需要專人協助？
+                  </summary>
+                  <div className="mt-5 rounded-lg bg-neutral-50 p-4">
+                    <p className="mb-4 text-sm leading-6 text-neutral-600">
+                      若需要資料匯入或流程評估，留下資訊後將由專人聯絡。
+                    </p>
+                    <LeadCaptureForm
+                      variant="signup"
+                      contactEmail={contactEmail}
+                      initialPlan={initialPlan}
+                      leadCaptureEnabled={featureFlags.public_lead_capture}
+                      lineOaId={lineOaId}
+                    />
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-neutral-600">{body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+                </details>
+              </>
+            ) : (
+              <LeadCaptureForm
+                variant="signup"
+                contactEmail={contactEmail}
+                initialPlan={initialPlan}
+                leadCaptureEnabled={featureFlags.public_lead_capture}
+                lineOaId={lineOaId}
+              />
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Reassurances */}
-      <section className="bg-neutral-50 py-14">
-        <div className="mx-auto grid max-w-7xl gap-4 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
-          {reassurances.map(([Icon, title, body]) => (
-            <div key={title} className="rounded-lg border border-neutral-200 bg-white p-5">
-              <Icon className="size-5 text-emerald-700" />
-              <h3 className="mt-4 text-base font-semibold text-neutral-950">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-neutral-600">{body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+        <p className="mt-6 text-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            返回首頁
+          </Link>
+        </p>
 
-      <section className="border-t border-neutral-200 bg-white py-10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 text-sm text-neutral-600 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <div className="flex items-center gap-2">
-            <BadgeCheck className="size-4 text-emerald-700" />
-            <span>申請與帳號開通皆保留完整操作紀錄，可追溯。</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-4 text-cyan-700" />
-            <span>AI 額度依方案設定有上限，不會出現意外大額扣款。</span>
-          </div>
-        </div>
-      </section>
-    </MarketingShell>
+        <p className="mt-4 text-center text-xs text-neutral-400">
+          © {new Date().getFullYear()} Smart Return. All rights reserved.
+        </p>
+      </div>
+    </main>
   );
 }

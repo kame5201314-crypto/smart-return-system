@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,25 +29,6 @@ vi.mock('@/lib/saas/public-signup', () => ({
     headline: '目前採申請制',
     description: '請先送出申請。',
   }),
-}));
-
-vi.mock('@/components/marketing/site-shell', () => ({
-  MarketingShell: ({ children }: { children: ReactNode }) => <>{children}</>,
-  PageHeader: ({
-    eyebrow,
-    title,
-    description,
-  }: {
-    eyebrow: string;
-    title: string;
-    description: string;
-  }) => (
-    <header>
-      <p>{eyebrow}</p>
-      <h1>{title}</h1>
-      <p>{description}</p>
-    </header>
-  ),
 }));
 
 vi.mock('@/components/auth/verified-signup-form', () => ({
@@ -100,13 +81,14 @@ describe('SignupPage feature composition', () => {
 
     await renderSignup('growth');
 
-    expect(screen.getByRole('heading', { name: '建立新帳號，開始 3 天免費試用。' }))
-      .toBeInTheDocument();
-    expect(screen.getByText(/使用 Google 建立帳號/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '建立帳號' })).toBeInTheDocument();
+    expect(screen.getByText(/使用 Google 完成註冊/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '使用 Google 註冊或登入' }))
       .toHaveAttribute('href', '/auth/google?plan=growth');
     expect(screen.queryByTestId('verified-signup-form')).not.toBeInTheDocument();
     expect(screen.getByTestId('lead-capture-form')).toHaveAttribute('data-plan', 'growth');
+    expect(screen.getByTestId('signup-support-details')).not.toHaveAttribute('open');
+    expect(screen.queryByText('清楚告訴你接下來 4 步。')).not.toBeInTheDocument();
   });
 
   it('renders only the enabled Email verification channel', async () => {
@@ -115,7 +97,7 @@ describe('SignupPage feature composition', () => {
 
     await renderSignup('basic');
 
-    expect(screen.getByText(/使用 電子信箱驗證碼 建立帳號/)).toBeInTheDocument();
+    expect(screen.getByText(/使用 電子信箱驗證碼 完成註冊/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '使用 Google 註冊或登入' }))
       .not.toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
@@ -130,7 +112,7 @@ describe('SignupPage feature composition', () => {
 
     await renderSignup('growth');
 
-    expect(screen.getByText(/使用 台灣手機驗證碼 建立帳號/)).toBeInTheDocument();
+    expect(screen.getByText(/使用 台灣手機驗證碼 完成註冊/)).toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-email-enabled', 'false');
     expect(screen.getByTestId('verified-signup-form'))
@@ -141,9 +123,8 @@ describe('SignupPage feature composition', () => {
   it('falls back to the application flow when every self-service method is closed', async () => {
     await renderSignup();
 
-    expect(screen.getByRole('heading', {
-      name: '申請 3 天免費試用 + Beta 期免費協助導入。',
-    })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '建立帳號' })).toBeInTheDocument();
+    expect(screen.getByText('請先送出申請。')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '使用 Google 註冊或登入' }))
       .not.toBeInTheDocument();
     expect(screen.queryByTestId('verified-signup-form')).not.toBeInTheDocument();
