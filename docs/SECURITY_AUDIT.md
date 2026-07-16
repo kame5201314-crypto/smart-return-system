@@ -7,7 +7,7 @@
 - Production 現況：runtime `a29f725`、Ready deployment
   `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`，網址
   `https://smart-return-system-saas.vercel.app`（Closed Manual Beta）。後續安全
-  hardening through `6905ce3` 已推送、尚未部署。
+  hardening through `44bd903` 已推送、尚未部署。
 
 ---
 
@@ -37,11 +37,11 @@
 | 前端無敏感金鑰 | `NEXT_PUBLIC_*` 僅 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`APP_URL`、`CONTACT_EMAIL`（anon key 設計上即公開）；service role key 未以 `NEXT_PUBLIC_` 暴露 | ✅ |
 | 無 XSS sink | 全專案 0 個 `dangerouslySetInnerHTML` | ✅ |
 | Rate limiting（真實程式碼） | `lib/auth/admin-login-rate-limit.ts`、`lib/actions/auth.ts`、`lib/actions/customer-return.actions.ts`、`app/api/saas/signup`、`app/api/v1/upload/*` | ✅ |
-| Legacy admin CAPTCHA | Commit `36e21fd`：server-side Siteverify 驗證 token、`password_login` action、trusted hostname、timeout；失敗在密碼比對前 fail closed 並計入 rate limit | ✅（repo，未 deploy） |
-| 密碼復原安全 | Commit `efe50ee`：泛化寄送回應、`shouldCreateUser=false`、new-session/user/contact match、10 分鐘 signed HttpOnly proof、guarded reset action、global sign-out | ✅（repo，flags off） |
+| Legacy admin CAPTCHA | Commits `36e21fd`、`063633b`：server-side Siteverify 驗證 token、`password_login` action、trusted hostname、timeout；一般挑戰失敗在密碼比對前 fail closed 並計入 rate limit，provider/configuration outage 不會鎖住正常管理員 | ✅（repo，未 deploy） |
+| 密碼復原與註冊 session 安全 | Commits `efe50ee`、`91d1b1c`、`679f067`：泛化寄送回應、`shouldCreateUser=false`、new-session/user/contact match、10 分鐘 signed HttpOnly proof、失敗 session cleanup、同步防重送、guarded reset action，且 global sign-out 失敗不誤報成功 | ✅（repo，flags off） |
 | 公開寫入面驗證 | 消費者退貨 portal 寫入經 `customerReturnSchema`（zod）驗證 + 欄位長度上限 + 手機 regex | ✅ |
 | ECPay webhook | `app/api/billing/ecpay/webhook/route.ts` + `CheckMacValue` 簽章驗證（Billing 目前停用） | ✅ |
-| 相依套件漏洞 | `npm audit --omit=dev`：1 low / 4 moderate / **0 high / 0 critical**；完整 audit 為 1 low / 5 moderate / **0 high / 0 critical**。剩餘 Next/PostCSS 與 ExcelJS/UUID 路徑需 breaking upgrade，不使用 `--force` 自動修正 | ✅ |
+| 相依套件漏洞 | Commits `d411a4b`、`44bd903`：production high/critical CI gate；`npm audit --omit=dev` 與完整 audit 均為 0 low / 4 moderate / **0 high / 0 critical**。剩餘 Next/PostCSS 與 ExcelJS/UUID 路徑需 breaking change，不使用 `--force` 自動修正 | ✅ |
 
 > **備份說明（需 owner 確認，非本稽核可驗證）**：repo 內已實作**應用層 backup cron gating**；但 Supabase **平台層的每日自動備份是否啟用**屬 Supabase Dashboard 設定，無法從 repo 驗證。owner 應於 Supabase Dashboard 確認 daily backup 已開啟。
 

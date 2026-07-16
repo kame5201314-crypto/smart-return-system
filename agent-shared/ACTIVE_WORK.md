@@ -1,5 +1,33 @@
 # Active Work
 
+## 2026-07-16 Auth Follow-up And Dependency Gates
+
+Status: done
+
+Scope: Close repo-only auth session, duplicate-submit, logout reporting,
+production smoke, and dependency-audit gaps without external changes.
+
+Notes: Commits `91d1b1c`, `679f067`, `063633b`, `74069ae`, `d411a4b`, and
+`44bd903` are pushed to `origin/develop-saas`. Verified signup now requires a
+new OTP session, clears it when post-verification identity checks fail, and
+coalesces rapid signup/verify/resend submissions. Password recovery no longer
+claims all devices were signed out when global revocation fails. Admin errors
+are Traditional Chinese, CAPTCHA provider/configuration outages remain
+fail-closed without consuming password-failure lockout quota, and auth rate
+errors no longer misclassify words such as `generate`. Production smoke covers
+recovery routes with bounded fetch timeouts. CI rejects new high/critical
+production advisories, while a non-force lock refresh removed the fixable Babel
+and js-yaml advisories. Current audit is 0 low / 4 moderate / 0 high / 0
+critical; remaining Next/PostCSS and ExcelJS/UUID paths require breaking npm
+changes and were not forced.
+
+Final validation passed: reproducible `npm ci`, lint, typecheck, script checks
+21/21, backend 16/16, unit 595/595, UI 27/27, E2E 4/4, integration 5/5, and
+Production build (68 generated pages). These commits are not deployed. No
+migration, env/secret, provider, Vercel/Supabase, Billing, DNS, or Production
+setting changed; OTP/recovery flags remain false and migration `044` remains
+unapplied.
+
 ## 2026-07-16 Auth Recovery And CAPTCHA Hardening
 
 Status: done
@@ -61,9 +89,9 @@ Notes: Commits `6298418`, `9995b90`, `b40797b`, `e2fdab9`, `0bfb118`,
 billing fallback states, explain every read-only workspace state, include UI
 regressions in `test:all`, update Vitest and Sentry security fixes, mark the
 already-applied migrations `030` and `040`–`043` accurately, and lock the dev-auth and
-schema-drift endpoints fail-closed with regression tests. The full audit is now
-1 low / 5 moderate / 0 high / 0 critical; production dependencies are 1 low /
-4 moderate / 0 high / 0 critical. These follow-up commits have not been
+schema-drift endpoints fail-closed with regression tests. After the later
+non-force lock refresh, full and production audits are both
+0 low / 4 moderate / 0 high / 0 critical. These follow-up commits have not been
 deployed. Production remains runtime `a29f725` on Ready deployment
 `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`. No migration, env/secret, Vercel,
 Supabase, DNS, billing, or email-provider setting was changed in this work.
@@ -106,7 +134,7 @@ Notes: Lead capture is independently gated from public signup. Owner-authorized 
 
 ## Current
 
-2026-07-16 auth repository work is complete and pushed through `54bbeb7`,
+2026-07-16 auth repository work is complete and pushed through `44bd903`,
 including verified signup, phone-only team settings, guarded password recovery,
 and server-side legacy admin Turnstile. All new signup/recovery flags remain
 fail-closed. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA provider
@@ -119,7 +147,7 @@ deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). Production smoke passed
 zero errors. Google Auth, automatic 3-day trials, single-use trial AI, scoped
 expiry, public lead capture, and platform admin operations are enabled. Public
 signup, billing, email delivery, and providers remain disabled. Repository
-hardening through `54bbeb7` is pushed but not deployed. The older snapshot below
+hardening through `44bd903` is pushed but not deployed. The older snapshot below
 is retained only as historical context where it does not conflict with this
 update.
 

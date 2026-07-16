@@ -6093,3 +6093,29 @@ The owner subsequently authorized completing the Production rollout:
   build gates were skipped as designed; no placeholder, secret, migration,
   deploy, provider, Vercel/Supabase, Billing, DNS, or Production change was
   made.
+
+## 2026-07-16 Auth Follow-up And Dependency Gates
+
+- `91d1b1c fix(auth): harden verified signup sessions` requires a new OTP
+  session bound to the confirmed user, clears failed post-verify sessions, and
+  coalesces rapid signup/verify/resend submissions.
+- `679f067 fix(auth): report incomplete recovery logout` no longer reports full
+  success when global session revocation fails, even if local logout succeeds.
+- `063633b fix(auth): clarify login failure handling` localizes admin failures,
+  keeps CAPTCHA provider/configuration outages from consuming password lockout
+  quota, and fixes rate-error substring classification.
+- `74069ae test(saas): cover password recovery smoke` adds public recovery and
+  anonymous reset redirects plus bounded request timeouts.
+- `d411a4b ci(saas): gate production dependency risk` blocks new high/critical
+  production advisories without mutating dependencies.
+- `44bd903 chore(deps): refresh audited transitive packages` updates only the
+  lockfile through non-force remediation. Audit is now 0 low / 4 moderate / 0
+  high / 0 critical; no breaking Next or ExcelJS downgrade was accepted.
+- All commits are pushed to `origin/develop-saas`. Validation passed:
+  reproducible `npm ci`, lint, typecheck, scripts 21/21, backend 16/16, unit
+  595/595, UI 27/27, E2E 4/4, integration 5/5, and Production build with 68
+  generated pages.
+- These changes are not deployed. No migration, env/secret, SMTP/SMS/CAPTCHA
+  provider, Vercel/Supabase, Billing, DNS, or Production setting changed.
+  Migration `044` remains unapplied and all OTP/recovery rollout flags remain
+  false.

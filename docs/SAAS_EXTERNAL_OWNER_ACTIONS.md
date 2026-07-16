@@ -18,7 +18,8 @@ recovery rollout, use
 
 ## 2026-07-16 Auth Repository Work Completed
 
-- `6eafe1a`, `efe50ee`, `36e21fd`, and `54bbeb7` are pushed to
+- `6eafe1a`, `efe50ee`, `36e21fd`, `54bbeb7`, `91d1b1c`, `679f067`,
+  `063633b`, `74069ae`, `d411a4b`, and `44bd903` are pushed to
   `origin/develop-saas`.
 - Phone-only team settings, guarded Email/Phone password recovery, and legacy
   admin server-side Turnstile validation are repository-complete.
@@ -52,7 +53,7 @@ recovery rollout, use
   `https://smart-return-system-saas.vercel.app`.
 - The 2026-07-15 post-deploy smoke passed 16/16, OAuth recovery browser QA
   passed, and the deployment error-log scan returned zero errors.
-- Repository hardening commits through `54bbeb7` are pushed to
+- Repository hardening commits through `44bd903` are pushed to
   `origin/develop-saas`; migration-status correction `d397ea2` is also pushed.
   They have not been deployed. Production therefore
   remains at `a29f725` until a separately authorized deployment.

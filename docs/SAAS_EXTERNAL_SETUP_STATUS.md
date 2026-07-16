@@ -10,7 +10,12 @@
   rollout checks.
 - `54bbeb7` reads the legacy admin credential at request time and stabilizes the
   regression suite under the complete 104-file unit run.
-- These commits are pushed to `origin/develop-saas` but are not a Production
+- `91d1b1c`, `679f067`, and `063633b` harden verified-signup session cleanup,
+  duplicate-submit handling, password-recovery logout reporting, Traditional
+  Chinese admin failures, and CAPTCHA outage lockout classification.
+- `74069ae`, `d411a4b`, and `44bd903` add bounded recovery production smoke,
+  a production high/critical dependency gate, and non-force transitive fixes.
+- These commits through `44bd903` are pushed to `origin/develop-saas` but are not a Production
   deployment. Recovery flags remain `false`; no CAPTCHA, SMTP/SMS provider,
   Vercel/Supabase env, migration, billing, DNS, or external setting changed.
 - Rollout requirements are documented in
@@ -145,8 +150,7 @@ for the controlled customer handoff and first-session walkthrough.
   `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC`, aliased to
   `https://smart-return-system-saas.vercel.app`. The 2026-07-15 smoke passed
   16/16, OAuth recovery browser QA passed, and the error-log scan found zero
-  errors. Repository hardening through `6905ce3` and migration-status correction
-  `d397ea2` are pushed but not deployed.
+  errors. Repository hardening through `44bd903` is pushed but not deployed.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - Migration `033_saas_platform_billing_operations.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `033` as applied. It adds `perform_platform_billing_operation()` for manual payment marking, suspend/resume, refund request, and audit logging.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
@@ -191,10 +195,19 @@ for the controlled customer handoff and first-session walkthrough.
 - Browser-driven mutation APIs now share a same-origin guard that rejects explicit cross-site `Origin`, `Referer`, or Fetch Metadata requests before route handlers run. ECPay webhook, cron, and schema alert routes are intentionally excluded because they are provider/secret-gated server-to-server endpoints.
 - Public signup API now has best-effort, per-runtime request throttling. Public signup is still closed by `ENABLE_PUBLIC_SIGNUP=false`, but the route is safer for a future controlled rollout.
 - Non-UI lint cleanup removed unused local variables from Codex-owned `lib/**` and `scripts/**` paths. The 2026-06-05 UI QA pass observed `npm run lint` with no warnings.
-- Dependency hardening through `6905ce3` leaves the full audit at 1 low / 5 moderate / 0 high / 0 critical and production dependencies at 1 low / 4 moderate / 0 high / 0 critical. Remaining findings are in Babel/Next/PostCSS and ExcelJS/UUID paths; npm only offers breaking `--force` changes for the unresolved production paths, so they remain tracked instead of being force-applied.
-- `GEMINI_API_KEY` is set for the SaaS environment.
-- Local Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite acceptance, settings, and platform admin read pages have been smoke tested.
-- Local `.env.saas.local` admin credentials are non-placeholder for Manual Beta checks; SaaS Vercel/production admin credentials still need owner review before public rollout.
+- Dependency hardening through `44bd903` leaves both the full and production
+  audits at 0 low / 4 moderate / 0 high / 0 critical. The fixable Babel and
+  js-yaml advisories were removed without `--force`; remaining findings are in
+  Next/PostCSS and ExcelJS/UUID paths and require breaking changes, so they
+  remain tracked instead of being force-applied.
+- `GEMINI_API_KEY` was confirmed configured for the Production SaaS environment
+  during the prior rollout; no value is stored in this repository.
+- Manual Beta owner/invitee login, protected pages, exports, AI analyze, invite
+  acceptance, settings, and platform admin read pages were smoke tested from a
+  separately configured checkout.
+- That earlier Manual Beta checkout used non-placeholder local admin
+  credentials. This clean clone does not contain `.env.saas.local`; no
+  credential or placeholder was copied or created here.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
@@ -2251,12 +2264,12 @@ for the controlled customer handoff and first-session walkthrough.
 
 ## Verification Notes
 
-- The post-rollout repository hardening run completed `npm ci`, lint, typecheck,
-  `test:all`, and the 68-page Production build. `test:all` now includes backend,
-  unit (97 files / 538 tests), UI (5 files / 8 tests), E2E (3 files / 4 tests),
-  and integration (2 files / 5 tests).
-- The full dependency audit is 1 low / 5 moderate / 0 high / 0 critical;
-  production dependencies are 1 low / 4 moderate / 0 high / 0 critical.
+- The latest repository hardening run completed reproducible `npm ci`, lint,
+  typecheck, `test:all`, and the 68-page Production build. `test:all` includes
+  backend (16/16), unit (105 files / 595 tests), UI (8 files / 27 tests), E2E
+  (3 files / 4 tests), and integration (2 files / 5 tests).
+- The full and production dependency audits are both 0 low / 4 moderate / 0
+  high / 0 critical. CI rejects new high/critical production advisories.
 - This clean clone does not contain `.env.saas.local`, so env-backed strict
   checks correctly refuse to run. No placeholder or Production secret was
   created. Static migration tests and encoding checks pass.
