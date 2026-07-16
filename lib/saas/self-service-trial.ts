@@ -6,6 +6,15 @@ import {
 } from '@/lib/auth/verified-signup';
 import { createInMemoryRateLimiter } from '@/lib/security/request-rate-limit';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import type {
+  SaaSLeadContactChannel,
+  SaaSMonthlyReturnBand,
+} from '@/lib/saas/lead-capture';
+import {
+  createDefaultSelfServiceTrialProfileRepository,
+  type SelfServiceTrialProfileRecord,
+  type SelfServiceTrialProfileRepository,
+} from '@/lib/saas/self-service-trial-profile';
 
 export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-15-v2';
 
@@ -20,6 +29,7 @@ export type SelfServiceTrialErrorCode =
   | 'invalid_request'
   | 'rate_limited'
   | 'trial_already_claimed'
+  | 'profile_persistence_failed'
   | 'not_configured'
   | 'provision_failed';
 
@@ -45,6 +55,13 @@ export interface SelfServiceTrialIdentity {
 
 export interface SelfServiceTrialInput {
   orgName: string;
+  contactName: string;
+  contactPhone: string;
+  lineId: string | null;
+  preferredContactChannel: SaaSLeadContactChannel;
+  platform: string;
+  monthlyReturnBand: SaaSMonthlyReturnBand;
+  referralCode: string | null;
   plan: SelfServiceTrialPlan;
   termsVersion: string;
   idempotencyKey: string;
@@ -113,6 +130,60 @@ function requiredString(value: unknown, field: string, maxLength: number): strin
   return normalized;
 }
 
+function optionalString(value: unknown, field: string, maxLength: number): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') {
+    throw new SelfServiceTrialError('invalid_request', 400, `${field} must be a string.`);
+  }
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (normalized.length > maxLength) {
+    throw new SelfServiceTrialError(
+      'invalid_request',
+      400,
+      `${field} must contain at most ${maxLength} characters.`
+    );
+  }
+  return normalized;
+}
+
+function normalizeContactPhone(value: unknown): string {
+  const phone = requiredString(value, 'contactPhone', 40);
+  try {
+    return normalizeTaiwanPhoneIdentifier(phone);
+  } catch {
+    throw new SelfServiceTrialError(
+      'invalid_request',
+      400,
+      'contactPhone must be a valid Taiwan mobile number.'
+    );
+  }
+}
+
+function normalizePreferredContactChannel(value: unknown): SaaSLeadContactChannel {
+  if (value === 'email' || value === 'phone' || value === 'line') return value;
+  throw new SelfServiceTrialError(
+    'invalid_request',
+    400,
+    'preferredContactChannel must be email, phone, or line.'
+  );
+}
+
+function normalizeMonthlyReturnBand(value: unknown): SaaSMonthlyReturnBand {
+  if (
+    value === 'under_30' ||
+    value === '30_100' ||
+    value === '101_300' ||
+    value === '301_800' ||
+    value === 'over_800'
+  ) return value;
+  throw new SelfServiceTrialError(
+    'invalid_request',
+    400,
+    'monthlyReturnBand is invalid.'
+  );
+}
+
 function normalizePlan(value: unknown): SelfServiceTrialPlan {
   if (value === 'basic' || value === 'growth') return value;
   throw new SelfServiceTrialError(
@@ -171,6 +242,15 @@ export function normalizeSelfServiceTrialInput(value: unknown): SelfServiceTrial
 
   return {
     orgName: requiredString(value.orgName, 'orgName', 120),
+    contactName: requiredString(value.contactName, 'contactName', 120),
+    contactPhone: normalizeContactPhone(value.contactPhone),
+    lineId: optionalString(value.lineId, 'lineId', 80),
+    preferredContactChannel: normalizePreferredContactChannel(
+      value.preferredContactChannel
+    ),
+    platform: requiredString(value.platform, 'platform', 80),
+    monthlyReturnBand: normalizeMonthlyReturnBand(value.monthlyReturnBand),
+    referralCode: optionalString(value.referralCode, 'referralCode', 64),
     plan: normalizePlan(value.plan),
     termsVersion,
     idempotencyKey: requiredString(value.idempotencyKey, 'idempotencyKey', 100),
@@ -325,6 +405,7 @@ export async function provisionSelfServiceTrial(
     identity: SelfServiceTrialIdentity | null;
     env?: Record<string, string | undefined>;
     repository?: SelfServiceTrialRepository;
+    profileRepository?: SelfServiceTrialProfileRepository;
     rateLimiter?: SelfServiceTrialRateLimiter;
     now?: Date;
   }
@@ -375,6 +456,61 @@ export async function provisionSelfServiceTrial(
   }
 
   const input = normalizeSelfServiceTrialInput(value);
+  if (input.preferredContactChannel === 'email' && !ownerEmail) {
+    throw new SelfServiceTrialError(
+      'invalid_request',
+      400,
+      'A verified email is required for email contact preference.'
+    );
+  }
+  if (input.preferredContactChannel === 'line' && !input.lineId) {
+    throw new SelfServiceTrialError(
+      'invalid_request',
+      400,
+      'lineId is required for line contact preference.'
+    );
+  }
+
+  // A verified phone identity is the source of truth for its contact phone.
+  // Google and Email identities may still supply a format-validated, unverified
+  // contact phone, which is marked accordingly in profile metadata.
+  const effectiveInput: SelfServiceTrialInput = {
+    ...input,
+    contactPhone: ownerPhone ?? input.contactPhone,
+  };
+
+  const acceptedAt = (options.now ?? new Date()).toISOString();
+  let profileRepository = options.profileRepository;
+  if (!profileRepository) {
+    try {
+      profileRepository = createDefaultSelfServiceTrialProfileRepository();
+    } catch {
+      throw new SelfServiceTrialError(
+        'not_configured',
+        503,
+        'Trial customer profile persistence is not configured.'
+      );
+    }
+  }
+
+  let customerProfile: SelfServiceTrialProfileRecord;
+  try {
+    customerProfile = await profileRepository.getOrCreate({
+      ...effectiveInput,
+      ownerUserId: options.identity.userId,
+      identityProvider: options.identity.provider,
+      ownerEmail,
+      ownerPhone,
+      termsAcceptedAt: acceptedAt,
+    });
+  } catch {
+    throw new SelfServiceTrialError(
+      'profile_persistence_failed',
+      500,
+      'Failed to save trial customer profile.'
+    );
+  }
+
   let repository = options.repository;
   if (!repository) {
     try {
@@ -388,12 +524,36 @@ export async function provisionSelfServiceTrial(
     }
   }
 
-  return repository.provision({
-    ...input,
+  const result = await repository.provision({
+    ...effectiveInput,
     ownerUserId: options.identity.userId,
     ownerEmail,
     ownerPhone,
     identityProvider: options.identity.provider,
-    termsAcceptedAt: (options.now ?? new Date()).toISOString(),
+    termsAcceptedAt: acceptedAt,
   });
+
+  if (customerProfile.orgId && customerProfile.orgId !== result.orgId) {
+    throw new SelfServiceTrialError(
+      'profile_persistence_failed',
+      500,
+      'Trial customer profile is linked to a different workspace.'
+    );
+  }
+
+  try {
+    await profileRepository.markConverted({
+      profileId: customerProfile.id,
+      orgId: result.orgId,
+      convertedAt: acceptedAt,
+    });
+  } catch {
+    throw new SelfServiceTrialError(
+      'profile_persistence_failed',
+      500,
+      'Failed to link trial customer profile.'
+    );
+  }
+
+  return result;
 }

@@ -45,10 +45,10 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
   const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
   const verifiedSignupDescription = verifiedSignup.emailEnabled && verifiedSignup.phoneEnabled
-    ? '使用手機號碼或電子信箱完成驗證，立即開始 3 天免費試用。'
+    ? '先完成手機號碼或電子信箱驗證，再補齊商家資料。'
     : verifiedSignup.emailEnabled
-      ? '使用電子信箱完成驗證，立即開始 3 天免費試用。'
-      : '使用台灣手機號碼完成驗證，立即開始 3 天免費試用。';
+      ? '先完成電子信箱驗證，再補齊商家資料。'
+      : '先完成台灣手機號碼驗證，再補齊商家資料。';
   const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
@@ -75,7 +75,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               {selfServiceEnabled
                 ? verifiedSignupEnabled
                   ? verifiedSignupDescription
-                  : '使用 Google 完成註冊，立即開始 3 天免費試用。'
+                  : '使用 Google 驗證登入身分，接著完成商家資料。'
                 : signupState.description}
             </CardDescription>
           </CardHeader>
@@ -101,11 +101,11 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                 >
                   <Link href={`/auth/google?plan=${googleTrialPlan}`}>
                     <GoogleSignInIcon className="size-5" />
-                    使用 Google 註冊或登入
+                    使用 Google 繼續
                   </Link>
                 </Button>
                 <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
-                  3 天免費、不需信用卡、不會自動扣款
+                  驗證後需完成商家資料；3 天免費、不需信用卡
                 </p>
               </>
             ) : null}

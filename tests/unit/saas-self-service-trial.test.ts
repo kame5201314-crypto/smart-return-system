@@ -20,6 +20,13 @@ const identity = {
 
 const payload = {
   orgName: '測試商店',
+  contactName: '王小明',
+  contactPhone: '0912-345-678',
+  lineId: 'smart-return-owner',
+  preferredContactChannel: 'email',
+  platform: '蝦皮',
+  monthlyReturnBand: '30_100',
+  referralCode: 'PARTNER88',
   plan: 'growth',
   termsAccepted: true,
   termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
@@ -36,10 +43,29 @@ const result = {
   reused: false,
 };
 
+function createProfileRepository(orgId: string | null = null) {
+  return {
+    getOrCreate: vi.fn().mockResolvedValue({
+      id: '88888888-8888-4888-8888-888888888888',
+      orgId,
+      status: orgId ? 'converted' : 'pending',
+      reused: Boolean(orgId),
+    }),
+    markConverted: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe('SaaS Google self-service trial contract', () => {
   it('validates the approved plans and current terms version', () => {
     expect(normalizeSelfServiceTrialInput(payload)).toEqual({
       orgName: '測試商店',
+      contactName: '王小明',
+      contactPhone: '+886912345678',
+      lineId: 'smart-return-owner',
+      preferredContactChannel: 'email',
+      platform: '蝦皮',
+      monthlyReturnBand: '30_100',
+      referralCode: 'PARTNER88',
       plan: 'growth',
       termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
@@ -82,6 +108,7 @@ describe('SaaS Google self-service trial contract', () => {
 
   it('normalizes identity and server acceptance time before provisioning', async () => {
     const repository = { provision: vi.fn().mockResolvedValue(result) };
+    const profileRepository = createProfileRepository();
     const actual = await provisionSelfServiceTrial(payload, {
       identity,
       env: {
@@ -89,12 +116,20 @@ describe('SaaS Google self-service trial contract', () => {
         ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
       },
       repository,
+      profileRepository,
       now: new Date('2026-07-14T12:00:00.000Z'),
     });
 
     expect(actual).toEqual(result);
     expect(repository.provision).toHaveBeenCalledWith({
       orgName: '測試商店',
+      contactName: '王小明',
+      contactPhone: '+886912345678',
+      lineId: 'smart-return-owner',
+      preferredContactChannel: 'email',
+      platform: '蝦皮',
+      monthlyReturnBand: '30_100',
+      referralCode: 'PARTNER88',
       plan: 'growth',
       termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
@@ -104,10 +139,36 @@ describe('SaaS Google self-service trial contract', () => {
       identityProvider: 'google',
       termsAcceptedAt: '2026-07-14T12:00:00.000Z',
     });
+    expect(profileRepository.getOrCreate).toHaveBeenCalledWith({
+      orgName: '測試商店',
+      contactName: '王小明',
+      contactPhone: '+886912345678',
+      lineId: 'smart-return-owner',
+      preferredContactChannel: 'email',
+      platform: '蝦皮',
+      monthlyReturnBand: '30_100',
+      referralCode: 'PARTNER88',
+      plan: 'growth',
+      termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
+      idempotencyKey: '22222222-2222-4222-8222-222222222222',
+      ownerUserId: identity.userId,
+      identityProvider: 'google',
+      ownerEmail: 'owner@example.com',
+      ownerPhone: null,
+      termsAcceptedAt: '2026-07-14T12:00:00.000Z',
+    });
+    expect(profileRepository.markConverted).toHaveBeenCalledWith({
+      profileId: '88888888-8888-4888-8888-888888888888',
+      orgId: result.orgId,
+      convertedAt: '2026-07-14T12:00:00.000Z',
+    });
+    expect(profileRepository.getOrCreate.mock.invocationCallOrder[0])
+      .toBeLessThan(repository.provision.mock.invocationCallOrder[0]);
   });
 
   it('ignores an unrelated international secondary phone on Google identities', async () => {
     const repository = { provision: vi.fn().mockResolvedValue(result) };
+    const profileRepository = createProfileRepository();
     await expect(provisionSelfServiceTrial(payload, {
       identity: {
         ...identity,
@@ -119,6 +180,7 @@ describe('SaaS Google self-service trial contract', () => {
         ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
       },
       repository,
+      profileRepository,
     })).resolves.toEqual(result);
 
     expect(repository.provision).toHaveBeenCalledWith(expect.objectContaining({
@@ -157,8 +219,61 @@ describe('SaaS Google self-service trial contract', () => {
     );
   });
 
+  it('persists the customer profile before provisioning and fails closed on storage errors', async () => {
+    const repository = { provision: vi.fn().mockResolvedValue(result) };
+    const profileRepository = {
+      getOrCreate: vi.fn().mockRejectedValue(new Error('private database detail')),
+      markConverted: vi.fn(),
+    };
+
+    await expect(provisionSelfServiceTrial(payload, {
+      identity,
+      env: {
+        ENABLE_GOOGLE_AUTH: 'true',
+        ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      },
+      repository,
+      profileRepository,
+    })).rejects.toMatchObject({
+      code: 'profile_persistence_failed',
+      status: 500,
+      message: 'Failed to save trial customer profile.',
+    });
+    expect(repository.provision).not.toHaveBeenCalled();
+    expect(profileRepository.markConverted).not.toHaveBeenCalled();
+  });
+
+  it('requires a server-verified contact value for the selected preference', async () => {
+    const phoneIdentity = {
+      userId: identity.userId,
+      provider: 'phone_otp' as const,
+      email: null,
+      phone: '0912-345-678',
+      emailVerified: false,
+      phoneVerified: true,
+    };
+    const repository = { provision: vi.fn() };
+    const profileRepository = createProfileRepository();
+
+    await expect(provisionSelfServiceTrial(payload, {
+      identity: phoneIdentity,
+      env: {
+        ENABLE_PHONE_OTP_SIGNUP: 'true',
+        SAAS_AUTH_CAPTCHA_READY: 'true',
+        SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+        SAAS_PHONE_OTP_PROVIDER_READY: 'true',
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
+      },
+      repository,
+      profileRepository,
+    })).rejects.toMatchObject({ code: 'invalid_request', status: 400 });
+    expect(profileRepository.getOrCreate).not.toHaveBeenCalled();
+    expect(repository.provision).not.toHaveBeenCalled();
+  });
+
   it('provisions a verified email identity only when the guarded rollout is ready', async () => {
     const repository = { provision: vi.fn().mockResolvedValue(result) };
+    const profileRepository = createProfileRepository();
     const emailIdentity = {
       ...identity,
       provider: 'email_otp' as const,
@@ -182,6 +297,7 @@ describe('SaaS Google self-service trial contract', () => {
       identity: emailIdentity,
       env,
       repository,
+      profileRepository,
       now: new Date('2026-07-14T12:00:00.000Z'),
     })).resolves.toEqual(result);
     expect(repository.provision).toHaveBeenCalledWith(expect.objectContaining({
@@ -213,7 +329,10 @@ describe('SaaS Google self-service trial contract', () => {
       emailVerified: false,
       phoneVerified: true,
     };
-    const actual = await provisionSelfServiceTrial(payload, {
+    const actual = await provisionSelfServiceTrial({
+      ...payload,
+      preferredContactChannel: 'phone',
+    }, {
       identity: phoneIdentity,
       env: {
         ENABLE_PHONE_OTP_SIGNUP: 'true',
@@ -223,6 +342,7 @@ describe('SaaS Google self-service trial contract', () => {
         NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
       },
       repository,
+      profileRepository: createProfileRepository(),
       now: new Date('2026-07-14T12:00:00.000Z'),
     });
 
@@ -235,6 +355,41 @@ describe('SaaS Google self-service trial contract', () => {
         p_owner_phone: '+886912345678',
       })
     );
+  });
+
+  it('uses the verified session phone instead of a client-supplied contact phone', async () => {
+    const repository = { provision: vi.fn().mockResolvedValue(result) };
+    const profileRepository = createProfileRepository();
+    const phoneIdentity = {
+      userId: identity.userId,
+      provider: 'phone_otp' as const,
+      email: null,
+      phone: '0912-345-678',
+      emailVerified: false,
+      phoneVerified: true,
+    };
+
+    await expect(provisionSelfServiceTrial({
+      ...payload,
+      contactPhone: '0988-765-432',
+      preferredContactChannel: 'phone',
+    }, {
+      identity: phoneIdentity,
+      env: {
+        ENABLE_PHONE_OTP_SIGNUP: 'true',
+        SAAS_AUTH_CAPTCHA_READY: 'true',
+        SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
+        SAAS_PHONE_OTP_PROVIDER_READY: 'true',
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
+      },
+      repository,
+      profileRepository,
+    })).resolves.toEqual(result);
+
+    expect(profileRepository.getOrCreate).toHaveBeenCalledWith(expect.objectContaining({
+      contactPhone: '+886912345678',
+      ownerPhone: '+886912345678',
+    }));
   });
 
   it('does not expose raw database errors to the public trial route', async () => {

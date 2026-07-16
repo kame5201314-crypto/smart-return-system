@@ -14,6 +14,7 @@ import {
   type SelfServiceTrialRateLimiter,
   type SelfServiceTrialRepository,
 } from '@/lib/saas/self-service-trial';
+import type { SelfServiceTrialProfileRepository } from '@/lib/saas/self-service-trial-profile';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ interface SelfServiceTrialRouteDependencies {
   env?: Record<string, string | undefined>;
   identity?: SelfServiceTrialIdentity | null;
   repository?: SelfServiceTrialRepository;
+  profileRepository?: SelfServiceTrialProfileRepository;
   rateLimiter?: SelfServiceTrialRateLimiter;
   now?: Date;
 }
@@ -101,6 +103,7 @@ export async function handleSelfServiceTrialRequest(
       identity,
       env: deps.env,
       repository: deps.repository,
+      profileRepository: deps.profileRepository,
       rateLimiter: deps.rateLimiter,
       now: deps.now,
     });

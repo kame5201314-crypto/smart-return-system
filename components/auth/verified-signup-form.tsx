@@ -675,17 +675,17 @@ function GoogleSignupOption({ href }: { href: string }) {
     <div className="pt-1" data-testid="google-signup-option">
       <div className="mb-5 flex items-center gap-3" aria-hidden="true">
         <div className="h-px flex-1 bg-neutral-200" />
-        <span className="text-xs text-neutral-400">或使用 Google 快速註冊</span>
+        <span className="text-xs text-neutral-400">或使用 Google 驗證身分</span>
         <div className="h-px flex-1 bg-neutral-200" />
       </div>
       <Button asChild variant="outline" className="h-12 w-full bg-white text-base">
         <Link href={href}>
           <GoogleSignInIcon className="size-5" />
-          使用 Google 註冊或登入
+          使用 Google 繼續
         </Link>
       </Button>
       <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
-        3 天免費、不需信用卡、不會自動扣款
+        Google 驗證後仍需完成商家資料；3 天免費、不需信用卡
       </p>
     </div>
   );

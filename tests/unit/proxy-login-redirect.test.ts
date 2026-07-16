@@ -6,14 +6,14 @@ import {
 } from '@/lib/auth/proxy-login-redirect';
 
 describe('proxy authenticated login redirect policy', () => {
-  it('routes authenticated merchants away from login to the merchant workspace', () => {
+  it('routes authenticated merchants through the membership-aware account gate', () => {
     expect(resolveAuthenticatedLoginRedirect({
       isPlatformAdminAuthenticated: false,
-    })).toBe('/analytics');
+    })).toBe('/signup/complete');
     expect(resolveAuthenticatedLoginRedirect({
       isPlatformAdminAuthenticated: false,
       requestedPath: '/internal/orgs',
-    })).toBe('/analytics');
+    })).toBe('/signup/complete');
   });
 
   it('routes platform admins to the platform console by default', () => {

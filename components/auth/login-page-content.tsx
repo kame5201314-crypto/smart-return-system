@@ -18,7 +18,6 @@ import {
   PackageCheck,
   ShieldCheck,
   User,
-  UserRoundPlus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -174,18 +173,18 @@ export function LoginPageContent({
           </p>
         </div>
 
-        <Card className="border bg-white shadow-lg">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl">
-              {isPlatformAdminLogin ? '平台管理後台登入' : '歡迎回來'}
+        <Card className="border-neutral-200 bg-white shadow-lg">
+          <CardHeader className="space-y-2 pb-5 sm:px-8 sm:pt-8">
+            <CardTitle className="text-2xl">
+              {isPlatformAdminLogin ? '平台管理後台登入' : '登入工作區'}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="leading-6">
               {isPlatformAdminLogin
                 ? '請使用平台管理員帳號登入。商家請改用一般登入入口。'
-                : '以電子信箱／手機號碼與密碼登入，或使用 Google 進入退貨工作區。'}
+                : '使用帳號密碼登入，或以 Google 繼續。'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="sm:px-8 sm:pb-8">
             {googleError ? (
               <div
                 role="alert"
@@ -218,20 +217,24 @@ export function LoginPageContent({
             ) : null}
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>電子信箱／手機號碼</FormLabel>
+                      <FormLabel>
+                        {isPlatformAdminLogin ? '管理員帳號或電子信箱' : '電子信箱／手機號碼'}
+                      </FormLabel>
                       <div className="relative">
                         <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
                         <FormControl>
                           <Input
                             type="text"
-                            placeholder="name@example.com 或 0912345678"
-                            className="pl-10"
+                            placeholder={isPlatformAdminLogin
+                              ? '請輸入管理員帳號或電子信箱'
+                              : 'name@example.com 或 0912345678'}
+                            className="h-12 pl-10 text-base"
                             disabled={isLoading}
                             {...field}
                           />
@@ -247,14 +250,24 @@ export function LoginPageContent({
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>密碼</FormLabel>
+                      <div className="flex items-center justify-between gap-4">
+                        <FormLabel>密碼</FormLabel>
+                        {!isPlatformAdminLogin && passwordRecoveryEnabled ? (
+                          <Link
+                            href="/forgot-password"
+                            className="text-sm font-medium text-emerald-700 underline-offset-2 hover:underline"
+                          >
+                            忘記密碼？
+                          </Link>
+                        ) : null}
+                      </div>
                       <div className="relative">
                         <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
                         <FormControl>
                           <Input
                             type={showPassword ? 'text' : 'password'}
                             placeholder="••••••••"
-                            className="pl-10 pr-10"
+                            className="h-12 pl-10 pr-10 text-base"
                             disabled={isLoading}
                             {...field}
                           />
@@ -284,7 +297,7 @@ export function LoginPageContent({
                         setCaptchaToken(null);
                         toast.error('安全驗證載入失敗，請重新整理後再試。');
                       }}
-                      options={{ language: 'zh-TW', size: 'flexible', action: 'password_login' }}
+                      options={{ language: 'zh-tw', size: 'flexible', action: 'password_login' }}
                     />
                   ) : (
                     <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -295,7 +308,7 @@ export function LoginPageContent({
 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="h-12 w-full text-base"
                   disabled={isLoading || !authCaptchaReady || (authCaptchaRequired && !captchaToken)}
                 >
                   {isLoading ? (
@@ -310,30 +323,24 @@ export function LoginPageContent({
               </form>
             </Form>
 
-            {!isPlatformAdminLogin && passwordRecoveryEnabled ? (
-              <p className="mt-4 text-center text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-emerald-700 underline-offset-2 hover:underline"
-                >
-                  忘記密碼？使用驗證碼復原
-                </Link>
-              </p>
-            ) : null}
-
             {!isPlatformAdminLogin && googleAuthEnabled ? (
               <div className="mt-6">
-                <div className="mb-5 flex items-center gap-3" aria-hidden="true">
+                <div className="mb-4 flex items-center gap-3" aria-hidden="true">
                   <div className="h-px flex-1 bg-neutral-200" />
-                  <span className="text-xs text-neutral-400">或使用 Google 帳號</span>
+                  <span className="text-xs text-neutral-400">其他登入方式</span>
                   <div className="h-px flex-1 bg-neutral-200" />
                 </div>
-                <Button asChild variant="outline" className="h-11 w-full bg-white">
+                <Button asChild variant="outline" className="h-12 w-full bg-white text-base">
                   <Link href={googleHref}>
                     <GoogleSignInIcon />
-                    使用 Google 登入
+                    使用 Google 繼續
                   </Link>
                 </Button>
+                <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
+                  {googleSignupEnabled
+                    ? '第一次使用 Google？驗證後會先完成商家資料。'
+                    : 'Google 僅供已連結的既有帳號登入。'}
+                </p>
               </div>
             ) : null}
 
@@ -348,26 +355,15 @@ export function LoginPageContent({
                 </Link>
               </p>
             ) : (
-              <div className="mt-6 border-t border-neutral-200 pt-5 text-center">
-                <p className="text-sm font-medium text-neutral-800">
-                  {accountRegistrationEnabled
-                    ? '還沒有帳號？立即免費建立。'
-                    : '還沒有帳號？先申請免費試用。'}
-                </p>
-                <Button asChild variant="outline" className="mt-3 w-full bg-white">
-                  <Link href={signupHref}>
-                    <UserRoundPlus className="size-4" aria-hidden="true" />
-                    {accountRegistrationEnabled ? '註冊新帳號' : '申請 3 天免費試用'}
-                  </Link>
-                </Button>
-                {accountRegistrationEnabled ? (
-                  <p className="mt-2 text-xs leading-5 text-neutral-500">
-                    {googleSignupEnabled
-                      ? '可使用 Google 註冊，立即開始 3 天免費試用；不需信用卡。'
-                      : '使用註冊頁目前開放的驗證方式建立帳號；不需信用卡。'}
-                  </p>
-                ) : null}
-              </div>
+              <p className="mt-6 text-center text-sm text-neutral-600">
+                {accountRegistrationEnabled ? '第一次使用 Smart Return？' : '需要新的商家工作區？'}
+                <Link
+                  href={signupHref}
+                  className="ml-1 font-semibold text-emerald-700 underline-offset-2 hover:underline"
+                >
+                  {accountRegistrationEnabled ? '建立帳號' : '申請免費試用'}
+                </Link>
+              </p>
             )}
           </CardContent>
         </Card>

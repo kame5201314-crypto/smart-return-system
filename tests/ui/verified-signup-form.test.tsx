@@ -87,7 +87,7 @@ describe('VerifiedSignupForm', () => {
     expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
     const credentialsForm = screen.getByTestId('verified-signup-form');
     const googleOption = screen.getByTestId('google-signup-option');
-    const googleLink = within(googleOption).getByRole('link', { name: '使用 Google 註冊或登入' });
+    const googleLink = within(googleOption).getByRole('link', { name: '使用 Google 繼續' });
     expect(googleLink).toHaveAttribute('href', '/auth/google?plan=growth');
     expect(within(googleLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
     expect(

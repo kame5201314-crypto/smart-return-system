@@ -116,7 +116,7 @@ describe('LoginPageContent', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+    fireEvent.change(screen.getByLabelText('管理員帳號或電子信箱'), {
       target: { value: 'operator@example.com' },
     });
     fireEvent.change(screen.getByLabelText('密碼'), {
@@ -137,7 +137,7 @@ describe('LoginPageContent', () => {
     navigationMocks.search = 'password_reset=success';
     render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);
 
-    expect(screen.getByRole('link', { name: '忘記密碼？使用驗證碼復原' }))
+    expect(screen.getByRole('link', { name: '忘記密碼？' }))
       .toHaveAttribute('href', '/forgot-password');
     expect(screen.getByRole('status')).toHaveTextContent('密碼已更新，請使用新密碼登入。');
     expect(toastMocks.success).toHaveBeenCalledWith('密碼已更新，請使用新密碼登入。');
@@ -147,7 +147,7 @@ describe('LoginPageContent', () => {
     navigationMocks.search = 'next=%2Finternal';
     render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);
 
-    expect(screen.queryByRole('link', { name: '忘記密碼？使用驗證碼復原' }))
+    expect(screen.queryByRole('link', { name: '忘記密碼？' }))
       .not.toBeInTheDocument();
   });
 
@@ -161,16 +161,17 @@ describe('LoginPageContent', () => {
       />
     );
 
-    expect(screen.getByRole('link', { name: '註冊新帳號' }))
+    expect(screen.getByRole('link', { name: '建立帳號' }))
       .toHaveAttribute('href', '/signup?plan=growth');
-    expect(screen.getByText(/可使用 Google 註冊/)).toBeInTheDocument();
+    expect(screen.getByText('第一次使用 Google？驗證後會先完成商家資料。'))
+      .toBeInTheDocument();
   });
 
   it('places password login before the branded Google login action', () => {
     render(<LoginPageContent googleAuthEnabled />);
 
     const passwordLoginButton = screen.getByRole('button', { name: '登入' });
-    const googleLoginLink = screen.getByRole('link', { name: '使用 Google 登入' });
+    const googleLoginLink = screen.getByRole('link', { name: '使用 Google 繼續' });
 
     expect(
       passwordLoginButton.compareDocumentPosition(googleLoginLink)
@@ -186,15 +187,16 @@ describe('LoginPageContent', () => {
       <LoginPageContent googleAuthEnabled accountRegistrationEnabled />
     );
 
-    expect(screen.getByRole('link', { name: '註冊新帳號' }))
+    expect(screen.getByRole('link', { name: '建立帳號' }))
       .toHaveAttribute('href', '/signup');
 
     navigationMocks.search = 'next=%2Finternal&plan=growth';
     rerender(<LoginPageContent googleAuthEnabled accountRegistrationEnabled />);
 
-    expect(screen.queryByRole('link', { name: '註冊新帳號' }))
+    expect(screen.queryByRole('link', { name: '建立帳號' }))
       .not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: '使用 Google 登入' }))
+    expect(screen.queryByRole('link', { name: '使用 Google 繼續' }))
       .not.toBeInTheDocument();
+    expect(screen.getByLabelText('管理員帳號或電子信箱')).toBeInTheDocument();
   });
 });

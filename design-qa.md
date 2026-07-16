@@ -60,6 +60,48 @@ Result: passed
 
 final result: passed
 
+## 登入與已驗證商家 onboarding 重設計（2026-07-16）
+
+### 比對來源與測試狀態
+
+- Source visual truth：本次對話中使用者對登入頁資訊過多的回饋、既有 Smart Return 置中卡片設計，以及本次修改前由 Chrome 擷取的 `/login`、`/signup` 畫面。
+- Implementation：`http://localhost:3001/login`、`http://localhost:3001/signup`、受登入保護的 `/signup/complete`。
+- 比對方式：同一個 Chrome 工作階段、同一狀態與 viewport 並排檢查修改前後登入／註冊畫面；商家資料頁使用一次性本機 QA 路由渲染實際元件，驗收後已移除，沒有提交額外公開路由。
+- 桌面 viewport：瀏覽器預設 1680 × 900；手機 viewport：390 × 844，完成後已重設回預設尺寸。
+- 截圖中的右側浮動圖示及左下角開發工具按鈕由本機瀏覽器擴充套件／開發模式產生，不屬於產品 UI。
+
+### Full-view comparison
+
+- 登入頁由「歡迎回來＋多段說明＋大型註冊區」改為單一「登入工作區」任務：帳密為主要操作，Google 為次要登入方式，最下方只保留一個建立帳號文字入口。
+- Google 仍保留官方彩色 G 圖案，但文案統一為「使用 Google 繼續」，並明示新使用者驗證後必須完成商家資料，不會直接略過 onboarding。
+- 註冊入口在目前 Production-like 本機旗標下維持 Google-only，但說明已從「完成註冊」改為「驗證登入身分，接著完成商家資料」，避免誤解 Google 會自動建立完整客戶資料。
+- 商家資料頁沿用既有白色卡片、綠色身分確認提示、中性色欄位與黑色主要 CTA；桌面兩欄、手機單欄，沒有新增品牌外的色彩或元件語言。
+- 所有主要控制項維持至少 48px 高度；長 Email 使用可換行顯示，手機 390px 下沒有水平 overflow 或欄位重疊。
+
+### Focused-region comparison
+
+- 登入卡片移除重複註冊按鈕與說明後，主要登入、Google 次要操作與建立帳號入口的層級清楚，卡片高度明顯縮短。
+- 平台管理員模式改用「管理員帳號或電子信箱」，且不顯示商家 Google、註冊與忘記密碼入口。
+- 已驗證身分區塊顯示 Auth identity，並明示「Google 只用於確認登入身分」；後續必填品牌、聯絡人、台灣手機、平台、退貨量、聯絡偏好、方案與條款。
+- Google／Email 客戶補填的手機清楚標示為尚未驗證；Phone OTP 身分的手機為唯讀並標示已驗證。
+- 方案由大型卡片縮成原生下拉選單，保留價格與「3 天免費、不需信用卡、不會自動扣款」說明，降低表單視覺密度。
+
+### Interactions and accessibility
+
+- Chrome 實際操作密碼顯示切換，輸入型態可由 `password` 正確改成 `text`，按鈕可存取名稱同步變為「隱藏密碼」。
+- 已有 session 再進入 `/login` 時會先經過 membership-aware `/signup/complete` gate；既有商家回到 analytics，尚無工作區者留在商家資料步驟。
+- DOM 檢查確認 Google、建立帳號、返回登入、條款與隱私權連結均有清楚的可存取名稱及正確目的地。
+- 商家資料表單的必填欄位、下拉、checkbox 與送出按鈕皆有關聯標籤；手機版保持單欄與完整 CTA。
+- 未觸發真實 Google OAuth、CAPTCHA、試用建立或任何 Production API；本機 Chrome console 沒有 error。
+
+### Findings and comparison history
+
+- Pass 1：登入頁資訊層級重複，Google 與建立帳號都像主要 CTA；改為帳密主流程、Google 次流程與單一註冊文字入口。
+- Pass 2：Google 新客戶原本只確認方案與品牌，無法取得完整聯絡資料；新增已驗證身分摘要與商家資料完成步驟，伺服器僅信任 Auth session 的 identity。
+- Pass 3：補齊桌面／手機、管理員隔離、密碼切換、client payload 與後端 persistence 回歸測試；沒有剩餘 P0／P1／P2 視覺或主要互動問題。
+
+final result: passed
+
 ## 兩步式手機／信箱註冊重設計
 
 ### 比對來源與測試狀態

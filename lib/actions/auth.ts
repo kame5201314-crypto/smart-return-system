@@ -20,6 +20,10 @@ import {
   recordAdminLoginSuccess,
 } from '@/lib/auth/admin-login-rate-limit';
 import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
+import {
+  createGoogleOAuthMembershipRepository,
+  resolveGoogleOAuthDestination,
+} from '@/lib/auth/google-oauth';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 import {
   normalizeTaiwanPhoneIdentifier,
@@ -151,13 +155,48 @@ export async function signIn(
       userEmail: signInData.user?.email ?? (isEmail ? normalizedLoginId : null),
     });
 
+    if (!signInData.user?.id) {
+      await supabase.auth.signOut();
+      return {
+        success: false,
+        error: '登入後無法確認帳號身分，請稍後再試',
+      };
+    }
+
+    let redirectTo: PostLoginRedirectPath;
+    if (isPlatformAdmin) {
+      redirectTo = getPostLoginRedirect({
+        isAdmin: true,
+        requestedPath,
+      });
+    } else {
+      try {
+        const membershipRepository = createGoogleOAuthMembershipRepository(
+          supabase as unknown as Parameters<typeof createGoogleOAuthMembershipRepository>[0]
+        );
+        const memberships = await membershipRepository.listMemberships(signInData.user.id);
+        redirectTo = resolveGoogleOAuthDestination({
+          user: {
+            id: signInData.user.id,
+            email: signInData.user.email ?? (isEmail ? normalizedLoginId : null),
+          },
+          memberships,
+          requestedPath,
+        });
+      } catch (membershipError) {
+        console.error('Password login membership lookup failed:', membershipError);
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: '登入後無法確認工作區權限，請稍後再試',
+        };
+      }
+    }
+
     revalidatePath('/', 'layout');
     return {
       success: true,
-      redirectTo: getPostLoginRedirect({
-        isAdmin: isPlatformAdmin,
-        requestedPath,
-      }),
+      redirectTo,
     };
   } catch (err) {
     console.error('Login error:', err);

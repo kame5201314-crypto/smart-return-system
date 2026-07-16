@@ -5,12 +5,17 @@ import {
 } from '@/lib/auth/post-login-redirect';
 import { normalizeInternalNextPath } from '@/lib/auth/internal-login-redirect';
 
+const CUSTOMER_ACCOUNT_GATE_PATH = '/signup/complete';
+
 export function resolveAuthenticatedLoginRedirect(input: {
   isPlatformAdminAuthenticated: boolean;
   requestedPath?: unknown;
 }): PostLoginRedirectPath {
   if (!input.isPlatformAdminAuthenticated) {
-    return CUSTOMER_POST_LOGIN_PATH;
+    // The completion page performs the membership lookup once, then routes
+    // existing merchants to analytics and keeps membership-less users in the
+    // required merchant-profile flow. This avoids a database query in proxy.
+    return CUSTOMER_ACCOUNT_GATE_PATH;
   }
 
   if (

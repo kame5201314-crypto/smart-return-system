@@ -19,6 +19,13 @@ function buildRequest(body: unknown): NextRequest {
 
 const body = {
   orgName: '測試商店',
+  contactName: '王小明',
+  contactPhone: '0912-345-678',
+  lineId: 'smart-return-owner',
+  preferredContactChannel: 'email',
+  platform: '蝦皮',
+  monthlyReturnBand: '30_100',
+  referralCode: 'PARTNER88',
   plan: 'basic',
   termsAccepted: true,
   termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
@@ -33,6 +40,18 @@ const identity = {
   emailVerified: true,
   phoneVerified: false,
 };
+
+function createProfileRepository(orgId: string | null = null) {
+  return {
+    getOrCreate: vi.fn().mockResolvedValue({
+      id: 'profile-1',
+      orgId,
+      status: orgId ? 'converted' : 'pending',
+      reused: Boolean(orgId),
+    }),
+    markConverted: vi.fn().mockResolvedValue(undefined),
+  };
+}
 
 describe('self-service trial API', () => {
   it('rejects a verified linked identity when its rollout flags are disabled', async () => {
@@ -77,6 +96,7 @@ describe('self-service trial API', () => {
         reused: false,
       }),
     };
+    const profileRepository = createProfileRepository();
     const response = await handleSelfServiceTrialRequest(buildRequest(body), {
       identity,
       env: {
@@ -84,6 +104,7 @@ describe('self-service trial API', () => {
         ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
       },
       repository,
+      profileRepository,
       now: new Date('2026-07-14T00:00:00.000Z'),
     });
 
@@ -93,6 +114,19 @@ describe('self-service trial API', () => {
       redirectTo: '/analytics',
       data: { orgId: 'org-1', reused: false },
     });
+    expect(profileRepository.getOrCreate).toHaveBeenCalledWith(expect.objectContaining({
+      ownerUserId: identity.userId,
+      ownerEmail: identity.email,
+      identityProvider: 'google',
+      contactPhone: '+886912345678',
+    }));
+    expect(profileRepository.markConverted).toHaveBeenCalledWith({
+      profileId: 'profile-1',
+      orgId: 'org-1',
+      convertedAt: '2026-07-14T00:00:00.000Z',
+    });
+    expect(profileRepository.getOrCreate.mock.invocationCallOrder[0])
+      .toBeLessThan(repository.provision.mock.invocationCallOrder[0]);
   });
 
   it('returns the original workspace for an idempotent retry', async () => {
@@ -107,6 +141,7 @@ describe('self-service trial API', () => {
         reused: true,
       }),
     };
+    const profileRepository = createProfileRepository('org-existing');
     const response = await handleSelfServiceTrialRequest(buildRequest(body), {
       identity,
       env: {
@@ -114,6 +149,7 @@ describe('self-service trial API', () => {
         ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
       },
       repository,
+      profileRepository,
     });
 
     expect(response.status).toBe(200);
@@ -123,6 +159,9 @@ describe('self-service trial API', () => {
       data: { orgId: 'org-existing', reused: true },
     });
     expect(repository.provision).toHaveBeenCalledTimes(1);
+    expect(profileRepository.markConverted).toHaveBeenCalledWith(expect.objectContaining({
+      orgId: 'org-existing',
+    }));
   });
 
   it('fails closed when disabled or unauthenticated', async () => {
@@ -173,6 +212,7 @@ describe('self-service trial API', () => {
 
   it('rate limits repeated authenticated provisioning before calling the RPC', async () => {
     const repository = { provision: vi.fn() };
+    const profileRepository = createProfileRepository();
     const response = await handleSelfServiceTrialRequest(buildRequest(body), {
       identity,
       env: {
@@ -180,6 +220,7 @@ describe('self-service trial API', () => {
         ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
       },
       repository,
+      profileRepository,
       rateLimiter: {
         check: vi.fn().mockReturnValue({
           allowed: false,
@@ -191,6 +232,7 @@ describe('self-service trial API', () => {
     expect(response.status).toBe(429);
     expect(await response.json()).toMatchObject({ code: 'rate_limited' });
     expect(repository.provision).not.toHaveBeenCalled();
+    expect(profileRepository.getOrCreate).not.toHaveBeenCalled();
   });
 
   it('accepts a confirmed email OTP identity only after provider readiness is explicit', async () => {
@@ -205,6 +247,7 @@ describe('self-service trial API', () => {
         reused: false,
       }),
     };
+    const profileRepository = createProfileRepository();
     const response = await handleSelfServiceTrialRequest(buildRequest(body), {
       identity: { ...identity, provider: 'email_otp' },
       env: {
@@ -215,6 +258,7 @@ describe('self-service trial API', () => {
         NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key',
       },
       repository,
+      profileRepository,
     });
 
     expect(response.status).toBe(201);
@@ -222,5 +266,68 @@ describe('self-service trial API', () => {
       identityProvider: 'email_otp',
       ownerEmail: 'owner@example.com',
     }));
+  });
+
+  it('does not trust client-supplied identity fields when saving the profile', async () => {
+    const repository = {
+      provision: vi.fn().mockResolvedValue({
+        orgId: 'org-secure',
+        subscriptionId: 'sub-secure',
+        ownerMembershipId: 'member-secure',
+        auditLogId: 'audit-secure',
+        claimId: 'claim-secure',
+        trialEnd: '2026-07-28T00:00:00.000Z',
+        reused: false,
+      }),
+    };
+    const profileRepository = createProfileRepository();
+    const response = await handleSelfServiceTrialRequest(buildRequest({
+      ...body,
+      userId: 'attacker-user',
+      email: 'attacker@example.com',
+      provider: 'phone_otp',
+    }), {
+      identity,
+      env: {
+        ENABLE_GOOGLE_AUTH: 'true',
+        ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      },
+      repository,
+      profileRepository,
+    });
+
+    expect(response.status).toBe(201);
+    expect(profileRepository.getOrCreate).toHaveBeenCalledWith(expect.objectContaining({
+      ownerUserId: identity.userId,
+      ownerEmail: identity.email,
+      identityProvider: 'google',
+    }));
+    expect(profileRepository.getOrCreate).not.toHaveBeenCalledWith(expect.objectContaining({
+      ownerUserId: 'attacker-user',
+    }));
+  });
+
+  it('does not provision a workspace when profile persistence fails', async () => {
+    const repository = { provision: vi.fn() };
+    const profileRepository = {
+      getOrCreate: vi.fn().mockRejectedValue(new Error('private storage detail')),
+      markConverted: vi.fn(),
+    };
+    const response = await handleSelfServiceTrialRequest(buildRequest(body), {
+      identity,
+      env: {
+        ENABLE_GOOGLE_AUTH: 'true',
+        ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      },
+      repository,
+      profileRepository,
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      code: 'profile_persistence_failed',
+      error: 'Failed to save trial customer profile.',
+    });
+    expect(repository.provision).not.toHaveBeenCalled();
   });
 });

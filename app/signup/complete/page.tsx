@@ -25,6 +25,10 @@ interface SignupCompletePageProps {
   searchParams?: Promise<{ plan?: string | string[] }>;
 }
 
+function metadataText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export default async function SignupCompletePage({ searchParams }: SignupCompletePageProps) {
   const params = await searchParams;
   const auth = await requireRouteAuth();
@@ -62,7 +66,7 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
   const hasPhoneIdentity = Boolean(
     currentUser?.identities?.some((identity) => identity.provider === 'phone')
   );
-  const selfServiceEnabled = Boolean(selectEnabledVerifiedSignupProvider({
+  const identityProvider = selectEnabledVerifiedSignupProvider({
     signupChannel: currentUser?.user_metadata?.signup_channel,
     hasGoogleIdentity,
     hasEmailIdentity,
@@ -72,14 +76,27 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
     googleEnabled: featureFlags.google_auth && featureFlags.google_trial_signup,
     emailEnabled: verifiedSignup.emailEnabled,
     phoneEnabled: verifiedSignup.phoneEnabled,
-  }));
+  });
+  const selfServiceEnabled = Boolean(identityProvider);
   const identityLabel = currentUser?.email || currentUser?.phone || '已驗證帳號';
+  const verifiedEmail = currentUser?.email && currentUser.email_confirmed_at
+    ? currentUser.email
+    : null;
+  const verifiedPhone = currentUser?.phone && currentUser.phone_confirmed_at
+    ? currentUser.phone
+    : null;
+  const initialContactName = metadataText(
+    currentUser?.user_metadata?.full_name
+      ?? currentUser?.user_metadata?.name
+      ?? currentUser?.user_metadata?.display_name
+  );
+  const initialReferralCode = metadataText(currentUser?.user_metadata?.referral_code);
   const planParam = Array.isArray(params?.plan) ? params?.plan[0] : params?.plan;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-12">
       <Card className="w-full max-w-2xl border-neutral-200 bg-white shadow-sm">
-        <CardHeader>
+        <CardHeader className="space-y-2 sm:px-8 sm:pt-8">
           <div className="mb-3 flex size-11 items-center justify-center rounded-md bg-emerald-100 text-emerald-800">
             {membershipDisabled ? (
               <ShieldAlert className="size-5" aria-hidden="true" />
@@ -87,25 +104,35 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
               <Building2 className="size-5" aria-hidden="true" />
             )}
           </div>
-          <CardTitle>
+          {!membershipDisabled && selfServiceEnabled ? (
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              帳號設定 · 最後一步
+            </p>
+          ) : null}
+          <CardTitle className="text-2xl">
             {membershipDisabled
               ? '這個商家工作區已停用'
               : selfServiceEnabled
-                ? '設定你的試用工作區'
+                ? '完成商家資料'
                 : '帳號驗證完成'}
           </CardTitle>
           <CardDescription className="leading-6">
             {membershipDisabled
               ? '你的帳號目前沒有可使用的商家工作區。請聯絡原商家管理員或 Smart Return 客服確認權限。'
               : selfServiceEnabled
-                ? '確認品牌名稱與方案後，即可建立 3 天免費試用。試用不需信用卡，也不會自動扣款。'
+                ? '登入身分已驗證。請補齊聯絡與營運資料，完成後才會建立 3 天免費試用工作區。'
                 : '這個帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {!membershipDisabled && selfServiceEnabled ? (
+        <CardContent className="sm:px-8 sm:pb-8">
+          {!membershipDisabled && identityProvider ? (
             <SelfServiceTrialForm
               identityLabel={identityLabel}
+              identityProvider={identityProvider}
+              verifiedEmail={verifiedEmail}
+              verifiedPhone={verifiedPhone}
+              initialContactName={initialContactName}
+              initialReferralCode={initialReferralCode}
               initialPlan={normalizeGoogleTrialPlan(planParam)}
             />
           ) : (
