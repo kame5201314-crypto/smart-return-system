@@ -42,6 +42,7 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       SAAS_EMAIL_OTP_PROVIDER_READY: 'false',
       SAAS_PHONE_OTP_PROVIDER_READY: 'false',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: '',
+      TURNSTILE_SECRET_KEY: '',
       ENABLE_TRIAL_EXPIRY_CRON: 'false',
       ENABLE_BILLING: 'false',
       ENABLE_SUBSCRIPTION_PLAN: 'false',
@@ -229,6 +230,7 @@ describe('SaaS rollout readiness check', () => {
       SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
       SAAS_EMAIL_OTP_PROVIDER_READY: 'true',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+      TURNSTILE_SECRET_KEY: 'turnstile-server-secret',
       SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
     });
 
@@ -245,11 +247,35 @@ describe('SaaS rollout readiness check', () => {
       SAAS_AUTH_CAPTCHA_READY: 'true',
       SAAS_VERIFIED_SIGNUP_MIGRATION_READY: 'true',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+      TURNSTILE_SECRET_KEY: 'turnstile-server-secret',
       SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
     });
 
     expect(result.status).toBe(1);
     expect(result.output).toContain('Phone OTP provider');
+  });
+
+  it('requires a server secret whenever Auth CAPTCHA is enabled', () => {
+    const result = runRolloutCheck({
+      SAAS_AUTH_CAPTCHA_READY: 'true',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Auth CAPTCHA server secret');
+    expect(result.output).toContain('TURNSTILE_SECRET_KEY is required');
+  });
+
+  it('rejects Cloudflare test credentials from production rollout', () => {
+    const result = runRolloutCheck({
+      SAAS_AUTH_CAPTCHA_READY: 'true',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Cloudflare test keys are not allowed');
+    expect(result.output).toContain('Cloudflare test secrets are not allowed');
   });
 
   it('fails closed when email password recovery lacks CAPTCHA or provider readiness', () => {
@@ -270,6 +296,7 @@ describe('SaaS rollout readiness check', () => {
       SAAS_AUTH_CAPTCHA_READY: 'true',
       SAAS_EMAIL_OTP_PROVIDER_READY: 'true',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-public-key',
+      TURNSTILE_SECRET_KEY: 'turnstile-server-secret',
       SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
     });
 

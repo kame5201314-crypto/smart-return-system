@@ -44,6 +44,21 @@ function isPlaceholder(value) {
   );
 }
 
+const CLOUDFLARE_TEST_KEYS = new Set([
+  '1x00000000000000000000AA',
+  '2x00000000000000000000AB',
+  '1x00000000000000000000BB',
+  '2x00000000000000000000BB',
+  '3x00000000000000000000FF',
+  '1x0000000000000000000000000000000AA',
+  '2x0000000000000000000000000000000AA',
+  '3x0000000000000000000000000000000AA',
+]);
+
+function isCloudflareTestKey(value) {
+  return CLOUDFLARE_TEST_KEYS.has(normalizeEnvValue(value));
+}
+
 function isWeakPassword(value) {
   const normalized = normalizeEnvValue(value);
   return isPlaceholder(normalized) || normalized.length < 12;
@@ -297,6 +312,42 @@ function checkGoogleTrialReadiness() {
   }
 }
 
+function checkAuthCaptchaReadiness() {
+  if (!parseBool(process.env.SAAS_AUTH_CAPTCHA_READY)) {
+    record('pass', 'Auth CAPTCHA rollout', 'server-side validation remains closed');
+    return;
+  }
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  if (isPlaceholder(siteKey)) {
+    record('fail', 'Auth CAPTCHA site key', 'a real public Turnstile site key is required');
+  } else if (isCloudflareTestKey(siteKey)) {
+    record('fail', 'Auth CAPTCHA site key', 'Cloudflare test keys are not allowed for production rollout');
+  } else {
+    record('pass', 'Auth CAPTCHA site key', 'configured');
+  }
+
+  if (isPlaceholder(secretKey)) {
+    record('fail', 'Auth CAPTCHA server secret', 'TURNSTILE_SECRET_KEY is required for legacy admin Siteverify');
+  } else if (isCloudflareTestKey(secretKey)) {
+    record('fail', 'Auth CAPTCHA server secret', 'Cloudflare test secrets are not allowed for production rollout');
+  } else {
+    record('pass', 'Auth CAPTCHA server secret', 'configured server-side');
+  }
+
+  const appUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_APP_URL);
+  try {
+    const parsed = new URL(appUrl);
+    if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.hostname === 'localhost') {
+      throw new Error('untrusted app URL');
+    }
+    record('pass', 'Auth CAPTCHA hostname', parsed.hostname);
+  } catch {
+    record('fail', 'Auth CAPTCHA hostname', 'a trusted HTTPS NEXT_PUBLIC_APP_URL is required');
+  }
+}
+
 function checkVerifiedSignupReadiness() {
   const emailEnabled = parseBool(process.env.ENABLE_EMAIL_OTP_SIGNUP);
   const phoneEnabled = parseBool(process.env.ENABLE_PHONE_OTP_SIGNUP);
@@ -424,6 +475,7 @@ checkAppUrlAndObservability();
 checkAiSafety();
 checkControlledRolloutFlags();
 checkGoogleTrialReadiness();
+checkAuthCaptchaReadiness();
 checkVerifiedSignupReadiness();
 checkPasswordRecoveryReadiness();
 checkBillingReadiness();

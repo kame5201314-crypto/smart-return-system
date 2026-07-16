@@ -187,6 +187,7 @@ function checkCommercialFoundation() {
     'lib/security/same-origin.ts',
     'lib/security/request-rate-limit.ts',
     'lib/auth/admin-login-rate-limit.ts',
+    'lib/auth/turnstile-verification.ts',
     'lib/auth/post-login-redirect.ts',
     'lib/auth/google-oauth.ts',
     'lib/auth/password-recovery.ts',
@@ -372,6 +373,10 @@ function checkCommercialFoundation() {
   const requestRateLimitPath = path.resolve(process.cwd(), 'lib/security/request-rate-limit.ts');
   const nextConfigPath = path.resolve(process.cwd(), 'next.config.ts');
   const adminLoginRateLimitPath = path.resolve(process.cwd(), 'lib/auth/admin-login-rate-limit.ts');
+  const turnstileVerificationPath = path.resolve(
+    process.cwd(),
+    'lib/auth/turnstile-verification.ts'
+  );
   const authActionPath = path.resolve(process.cwd(), 'lib/actions/auth.ts');
   const postLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/post-login-redirect.ts');
   const internalLoginRedirectPath = path.resolve(process.cwd(), 'lib/auth/internal-login-redirect.ts');
@@ -678,6 +683,27 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS admin login rate limit', 'platform admin password login has best-effort throttling before launch');
     } else {
       record('fail', 'SaaS admin login rate limit', 'platform admin password login must throttle repeated failures by login id and client ip');
+    }
+  }
+
+  if (fs.existsSync(turnstileVerificationPath) && fs.existsSync(authActionPath)) {
+    const verifierSource = fs.readFileSync(turnstileVerificationPath, 'utf8');
+    const authActionSource = fs.readFileSync(authActionPath, 'utf8');
+    if (
+      verifierSource.includes('turnstile/v0/siteverify') &&
+      verifierSource.includes('TURNSTILE_SECRET_KEY') &&
+      verifierSource.includes("PASSWORD_LOGIN_TURNSTILE_ACTION = 'password_login'") &&
+      verifierSource.includes('token.length > TURNSTILE_TOKEN_MAX_LENGTH') &&
+      verifierSource.includes('resolveExpectedHostname') &&
+      verifierSource.includes("reason: 'action_mismatch'") &&
+      verifierSource.includes("reason: 'hostname_mismatch'") &&
+      authActionSource.includes('resolveAuthCaptchaAvailability().required') &&
+      authActionSource.includes('verifyPasswordLoginTurnstile') &&
+      authActionSource.includes('recordAdminLoginFailure(rateLimitKey)')
+    ) {
+      record('pass', 'SaaS admin login CAPTCHA', 'legacy admin password login validates Turnstile server-side before password comparison');
+    } else {
+      record('fail', 'SaaS admin login CAPTCHA', 'legacy admin login must fail closed on server-side Turnstile action and hostname validation');
     }
   }
 

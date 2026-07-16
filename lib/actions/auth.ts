@@ -21,7 +21,11 @@ import {
 } from '@/lib/auth/admin-login-rate-limit';
 import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
-import { normalizeTaiwanPhoneIdentifier } from '@/lib/auth/verified-signup';
+import {
+  normalizeTaiwanPhoneIdentifier,
+  resolveAuthCaptchaAvailability,
+} from '@/lib/auth/verified-signup';
+import { verifyPasswordLoginTurnstile } from '@/lib/auth/turnstile-verification';
 
 // Defensive trim: Vercel env values can accidentally include trailing newlines.
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
@@ -43,9 +47,10 @@ export async function signIn(
 
     if (isAdminLoginId(normalizedLoginId)) {
       const requestHeaders = await headers();
+      const clientIp = getClientIpFromHeaders(requestHeaders);
       const rateLimitKey = buildAdminLoginRateLimitKey({
         loginId: normalizedLoginId,
-        clientIp: getClientIpFromHeaders(requestHeaders),
+        clientIp,
       });
       const rateLimit = checkAdminLoginRateLimit(rateLimitKey);
       if (!rateLimit.allowed) {
@@ -60,6 +65,20 @@ export async function signIn(
           success: false,
           error: 'Admin password is not configured',
         };
+      }
+
+      if (resolveAuthCaptchaAvailability().required) {
+        const captcha = await verifyPasswordLoginTurnstile({
+          token: captchaToken,
+          remoteIp: clientIp,
+        });
+        if (!captcha.ok) {
+          recordAdminLoginFailure(rateLimitKey);
+          return {
+            success: false,
+            error: '安全驗證失敗，請重新完成驗證後再試。',
+          };
+        }
       }
 
       if (password !== ADMIN_PASSWORD) {
