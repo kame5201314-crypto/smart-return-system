@@ -12,9 +12,9 @@ describe('SaaS production smoke contract', () => {
     expect(source).toMatch(/for \(const path of \[[\s\S]*'\/forgot-password'[\s\S]*\]\)/);
   });
 
-  it('requires an anonymous reset-password request to return to recovery', () => {
+  it('keeps anonymous reset-password requests behind authenticated recovery', () => {
     expect(source).toContain("expectRedirect('/reset-password'");
-    expect(source).toContain('/\\/forgot-password(?:\\?|$)/');
+    expect(source).toContain('/\\/login(?:\\?|$)/');
   });
 
   it('bounds every fetch, including response-body reads, with a cleared abort timer', () => {

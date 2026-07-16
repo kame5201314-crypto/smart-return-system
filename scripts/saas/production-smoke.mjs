@@ -134,7 +134,7 @@ async function main() {
 
   await expectRedirect('/internal', /\/admin\/login\?next=%2Finternal/);
   await expectRedirect('/admin', /\/admin\/login\?next=%2Finternal|\/login\?next=%2Finternal/);
-  await expectRedirect('/reset-password', /\/forgot-password(?:\?|$)/);
+  await expectRedirect('/reset-password', /\/login(?:\?|$)/);
 
   let failed = 0;
   let warned = 0;
