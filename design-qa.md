@@ -66,7 +66,7 @@ final result: passed
 
 - Source visual truth：本次對話附件中的既有 Google-only 註冊頁，以及指定的「手機／信箱＋密碼」第一步與「驗證碼」第二步參考畫面。
 - Implementation：`http://localhost:3001/signup?plan=growth`。
-- 驗收方式：使用 Chrome 在純 localhost、process-only 功能旗標及一次性假驗證回應下測試；未讀寫 Production 資料、未修改 `.env.saas.local`，假路由已於驗收後移除。
+- 驗收方式：最終兩步式互動使用 Chrome 在純 localhost、process-only 功能旗標及一次性假驗證回應下測試；未修改 `.env.saas.local`，假路由已於驗收後移除。
 - 桌面 viewport：1216 × 1200；手機 viewport：390 × 844。
 - 截圖中的右側浮動圖示及左下角開發工具按鈕由本機瀏覽器擴充套件／開發模式產生，不屬於產品 UI。
 
