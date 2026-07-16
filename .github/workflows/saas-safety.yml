@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Reject high or critical production dependency advisories
+        run: npm run audit:prod:high
+
       - name: Verify SaaS checkout
         run: npm run saas:verify-checkout
 

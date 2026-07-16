@@ -13,4 +13,19 @@ describe('full test script', () => {
 
     expect(packageJson.scripts?.['test:all']).toContain('npm run test:ui');
   });
+
+  it('keeps a bounded production dependency audit in the SaaS safety workflow', () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), 'package.json'), 'utf8')
+    ) as { scripts?: Record<string, string> };
+    const workflow = readFileSync(
+      join(process.cwd(), '.github', 'workflows', 'saas-safety.yml'),
+      'utf8'
+    );
+
+    expect(packageJson.scripts?.['audit:prod:high'])
+      .toBe('npm audit --omit=dev --audit-level=high');
+    expect(workflow).toContain('npm run audit:prod:high');
+    expect(workflow).not.toContain('npm audit fix');
+  });
 });
