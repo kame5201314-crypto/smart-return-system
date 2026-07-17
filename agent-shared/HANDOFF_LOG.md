@@ -1,5 +1,18 @@
 # Handoff Log
 
+## 2026-07-17 - Custom SMTP Provider Audit Handoff
+
+- A read-only local and Vercel Production audit found no Resend, Email provider,
+  or SMTP credential variables configured for this SaaS project.
+- The existing authenticated Resend account is available, but its Domains page
+  shows `No domains yet`; no verified sender domain can currently send signup
+  OTP messages to arbitrary customers.
+- Keep Supabase Custom SMTP and `SAAS_EMAIL_OTP_PROVIDER_READY` disabled until an
+  owned domain is verified, secrets are stored outside Git/chat, Supabase Custom
+  SMTP is configured, and a real external-recipient delivery smoke test passes.
+- No secret was inspected or exposed, and no Vercel, Supabase, DNS, billing,
+  migration, deployment, or unrelated-project state was changed.
+
 ## 2026-07-17 - Email OTP Template Alignment Handoff
 
 - SaaS Supabase project `auyznbwtjvemyamujmgt` 的 `Confirm sign up`

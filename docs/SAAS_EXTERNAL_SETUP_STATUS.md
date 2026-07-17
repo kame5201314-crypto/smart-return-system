@@ -1,5 +1,24 @@
 # SaaS External Setup Status
 
+## 2026-07-17 Custom SMTP Provider Audit
+
+- A read-only audit confirmed that neither `.env.saas.local` nor Vercel
+  Production currently provides `RESEND_API_KEY`, `EMAIL_FROM`,
+  `EMAIL_PROVIDER`, `ENABLE_EMAIL_DELIVERY`, or SMTP credentials.
+- The authenticated Resend account's Domains page currently shows
+  `No domains yet`; there is no verified sender domain available for general
+  customer delivery.
+- Supabase Custom SMTP therefore remains disabled. The hosted
+  `smart-return-system-saas.vercel.app` address is not an owned mail domain and
+  cannot satisfy sender-domain DNS verification.
+- Do not set `SAAS_EMAIL_OTP_PROVIDER_READY=true` in Production or enable public
+  Email OTP signup until an owned domain is verified, provider credentials are
+  stored out of band, Supabase Custom SMTP is enabled, and a real
+  external-recipient delivery smoke test passes.
+- No secret value was read, printed, or written. This audit did not change
+  Vercel, Supabase, DNS, billing, migrations, deployment, or any unrelated
+  project.
+
 ## 2026-07-17 Email OTP Template Alignment
 
 - SaaS Supabase project `auyznbwtjvemyamujmgt` 的 Auth `Confirm sign up`

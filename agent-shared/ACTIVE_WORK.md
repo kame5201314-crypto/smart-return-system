@@ -1,5 +1,22 @@
 # Active Work
 
+## 2026-07-17 Custom SMTP Provider Audit
+
+Status: blocked
+
+Scope: Verify whether existing local, Vercel, and Resend resources are sufficient
+to activate general-customer Email OTP delivery safely.
+
+Notes: The read-only audit found no provider or SMTP credential variables in the
+local SaaS env or Vercel Production. The authenticated Resend account exists, but
+its Domains page shows `No domains yet`, so there is no verified sender domain.
+The remaining external prerequisite is an owned domain whose DNS can be verified
+with the provider; only then can credentials be stored out of band, Supabase
+Custom SMTP be enabled, and an external-recipient smoke test pass. Keep
+`SAAS_EMAIL_OTP_PROVIDER_READY=false` until that sequence is complete. No secret,
+external setting, migration, deployment, billing, DNS, or unrelated project was
+changed during this audit.
+
 ## 2026-07-17 Email OTP Template Alignment
 
 Status: blocked
