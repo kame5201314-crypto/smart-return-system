@@ -8,6 +8,8 @@
   `saas_verified_identity_self_service_trial`.
 - Verification returned true for the RPC and all required columns. Execute is
   granted to `service_role` and denied to `anon` and `authenticated`.
+- Vercel Production has `SAAS_VERIFIED_SIGNUP_MIGRATION_READY=true`; this marker
+  did not enable a channel or trigger a deployment.
 - Do not rerun migrations `040`-`044`. Email delivery, Turnstile, Production
   readiness flags, deployment, and end-to-end OTP smoke remain separate steps.
 

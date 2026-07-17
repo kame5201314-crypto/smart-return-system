@@ -10,6 +10,8 @@ Notes: Owner authorized the registration rollout and opened SQL Editor access fo
 project `auyznbwtjvemyamujmgt`. Migration `044` executed successfully, remote
 migration history records `044`, and verification confirmed the provider-neutral
 trial RPC, identity/phone columns, and service-role-only execute permission.
+Vercel Production now has the non-sensitive migration-readiness marker set to
+`true`; no channel flag was enabled and no deployment was triggered.
 Migrations `040`-`044` must not be rerun. No other Supabase project, master,
 Billing, DNS, SMS provider, or unrelated Production setting was changed.
 

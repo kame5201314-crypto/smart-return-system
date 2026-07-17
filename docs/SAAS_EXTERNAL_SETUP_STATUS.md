@@ -9,6 +9,10 @@
 - Verification confirmed the provider-neutral trial RPC and all required columns
   exist. Only `service_role` can execute the RPC; `anon` and `authenticated`
   cannot execute it.
+- Vercel Production now stores
+  `SAAS_VERIFIED_SIGNUP_MIGRATION_READY=true` as a non-sensitive variable. No
+  deployment or Email/Phone channel enablement was performed for this marker-only
+  change.
 - Migrations `040`-`044` must not be rerun. Custom SMTP, SMS, Turnstile,
   Production readiness flags, and deployment remain separate rollout steps.
 

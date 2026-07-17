@@ -36,6 +36,8 @@ Last updated: 2026-07-17
 - Migration `044_saas_verified_identity_self_service_trial.sql` 已於 2026-07-17
   由 owner 明確授權後，只套用到 SaaS project `auyznbwtjvemyamujmgt`。遠端
   migration history 已記錄 `044`；RPC、欄位及 service-role-only 權限均已驗證。
+- Vercel Production 已新增 `SAAS_VERIFIED_SIGNUP_MIGRATION_READY=true`，供下一次
+  授權部署使用；尚未啟用任何 Email／Phone channel，也尚未因這個 env 變更重新部署。
 - 尚未設定 Custom SMTP、SMS provider、Turnstile 或 Production env，因此目前
   Production 只能安全顯示停用中的 Email 註冊介面，不能實際寄送或收取驗證碼。
 
