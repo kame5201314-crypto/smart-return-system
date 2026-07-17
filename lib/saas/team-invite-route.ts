@@ -17,6 +17,11 @@ import {
 } from '@/lib/saas/settings-team-data';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import {
+  resolveSelfServiceTrialSeatLimit,
+  SelfServiceTrialSeatLimitError,
+  type SelfServiceTrialSeatLimitRepository,
+} from '@/lib/saas/self-service-trial-seat-limit';
 
 type TeamInviteQueryRepository = Pick<
   SettingsTeamDataRepository,
@@ -28,6 +33,7 @@ export interface SaaSTeamInviteRouteDependencies {
   createQueryClient?: () => SettingsTeamQueryClient | Promise<SettingsTeamQueryClient>;
   teamRepository?: TeamInviteQueryRepository;
   inviteRepository?: SaaSInviteCreationRepository;
+  trialSeatRepository?: SelfServiceTrialSeatLimitRepository;
   now?: Date;
 }
 
@@ -78,6 +84,24 @@ function getInviteRepository(
   );
 }
 
+function getTrialSeatRepository(
+  deps: SaaSTeamInviteRouteDependencies
+): SelfServiceTrialSeatLimitRepository {
+  if (deps.trialSeatRepository) return deps.trialSeatRepository;
+  return {
+    async hasSelfServiceTrialClaim(orgId) {
+      const client = createUntypedAdminClient();
+      const { data, error } = await client
+        .from('saas_self_service_trial_claims')
+        .select('org_id')
+        .eq('org_id', orgId)
+        .maybeSingle();
+      if (error) throw new Error(error.message || 'Failed to load trial claim.');
+      return Boolean(data);
+    },
+  };
+}
+
 function assertCanInviteRole(context: SaaSOrgContext, role: unknown): void {
   if (context.role === 'admin' && role === 'admin') {
     throw new SaaSInviteCreationError(
@@ -112,13 +136,33 @@ export async function createSaaSTeamInviteFromRequest(
     }),
   ]);
 
+  let seatLimit: number | null;
+  try {
+    const resolution = await resolveSelfServiceTrialSeatLimit({
+      orgId: context.orgId,
+      orgStatus: context.orgStatus,
+      planSeatLimit: context.planDefinition.seatLimit,
+      repository: getTrialSeatRepository(deps),
+    });
+    seatLimit = resolution.seatLimit;
+  } catch (error) {
+    if (error instanceof SelfServiceTrialSeatLimitError) {
+      throw new SaaSInviteCreationError(
+        'create_failed',
+        503,
+        '目前無法確認試用席次，請稍後再試。'
+      );
+    }
+    throw error;
+  }
+
   return createSaaSInvite(
     {
       orgId: context.orgId,
       email: input.email,
       role: input.role,
       invitedBy: context.userId,
-      seatLimit: context.planDefinition.seatLimit,
+      seatLimit,
       activeMemberCount: members.filter((member) => member.status !== 'disabled').length,
       pendingInviteCount: invites.filter((invite) => invite.status === 'pending').length,
       now,

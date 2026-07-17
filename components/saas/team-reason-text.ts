@@ -22,6 +22,8 @@ const REASON_ZH: Record<string, string> = {
   'Invite cannot be resent.': '此邀請無法重送。',
   'Invite role is invalid.': '邀請角色無效。',
   'Seat limit has been reached for this plan.': '已達方案席次上限。',
+  'Beta trial workspaces support one member only.':
+    'Beta 試用期間僅提供擁有者 1 個席次；升級後即可邀請成員。',
   // 團隊頂層 actions（邀請表單）
   'Owner or admin role is required to manage team settings.':
     '需要擁有者或管理員角色才能管理團隊設定。',

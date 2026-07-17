@@ -159,6 +159,7 @@ export interface TeamSettingsView {
 export interface TeamSettingsViewInput {
   orgId: string;
   plan: unknown;
+  seatLimitOverride?: number;
   members: Array<{
     id: string;
     userId?: string | null;
@@ -686,6 +687,9 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
 
 export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSettingsView {
   const plan = getSaaSPlanDefinition(input.plan);
+  const seatLimit = input.seatLimitOverride === undefined
+    ? plan.seatLimit
+    : nonNegativeNumber(input.seatLimitOverride, 'team.seatLimitOverride');
   const members = input.members.map((member) => ({
     id: requireString(member.id, 'team.member.id'),
     userId: member.userId ?? null,
@@ -705,7 +709,7 @@ export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSetting
     actions: normalizeInviteActions(invite.actions, 'team.invite.actions'),
   }));
   const seatUsage = resolveSaaSTeamSeatUsage({
-    seatLimit: plan.seatLimit,
+    seatLimit,
     activeMemberCount: members.filter((member) => member.status !== 'disabled').length,
     pendingInviteCount: invites.filter((invite) => invite.status === 'pending').length,
   });
@@ -714,7 +718,7 @@ export function buildTeamSettingsView(input: TeamSettingsViewInput): TeamSetting
 
   return {
     orgId: requireString(input.orgId, 'team.orgId'),
-    seatLimit: plan.seatLimit,
+    seatLimit,
     members,
     invites,
     actions: {

@@ -34,6 +34,12 @@ import {
   type ViewState,
 } from '@/lib/saas/ui-backend-contracts';
 import { createClient } from '@/lib/supabase/server';
+import { createUntypedAdminClient } from '@/lib/supabase/admin';
+import {
+  resolveSelfServiceTrialSeatLimit,
+  type SelfServiceTrialSeatLimitRepository,
+  type SelfServiceTrialSeatLimitResolution,
+} from '@/lib/saas/self-service-trial-seat-limit';
 
 type SettingsQueryClient = SettingsBillingQueryClient &
   SettingsUsageQueryClient &
@@ -87,6 +93,7 @@ export interface SettingsLiveDataDependencies {
   billingRepository?: SettingsBillingDataRepository;
   usageRepository?: SettingsUsageDataRepository;
   teamRepository?: SettingsTeamDataRepository;
+  trialSeatRepository?: SelfServiceTrialSeatLimitRepository;
   now?: Date;
 }
 
@@ -219,7 +226,10 @@ function mapBillingContextError(
   };
 }
 
-function buildTeamActions(context: SaaSOrgContext): TeamSettingsView['actions'] {
+function buildTeamActions(
+  context: SaaSOrgContext,
+  selfServiceTrialSeatLimitApplies = false
+): TeamSettingsView['actions'] {
   const isManager = context.role === 'owner' || context.role === 'admin';
   const canWrite = canWriteSaaSOrgData(context);
 
@@ -239,10 +249,49 @@ function buildTeamActions(context: SaaSOrgContext): TeamSettingsView['actions'] 
     };
   }
 
+  if (selfServiceTrialSeatLimitApplies) {
+    return {
+      canInvite: false,
+      canChangeRoles: true,
+      disabledReason: 'Beta trial workspaces support one member only.',
+    };
+  }
+
   return {
     canInvite: true,
     canChangeRoles: true,
   };
+}
+
+async function resolveTeamSeatLimit(
+  context: SaaSOrgContext,
+  deps: SettingsLiveDataDependencies
+): Promise<SelfServiceTrialSeatLimitResolution> {
+  if (context.orgStatus !== 'trialing') {
+    return { applies: false, seatLimit: context.planDefinition.seatLimit };
+  }
+
+  const repository = deps.trialSeatRepository ?? (() => {
+    const client = createUntypedAdminClient();
+    return {
+      async hasSelfServiceTrialClaim(orgId: string) {
+        const { data, error } = await client
+          .from('saas_self_service_trial_claims')
+          .select('org_id')
+          .eq('org_id', orgId)
+          .maybeSingle();
+        if (error) throw new Error(error.message || 'Failed to load trial claim.');
+        return Boolean(data);
+      },
+    };
+  })();
+
+  return resolveSelfServiceTrialSeatLimit({
+    orgId: context.orgId,
+    orgStatus: context.orgStatus,
+    planSeatLimit: context.planDefinition.seatLimit,
+    repository,
+  });
 }
 
 export async function loadBillingSettingsView(
@@ -335,9 +384,13 @@ export async function loadTeamSettingsView(
     const repository =
       deps.teamRepository ??
       createSettingsTeamDataRepository(await getSettingsQueryClient(deps));
+    const seatLimitResolution = await resolveTeamSeatLimit(context, deps);
     const input = await buildTeamSettingsViewInput(repository, {
       orgId: context.orgId,
-      actions: buildTeamActions(context),
+      seatLimitOverride: seatLimitResolution.applies
+        ? seatLimitResolution.seatLimit ?? undefined
+        : undefined,
+      actions: buildTeamActions(context, seatLimitResolution.applies),
       actor: {
         userId: context.userId,
         role: context.role,

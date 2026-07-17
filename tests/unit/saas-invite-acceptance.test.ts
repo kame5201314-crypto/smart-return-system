@@ -154,6 +154,27 @@ describe('SaaS invite acceptance service', () => {
     expect(repository.acceptInvite).not.toHaveBeenCalled();
   });
 
+  it('checks the seat guard before accepting an existing invite', async () => {
+    const repository = createRepository(buildInvite());
+    repository.assertInviteSeatAvailable = vi.fn(async () => {
+      throw new SaaSInviteAcceptanceError(
+        'seat_limit_reached',
+        409,
+        '試用工作區僅提供 1 個成員席次。'
+      );
+    });
+
+    await expect(acceptSaaSInvite(
+      {
+        token: 'token-1',
+        userId: 'user-1',
+        userEmail: 'staff@example.com',
+      },
+      repository
+    )).rejects.toMatchObject({ code: 'seat_limit_reached', status: 409 });
+    expect(repository.acceptInvite).not.toHaveBeenCalled();
+  });
+
   it('rejects invite records without an acceptable member role', async () => {
     const repository = createRepository(buildInvite({ role: null }));
 

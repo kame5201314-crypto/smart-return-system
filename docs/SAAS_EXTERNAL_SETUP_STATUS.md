@@ -1,5 +1,14 @@
 # SaaS External Setup Status
 
+## 2026-07-17 Closed-Beta Single-seat Guard
+
+- Active self-service trials use one effective seat, occupied by the verified
+  owner account. Paid and manually provisioned workspaces retain plan limits.
+- Both invite creation and invite acceptance enforce the restriction on the
+  server. Team settings show the effective one-seat limit and upgrade guidance.
+- No new env value, migration, deployment, or external setting is required for
+  this repository guard.
+
 ## 2026-07-17 Closed-Beta Return Volume Guard
 
 - Active self-service trial workspaces now have a server-enforced maximum of

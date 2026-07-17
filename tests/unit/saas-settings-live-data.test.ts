@@ -335,6 +335,44 @@ describe('SaaS settings live data loaders', () => {
     });
   });
 
+  it('shows one seat and disables invites for a self-service Beta trial', async () => {
+    const result = await loadTeamSettingsView({
+      ...createBaseDeps(buildContext({
+        orgStatus: 'trialing',
+        plan: 'basic',
+        planDefinition: getSaaSPlanDefinition('basic'),
+      })),
+      trialSeatRepository: {
+        hasSelfServiceTrialClaim: vi.fn(async () => true),
+      },
+      teamRepository: {
+        getOrganizationPlan: vi.fn(async () => ({ id: 'org-1', plan: 'basic' })),
+        listMembers: vi.fn(async () => [{
+          id: 'owner-member',
+          userId: 'user-1',
+          email: 'owner@example.com',
+          displayName: null,
+          role: 'owner',
+          status: 'active',
+          joinedAt: '2026-07-17T00:00:00.000Z',
+        }]),
+        listInvites: vi.fn(async () => []),
+      },
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        seatLimit: 1,
+        actions: {
+          canInvite: false,
+          canChangeRoles: true,
+          disabledReason: 'Beta trial workspaces support one member only.',
+        },
+      },
+    });
+  });
+
   it('returns empty state instead of serving fake data when repositories miss the org', async () => {
     const result = await loadUsageSettingsView({
       ...createBaseDeps(),

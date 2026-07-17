@@ -10,6 +10,7 @@ export type SaaSInviteAcceptanceErrorCode =
   | 'invite_already_accepted'
   | 'invite_revoked'
   | 'invite_not_pending'
+  | 'seat_limit_reached'
   | 'accept_failed';
 
 export interface SaaSInviteAcceptanceInput {
@@ -41,6 +42,7 @@ export interface SaaSInviteAcceptanceRepository {
     role: SaaSInviteRole;
     acceptedAt: string;
   }): Promise<{ membershipId?: string | null }>;
+  assertInviteSeatAvailable?(input: { orgId: string }): Promise<void>;
 }
 
 interface SupabaseRpcError {
@@ -240,6 +242,7 @@ export async function acceptSaaSInvite(
   const acceptedAt = now.toISOString();
 
   try {
+    await repository.assertInviteSeatAvailable?.({ orgId: invite.orgId });
     const result = await repository.acceptInvite({
       inviteId: invite.id,
       orgId: invite.orgId,

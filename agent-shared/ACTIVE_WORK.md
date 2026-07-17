@@ -1,5 +1,18 @@
 # Active Work
 
+## 2026-07-17 Self-service Trial Single-seat Guard
+
+Status: done
+
+Scope: Keep closed-Beta self-service workspaces to the verified owner account
+only while preserving the normal Basic, Growth, and Enterprise plan limits.
+
+Notes: Trial claim detection overrides the effective seat limit to 1 in team
+settings and server-side invite creation. Existing pending invite links are also
+checked immediately before acceptance, so hiding the invite form cannot be
+bypassed. The team page shows 1 seat with a Traditional Chinese upgrade message.
+No migration, deployment, env, or external setting changed.
+
 ## 2026-07-17 Self-service Trial Return Hard Limits
 
 Status: done

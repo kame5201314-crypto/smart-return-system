@@ -53,7 +53,9 @@ export async function handleCreateSaaSTeamInviteRequest(
       return NextResponse.json(
         {
           success: false,
-          error: error.message,
+          error: error.code === 'seat_limit_reached'
+            ? '目前已達可用成員席次上限。'
+            : error.message,
           code: error.code,
         },
         { status: error.status }

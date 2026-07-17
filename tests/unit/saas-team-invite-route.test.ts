@@ -225,6 +225,30 @@ describe('SaaS team invite API foundation', () => {
     expect(deps.inviteRepository?.createInvite).not.toHaveBeenCalled();
   });
 
+  it('keeps self-service Beta trials to the owner seat only', async () => {
+    const deps = createDeps({
+      getContext: vi.fn(async () => buildContext({ orgStatus: 'trialing' })),
+      trialSeatRepository: {
+        hasSelfServiceTrialClaim: vi.fn(async () => true),
+      },
+    });
+
+    const response = await handleCreateSaaSTeamInviteRequest(
+      buildRequest({
+        email: 'friend@example.com',
+        role: 'viewer',
+      }),
+      deps
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      success: false,
+      code: 'seat_limit_reached',
+    });
+    expect(deps.inviteRepository?.createInvite).not.toHaveBeenCalled();
+  });
+
   it('rejects unsupported invite roles before invite writes', async () => {
     const deps = createDeps();
 

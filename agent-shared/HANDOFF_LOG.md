@@ -1,5 +1,15 @@
 # Handoff Log
 
+## 2026-07-17 - Self-service Trial Single-seat Guard Handoff
+
+- Active self-service trials now resolve to one effective team seat: the owner.
+- New team invite creation is blocked server-side when that seat is occupied.
+- Pending invite acceptance rechecks the same guard before the membership RPC,
+  preventing older links from bypassing the Beta restriction.
+- Team settings display `1` as the effective limit and a friendly Traditional
+  Chinese upgrade explanation. Paid/manual workspaces keep plan seat limits.
+- No deployment, migration, env, secret, or external platform setting changed.
+
 ## 2026-07-17 - Self-service Trial Return Hard Limits Handoff
 
 - Active self-service trials are capped at 50 total `return_requests`.

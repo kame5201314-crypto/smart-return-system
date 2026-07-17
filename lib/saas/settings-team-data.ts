@@ -175,6 +175,7 @@ export async function buildTeamSettingsViewInput(
   repository: SettingsTeamDataRepository,
   input: {
     orgId: string;
+    seatLimitOverride?: number;
     actions: TeamSettingsView['actions'];
     actor?: {
       userId: string;
@@ -200,6 +201,7 @@ export async function buildTeamSettingsViewInput(
   return {
     orgId: org.id,
     plan: org.plan,
+    seatLimitOverride: input.seatLimitOverride,
     members: members.map((member) => ({
       ...member,
       actions: input.actor
