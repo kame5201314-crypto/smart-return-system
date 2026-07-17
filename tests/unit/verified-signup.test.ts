@@ -134,7 +134,7 @@ describe('verified signup contract', () => {
     expect(getVerifiedSignupErrorMessage(new Error('rate limit exceeded')))
       .toBe('操作過於頻繁，請稍後再試。');
     expect(getVerifiedSignupErrorMessage(new Error('Account already exists')))
-      .toBe('此帳號已註冊，請返回登入。');
+      .toBe('此信箱已有帳號，本次沒有建立新帳號。請返回登入。');
     expect(getVerifiedSignupErrorMessage(new Error('Failed to generate recovery link')))
       .toBe('驗證服務暫時無法使用，請稍後再試。');
     expect(getVerifiedSignupErrorMessage(new Error('token expired')))

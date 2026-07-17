@@ -32,6 +32,10 @@ interface VerifiedSignupFormProps {
   emailEnabled: boolean;
   phoneEnabled: boolean;
   showEmailWhenUnavailable?: boolean;
+  initialVerification?: {
+    channel: VerifiedSignupChannel;
+    identifier: string;
+  };
   initialPlan: SaaSPlanCode;
   turnstileSiteKey: string;
 }
@@ -140,18 +144,27 @@ export function VerifiedSignupForm({
   emailEnabled,
   phoneEnabled,
   showEmailWhenUnavailable = false,
+  initialVerification,
   initialPlan,
   turnstileSiteKey,
 }: VerifiedSignupFormProps) {
   const router = useRouter();
   const emailFallbackVisible = showEmailWhenUnavailable && !emailEnabled;
+  const resumedVerification = initialVerification && (
+    (initialVerification.channel === 'email' && emailEnabled) ||
+    (initialVerification.channel === 'phone' && phoneEnabled)
+  ) ? initialVerification : undefined;
   const [channel, setChannel] = useState<VerifiedSignupChannel>(
-    emailEnabled || !phoneEnabled ? 'email' : 'phone'
+    resumedVerification?.channel ?? (emailEnabled || !phoneEnabled ? 'email' : 'phone')
   );
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
-  const [identifier, setIdentifier] = useState('');
-  const [displayIdentifier, setDisplayIdentifier] = useState('');
-  const [normalizedIdentifier, setNormalizedIdentifier] = useState('');
+  const [step, setStep] = useState<'credentials' | 'otp'>(
+    resumedVerification ? 'otp' : 'credentials'
+  );
+  const [identifier, setIdentifier] = useState(resumedVerification?.identifier ?? '');
+  const [displayIdentifier, setDisplayIdentifier] = useState(resumedVerification?.identifier ?? '');
+  const [normalizedIdentifier, setNormalizedIdentifier] = useState(
+    resumedVerification?.identifier ?? ''
+  );
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [referralCode, setReferralCode] = useState('');
@@ -162,7 +175,11 @@ export function VerifiedSignupForm({
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [clock, setClock] = useState(() => Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    resumedVerification
+      ? '帳號尚未完成驗證，請輸入先前收到的驗證碼；若未收到，可在下方重新傳送。'
+      : null
+  );
   const [error, setError] = useState<string | null>(null);
   const [existingAccountDetected, setExistingAccountDetected] = useState(false);
   const [errorField, setErrorField] = useState<SignupErrorField | null>(null);
@@ -722,27 +739,38 @@ export function VerifiedSignupForm({
           </div>
 
           {selectedChannelEnabled ? (
-            <AuthTurnstile
-              key={`credentials-${captchaResetNonce}`}
-              siteKey={turnstileSiteKey}
-              onSuccess={setCaptchaToken}
-              onExpire={() => setCaptchaToken(null)}
-              onError={() => {
-                setCaptchaToken(null);
-                setError('安全驗證載入失敗，請重新整理後再試。');
-              }}
-              options={{
-                language: 'zh-tw',
-                size: 'flexible',
-                action: combinedChannels ? 'signup_identity' : `signup_${channel}`,
-              }}
-            />
+            <div className="space-y-2">
+              <AuthTurnstile
+                key={`credentials-${captchaResetNonce}`}
+                siteKey={turnstileSiteKey}
+                onSuccess={setCaptchaToken}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => {
+                  setCaptchaToken(null);
+                  setError('安全驗證載入失敗，請重新整理後再試。');
+                }}
+                options={{
+                  language: 'zh-tw',
+                  size: 'flexible',
+                  action: combinedChannels ? 'signup_identity' : `signup_${channel}`,
+                }}
+              />
+              {captchaToken ? (
+                <p
+                  role="status"
+                  data-testid="signup-captcha-complete-notice"
+                  className="text-xs leading-5 text-neutral-500"
+                >
+                  安全驗證已完成；帳號尚未建立，請按下「註冊」繼續。
+                </p>
+              ) : null}
+            </div>
           ) : null}
 
           <Feedback message={message} error={error} />
           {existingAccountDetected ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
-              <p>這個帳號已經完成註冊，請直接前往登入。</p>
+              <p>此信箱已有帳號，本次沒有建立新帳號。請直接前往登入。</p>
               <Button asChild className="mt-3 w-full">
                 <Link href="/login">返回登入</Link>
               </Button>

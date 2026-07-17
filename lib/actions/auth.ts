@@ -40,6 +40,21 @@ export interface AuthResult {
   success: boolean;
   error?: string;
   redirectTo?: PostLoginRedirectPath;
+  verificationPath?: string;
+}
+
+function isPendingIdentityConfirmation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const authError = error as { code?: unknown; message?: unknown };
+  const code = typeof authError.code === 'string' ? authError.code.toLowerCase() : '';
+  const message = typeof authError.message === 'string' ? authError.message.toLowerCase() : '';
+
+  return (
+    code === 'email_not_confirmed' ||
+    code === 'phone_not_confirmed' ||
+    message.includes('email not confirmed') ||
+    message.includes('phone not confirmed')
+  );
 }
 
 export async function signIn(
@@ -144,6 +159,18 @@ export async function signIn(
         });
 
     if (error) {
+      if (isPendingIdentityConfirmation(error)) {
+        const verificationChannel = isEmail ? 'email' : 'phone';
+        const verificationIdentifier = isEmail ? normalizedLoginId : phone!;
+        return {
+          success: false,
+          error: isEmail
+            ? '信箱尚未完成驗證，請輸入驗證碼後再登入。'
+            : '手機尚未完成驗證，請輸入驗證碼後再登入。',
+          verificationPath:
+            `/signup?verify=${verificationChannel}&identifier=${encodeURIComponent(verificationIdentifier)}`,
+        };
+      }
       return {
         success: false,
         error: error.message === 'Invalid login credentials' ? '帳號或密碼錯誤' : '登入失敗，請稍後再試',

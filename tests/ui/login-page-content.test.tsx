@@ -103,6 +103,30 @@ describe('LoginPageContent', () => {
     expect(navigationMocks.push).toHaveBeenCalledWith('/analytics');
   });
 
+  it('returns an unverified account to the Email verification screen', async () => {
+    authActionMocks.signIn.mockResolvedValue({
+      success: false,
+      error: '信箱尚未完成驗證，請輸入驗證碼後再登入。',
+      verificationPath: '/signup?verify=email&identifier=owner%40example.com',
+    });
+    render(<LoginPageContent googleAuthEnabled={false} />);
+
+    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+      target: { value: 'owner@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('密碼'), {
+      target: { value: 'Password8' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '登入' }));
+
+    await waitFor(() => expect(navigationMocks.push).toHaveBeenCalledWith(
+      '/signup?verify=email&identifier=owner%40example.com'
+    ));
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      '信箱尚未完成驗證，請輸入驗證碼後再登入。'
+    );
+  });
+
   it('also challenges the platform login page so Supabase admin principals are not locked out', async () => {
     navigationMocks.search = 'next=%2Finternal';
     window.history.replaceState({}, '', '/login?next=%2Finternal');
@@ -201,6 +225,7 @@ describe('LoginPageContent', () => {
       .toBeInTheDocument();
     expect(screen.getByRole('link', { name: '建立帳號' }))
       .toHaveAttribute('href', '/signup');
+    expect(screen.getByText('密碼會區分英文字母大小寫。')).toBeInTheDocument();
   });
 
   it('does not forward an unsupported plan or expose merchant signup to platform admins', () => {

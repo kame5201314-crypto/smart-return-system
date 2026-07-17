@@ -9,7 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { resolveVerifiedSignupAvailability } from '@/lib/auth/verified-signup';
+import {
+  normalizeEmailIdentifier,
+  normalizeTaiwanPhoneIdentifier,
+  resolveVerifiedSignupAvailability,
+  type VerifiedSignupChannel,
+} from '@/lib/auth/verified-signup';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
@@ -19,7 +24,16 @@ export const metadata: Metadata = {
 };
 
 interface SignupPageProps {
-  searchParams?: Promise<{ plan?: string | string[] }>;
+  searchParams?: Promise<{
+    plan?: string | string[];
+    verify?: string | string[];
+    identifier?: string | string[];
+  }>;
+}
+
+interface InitialVerification {
+  channel: VerifiedSignupChannel;
+  identifier: string;
 }
 
 function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode {
@@ -27,10 +41,34 @@ function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode 
   return plan === 'growth' || plan === 'enterprise' ? plan : 'basic';
 }
 
+function resolveInitialVerification(
+  params: Awaited<SignupPageProps['searchParams']>,
+  availability: { emailEnabled: boolean; phoneEnabled: boolean }
+): InitialVerification | undefined {
+  const verify = Array.isArray(params?.verify) ? params?.verify[0] : params?.verify;
+  const identifierValue = Array.isArray(params?.identifier)
+    ? params?.identifier[0]
+    : params?.identifier;
+  if (!identifierValue) return undefined;
+
+  try {
+    if (verify === 'email' && availability.emailEnabled) {
+      return { channel: 'email', identifier: normalizeEmailIdentifier(identifierValue) };
+    }
+    if (verify === 'phone' && availability.phoneEnabled) {
+      return { channel: 'phone', identifier: normalizeTaiwanPhoneIdentifier(identifierValue) };
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 export default async function SignupPage({ searchParams }: SignupPageProps) {
   const params = await searchParams;
   const initialPlan = resolveInitialPlan(params?.plan);
   const verifiedSignup = resolveVerifiedSignupAvailability();
+  const initialVerification = resolveInitialVerification(params, verifiedSignup);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10 sm:py-14">
@@ -50,7 +88,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         <Card className="border-neutral-200 bg-white shadow-lg" data-testid="signup-card">
           <CardHeader className="pb-5 sm:px-10 sm:pt-10">
             <CardTitle className="text-3xl font-medium tracking-tight">
-              <h1>建立帳號</h1>
+              <h1>{initialVerification ? '完成帳號驗證' : '建立帳號'}</h1>
             </CardTitle>
           </CardHeader>
 
@@ -59,6 +97,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
               emailEnabled={verifiedSignup.emailEnabled}
               phoneEnabled={verifiedSignup.phoneEnabled}
               showEmailWhenUnavailable
+              initialVerification={initialVerification}
               initialPlan={initialPlan}
               turnstileSiteKey={verifiedSignup.turnstileSiteKey}
             />

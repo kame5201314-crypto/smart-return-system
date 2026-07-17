@@ -12,6 +12,8 @@ const signupMocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth/verified-signup', () => ({
   resolveVerifiedSignupAvailability: () => signupMocks.verified,
+  normalizeEmailIdentifier: (value: string) => value.trim().toLowerCase(),
+  normalizeTaiwanPhoneIdentifier: (value: string) => value,
 }));
 
 vi.mock('@/components/auth/verified-signup-form', () => ({
@@ -19,12 +21,14 @@ vi.mock('@/components/auth/verified-signup-form', () => ({
     emailEnabled,
     phoneEnabled,
     showEmailWhenUnavailable,
+    initialVerification,
     initialPlan,
     turnstileSiteKey,
   }: {
     emailEnabled: boolean;
     phoneEnabled: boolean;
     showEmailWhenUnavailable?: boolean;
+    initialVerification?: { channel: string; identifier: string };
     initialPlan: string;
     turnstileSiteKey: string;
   }) => (
@@ -33,6 +37,9 @@ vi.mock('@/components/auth/verified-signup-form', () => ({
       data-email-enabled={String(emailEnabled)}
       data-phone-enabled={String(phoneEnabled)}
       data-show-email-when-unavailable={String(showEmailWhenUnavailable)}
+      data-initial-verification={initialVerification
+        ? `${initialVerification.channel}:${initialVerification.identifier}`
+        : ''}
       data-plan={initialPlan}
       data-turnstile-site-key={turnstileSiteKey}
     />
@@ -41,8 +48,12 @@ vi.mock('@/components/auth/verified-signup-form', () => ({
 
 import SignupPage from '@/app/signup/page';
 
-async function renderSignup(plan?: string) {
-  const searchParams = plan ? Promise.resolve({ plan }) : Promise.resolve({});
+async function renderSignup(params: {
+  plan?: string;
+  verify?: string;
+  identifier?: string;
+} = {}) {
+  const searchParams = Promise.resolve(params);
   render(await SignupPage({ searchParams }));
 }
 
@@ -56,7 +67,7 @@ describe('SignupPage', () => {
   afterEach(() => cleanup());
 
   it('renders only the requested account-registration form and preserves the selected plan', async () => {
-    await renderSignup('growth');
+    await renderSignup({ plan: 'growth' });
 
     expect(screen.getByRole('heading', { name: '建立帳號' })).toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
@@ -76,7 +87,7 @@ describe('SignupPage', () => {
     signupMocks.verified.phoneEnabled = true;
     signupMocks.verified.turnstileSiteKey = 'site-key';
 
-    await renderSignup('basic');
+    await renderSignup({ plan: 'basic' });
 
     const form = screen.getByTestId('verified-signup-form');
     expect(form).toHaveAttribute('data-email-enabled', 'true');
@@ -84,8 +95,22 @@ describe('SignupPage', () => {
     expect(form).toHaveAttribute('data-turnstile-site-key', 'site-key');
   });
 
+  it('opens the durable Email verification step for an unconfirmed login', async () => {
+    signupMocks.verified.emailEnabled = true;
+    signupMocks.verified.turnstileSiteKey = 'site-key';
+
+    await renderSignup({
+      verify: 'email',
+      identifier: ' Pending@Example.com ',
+    });
+
+    expect(screen.getByRole('heading', { name: '完成帳號驗證' })).toBeInTheDocument();
+    expect(screen.getByTestId('verified-signup-form'))
+      .toHaveAttribute('data-initial-verification', 'email:pending@example.com');
+  });
+
   it('falls back unsupported plan values to Basic without changing the registration layout', async () => {
-    await renderSignup('unsupported');
+    await renderSignup({ plan: 'unsupported' });
 
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-plan', 'basic');

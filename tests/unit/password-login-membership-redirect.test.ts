@@ -30,6 +30,7 @@ function createMerchantAuthClient(input: {
   email?: string | null;
   memberships?: MembershipRow[];
   membershipError?: { message: string } | null;
+  signInError?: { message: string; code?: string } | null;
 }) {
   const order = vi.fn().mockResolvedValue({
     data: input.memberships ?? [],
@@ -40,13 +41,15 @@ function createMerchantAuthClient(input: {
   const from = vi.fn(() => ({ select }));
   const signOut = vi.fn().mockResolvedValue({ error: null });
   const signInWithPassword = vi.fn().mockResolvedValue({
-    data: {
-      user: {
-        id: input.userId ?? 'merchant-user',
-        email: input.email === undefined ? 'merchant@example.com' : input.email,
-      },
-    },
-    error: null,
+    data: input.signInError
+      ? { user: null }
+      : {
+          user: {
+            id: input.userId ?? 'merchant-user',
+            email: input.email === undefined ? 'merchant@example.com' : input.email,
+          },
+        },
+    error: input.signInError ?? null,
   });
 
   return {
@@ -111,6 +114,20 @@ describe('password login membership-aware redirect', () => {
       success: true,
       redirectTo: '/signup/complete?plan=basic',
     });
+  });
+
+  it('returns an Email verification route when the password is valid but confirmation is pending', async () => {
+    const auth = createMerchantAuthClient({
+      signInError: { message: 'Email not confirmed', code: 'email_not_confirmed' },
+    });
+    supabaseMocks.createClient.mockResolvedValue(auth.client);
+
+    await expect(signIn(' Pending@Example.com ', 'Password8')).resolves.toEqual({
+      success: false,
+      error: '信箱尚未完成驗證，請輸入驗證碼後再登入。',
+      verificationPath: '/signup?verify=email&identifier=pending%40example.com',
+    });
+    expect(auth.from).not.toHaveBeenCalled();
   });
 
   it('keeps a disabled merchant in the existing disabled-membership completion state', async () => {

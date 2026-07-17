@@ -16,7 +16,7 @@ export interface AuthCaptchaAvailability {
 }
 
 export const VERIFIED_SIGNUP_EXISTING_ACCOUNT_MESSAGE =
-  '此帳號已註冊，請返回登入。';
+  '此信箱已有帳號，本次沒有建立新帳號。請返回登入。';
 
 export interface ResolvedVerifiedSignupInput {
   channel: VerifiedSignupChannel;

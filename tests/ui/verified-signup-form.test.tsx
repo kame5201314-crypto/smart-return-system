@@ -138,6 +138,44 @@ describe('VerifiedSignupForm', () => {
     );
   });
 
+  it('clarifies that CAPTCHA success does not mean the account was created', () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+
+    expect(screen.getByTestId('signup-captcha-complete-notice')).toHaveTextContent(
+      '安全驗證已完成；帳號尚未建立，請按下「註冊」繼續。'
+    );
+  });
+
+  it('resumes an unconfirmed Email account directly on the verification-code step', () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialVerification={{ channel: 'email', identifier: 'pending@example.com' }}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    expect(screen.getByRole('heading', {
+      name: '請查收並輸入手機或信箱中的驗證碼',
+    })).toBeInTheDocument();
+    expect(screen.getByText('pending@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '帳號尚未完成驗證，請輸入先前收到的驗證碼'
+    );
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+  });
+
   it('shows a weak-password error before the unavailable-channel fallback', () => {
     render(
       <VerifiedSignupForm
@@ -329,7 +367,7 @@ describe('VerifiedSignupForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '註冊' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      '此帳號已註冊，請返回登入。'
+      '此信箱已有帳號，本次沒有建立新帳號。請返回登入。'
     );
     expect(screen.getAllByRole('link', { name: '返回登入' })).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: '返回登入' })[1]).toHaveAttribute('href', '/login');

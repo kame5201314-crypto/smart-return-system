@@ -135,6 +135,11 @@ export function LoginPageContent({
       );
 
       if (!result.success) {
+        if (result.verificationPath) {
+          toast.error(result.error || '帳號尚未完成驗證。');
+          router.push(result.verificationPath);
+          return;
+        }
         toast.error(result.error || '登入失敗');
         return;
       }
@@ -256,6 +261,7 @@ export function LoginPageContent({
                           />
                         </FormControl>
                       </div>
+                      <p className="text-xs text-neutral-500">密碼會區分英文字母大小寫。</p>
                       <FormMessage />
                     </FormItem>
                   )}
