@@ -209,6 +209,37 @@ export function VerifiedSignupForm({
     const submittedChannelUnavailable = submittedChannel === 'email'
       ? !emailEnabled
       : !phoneEnabled;
+
+    // Surface actionable input errors before the rollout gate. The channel
+    // still fails closed before CAPTCHA, readiness, or Supabase calls, but a
+    // customer who entered a weak or mismatched password should not be told
+    // that the registration service itself is unavailable.
+    if (submittedIdentifier && password && passwordConfirmation) {
+      try {
+        if (submittedChannel === 'email') {
+          normalizeEmailIdentifier(submittedIdentifier);
+        } else {
+          normalizeTaiwanPhoneIdentifier(submittedIdentifier);
+        }
+        validateVerifiedSignupPassword(password, passwordConfirmation);
+      } catch (caughtError) {
+        setError(getSignupErrorMessage(caughtError));
+        if (caughtError instanceof VerifiedSignupValidationError) {
+          if (caughtError.code === 'weak_password') {
+            setErrorField('password');
+            passwordInputRef.current?.focus();
+          } else if (caughtError.code === 'password_mismatch') {
+            setErrorField('passwordConfirmation');
+            passwordConfirmationInputRef.current?.focus();
+          } else {
+            setErrorField('identifier');
+            identifierInputRef.current?.focus();
+          }
+        }
+        return;
+      }
+    }
+
     if (submittedChannelUnavailable) {
       setError('此註冊方式目前無法使用，請稍後再試。');
       setErrorField('identifier');

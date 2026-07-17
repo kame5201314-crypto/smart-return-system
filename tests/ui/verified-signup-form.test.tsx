@@ -133,6 +133,37 @@ describe('VerifiedSignupForm', () => {
     );
   });
 
+  it('shows a weak-password error before the unavailable-channel fallback', () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled={false}
+        phoneEnabled={false}
+        showEmailWhenUnavailable
+        initialPlan="basic"
+        turnstileSiteKey=""
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('手機／信箱'), {
+      target: { value: 'owner@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/^密碼/), {
+      target: { value: '0963039957' },
+    });
+    fireEvent.change(screen.getByLabelText('確認密碼'), {
+      target: { value: '0963039957' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '密碼需為 8 至 72 碼，並包含英文字母與數字。'
+    );
+    expect(screen.getByLabelText(/^密碼/)).toHaveFocus();
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(readinessFetchMock).not.toHaveBeenCalled();
+  });
+
   it('keeps phone registration available while retaining the unavailable Email option', async () => {
     render(
       <VerifiedSignupForm
