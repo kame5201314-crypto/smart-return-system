@@ -1,5 +1,18 @@
 # Handoff Log
 
+## 2026-07-17 - Password Recovery Runtime Readiness Handoff
+
+- Added a no-store password-recovery readiness API exposing only current
+  Email/Phone availability booleans.
+- Initial delivery and resend validate the active channel before loading or
+  calling Supabase Auth; stale pages, runtime flag changes, network failures,
+  non-2xx responses, and malformed payloads fail closed.
+- OTP verification retains the existing server-side flag check, confirmed
+  identity/session checks, and short-lived HttpOnly proof. Focused tests and
+  complete local gates passed: lint, typecheck, scripts, backend, unit, UI,
+  E2E, integration, Production build, SaaS doctor, diff check, and
+  agent-boundary. No external state changed.
+
 ## 2026-07-17 - Optional Auth Dependency Loading Handoff
 
 - Login, verified signup, and password recovery now load the Turnstile client

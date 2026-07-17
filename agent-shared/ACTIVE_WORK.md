@@ -1,5 +1,24 @@
 # Active Work
 
+## 2026-07-17 Password Recovery Runtime Readiness Recheck
+
+Status: done
+
+Scope: Prevent a stale password-recovery page from sending or resending OTPs
+after its Email or Phone channel has been closed at runtime.
+
+Notes: Added a force-dynamic, no-store readiness route that returns only
+`emailEnabled` and `phoneEnabled`. The recovery client validates the exact
+response before loading the Supabase browser SDK for every send or resend;
+closed, unreachable, non-2xx, or malformed state fails closed. OTP verification
+continues to recheck server flags and issue the existing short-lived recovery
+proof. Focused route/UI regressions passed 9/9; final gates passed lint,
+typecheck, 21 script checks, 16 backend tests, 635 unit tests, 50 UI tests,
+4 E2E tests, 5 integration tests, Production build (68 generated pages), SaaS
+doctor (209 pass / 3 expected warnings / 0 fail), diff check, and agent-boundary
+safety. No deploy, migration, provider, env/secret, Vercel, Supabase, Billing,
+DNS, or Production setting changed.
+
 ## 2026-07-17 Optional Auth Dependency Loading
 
 Status: done

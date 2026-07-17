@@ -27,6 +27,88 @@ interface PasswordRecoveryFormProps {
 }
 
 const RESEND_COOLDOWN_SECONDS = 60;
+const RECOVERY_READINESS_ENDPOINT = '/api/saas/password-recovery/readiness';
+const RECOVERY_READINESS_TIMEOUT_MS = 5_000;
+const RECOVERY_READINESS_CHANGED_MESSAGE =
+  '帳號復原服務狀態已更新，請重新整理頁面後再試。';
+const RECOVERY_READINESS_UNAVAILABLE_MESSAGE =
+  '目前無法確認帳號復原服務狀態，請稍後再試。';
+
+class PasswordRecoveryReadinessError extends Error {
+  constructor(public readonly code: 'changed' | 'unavailable') {
+    super(
+      code === 'changed'
+        ? RECOVERY_READINESS_CHANGED_MESSAGE
+        : RECOVERY_READINESS_UNAVAILABLE_MESSAGE
+    );
+    this.name = 'PasswordRecoveryReadinessError';
+  }
+}
+
+function getPasswordRecoveryFlowErrorMessage(error: unknown): string {
+  return error instanceof PasswordRecoveryReadinessError
+    ? error.message
+    : getPasswordRecoveryErrorMessage(error);
+}
+
+async function assertPasswordRecoveryChannelReady(
+  channel: PasswordRecoveryChannel
+): Promise<void> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    RECOVERY_READINESS_TIMEOUT_MS
+  );
+  let response: Response;
+
+  try {
+    response = await fetch(RECOVERY_READINESS_ENDPOINT, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+  } catch {
+    throw new PasswordRecoveryReadinessError('unavailable');
+  } finally {
+    window.clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    throw new PasswordRecoveryReadinessError('unavailable');
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new PasswordRecoveryReadinessError('unavailable');
+  }
+
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    !('success' in payload) ||
+    payload.success !== true ||
+    !('data' in payload) ||
+    !payload.data ||
+    typeof payload.data !== 'object' ||
+    !('emailEnabled' in payload.data) ||
+    typeof payload.data.emailEnabled !== 'boolean' ||
+    !('phoneEnabled' in payload.data) ||
+    typeof payload.data.phoneEnabled !== 'boolean'
+  ) {
+    throw new PasswordRecoveryReadinessError('unavailable');
+  }
+
+  const ready = channel === 'email'
+    ? payload.data.emailEnabled
+    : payload.data.phoneEnabled;
+  if (!ready) {
+    throw new PasswordRecoveryReadinessError('changed');
+  }
+}
 
 async function createPasswordRecoveryClient() {
   const { createClient } = await import('@/lib/supabase/client');
@@ -87,6 +169,7 @@ export function PasswordRecoveryForm({
   }
 
   async function requestRecovery(target: string, token: string) {
+    await assertPasswordRecoveryChannelReady(channel);
     const client = await createPasswordRecoveryClient();
     const response = channel === 'email'
       ? await client.auth.resetPasswordForEmail(target, { captchaToken: token })
@@ -127,7 +210,7 @@ export function PasswordRecoveryForm({
       setMessage(PASSWORD_RECOVERY_GENERIC_SENT_MESSAGE);
       resetCaptcha();
     } catch (caughtError) {
-      setError(getPasswordRecoveryErrorMessage(caughtError));
+      setError(getPasswordRecoveryFlowErrorMessage(caughtError));
       resetCaptcha();
     } finally {
       inFlight.current = false;
@@ -152,7 +235,7 @@ export function PasswordRecoveryForm({
       setMessage(PASSWORD_RECOVERY_GENERIC_SENT_MESSAGE);
       resetCaptcha();
     } catch (caughtError) {
-      setError(getPasswordRecoveryErrorMessage(caughtError));
+      setError(getPasswordRecoveryFlowErrorMessage(caughtError));
       resetCaptcha();
     } finally {
       inFlight.current = false;

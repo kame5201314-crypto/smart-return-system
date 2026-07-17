@@ -405,6 +405,10 @@ function checkCommercialFoundation() {
     process.cwd(),
     'components/auth/password-recovery-form.tsx'
   );
+  const passwordRecoveryReadinessRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/saas/password-recovery/readiness/route.ts'
+  );
   const resetPasswordPagePath = path.resolve(process.cwd(), 'app/reset-password/page.tsx');
   const verifiedSignupFormPath = path.resolve(
     process.cwd(),
@@ -477,12 +481,17 @@ function checkCommercialFoundation() {
     fs.existsSync(passwordRecoverySessionPath) &&
     fs.existsSync(passwordRecoveryActionPath) &&
     fs.existsSync(passwordRecoveryFormPath) &&
+    fs.existsSync(passwordRecoveryReadinessRoutePath) &&
     fs.existsSync(resetPasswordPagePath)
   ) {
     const policySource = fs.readFileSync(passwordRecoveryPath, 'utf8');
     const proofSource = fs.readFileSync(passwordRecoverySessionPath, 'utf8');
     const actionSource = fs.readFileSync(passwordRecoveryActionPath, 'utf8');
     const formSource = fs.readFileSync(passwordRecoveryFormPath, 'utf8');
+    const readinessRouteSource = fs.readFileSync(
+      passwordRecoveryReadinessRoutePath,
+      'utf8'
+    );
     const resetPageSource = fs.readFileSync(resetPasswordPagePath, 'utf8');
     if (
       policySource.includes('ENABLE_EMAIL_PASSWORD_RECOVERY') &&
@@ -497,9 +506,14 @@ function checkCommercialFoundation() {
       actionSource.includes("scope: 'global'") &&
       formSource.includes('shouldCreateUser: false') &&
       formSource.includes('verifyPasswordRecoveryOtp') &&
+      formSource.includes("const RECOVERY_READINESS_ENDPOINT = '/api/saas/password-recovery/readiness'") &&
+      formSource.includes('await assertPasswordRecoveryChannelReady(channel)') &&
+      readinessRouteSource.includes('resolvePasswordRecoveryAvailability') &&
+      readinessRouteSource.includes("export const dynamic = 'force-dynamic'") &&
+      readinessRouteSource.includes('private, no-store') &&
       resetPageSource.includes('verifyPasswordRecoverySessionToken')
     ) {
-      record('pass', 'SaaS password recovery', 'email and phone OTP recovery is fail-closed behind independent flags and a short-lived signed proof');
+      record('pass', 'SaaS password recovery', 'email and phone OTP recovery rechecks runtime readiness and is fail-closed behind independent flags and a short-lived signed proof');
     } else {
       record('fail', 'SaaS password recovery', 'recovery must prevent account enumeration, require a new verified session, and guard password updates with an HttpOnly proof');
     }

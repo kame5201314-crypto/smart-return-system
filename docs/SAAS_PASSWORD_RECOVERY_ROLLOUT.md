@@ -1,6 +1,6 @@
 # SaaS 密碼復原 Rollout
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 ## Repository 狀態
 
@@ -12,6 +12,9 @@ Last updated: 2026-07-16
 - 兩個復原旗標預設皆為 `false`，本次沒有 deploy、migration、Vercel/Supabase
   env、SMTP、SMS provider 或 Production 設定變更。
 - Google Production rollout 已完成，且不受這兩個獨立旗標影響。
+- 寄送與重送前會讀取禁止快取的
+  `/api/saas/password-recovery/readiness`；舊頁面、rolling deploy、網路失敗
+  或不可信回應都會在呼叫 Supabase Auth 前 fail closed。
 - Migration `044` 只服務 Email／Phone 自助註冊與試用建立；既有帳號的密碼
   復原不依賴 `044`，不得因此提前或重複套用 migration。
 
@@ -75,6 +78,9 @@ channel 旗標。`TURNSTILE_SECRET_KEY` 是 Vercel server-only secret，只供�
   或 verified contact 不符時 fail closed，並清除已建立的 recovery session。
 - server action 再次檢查 channel feature flag，無法只靠直接呼叫 action
   繞過關閉狀態。
+- client 寄送與重送會再次確認 server-side channel readiness；readiness API
+  只回傳 Email／Phone 兩個布林值，不公開 site key、provider、env 或 migration
+  細節，且回應一律 `no-store`。
 - legacy 管理員 Siteverify 驗證 token 長度、provider 回應、`password_login`
   action 與由 `NEXT_PUBLIC_APP_URL` 推導的 hostname；逾時或網路錯誤均 fail
   closed，且不 retry／不輸出 provider payload。

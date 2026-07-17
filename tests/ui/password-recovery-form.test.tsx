@@ -16,6 +16,8 @@ const actionMocks = vi.hoisted(() => ({
   verifyPasswordRecoveryOtp: vi.fn(),
 }));
 
+const readinessFetchMock = vi.fn();
+
 vi.mock('next/navigation', () => ({ useRouter: () => navigationMocks }));
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: authMocks }),
@@ -34,12 +36,23 @@ import { PasswordRecoveryForm } from '@/components/auth/password-recovery-form';
 describe('PasswordRecoveryForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('fetch', readinessFetchMock);
+    readinessFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { emailEnabled: true, phoneEnabled: true },
+      }),
+    } as Response);
     authMocks.resetPasswordForEmail.mockResolvedValue({ error: null });
     authMocks.signInWithOtp.mockResolvedValue({ error: null });
     actionMocks.verifyPasswordRecoveryOtp.mockResolvedValue({ success: true });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it('normalizes email, sends a generic response, and exchanges the OTP for a recovery proof', async () => {
     render(
@@ -127,5 +140,54 @@ describe('PasswordRecoveryForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('帳號復原流程已失效');
     expect(navigationMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('stops a stale recovery page before Supabase when its channel is closed', async () => {
+    readinessFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { emailEnabled: false, phoneEnabled: true },
+      }),
+    } as Response);
+    render(
+      <PasswordRecoveryForm emailEnabled phoneEnabled turnstileSiteKey="site-key" />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱'), {
+      target: { value: 'owner@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '傳送驗證碼' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '帳號復原服務狀態已更新'
+    );
+    expect(authMocks.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before Supabase when readiness cannot be trusted', async () => {
+    readinessFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, data: { emailEnabled: 'yes' } }),
+    } as Response);
+    render(
+      <PasswordRecoveryForm
+        emailEnabled
+        phoneEnabled={false}
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('電子信箱'), {
+      target: { value: 'owner@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '傳送驗證碼' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '目前無法確認帳號復原服務狀態'
+    );
+    expect(authMocks.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 });
