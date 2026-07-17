@@ -5,6 +5,7 @@ interface UsageProgressProps {
   value: number;
   className?: string;
   'aria-label'?: string;
+  'aria-valuetext'?: string;
 }
 
 export function UsageProgress({ value, className, ...rest }: UsageProgressProps) {

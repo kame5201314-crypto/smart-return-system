@@ -258,6 +258,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.seats)}
                 aria-label={`${org.name} 席次使用率`}
+                aria-valuetext={`已使用 ${org.memberCount} / ${plan.seatLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.seats)}%`}
               />
             </div>
             <div className="rounded-md border p-3">
@@ -268,6 +269,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.returns)}
                 aria-label={`${org.name} 退貨量使用率`}
+                aria-valuetext={`已使用 ${org.usage.returnsThisMonth} / ${plan.monthlyReturnSoftLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.returns)}%`}
               />
             </div>
             <div className="rounded-md border p-3">
@@ -277,6 +279,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.ai)}
                 aria-label={`${org.name} AI 額度使用率`}
+                aria-valuetext={`已使用 ${org.usage.aiUsedThisMonth} / ${plan.aiMonthlyLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.ai)}%`}
               />
             </div>
           </div>

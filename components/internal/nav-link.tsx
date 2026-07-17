@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Building2, FileClock, Inbox, LayoutDashboard } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 
-type InternalIconName = 'building' | 'fileClock' | 'inbox' | 'layoutDashboard';
+export type InternalIconName = 'building' | 'fileClock' | 'inbox' | 'layoutDashboard';
 
 const ICON_MAP: Record<InternalIconName, ComponentType<SVGProps<SVGSVGElement>>> = {
   building: Building2,
@@ -14,15 +14,16 @@ const ICON_MAP: Record<InternalIconName, ComponentType<SVGProps<SVGSVGElement>>>
   layoutDashboard: LayoutDashboard,
 };
 
-interface InternalNavLinkProps {
+export interface InternalNavLinkProps {
   href: string;
   label: string;
   description: string;
   iconName: InternalIconName;
   exact?: boolean;
+  onNavigate?: () => void;
 }
 
-export function InternalNavLink({ href, label, description, iconName, exact }: InternalNavLinkProps) {
+export function InternalNavLink({ href, label, description, iconName, exact, onNavigate }: InternalNavLinkProps) {
   const pathname = usePathname() ?? '';
   const isActive = exact
     ? pathname === href
@@ -32,6 +33,7 @@ export function InternalNavLink({ href, label, description, iconName, exact }: I
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       aria-current={isActive ? 'page' : undefined}
       className={`block rounded-md px-3 py-2 text-sm transition-colors ${
         isActive

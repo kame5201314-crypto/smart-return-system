@@ -209,7 +209,7 @@ export function PlatformLeadsList({ leads }: { leads: PlatformLeadRecord[] }) {
               </Link>
             </Button>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2" aria-label="試用申請狀態篩選">
+          <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="試用申請狀態篩選">
             <Button
               type="button"
               size="sm"

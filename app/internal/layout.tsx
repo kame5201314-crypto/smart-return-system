@@ -3,6 +3,7 @@ import { LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { InternalNavLink } from '@/components/internal/nav-link';
+import { InternalMobileNav } from '@/components/internal/mobile-nav';
 import { signOut } from '@/lib/actions/auth';
 import { resolvePlatformAdminFeatureFlags } from '@/lib/saas/platform-admin';
 
@@ -62,12 +63,13 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[260px_1fr] lg:px-8">
-        <aside className="h-fit rounded-lg border bg-white p-3">
+        <InternalMobileNav items={visibleNav} />
+        <aside className="hidden h-fit rounded-lg border bg-white p-3 lg:block">
           <div className="mb-3 flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <LayoutDashboard className="size-4" />
             管理選單
           </div>
-          <nav className="grid gap-1">
+          <nav className="grid gap-1" aria-label="商業營運後台選單">
             {visibleNav.map((item) => (
               <InternalNavLink
                 key={item.href}
