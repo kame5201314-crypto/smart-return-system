@@ -1,5 +1,19 @@
 # Handoff Log
 
+## 2026-07-17 - Page Loading Performance Handoff
+
+- Public marketing, pricing, signup, recovery, legal, and portal routes no
+  longer wait for an unused Supabase Auth request in the proxy. `/login` keeps
+  its authenticated redirect behavior, and protected routes still require
+  verified claims or the existing signed admin session.
+- Signup defers the heavy Supabase browser SDK behind the existing runtime
+  readiness check and the user's Auth action.
+- Merchant analytics now settles both data sources together and lazy-loads the
+  Recharts module after data is available, reducing entry-bundle parsing and
+  duplicate completed-state renders.
+- Focused regressions, lint, typecheck, Production build, browser QA, and local
+  Production response checks passed. No external or Production state changed.
+
 ## 2026-07-17 - Verified Signup Production Smoke Handoff
 
 - Extended only the opt-in account-registration Production smoke to validate

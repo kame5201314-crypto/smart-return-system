@@ -27,7 +27,6 @@ import {
   VerifiedSignupValidationError,
 } from '@/lib/auth/verified-signup';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
-import { createClient } from '@/lib/supabase/client';
 
 interface VerifiedSignupFormProps {
   emailEnabled: boolean;
@@ -54,6 +53,11 @@ class VerifiedSignupReadinessError extends Error {
     );
     this.name = 'VerifiedSignupReadinessError';
   }
+}
+
+async function createVerifiedSignupClient() {
+  const { createClient } = await import('@/lib/supabase/client');
+  return createClient();
 }
 
 function getSignupErrorMessage(error: unknown): string {
@@ -257,7 +261,7 @@ export function VerifiedSignupForm({
       setIsSubmitting(true);
       await assertVerifiedSignupChannelReady(nextChannel);
 
-      const client = createClient();
+      const client = await createVerifiedSignupClient();
       const metadata = {
         signup_channel: nextChannel,
         referral_code: referralCode.trim().slice(0, 64) || undefined,
@@ -334,10 +338,11 @@ export function VerifiedSignupForm({
 
     inFlight.current = true;
     setIsSubmitting(true);
-    const client = createClient();
+    let client: Awaited<ReturnType<typeof createVerifiedSignupClient>> | null = null;
     let createdVerifiedSession = false;
     try {
       await assertVerifiedSignupChannelReady(channel);
+      client = await createVerifiedSignupClient();
       const response = channel === 'email'
         ? await client.auth.verifyOtp({
             email: normalizedIdentifier,
@@ -384,7 +389,7 @@ export function VerifiedSignupForm({
       router.refresh();
     } catch (caughtError) {
       let safeError = caughtError;
-      if (createdVerifiedSession) {
+      if (createdVerifiedSession && client) {
         try {
           const signOutResponse = await client.auth.signOut({ scope: 'local' });
           if (signOutResponse.error) {
@@ -420,7 +425,7 @@ export function VerifiedSignupForm({
     setIsSubmitting(true);
     try {
       await assertVerifiedSignupChannelReady(channel);
-      const client = createClient();
+      const client = await createVerifiedSignupClient();
       const response = channel === 'email'
         ? await client.auth.resend({
             type: 'signup',

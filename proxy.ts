@@ -23,6 +23,14 @@ function redirectToPlatformAdminLogin(request: NextRequest): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Public pages other than the login entry never use the authenticated
+  // principal. Avoid a remote Auth lookup on every marketing/signup request.
+  if (isPublicRoute(pathname) && pathname !== '/login') {
+    return NextResponse.next();
+  }
+
   // Skip middleware if Supabase is not configured
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next();
@@ -50,26 +58,22 @@ export async function proxy(request: NextRequest) {
   );
 
   const adminToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  const isAdminAuthenticated = !!(await verifyAdminSessionToken(adminToken));
+  const [adminSession, claimsResult] = await Promise.all([
+    verifyAdminSessionToken(adminToken),
+    supabase.auth.getClaims().catch(() => null),
+  ]);
+  const claims = claimsResult?.data?.claims ?? null;
+  const isAdminAuthenticated = !!adminSession;
 
-  let user = null;
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch {
-    // ignore
-  }
-
-  const isAuthenticated = isAdminAuthenticated || !!user;
+  const isAuthenticated = isAdminAuthenticated || !!claims;
   const isPlatformAdminAuthenticated =
     isAdminAuthenticated ||
-    (user
+    (claims
       ? isExplicitPlatformAdminPrincipal({
-          userId: user.id,
-          userEmail: user.email,
+          userId: claims.sub,
+          userEmail: claims.email,
         })
       : false);
-  const pathname = request.nextUrl.pathname;
 
   if (isPublicRoute(pathname)) {
     if (pathname === '/login' && isAuthenticated) {

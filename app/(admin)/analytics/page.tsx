@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -12,21 +13,6 @@ import {
   TrendingUp,
   Upload,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from 'recharts';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -52,6 +38,22 @@ import { aggregateReturnRanking } from '@/lib/utils/return-ranking';
 import { getShopeeReturnReportPeriod } from '@/lib/utils/return-period';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const MonthlyTrendChart = dynamic(
+  () => import('@/components/analytics/return-analytics-charts').then((module) => module.MonthlyTrendChart),
+  { ssr: false, loading: () => <Skeleton className='h-[300px] w-full' /> }
+);
+const ChannelDistributionChart = dynamic(
+  () => import('@/components/analytics/return-analytics-charts').then((module) => module.ChannelDistributionChart),
+  { ssr: false, loading: () => <Skeleton className='h-[300px] w-full' /> }
+);
+const ReasonDistributionChart = dynamic(
+  () => import('@/components/analytics/return-analytics-charts').then((module) => module.ReasonDistributionChart),
+  { ssr: false, loading: () => <Skeleton className='h-[300px] w-full' /> }
+);
+const StatusDistributionChart = dynamic(
+  () => import('@/components/analytics/return-analytics-charts').then((module) => module.StatusDistributionChart),
+  { ssr: false, loading: () => <Skeleton className='h-[200px] w-full' /> }
+);
 const PRODUCT_RANKING_COMPACT_LIMIT = 10;
 const PRODUCT_RANKING_PAGE_SIZE = 30;
 const PRODUCT_RANKING_MAX = 60;
@@ -124,38 +126,41 @@ export default function AnalyticsPage() {
   ];
 
   useEffect(() => {
-    fetchData();
-    loadShopeeReturns();
-  }, []);
+    let cancelled = false;
 
-  // Reset ranking pagination when filters change
-  useEffect(() => {
-    setProductRankingPage(1);
-  }, [selectedYear, selectedMonth, selectedChannel]);
+    async function loadAnalyticsData() {
+      const [returnsResult, shopeeResult] = await Promise.allSettled([
+        getReturnRequests(),
+        getShopeeReturns(),
+      ]);
 
-  async function fetchData() {
-    try {
-      const result = await getReturnRequests();
-      if (result.success && result.data) {
-        setAllReturns(result.data as ReturnData[]);
+      if (cancelled) return;
+
+      if (returnsResult.status === 'fulfilled') {
+        if (returnsResult.value.success && returnsResult.value.data) {
+          setAllReturns(returnsResult.value.data as ReturnData[]);
+        }
+      } else {
+        console.error('Failed to fetch analytics:', returnsResult.reason);
       }
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
-    } finally {
+
+      if (shopeeResult.status === 'fulfilled') {
+        if (shopeeResult.value.success && shopeeResult.value.data) {
+          setShopeeReturns(shopeeResult.value.data);
+        }
+      } else {
+        console.error('Failed to load shopee returns:', shopeeResult.reason);
+      }
+
       setLoading(false);
     }
-  }
 
-  async function loadShopeeReturns() {
-    try {
-      const result = await getShopeeReturns();
-      if (result.success && result.data) {
-        setShopeeReturns(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to load shopee returns:', error);
-    }
-  }
+    void loadAnalyticsData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Filter data based on selections
   const filteredReturns = useMemo(() => {
@@ -392,7 +397,13 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Year filter */}
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <Select
+              value={selectedYear}
+              onValueChange={(value) => {
+                setSelectedYear(value);
+                setProductRankingPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-[120px]">
                 <SelectValue placeholder="選擇年度" />
               </SelectTrigger>
@@ -405,7 +416,13 @@ export default function AnalyticsPage() {
             </Select>
 
             {/* Month filter */}
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <Select
+              value={selectedMonth}
+              onValueChange={(value) => {
+                setSelectedMonth(value);
+                setProductRankingPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-[120px]">
                 <SelectValue placeholder="選擇月份" />
               </SelectTrigger>
@@ -418,7 +435,13 @@ export default function AnalyticsPage() {
             </Select>
 
             {/* Channel filter */}
-            <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+            <Select
+              value={selectedChannel}
+              onValueChange={(value) => {
+                setSelectedChannel(value);
+                setProductRankingPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="選擇通路" />
               </SelectTrigger>
@@ -440,6 +463,7 @@ export default function AnalyticsPage() {
                   setSelectedYear('all');
                   setSelectedMonth('all');
                   setSelectedChannel('all');
+                  setProductRankingPage(1);
                 }}
               >
                 重置篩選
@@ -611,21 +635,7 @@ export default function AnalyticsPage() {
                 無數據
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={stats.monthlyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="returns"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="退貨數量"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <MonthlyTrendChart data={stats.monthlyTrend} />
             )}
           </CardContent>
         </Card>
@@ -644,26 +654,7 @@ export default function AnalyticsPage() {
                 無數據
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={stats.byChannel}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
-                    }
-                  >
-                    {stats.byChannel.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <ChannelDistributionChart data={stats.byChannel} />
             )}
           </CardContent>
         </Card>
@@ -682,15 +673,7 @@ export default function AnalyticsPage() {
                 無數據
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats.byReason} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={100} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#3b82f6" name="數量" />
-                </BarChart>
-              </ResponsiveContainer>
+              <ReasonDistributionChart data={stats.byReason} />
             )}
           </CardContent>
         </Card>
@@ -790,15 +773,7 @@ export default function AnalyticsPage() {
               無數據
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={stats.byStatus}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8b5cf6" name="數量" />
-              </BarChart>
-            </ResponsiveContainer>
+            <StatusDistributionChart data={stats.byStatus} />
           )}
         </CardContent>
       </Card>

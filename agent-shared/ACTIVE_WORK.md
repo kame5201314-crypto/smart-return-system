@@ -1,5 +1,26 @@
 # Active Work
 
+## 2026-07-17 Page Loading Performance
+
+Status: done
+
+Scope: Reduce public, signup, and merchant analytics page startup work without
+weakening authentication or tenant authorization boundaries.
+
+Notes: Public routes other than `/login` now bypass the proxy Auth lookup they
+never consume. Login and protected routes use verified Supabase JWT claims,
+with the existing admin-cookie verification running in parallel; anonymous
+protected requests and merchant/platform role separation remain enforced.
+Verified signup keeps the Supabase browser SDK in an async chunk until an Auth
+action starts. Analytics requests return and Shopee data concurrently, commits
+the first complete state once, and loads Recharts only after data is ready.
+
+Local Production-build checks returned warm response times of 70 ms for `/`,
+45 ms for `/pricing`, 15 ms for `/login`, and 44 ms for `/signup`. Browser QA
+confirmed the signup form, disabled Email readiness state, Google fallback,
+and support form still render. No deploy, migration, provider, env/secret,
+Vercel, Supabase, Billing, DNS, or Production setting changed.
+
 ## 2026-07-17 Verified Signup Production Smoke Coverage
 
 Status: done
