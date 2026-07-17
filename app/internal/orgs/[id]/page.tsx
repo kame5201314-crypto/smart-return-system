@@ -16,6 +16,7 @@ import {
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
 import { OrgBillingOperationControls } from '@/components/internal/org-billing-operation-controls';
+import { OrgOperationsNoteForm } from '@/components/internal/org-operations-note-form';
 import {
   formatSuggestedActions,
   PLATFORM_ORG_STATUS_LABEL,
@@ -48,6 +49,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   'org.manual_beta_provisioned': '手動開通租戶',
   'platform.tenant_preview_started': '開始租戶預覽',
   'platform.tenant_preview_cleared': '結束租戶預覽',
+  'platform.org.note_added': '營運紀錄',
 };
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
@@ -98,6 +100,17 @@ function riskVariant(
   if (riskLevel === 'watch') return 'secondary';
   return 'outline';
 }
+
+function auditMetadataText(metadata: Record<string, unknown> | undefined, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+const NOTE_TYPE_LABEL: Record<string, string> = {
+  contact: '客戶聯絡',
+  follow_up: '後續跟進',
+  internal: '內部備註',
+};
 
 function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const org = data.organization;
@@ -385,6 +398,17 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                       <TableCell className="text-muted-foreground">{formatDateTime(log.createdAt)}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{AUDIT_ACTION_LABEL[log.action] ?? log.action}</Badge>
+                        {log.action === 'platform.org.note_added' ? (
+                          <div className="mt-2 max-w-md space-y-1 text-xs leading-5 text-muted-foreground">
+                            <p className="font-medium text-neutral-800">
+                              {NOTE_TYPE_LABEL[auditMetadataText(log.metadata, 'note_type') ?? ''] ?? '營運紀錄'}
+                            </p>
+                            <p className="whitespace-pre-wrap">{auditMetadataText(log.metadata, 'note') ?? '—'}</p>
+                            {auditMetadataText(log.metadata, 'follow_up_at') ? (
+                              <p>下次跟進：{formatDateTime(auditMetadataText(log.metadata, 'follow_up_at'))}</p>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{log.actorEmail ?? '—'}</TableCell>
                     </TableRow>
@@ -420,28 +444,44 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             此租戶的方案、訂閱、用量與健康度概況。
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          {result.state === 'ready' ? (
-            <>
-              <div className="flex flex-col gap-2 sm:flex-row">
+      </div>
+
+      {result.state === 'ready' ? (
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>租戶操作</CardTitle>
+            <CardDescription>依風險分級執行唯讀查看、營運紀錄、帳務與租戶狀態操作。</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 xl:grid-cols-[0.8fr_0.8fr_1.4fr]">
+            <div className="rounded-md border bg-neutral-50 p-3">
+              <p className="text-xs font-medium text-muted-foreground">主要操作</p>
+              <div className="mt-2">
                 <StartTenantPreviewButton
                   orgId={result.data.organization.id}
                   orgName={result.data.organization.name}
                 />
-                <OrgBillingOperationControls
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">唯讀預覽有效 1 小時，不會修改客戶資料。</p>
+            </div>
+            <div className="rounded-md border bg-neutral-50 p-3">
+              <p className="text-xs font-medium text-muted-foreground">營運跟進</p>
+              <div className="mt-2">
+                <OrgOperationsNoteForm
                   orgId={result.data.organization.id}
                   orgName={result.data.organization.name}
-                  status={result.data.organization.status}
-                  suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                唯讀預覽有效 1 小時；人工付款與暫停／恢復都會寫入操作紀錄。
-              </p>
-            </>
-          ) : null}
-        </div>
-      </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">聯絡內容與下次跟進時間會寫入操作紀錄。</p>
+            </div>
+            <OrgBillingOperationControls
+              orgId={result.data.organization.id}
+              orgName={result.data.organization.name}
+              status={result.data.organization.status}
+              suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {result.state === 'ready' ? (
         <DetailContent data={result.data} />

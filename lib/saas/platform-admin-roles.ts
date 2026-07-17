@@ -5,6 +5,7 @@ export type PlatformAdminRole = 'owner' | 'support' | 'billing';
 export type PlatformAdminPermission =
   | 'view_platform_dashboard'
   | 'view_organizations'
+  | 'manage_organization_notes'
   | 'view_leads'
   | 'manage_leads'
   | 'view_billing_events'
@@ -25,6 +26,7 @@ export const PLATFORM_ADMIN_ROLE_PERMISSIONS: Record<
   owner: [
     'view_platform_dashboard',
     'view_organizations',
+    'manage_organization_notes',
     'view_leads',
     'manage_leads',
     'view_billing_events',
@@ -35,6 +37,7 @@ export const PLATFORM_ADMIN_ROLE_PERMISSIONS: Record<
   support: [
     'view_platform_dashboard',
     'view_organizations',
+    'manage_organization_notes',
     'view_leads',
     'manage_leads',
   ],

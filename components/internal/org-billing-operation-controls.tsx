@@ -194,26 +194,35 @@ export function OrgBillingOperationControls({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" onClick={() => setPaymentOpen(true)}>
-          <Banknote className="size-4" aria-hidden="true" />
-          記錄人工付款
-        </Button>
-        <Button
-          type="button"
-          variant={currentOperation === 'suspend_org' ? 'destructive' : 'default'}
-          onClick={() => {
-            setReason('');
-            setOperation(currentOperation);
-          }}
-        >
-          {currentOperation === 'suspend_org' ? (
-            <PauseCircle className="size-4" aria-hidden="true" />
-          ) : (
-            <PlayCircle className="size-4" aria-hidden="true" />
-          )}
-          {currentCopy.buttonLabel}
-        </Button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-md border bg-neutral-50 p-3">
+          <p className="text-xs font-medium text-muted-foreground">日常帳務</p>
+          <Button type="button" variant="outline" className="mt-2 w-full bg-white" onClick={() => setPaymentOpen(true)}>
+            <Banknote className="size-4" aria-hidden="true" />
+            記錄人工付款
+          </Button>
+        </div>
+        <div className={currentOperation === 'suspend_org' ? 'rounded-md border border-red-200 bg-red-50 p-3' : 'rounded-md border border-emerald-200 bg-emerald-50 p-3'}>
+          <p className={currentOperation === 'suspend_org' ? 'text-xs font-medium text-red-800' : 'text-xs font-medium text-emerald-800'}>
+            租戶狀態操作
+          </p>
+          <Button
+            type="button"
+            className="mt-2 w-full"
+            variant={currentOperation === 'suspend_org' ? 'destructive' : 'default'}
+            onClick={() => {
+              setReason('');
+              setOperation(currentOperation);
+            }}
+          >
+            {currentOperation === 'suspend_org' ? (
+              <PauseCircle className="size-4" aria-hidden="true" />
+            ) : (
+              <PlayCircle className="size-4" aria-hidden="true" />
+            )}
+            {currentCopy.buttonLabel}
+          </Button>
+        </div>
       </div>
 
       <Dialog

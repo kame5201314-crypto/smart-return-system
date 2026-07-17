@@ -261,6 +261,7 @@ export interface PlatformOrganizationDetailView {
     id: string;
     action: string;
     actorEmail: string | null;
+    metadata?: Record<string, unknown>;
     createdAt: string;
   }>;
 }
@@ -803,6 +804,7 @@ export function buildPlatformOrganizationDetailView(
       id: requireString(log.id, 'auditLog.id'),
       action: requireString(log.action, 'auditLog.action'),
       actorEmail: log.actorEmail,
+      metadata: log.metadata ?? {},
       createdAt: requireString(log.createdAt, 'auditLog.createdAt'),
     })),
   };

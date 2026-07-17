@@ -56,6 +56,7 @@ export interface PlatformAuditLogSummary {
   id: string;
   action: string;
   actorEmail: string | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -292,10 +293,12 @@ function normalizeAuditLog(row: unknown): PlatformAuditLogSummary | null {
     return null;
   }
 
+  const metadata = recordOrEmpty(row.metadata);
   return {
     id,
     action,
-    actorEmail: stringOrNull(row.actor_email),
+    actorEmail: stringOrNull(row.actor_email) ?? stringOrNull(metadata.actor_email),
+    metadata,
     createdAt,
   };
 }
@@ -510,7 +513,7 @@ export function createPlatformAdminDataRepository(
       const limit = input.limit ?? 20;
       const { data, error } = await client
         .from('audit_logs')
-        .select('id, action, created_at')
+        .select('id, action, metadata, created_at')
         .eq('org_id', input.orgId)
         .order('created_at', { ascending: false })
         .limit(limit);
