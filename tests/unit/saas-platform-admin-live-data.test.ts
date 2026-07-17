@@ -278,7 +278,7 @@ describe('SaaS platform admin live data loaders', () => {
     expect(result).toMatchObject({
       state: 'empty',
       data: null,
-      message: 'No platform organizations were found.',
+      message: '目前尚無租戶資料。',
     });
     expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
     expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
@@ -477,7 +477,7 @@ describe('SaaS platform admin live data loaders', () => {
     expect(result).toMatchObject({
       state: 'empty',
       data: null,
-      message: 'No platform organizations were found.',
+      message: '目前尚無租戶資料。',
       context: {
         userId: 'admin-1',
       },
@@ -542,7 +542,7 @@ describe('SaaS platform admin live data loaders', () => {
     expect(result).toMatchObject({
       state: 'empty',
       data: null,
-      message: 'A valid organization id is required.',
+      message: '請提供有效的租戶識別碼。',
     });
     expect(repository.getOrganization).not.toHaveBeenCalled();
     expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
@@ -560,7 +560,7 @@ describe('SaaS platform admin live data loaders', () => {
     expect(result).toMatchObject({
       state: 'empty',
       data: null,
-      message: 'Organization not found.',
+      message: '找不到指定的租戶。',
     });
     expect(repository.listOrganizationUsage).not.toHaveBeenCalled();
     expect(repository.listOrganizationSubscriptions).not.toHaveBeenCalled();
@@ -757,7 +757,7 @@ describe('SaaS platform admin live data loaders', () => {
     expect(result).toMatchObject({
       state: 'empty',
       data: null,
-      message: 'No platform billing events were found.',
+      message: '目前尚無金流事件。',
     });
     expect(repository.listOrganizationNames).not.toHaveBeenCalled();
   });

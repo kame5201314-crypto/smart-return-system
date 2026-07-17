@@ -181,7 +181,7 @@ export async function loadPlatformOrganizationsView(
       return {
         state: 'empty',
         data: null,
-        message: 'No platform organizations were found.',
+        message: '目前尚無租戶資料。',
         context,
       };
     }
@@ -231,7 +231,7 @@ export async function loadPlatformAdminDashboardView(
       return {
         state: 'empty',
         data: null,
-        message: 'No platform organizations were found.',
+        message: '目前尚無租戶資料。',
         context,
       };
     }
@@ -289,7 +289,7 @@ export async function loadPlatformOrganizationDetailView(
       return {
         state: 'empty',
         data: null,
-        message: 'A valid organization id is required.',
+        message: '請提供有效的租戶識別碼。',
         context,
       };
     }
@@ -303,7 +303,7 @@ export async function loadPlatformOrganizationDetailView(
       return {
         state: 'empty',
         data: null,
-        message: 'Organization not found.',
+        message: '找不到指定的租戶。',
         context,
       };
     }
@@ -363,7 +363,7 @@ export async function loadPlatformBillingEventsView(
       return {
         state: 'empty',
         data: null,
-        message: 'No platform billing events were found.',
+        message: '目前尚無金流事件。',
         context,
       };
     }
@@ -397,7 +397,7 @@ export async function loadPlatformAtRiskAlertsView(
       return {
         state: 'empty',
         data: null,
-        message: 'No platform organizations were found.',
+        message: '目前尚無租戶資料。',
         context,
       };
     }
@@ -443,7 +443,7 @@ export async function loadPlatformTrialConversionView(
       return {
         state: 'empty',
         data: null,
-        message: 'No platform organizations were found.',
+        message: '目前尚無租戶資料。',
         context,
       };
     }
