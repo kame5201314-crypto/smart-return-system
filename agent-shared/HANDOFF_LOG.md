@@ -1,5 +1,17 @@
 # Handoff Log
 
+## 2026-07-17 - Verified Signup Runtime Readiness Handoff
+
+- Added a no-store runtime readiness contract that exposes only current
+  Email/Phone availability booleans.
+- Signup start, OTP verification, and resend now recheck the active channel
+  before any Supabase Auth call; stale flags and readiness/network failures
+  fail closed with user-safe Traditional Chinese guidance.
+- This closes stale-page and rolling-deploy drift, while the existing trial
+  API/provider/rate-limit/DB checks remain the actual provisioning boundary.
+- No migration, provider, env/secret, deployment, Vercel, Supabase, Billing,
+  DNS, or Production setting changed.
+
 ## 2026-07-17 - Phone-only Email Signup Fallback Handoff
 
 - Preserved the Email registration entry when only Taiwan Phone OTP is ready,

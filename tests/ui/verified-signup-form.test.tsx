@@ -15,6 +15,8 @@ const authMocks = vi.hoisted(() => ({
   signOut: vi.fn(),
 }));
 
+const readinessFetchMock = vi.hoisted(() => vi.fn());
+
 vi.mock('next/navigation', () => ({
   useRouter: () => navigationMocks,
 }));
@@ -41,9 +43,36 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function readinessResponse(emailEnabled = true, phoneEnabled = true) {
+  return {
+    ok: true,
+    json: async () => ({
+      success: true,
+      data: { emailEnabled, phoneEnabled },
+    }),
+  };
+}
+
+function fillEmailSignupCredentials() {
+  fireEvent.change(screen.getByLabelText(/電子信箱/), {
+    target: { value: 'owner@example.com' },
+  });
+  fireEvent.change(screen.getByLabelText(/^密碼/), {
+    target: { value: 'Password8' },
+  });
+  fireEvent.change(screen.getByLabelText(/確認密碼/), {
+    target: { value: 'Password8' },
+  });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+}
+
 describe('VerifiedSignupForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readinessFetchMock.mockReset();
+    readinessFetchMock.mockResolvedValue(readinessResponse());
+    vi.stubGlobal('fetch', readinessFetchMock);
     authMocks.signUp.mockResolvedValue({ data: { session: null, user: { id: 'user-1' } }, error: null });
     authMocks.verifyOtp.mockResolvedValue({
       data: {
@@ -68,6 +97,7 @@ describe('VerifiedSignupForm', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     cleanup();
   });
 
@@ -223,9 +253,122 @@ describe('VerifiedSignupForm', () => {
     fireEvent.submit(credentialsForm);
 
     expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(readinessFetchMock).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(
       '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
     );
+  });
+
+  it('stops a stale signup before Supabase when the server closes its channel', async () => {
+    readinessFetchMock.mockResolvedValueOnce(readinessResponse(false, true));
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan={'basic'}
+        turnstileSiteKey={'site-key'}
+      />
+    );
+
+    fillEmailSignupCredentials();
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '註冊服務狀態已更新，請重新整理頁面後再試。'
+    );
+    expect(readinessFetchMock).toHaveBeenCalledWith(
+      '/api/saas/signup/readiness',
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      })
+    );
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
+  });
+
+  it('fails signup closed when the readiness response cannot be trusted', async () => {
+    readinessFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { emailEnabled: 'true', phoneEnabled: true },
+      }),
+    });
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan={'basic'}
+        turnstileSiteKey={'site-key'}
+      />
+    );
+
+    fillEmailSignupCredentials();
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '目前無法確認註冊服務狀態，請稍後再試。'
+    );
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+  });
+
+  it('rechecks readiness before OTP verification and preserves the entered code', async () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan={'basic'}
+        turnstileSiteKey={'site-key'}
+      />
+    );
+
+    fillEmailSignupCredentials();
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+    await screen.findByRole('heading', { name: '請查收並輸入手機或信箱中的驗證碼' });
+
+    readinessFetchMock.mockResolvedValueOnce(readinessResponse(false, true));
+    const otpInput = screen.getByLabelText(/信箱驗證碼/);
+    fireEvent.change(otpInput, { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '註冊服務狀態已更新，請重新整理頁面後再試。'
+    );
+    expect(otpInput).toHaveValue('123456');
+    expect(authMocks.verifyOtp).not.toHaveBeenCalled();
+    expect(authMocks.getUser).not.toHaveBeenCalled();
+  });
+
+  it('rechecks readiness before resend and invalidates the completed CAPTCHA', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-07-17T00:00:00.000Z'));
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan={'basic'}
+        turnstileSiteKey={'site-key'}
+      />
+    );
+
+    fillEmailSignupCredentials();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+    });
+    act(() => vi.advanceTimersByTime(60_000));
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+
+    readinessFetchMock.mockResolvedValueOnce(readinessResponse(false, true));
+    fireEvent.click(screen.getByRole('button', { name: '重新傳送' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '註冊服務狀態已更新，請重新整理頁面後再試。'
+    );
+    expect(authMocks.resend).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '重新傳送' })).toBeDisabled();
   });
 
   it('does not render an unavailable registration form without the explicit fallback prop', () => {
@@ -400,9 +543,11 @@ describe('VerifiedSignupForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
     expect(resendButton).toBeEnabled();
 
+    readinessFetchMock.mockClear();
     fireEvent.click(resendButton);
     fireEvent.click(resendButton);
-    expect(authMocks.resend).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(authMocks.resend).toHaveBeenCalledTimes(1));
+    expect(readinessFetchMock).toHaveBeenCalledTimes(1);
     expect(authMocks.resend).toHaveBeenCalledWith({
       type: 'signup',
       email: 'owner@example.com',
@@ -569,10 +714,12 @@ describe('VerifiedSignupForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
     const form = screen.getByTestId('verified-signup-form');
 
+    readinessFetchMock.mockClear();
     fireEvent.submit(form);
     fireEvent.submit(form);
 
-    expect(authMocks.signUp).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(authMocks.signUp).toHaveBeenCalledTimes(1));
+    expect(readinessFetchMock).toHaveBeenCalledTimes(1);
     pendingSignup.resolve({ data: { session: null, user: { id: 'user-1' } }, error: null });
     expect(await screen.findByRole('heading', {
       name: '請查收並輸入手機或信箱中的驗證碼',
@@ -608,10 +755,12 @@ describe('VerifiedSignupForm', () => {
     fireEvent.change(screen.getByLabelText(/信箱驗證碼/), { target: { value: '123456' } });
     const form = screen.getByTestId('verified-signup-otp-form');
 
+    readinessFetchMock.mockClear();
     fireEvent.submit(form);
     fireEvent.submit(form);
 
-    expect(authMocks.verifyOtp).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(authMocks.verifyOtp).toHaveBeenCalledTimes(1));
+    expect(readinessFetchMock).toHaveBeenCalledTimes(1);
     pendingVerification.resolve({
       data: {
         session: { access_token: 'verified-session' },

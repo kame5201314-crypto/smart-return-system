@@ -17,6 +17,12 @@ Last updated: 2026-07-17
   關閉，切回手機號碼後必須重新取得 CAPTCHA，避免尚未就緒的 Email 通道被誤用。
 - 上述準備中介面不掛載 Turnstile、不接受密碼、不呼叫 Supabase `auth.signUp`；
   寄碼能力仍必須等完整 readiness 通過才會啟用。
+- 可操作的註冊頁會在每次寄碼、驗證與重送前，透過同源且 `no-store` 的
+  `GET /api/saas/signup/readiness` 重新確認目前通道。旗標已關閉、網路失敗
+  或回應格式異常時一律停止，不會呼叫對應 Supabase Auth 方法。
+- 這個 runtime recheck 用於阻擋舊頁面與 rolling deploy 的過期狀態；它不是
+  防止惡意使用者直接呼叫 Supabase Auth 的唯一權限邊界。真正建立工作區與試用
+  仍由 `/api/saas/trial` 的 provider/readiness 重驗、rate limit 與 DB RPC 防線控制。
 - 驗證碼與密碼交由 Supabase Auth 處理；應用程式不產生、不保存、不記錄驗證碼或密碼。
 - Cloudflare Turnstile token 直接傳給 Supabase Auth CAPTCHA 驗證；每次寄送或重送後都會失效並重新取得。
 - Supabase Auth CAPTCHA 是 project-wide；Email／手機與平台管理員登入頁都已接上

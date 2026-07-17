@@ -74,6 +74,48 @@ Rules:
 - The merchant password-recovery link is never rendered for
   `/login?next=/internal`.
 
+## Verified Email/Phone Signup Runtime Readiness
+
+Backend owner: Codex.
+
+UI path:
+
+```text
+components/auth/verified-signup-form.tsx
+```
+
+Readiness route:
+
+```http
+GET /api/saas/signup/readiness
+```
+
+Successful response:
+
+```json
+{
+  success: true,
+  data: {
+    emailEnabled: false,
+    phoneEnabled: false
+  }
+}
+```
+
+Rules:
+
+- The route is anonymous and read-only, exposes only two booleans, and returns
+  explicit `private, no-store` cache policy. It never exposes provider,
+  migration, environment, secret, or Turnstile-key details.
+- The client must use the same-origin relative URL with `cache: 'no-store'`
+  and `credentials: 'same-origin'`, then strictly validate the response shape.
+- Before `signUp`, `verifyOtp`, or `resend`, the client rechecks the active
+  Email or Phone channel. A closed channel, network failure, non-2xx response,
+  or malformed body fails closed before any Supabase Auth call.
+- This prevents stale signup pages from continuing after a flag/readiness
+  change. It is defense-in-depth, not a replacement for the provider switch,
+  trial API checks, rate limits, migration `044`, or DB provisioning guards.
+
 ## Password Recovery
 
 Backend owner: Codex.

@@ -1,5 +1,26 @@
 # Active Work
 
+## 2026-07-17 Verified Signup Runtime Readiness Recheck
+
+Status: done
+
+Scope: Prevent stale Email/Phone signup pages from calling Supabase Auth after
+the corresponding runtime channel has been closed.
+
+Notes: Added an anonymous, read-only, no-store readiness endpoint that exposes
+only `emailEnabled` and `phoneEnabled`. The signup client strictly rechecks
+the active channel before `signUp`, `verifyOtp`, and `resend`; closed,
+unreachable, non-2xx, or malformed readiness results fail closed before any
+Supabase Auth method. This is defense-in-depth for stale pages and rolling
+deploys; the trial API, provider settings, rate limits, and DB RPC remain the
+actual provisioning boundary. No migration, provider, env/secret, deploy,
+Vercel, Supabase, Billing, DNS, or Production setting changed.
+
+Final validation passed: lint, typecheck, 21 script checks, 16 backend tests,
+620 unit tests, 48 UI tests, 4 E2E tests, 5 integration tests, Production
+build (68 generated pages), SaaS doctor (209 pass / 3 expected warnings /
+0 fail), diff check, and agent-boundary safety.
+
 ## 2026-07-17 Phone-only Email Signup Fallback
 
 Status: done

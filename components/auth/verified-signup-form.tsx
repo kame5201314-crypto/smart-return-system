@@ -39,7 +39,84 @@ interface VerifiedSignupFormProps {
 }
 
 const RESEND_COOLDOWN_SECONDS = 60;
+const SIGNUP_READINESS_ENDPOINT = '/api/saas/signup/readiness';
+const SIGNUP_READINESS_TIMEOUT_MS = 5_000;
+const SIGNUP_READINESS_CHANGED_MESSAGE = '註冊服務狀態已更新，請重新整理頁面後再試。';
+const SIGNUP_READINESS_UNAVAILABLE_MESSAGE = '目前無法確認註冊服務狀態，請稍後再試。';
 type SignupErrorField = 'identifier' | 'password' | 'passwordConfirmation' | 'terms' | 'otp';
+
+class VerifiedSignupReadinessError extends Error {
+  constructor(public readonly code: 'changed' | 'unavailable') {
+    super(
+      code === 'changed'
+        ? SIGNUP_READINESS_CHANGED_MESSAGE
+        : SIGNUP_READINESS_UNAVAILABLE_MESSAGE
+    );
+    this.name = 'VerifiedSignupReadinessError';
+  }
+}
+
+function getSignupErrorMessage(error: unknown): string {
+  return error instanceof VerifiedSignupReadinessError
+    ? error.message
+    : getVerifiedSignupErrorMessage(error);
+}
+
+async function assertVerifiedSignupChannelReady(
+  channel: VerifiedSignupChannel
+): Promise<void> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), SIGNUP_READINESS_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(SIGNUP_READINESS_ENDPOINT, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+  } catch {
+    throw new VerifiedSignupReadinessError('unavailable');
+  } finally {
+    window.clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    throw new VerifiedSignupReadinessError('unavailable');
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new VerifiedSignupReadinessError('unavailable');
+  }
+
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    !('success' in payload) ||
+    payload.success !== true ||
+    !('data' in payload) ||
+    !payload.data ||
+    typeof payload.data !== 'object' ||
+    !('emailEnabled' in payload.data) ||
+    typeof payload.data.emailEnabled !== 'boolean' ||
+    !('phoneEnabled' in payload.data) ||
+    typeof payload.data.phoneEnabled !== 'boolean'
+  ) {
+    throw new VerifiedSignupReadinessError('unavailable');
+  }
+
+  const ready = channel === 'email'
+    ? payload.data.emailEnabled
+    : payload.data.phoneEnabled;
+  if (!ready) {
+    throw new VerifiedSignupReadinessError('changed');
+  }
+}
 
 export function VerifiedSignupForm({
   emailEnabled,
@@ -178,6 +255,7 @@ export function VerifiedSignupForm({
       validateVerifiedSignupPassword(password, passwordConfirmation);
       inFlight.current = true;
       setIsSubmitting(true);
+      await assertVerifiedSignupChannelReady(nextChannel);
 
       const client = createClient();
       const metadata = {
@@ -221,7 +299,7 @@ export function VerifiedSignupForm({
       setMessage('如果資料正確且可使用，我們已寄出驗證碼。');
       resetCaptcha();
     } catch (caughtError) {
-      setError(getVerifiedSignupErrorMessage(caughtError));
+      setError(getSignupErrorMessage(caughtError));
       if (caughtError instanceof VerifiedSignupValidationError) {
         if (caughtError.code === 'weak_password') {
           setErrorField('password');
@@ -259,6 +337,7 @@ export function VerifiedSignupForm({
     const client = createClient();
     let createdVerifiedSession = false;
     try {
+      await assertVerifiedSignupChannelReady(channel);
       const response = channel === 'email'
         ? await client.auth.verifyOtp({
             email: normalizedIdentifier,
@@ -315,7 +394,10 @@ export function VerifiedSignupForm({
           safeError = new Error('Verified signup session cleanup failed');
         }
       }
-      setError(getVerifiedSignupErrorMessage(safeError));
+      setError(getSignupErrorMessage(safeError));
+      if (safeError instanceof VerifiedSignupReadinessError) {
+        resetCaptcha();
+      }
       setErrorField('otp');
       otpInputRef.current?.focus();
     } finally {
@@ -337,6 +419,7 @@ export function VerifiedSignupForm({
     inFlight.current = true;
     setIsSubmitting(true);
     try {
+      await assertVerifiedSignupChannelReady(channel);
       const client = createClient();
       const response = channel === 'email'
         ? await client.auth.resend({
@@ -357,7 +440,7 @@ export function VerifiedSignupForm({
       setMessage('如果資料正確且可使用，我們已重新傳送驗證碼。');
       resetCaptcha();
     } catch (caughtError) {
-      setError(getVerifiedSignupErrorMessage(caughtError));
+      setError(getSignupErrorMessage(caughtError));
       resetCaptcha();
     } finally {
       inFlight.current = false;

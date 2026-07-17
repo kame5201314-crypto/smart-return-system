@@ -245,6 +245,7 @@ function checkCommercialFoundation() {
     'app/auth/google/route.ts',
     'app/auth/callback/route.ts',
     'app/api/saas/signup/route.ts',
+    'app/api/saas/signup/readiness/route.ts',
     'app/api/saas/invite/accept/route.ts',
     'app/api/saas/leads/route.ts',
     'app/api/saas/onboarding/complete/route.ts',
@@ -405,6 +406,14 @@ function checkCommercialFoundation() {
     'components/auth/password-recovery-form.tsx'
   );
   const resetPasswordPagePath = path.resolve(process.cwd(), 'app/reset-password/page.tsx');
+  const verifiedSignupFormPath = path.resolve(
+    process.cwd(),
+    'components/auth/verified-signup-form.tsx'
+  );
+  const verifiedSignupReadinessRoutePath = path.resolve(
+    process.cwd(),
+    'app/api/saas/signup/readiness/route.ts'
+  );
   const googleOAuthPath = path.resolve(process.cwd(), 'lib/auth/google-oauth.ts');
   const googleOAuthStartPath = path.resolve(process.cwd(), 'app/auth/google/route.ts');
   const googleOAuthCallbackPath = path.resolve(process.cwd(), 'app/auth/callback/route.ts');
@@ -493,6 +502,36 @@ function checkCommercialFoundation() {
       record('pass', 'SaaS password recovery', 'email and phone OTP recovery is fail-closed behind independent flags and a short-lived signed proof');
     } else {
       record('fail', 'SaaS password recovery', 'recovery must prevent account enumeration, require a new verified session, and guard password updates with an HttpOnly proof');
+    }
+  }
+
+  if (
+    fs.existsSync(verifiedSignupFormPath) &&
+    fs.existsSync(verifiedSignupReadinessRoutePath)
+  ) {
+    const formSource = fs.readFileSync(verifiedSignupFormPath, 'utf8');
+    const routeSource = fs.readFileSync(verifiedSignupReadinessRoutePath, 'utf8');
+    if (
+      routeSource.includes('resolveVerifiedSignupAvailability') &&
+      routeSource.includes('export const dynamic = \'force-dynamic\'') &&
+      routeSource.includes('private, no-store') &&
+      formSource.includes('const SIGNUP_READINESS_ENDPOINT = \'/api/saas/signup/readiness\'') &&
+      formSource.includes('cache: \'no-store\'') &&
+      formSource.includes('credentials: \'same-origin\'') &&
+      formSource.includes('assertVerifiedSignupChannelReady(nextChannel)') &&
+      formSource.match(/assertVerifiedSignupChannelReady\(channel\)/g)?.length === 2
+    ) {
+      record(
+        'pass',
+        'SaaS verified signup runtime readiness',
+        'start, verification, and resend recheck a no-store server readiness route before Supabase Auth'
+      );
+    } else {
+      record(
+        'fail',
+        'SaaS verified signup runtime readiness',
+        'verified signup must recheck a no-store server readiness route before signUp, verifyOtp, and resend'
+      );
     }
   }
 
