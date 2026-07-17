@@ -98,7 +98,6 @@ describe('SaaS settings live data loaders', () => {
     expect(getContext).toHaveBeenCalledWith({
       requirements: {
         roles: ['owner', 'admin'],
-        feature: 'billing',
       },
     });
     expect(billingRepository.getOrganizationBilling).toHaveBeenCalledWith({
@@ -110,6 +109,59 @@ describe('SaaS settings live data loaders', () => {
     expect(billingRepository.getLatestInvoice).toHaveBeenCalledWith({
       orgId: 'org-1',
     });
+  });
+
+  it('shows account and trial status while online billing actions are disabled', async () => {
+    const context = buildContext({
+      orgStatus: 'trialing',
+      featureFlags: {
+        ...buildContext().featureFlags,
+        billing: false,
+      },
+    });
+    const billingRepository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Trial Store',
+        plan: 'basic',
+        status: 'trialing',
+        billingEmail: 'owner@example.com',
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => ({
+        provider: 'manual',
+        currentPeriodStart: '2026-07-18T00:00:00.000Z',
+        currentPeriodEnd: '2026-07-21T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      })),
+      getLatestInvoice: vi.fn(async () => null),
+    };
+
+    const result = await loadBillingSettingsView({
+      getContext: vi.fn(async () => context),
+      billingRepository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        org: {
+          name: 'Trial Store',
+          plan: 'basic',
+          status: 'trialing',
+        },
+        subscription: {
+          currentPeriodEnd: '2026-07-21T00:00:00.000Z',
+        },
+        actions: {
+          canUpdateBilling: false,
+          canCancelRenewal: false,
+        },
+      },
+    });
+    expect(result.state === 'ready' ? result.data.actions.disabledReason : null)
+      .toContain('線上帳務與自助付款目前尚未開放');
+    expect(billingRepository.getOrganizationBilling).toHaveBeenCalledWith({ orgId: 'org-1' });
   });
 
   it('maps feature guard failures to gated settings state', async () => {

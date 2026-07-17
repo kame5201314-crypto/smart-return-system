@@ -115,6 +115,23 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
 
   return (
     <>
+      {!data.actions.canUpdateBilling ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 text-emerald-950">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold">帳號狀況可正常查看</p>
+              <p className="mt-1 text-sm leading-6 text-emerald-900">
+                線上付款目前尚未開放，但你的方案、試用期限與帳務資料仍會顯示在下方。
+                如需升級或延長使用，請聯絡客服協助處理。
+              </p>
+            </div>
+            <Button asChild size="sm" variant="outline" className="shrink-0 bg-white">
+              <Link href="/settings/usage">查看用量與額度</Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {isTrialing && trialDaysLeft !== null ? (
         <div className="rounded-lg border border-cyan-200 bg-cyan-50/60 p-4 text-cyan-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -301,7 +301,6 @@ export async function loadBillingSettingsView(
     const context = await loadContext(deps, {
       requirements: {
         roles: ['owner', 'admin'],
-        feature: 'billing',
       },
     });
     const repository =
@@ -310,8 +309,13 @@ export async function loadBillingSettingsView(
     const input = await buildBillingSettingsViewInput(repository, {
       orgId: context.orgId,
       actions: {
-        canUpdateBilling: true,
-        canCancelRenewal: true,
+        canUpdateBilling: context.featureFlags.billing && canWriteSaaSOrgData(context),
+        canCancelRenewal: context.featureFlags.billing && canWriteSaaSOrgData(context),
+        disabledReason: !context.featureFlags.billing
+          ? BILLING_FEATURE_DISABLED_MESSAGE
+          : !canWriteSaaSOrgData(context)
+            ? BILLING_REQUIRED_MESSAGE
+            : undefined,
       },
     });
     const liveContext = toLiveDataContext(context);
