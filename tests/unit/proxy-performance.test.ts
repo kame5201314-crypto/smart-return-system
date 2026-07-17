@@ -12,8 +12,10 @@ vi.mock('@supabase/ssr', () => ({
 
 import { proxy } from '@/proxy';
 
-function request(pathname: string): NextRequest {
-  return new NextRequest(`https://app.example.test${pathname}`);
+function request(pathname: string, cookie?: string): NextRequest {
+  return new NextRequest(`https://app.example.test${pathname}`, {
+    headers: cookie ? { cookie } : undefined,
+  });
 }
 
 describe('proxy page-load performance boundaries', () => {
@@ -40,6 +42,39 @@ describe('proxy page-load performance boundaries', () => {
       expect(getClaimsMock).not.toHaveBeenCalled();
     }
   );
+
+  it('recovers a Google OAuth code returned to the marketing Site URL', async () => {
+    const response = await proxy(request(
+      '/?code=oauth-code&untrusted=discard-me',
+      'sb-project-auth-token-code-verifier=pkce-verifier'
+    ));
+
+    expect(response.status).toBeGreaterThanOrEqual(300);
+    expect(response.status).toBeLessThan(400);
+    expect(response.headers.get('location')).toBe(
+      'https://app.example.test/auth/callback?code=oauth-code&next=%2Fanalytics&plan=basic'
+    );
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an unrelated marketing code as an OAuth callback', async () => {
+    const response = await proxy(request('/?code=referral-code'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps an ordinary marketing visit public without an Auth lookup', async () => {
+    const response = await proxy(request('/'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
 
   it('checks verified claims on login because authenticated users are redirected', async () => {
     const response = await proxy(request('/login'));

@@ -8,10 +8,17 @@ import {
   resolveAuthenticatedAdminEntryRedirect,
   resolveAuthenticatedLoginRedirect,
 } from '@/lib/auth/proxy-login-redirect';
+import { CUSTOMER_POST_LOGIN_PATH } from '@/lib/auth/post-login-redirect';
 import { isPublicRoute } from '@/lib/auth/public-routes';
 
 function isPlatformAdminEntryPath(pathname: string): boolean {
   return pathname === '/admin' || pathname === '/internal' || pathname.startsWith('/internal/');
+}
+
+function hasGoogleOAuthCodeVerifier(request: NextRequest): boolean {
+  return request.cookies.getAll().some(({ name }) => (
+    name.startsWith('sb-') && name.endsWith('-auth-token-code-verifier')
+  ));
 }
 
 function redirectToPlatformAdminLogin(request: NextRequest): NextResponse {
@@ -24,6 +31,23 @@ function redirectToPlatformAdminLogin(request: NextRequest): NextResponse {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Supabase falls back to the configured Site URL when an OAuth redirect URL
+  // is missing from its allowlist. Recover that PKCE callback before the public
+  // marketing route can consume it, then send merchants through the normal
+  // membership-aware Google callback flow.
+  const oauthCode = pathname === '/' && hasGoogleOAuthCodeVerifier(request)
+    ? request.nextUrl.searchParams.get('code')?.trim()
+    : null;
+  if (oauthCode) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth/callback';
+    url.search = '';
+    url.searchParams.set('code', oauthCode);
+    url.searchParams.set('next', CUSTOMER_POST_LOGIN_PATH);
+    url.searchParams.set('plan', 'basic');
+    return NextResponse.redirect(url);
+  }
 
   // Public pages other than the login entry never use the authenticated
   // principal. Avoid a remote Auth lookup on every marketing/signup request.
