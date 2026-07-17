@@ -1,5 +1,19 @@
 # SaaS External Setup Status
 
+## 2026-07-17 Email OTP Template Alignment
+
+- SaaS Supabase project `auyznbwtjvemyamujmgt` 的 Auth `Confirm sign up`
+  信件模板已改為繁體中文六位數驗證碼，主旨為
+  `Smart Return 信箱驗證碼`，內容使用 `{{ .Token }}` 且不再使用
+  `{{ .ConfirmationURL }}`。Dashboard 儲存成功，重新載入後再次確認。
+- 應用程式既有流程會呼叫 `signUp` 寄出確認信，再用
+  `verifyOtp({ type: 'signup' })` 驗證六位數碼；模板與程式契約現已一致。
+- Custom SMTP 仍為關閉。Supabase 內建寄信只適合專案團隊信箱與低量測試，
+  尚不能視為一般客戶正式寄信已上線。啟用 Production Email 註冊前仍須完成
+  Custom SMTP、寄件網域／地址、實寄 smoke、rate limit 與費用告警。
+- 本次未新增或輸出任何 SMTP/API secret，未執行 migration，也未碰其他
+  Supabase project。
+
 ## 2026-07-17 Verified Signup Migration Applied
 
 - Owner authorized migration `044_saas_verified_identity_self_service_trial.sql`

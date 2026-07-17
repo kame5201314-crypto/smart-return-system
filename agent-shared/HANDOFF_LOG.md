@@ -1,5 +1,18 @@
 # Handoff Log
 
+## 2026-07-17 - Email OTP Template Alignment Handoff
+
+- SaaS Supabase project `auyznbwtjvemyamujmgt` 的 `Confirm sign up`
+  模板已從預設確認連結改為繁體中文六位數 `{{ .Token }}` 模板；Dashboard
+  回報儲存成功，重新載入後確認主旨、Token 與移除 ConfirmationURL 均持久化。
+- Repository 註冊頁原本即以 `verifyOtp({ type: 'signup' })` 驗證六位數碼，
+  因此程式與信件格式現已對齊。
+- Custom SMTP 仍未啟用，所以任意客戶信箱的正式寄送仍未完成；Supabase
+  內建寄信只能作專案團隊信箱的低量測試。正式開放前必須完成 Custom SMTP、
+  寄件身分、實寄 smoke、rate limit 與費用告警。
+- 無 secret 被輸出或寫入 Git；無 migration、deploy、Billing、DNS 或其他
+  Supabase project 變更。
+
 ## 2026-07-17 - Verified Signup Migration Activation Handoff
 
 - Owner-authorized migration `044` was applied only to SaaS Supabase project

@@ -1,5 +1,21 @@
 # Active Work
 
+## 2026-07-17 Email OTP Template Alignment
+
+Status: blocked
+
+Scope: Align the SaaS Supabase signup email with the repository's six-digit OTP
+verification UI and identify the remaining delivery dependency.
+
+Notes: The `Confirm sign up` template on SaaS project
+`auyznbwtjvemyamujmgt` now uses a Traditional Chinese subject/body and
+`{{ .Token }}` without `{{ .ConfirmationURL }}`. Save success and persistence
+after reload were verified. The application already performs
+`verifyOtp({ type: 'signup' })`, so the template and code now match. General
+customer delivery remains blocked because Custom SMTP is disabled; the built-in
+Supabase mailer is only suitable for low-volume project-team testing. No secret,
+migration, deployment, billing, DNS, or unrelated project was changed.
+
 ## 2026-07-17 Verified Signup Migration Activation
 
 Status: done
