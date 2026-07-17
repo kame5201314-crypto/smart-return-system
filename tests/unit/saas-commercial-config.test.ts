@@ -104,7 +104,7 @@ describe('SaaS commercial configuration', () => {
     ).toBe(false);
   });
 
-  it('keeps public Google entry points hidden independently from OAuth', () => {
+  it('shows public Google entry points when OAuth is enabled unless explicitly hidden', () => {
     expect(
       resolveSaaSFeatureFlags({
         env: { ENABLE_GOOGLE_AUTH: 'true' },
@@ -112,7 +112,7 @@ describe('SaaS commercial configuration', () => {
       })
     ).toMatchObject({
       google_auth: true,
-      google_auth_ui: false,
+      google_auth_ui: true,
     });
 
     expect(
@@ -126,6 +126,19 @@ describe('SaaS commercial configuration', () => {
     ).toMatchObject({
       google_auth: true,
       google_auth_ui: true,
+    });
+
+    expect(
+      resolveSaaSFeatureFlags({
+        env: {
+          ENABLE_GOOGLE_AUTH: 'true',
+          ENABLE_GOOGLE_AUTH_UI: 'false',
+        },
+        orgPlan: 'basic',
+      })
+    ).toMatchObject({
+      google_auth: true,
+      google_auth_ui: false,
     });
   });
 

@@ -90,6 +90,12 @@ export function resolveSaaSFeatureFlags(params?: {
     });
   }
 
+  const hasGoogleAuthUiOverride = envOverrides.google_auth_ui !== undefined
+    || typeof params?.orgFeatureFlags?.google_auth_ui === 'boolean';
+  if (!hasGoogleAuthUiOverride) {
+    resolved.google_auth_ui = resolved.google_auth;
+  }
+
   if (!plan.hasAdvancedAnalytics) {
     resolved.advanced_analytics = false;
   }

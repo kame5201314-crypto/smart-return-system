@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { ArrowLeft, PackageCheck } from 'lucide-react';
 
 import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
+import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -16,6 +18,7 @@ import {
   type VerifiedSignupChannel,
 } from '@/lib/auth/verified-signup';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
+import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 
 export const metadata: Metadata = {
   title: '註冊新帳號 | Smart Return',
@@ -69,6 +72,11 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const initialPlan = resolveInitialPlan(params?.plan);
   const verifiedSignup = resolveVerifiedSignupAvailability();
   const initialVerification = resolveInitialVerification(params, verifiedSignup);
+  const featureFlags = resolveSaaSFeatureFlags({ orgPlan: initialPlan });
+  const googleSignupEnabled = featureFlags.google_auth
+    && featureFlags.google_auth_ui
+    && featureFlags.google_trial_signup;
+  const googleSignupHref = `/auth/google?next=%2Fanalytics&plan=${initialPlan}`;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10 sm:py-14">
@@ -93,6 +101,28 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           </CardHeader>
 
           <CardContent className="sm:px-10 sm:pb-10">
+            {googleSignupEnabled && !initialVerification ? (
+              <div className="mb-7" data-testid="google-signup-entry">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 w-full border-neutral-200 bg-white text-base text-neutral-900 shadow-sm hover:bg-neutral-50"
+                >
+                  <Link href={googleSignupHref}>
+                    <GoogleSignInIcon className="size-5" />
+                    使用 Google 快速註冊
+                  </Link>
+                </Button>
+                <p className="mt-2 text-center text-sm leading-6 text-neutral-500">
+                  使用 Google 驗證後完成商家資料，立即開始 3 天免費試用。
+                </p>
+                <div className="mt-5 flex items-center gap-3" aria-hidden="true">
+                  <span className="h-px flex-1 bg-neutral-200" />
+                  <span className="text-xs text-neutral-400">或使用手機／信箱與密碼註冊</span>
+                  <span className="h-px flex-1 bg-neutral-200" />
+                </div>
+              </div>
+            ) : null}
             <VerifiedSignupForm
               emailEnabled={verifiedSignup.emailEnabled}
               phoneEnabled={verifiedSignup.phoneEnabled}

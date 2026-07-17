@@ -8,6 +8,15 @@ const signupMocks = vi.hoisted(() => ({
     phoneEnabled: false,
     turnstileSiteKey: '',
   },
+  flags: {
+    google_auth: true,
+    google_auth_ui: true,
+    google_trial_signup: true,
+  },
+}));
+
+vi.mock('@/lib/config/feature-flags', () => ({
+  resolveSaaSFeatureFlags: () => signupMocks.flags,
 }));
 
 vi.mock('@/lib/auth/verified-signup', () => ({
@@ -62,6 +71,9 @@ describe('SignupPage', () => {
     signupMocks.verified.emailEnabled = false;
     signupMocks.verified.phoneEnabled = false;
     signupMocks.verified.turnstileSiteKey = '';
+    signupMocks.flags.google_auth = true;
+    signupMocks.flags.google_auth_ui = true;
+    signupMocks.flags.google_trial_signup = true;
   });
 
   afterEach(() => cleanup());
@@ -79,7 +91,18 @@ describe('SignupPage', () => {
     expect(screen.queryByText(/申請資料/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('lead-capture-form')).not.toBeInTheDocument();
     expect(screen.queryByTestId('signup-support-details')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Google/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /使用 Google 快速註冊/ }))
+      .toHaveAttribute('href', '/auth/google?next=%2Fanalytics&plan=growth');
+    expect(screen.getByText('或使用手機／信箱與密碼註冊')).toBeInTheDocument();
+  });
+
+  it('keeps account registration available while Google signup is explicitly hidden', async () => {
+    signupMocks.flags.google_auth_ui = false;
+
+    await renderSignup();
+
+    expect(screen.queryByTestId('google-signup-entry')).not.toBeInTheDocument();
+    expect(screen.getByTestId('verified-signup-form')).toBeInTheDocument();
   });
 
   it('passes the live Email, phone, and CAPTCHA availability into the same form', async () => {
@@ -107,6 +130,7 @@ describe('SignupPage', () => {
     expect(screen.getByRole('heading', { name: '完成帳號驗證' })).toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-initial-verification', 'email:pending@example.com');
+    expect(screen.queryByTestId('google-signup-entry')).not.toBeInTheDocument();
   });
 
   it('falls back unsupported plan values to Basic without changing the registration layout', async () => {
