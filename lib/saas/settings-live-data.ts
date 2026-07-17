@@ -34,12 +34,12 @@ import {
   type ViewState,
 } from '@/lib/saas/ui-backend-contracts';
 import { createClient } from '@/lib/supabase/server';
-import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import {
   resolveSelfServiceTrialSeatLimit,
   type SelfServiceTrialSeatLimitRepository,
   type SelfServiceTrialSeatLimitResolution,
 } from '@/lib/saas/self-service-trial-seat-limit';
+import { createDefaultSelfServiceTrialSeatLimitDataRepository } from '@/lib/saas/self-service-trial-seat-limit-data';
 
 type SettingsQueryClient = SettingsBillingQueryClient &
   SettingsUsageQueryClient &
@@ -271,20 +271,8 @@ async function resolveTeamSeatLimit(
     return { applies: false, seatLimit: context.planDefinition.seatLimit };
   }
 
-  const repository = deps.trialSeatRepository ?? (() => {
-    const client = createUntypedAdminClient();
-    return {
-      async hasSelfServiceTrialClaim(orgId: string) {
-        const { data, error } = await client
-          .from('saas_self_service_trial_claims')
-          .select('org_id')
-          .eq('org_id', orgId)
-          .maybeSingle();
-        if (error) throw new Error(error.message || 'Failed to load trial claim.');
-        return Boolean(data);
-      },
-    };
-  })();
+  const repository =
+    deps.trialSeatRepository ?? createDefaultSelfServiceTrialSeatLimitDataRepository();
 
   return resolveSelfServiceTrialSeatLimit({
     orgId: context.orgId,
