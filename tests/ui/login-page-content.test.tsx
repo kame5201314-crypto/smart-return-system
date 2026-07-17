@@ -54,7 +54,7 @@ describe('LoginPageContent', () => {
     cleanup();
   });
 
-  it('shows a persistent expired-flow message and preserves the retry destination', () => {
+  it('shows a persistent expired-flow message and retries into the AI workspace', () => {
     navigationMocks.search = 'error=google_auth_expired&next=%2Freturns&plan=growth';
 
     render(<LoginPageContent googleAuthEnabled />);
@@ -65,7 +65,7 @@ describe('LoginPageContent', () => {
     const retryLink = screen.getByRole('link', { name: '重新使用 Google 登入' });
     expect(retryLink).toHaveAttribute(
       'href',
-      '/auth/google?next=%2Freturns&plan=growth'
+      '/auth/google?next=%2Fanalytics&plan=growth'
     );
     expect(within(retryLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
     expect(toastMocks.error).toHaveBeenCalledWith(

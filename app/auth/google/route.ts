@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
-  normalizeGoogleOAuthNext,
   normalizeGoogleTrialPlan,
   resolveGoogleOAuthAppOrigin,
+  resolveGoogleOAuthRequestedPath,
 } from '@/lib/auth/google-oauth';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import { createClient } from '@/lib/supabase/server';
@@ -52,10 +52,10 @@ export async function handleGoogleOAuthStart(
     '/auth/callback',
     resolveGoogleOAuthAppOrigin(request.nextUrl.origin, env)
   );
-  const requestedPath = normalizeGoogleOAuthNext(request.nextUrl.searchParams.get('next'));
-  if (requestedPath) {
-    callbackUrl.searchParams.set('next', requestedPath);
-  }
+  callbackUrl.searchParams.set(
+    'next',
+    resolveGoogleOAuthRequestedPath(request.nextUrl.searchParams.get('next'))
+  );
   callbackUrl.searchParams.set(
     'plan',
     normalizeGoogleTrialPlan(request.nextUrl.searchParams.get('plan'))

@@ -84,12 +84,12 @@ export function LoginPageContent({
 
   const googleHref = useMemo(() => {
     const params = new URLSearchParams();
-    params.set('next', nextParam && !isPlatformAdminLogin ? nextParam : '/analytics');
+    params.set('next', nextParam === '/account/set-password' ? nextParam : '/analytics');
     if (planParam === 'basic' || planParam === 'growth') {
       params.set('plan', planParam);
     }
     return `/auth/google?${params.toString()}`;
-  }, [isPlatformAdminLogin, nextParam, planParam]);
+  }, [nextParam, planParam]);
 
   const signupHref = useMemo(() => {
     if (planParam === 'basic' || planParam === 'growth') {

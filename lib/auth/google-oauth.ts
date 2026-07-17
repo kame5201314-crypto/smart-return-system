@@ -1,4 +1,7 @@
-import { getPostLoginRedirect, normalizeLocalRedirectPath } from '@/lib/auth/post-login-redirect';
+import {
+  CUSTOMER_POST_LOGIN_PATH,
+  normalizeLocalRedirectPath,
+} from '@/lib/auth/post-login-redirect';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 import { normalizeSaaSPlanCode, type SaaSPlanCode } from '@/lib/config/saas-plans';
 
@@ -85,6 +88,14 @@ export function normalizeGoogleOAuthNext(value: unknown): string | null {
   return path;
 }
 
+export function resolveGoogleOAuthRequestedPath(value: unknown): string {
+  const path = normalizeGoogleOAuthNext(value);
+
+  // Password setup is an explicit account-security flow, not a normal customer
+  // login destination. All ordinary merchant logins land in the AI workspace.
+  return path === '/account/set-password' ? path : CUSTOMER_POST_LOGIN_PATH;
+}
+
 function normalizeHttpOrigin(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.replace(/\\n/g, '').trim();
@@ -139,10 +150,7 @@ export function resolveGoogleOAuthDestination(input: {
     (membership) => membership.status !== 'disabled'
   );
   if (activeMembership) {
-    return getPostLoginRedirect({
-      isAdmin: false,
-      requestedPath: normalizeGoogleOAuthNext(input.requestedPath),
-    });
+    return resolveGoogleOAuthRequestedPath(input.requestedPath);
   }
 
   if (input.memberships.length > 0) {

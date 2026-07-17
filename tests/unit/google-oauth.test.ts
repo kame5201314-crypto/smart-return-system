@@ -5,6 +5,7 @@ import {
   normalizeGoogleOAuthNext,
   normalizeGoogleTrialPlan,
   resolveGoogleOAuthDestination,
+  resolveGoogleOAuthRequestedPath,
 } from '@/lib/auth/google-oauth';
 
 const user = {
@@ -13,12 +14,18 @@ const user = {
 };
 
 describe('Google OAuth routing policy', () => {
-  it('routes existing active merchants to their requested customer page', () => {
+  it('routes existing active merchants directly to the AI workspace', () => {
     expect(resolveGoogleOAuthDestination({
       user,
       memberships: [{ orgId: 'org-1', status: 'active' }],
       requestedPath: '/shopee-returns',
-    })).toBe('/shopee-returns');
+    })).toBe('/analytics');
+
+    expect(resolveGoogleOAuthDestination({
+      user,
+      memberships: [{ orgId: 'org-1', status: 'active' }],
+      requestedPath: '/',
+    })).toBe('/analytics');
   });
 
   it('treats legacy membership rows without status as active', () => {
@@ -70,5 +77,9 @@ describe('Google OAuth routing policy', () => {
     expect(buildSignupCompletePath({ plan: 'growth' })).toBe('/signup/complete?plan=growth');
     expect(normalizeGoogleOAuthNext('/returns')).toBe('/returns');
     expect(normalizeGoogleOAuthNext('https://evil.test')).toBeNull();
+    expect(resolveGoogleOAuthRequestedPath('/returns')).toBe('/analytics');
+    expect(resolveGoogleOAuthRequestedPath('/')).toBe('/analytics');
+    expect(resolveGoogleOAuthRequestedPath('/account/set-password'))
+      .toBe('/account/set-password');
   });
 });

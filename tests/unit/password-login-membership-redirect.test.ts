@@ -76,7 +76,7 @@ describe('password login membership-aware redirect', () => {
 
   afterEach(() => vi.unstubAllEnvs());
 
-  it('sends an active merchant to a safe requested customer page', async () => {
+  it('sends an active merchant directly to the AI workspace', async () => {
     const auth = createMerchantAuthClient({
       memberships: [{ org_id: 'org-active', status: 'active' }],
     });
@@ -84,7 +84,7 @@ describe('password login membership-aware redirect', () => {
 
     await expect(signIn('merchant@example.com', 'Password8', '/returns')).resolves.toEqual({
       success: true,
-      redirectTo: '/returns',
+      redirectTo: '/analytics',
     });
 
     expect(auth.from).toHaveBeenCalledWith('organization_members');

@@ -17,7 +17,7 @@ describe('Google OAuth routes', () => {
     );
   });
 
-  it('starts PKCE OAuth with a safe callback and requested customer path', async () => {
+  it('starts PKCE OAuth with the AI workspace as the customer destination', async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({
       data: { url: 'https://accounts.google.com/o/oauth2/v2/auth?state=test' },
       error: null,
@@ -35,7 +35,7 @@ describe('Google OAuth routes', () => {
     expect(signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'https://app.example.test/auth/callback?next=%2Freturns&plan=growth',
+        redirectTo: 'https://app.example.test/auth/callback?next=%2Fanalytics&plan=growth',
         scopes: 'openid email profile',
       },
     });
@@ -61,7 +61,7 @@ describe('Google OAuth routes', () => {
       provider: 'google',
       options: {
         redirectTo:
-          'https://smart-return-system-saas.vercel.app/auth/callback?next=%2Freturns&plan=basic',
+          'https://smart-return-system-saas.vercel.app/auth/callback?next=%2Fanalytics&plan=basic',
         scopes: 'openid email profile',
       },
     });
@@ -83,7 +83,7 @@ describe('Google OAuth routes', () => {
     expect(signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'https://app.example.test/auth/callback?plan=basic',
+        redirectTo: 'https://app.example.test/auth/callback?next=%2Fanalytics&plan=basic',
         scopes: 'openid email profile',
       },
     });
