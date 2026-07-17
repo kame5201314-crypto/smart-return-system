@@ -1,5 +1,17 @@
 # Handoff Log
 
+## 2026-07-17 - Phone-only Email Signup Fallback Handoff
+
+- Preserved the Email registration entry when only Taiwan Phone OTP is ready,
+  while keeping the working SMS signup path unchanged.
+- An Email-shaped identifier now clears and disables credentials, terms,
+  CAPTCHA, and submission before any Supabase Auth call; returning to Phone
+  requires a fresh CAPTCHA.
+- Page-level and component regressions cover the Phone success path, unavailable
+  Email path, programmatic-submit bypass attempt, and rollout composition.
+- Full local validation passed. No migration, provider, env/secret, deployment,
+  Vercel, Supabase, Billing, DNS, or Production setting changed.
+
 ## 2026-07-15 - Three-Day Google Trial Contract Handoff
 
 - Shortened the Google self-service trial contract from 14 days to 3 days in

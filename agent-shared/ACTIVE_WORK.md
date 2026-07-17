@@ -1,5 +1,25 @@
 # Active Work
 
+## 2026-07-17 Phone-only Email Signup Fallback
+
+Status: done
+
+Scope: Preserve a visible Email registration path when only Taiwan phone OTP is
+ready, without weakening the verified-signup rollout boundary.
+
+Notes: `/signup` now treats Email availability independently from Phone
+availability. In a Phone-only rollout, customers can continue with a Taiwan
+mobile number while an Email-shaped identifier switches the form into a
+fail-closed `電子信箱註冊準備中` state: credential fields and submission are
+disabled, Turnstile is not mounted, Supabase Auth is not called, and returning
+to Phone requires a fresh CAPTCHA. No migration, provider, env/secret, deploy,
+Vercel, Supabase, Billing, DNS, or Production setting changed.
+
+Final validation passed: focused signup UI 19/19, lint, typecheck, all 21
+script checks, 16 backend tests, 616 unit tests, 44 UI tests, 4 E2E tests,
+5 integration tests, Production build (68 generated pages), diff check, and
+agent-boundary safety.
+
 ## 2026-07-16 Email Signup Fallback Visibility
 
 Status: done
@@ -7,7 +27,8 @@ Status: done
 Scope: Keep non-Google customers represented on the public signup page while
 preserving the verified-signup rollout boundary.
 
-Notes: `/signup` now keeps the Email/password/confirmation/referral/terms form
+Notes: Commit `999bf51`; `/signup` now keeps the
+Email/password/confirmation/referral/terms form
 above the Google option and explicitly states that any Email domain is accepted,
 not only Gmail. Until Custom SMTP, Turnstile, migration `044`, and the Email OTP
 readiness gates are complete, every credential control and the submit action are

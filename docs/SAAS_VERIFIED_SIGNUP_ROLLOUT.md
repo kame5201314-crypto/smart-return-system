@@ -1,6 +1,6 @@
 # SaaS 信箱／手機驗證註冊 Rollout
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 ## 目前狀態
 
@@ -12,6 +12,9 @@ Last updated: 2026-07-16
   按鈕停用；Google 只放在表單下方作為可用的快速選項。
 - 當所有自助註冊方式都關閉時，同一個停用表單仍會保留，並在下方顯示可用的
   人工申請表，不會退回只剩 Google 或完全看不到 Email 選項的畫面。
+- 當只有 Phone OTP 就緒時，手機註冊仍可正常操作；同一個識別欄位會保留
+  電子信箱提示。輸入 Email 時密碼、推薦碼、條款、CAPTCHA 與送出動作會立即
+  關閉，切回手機號碼後必須重新取得 CAPTCHA，避免尚未就緒的 Email 通道被誤用。
 - 上述準備中介面不掛載 Turnstile、不接受密碼、不呼叫 Supabase `auth.signUp`；
   寄碼能力仍必須等完整 readiness 通過才會啟用。
 - 驗證碼與密碼交由 Supabase Auth 處理；應用程式不產生、不保存、不記錄驗證碼或密碼。

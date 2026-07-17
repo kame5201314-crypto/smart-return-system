@@ -158,11 +158,14 @@ describe('SignupPage feature composition', () => {
 
     await renderSignup('growth');
 
-    expect(screen.getByText(/先完成台灣手機號碼驗證/)).toBeInTheDocument();
+    expect(screen.getByText(/手機驗證註冊目前可用；電子信箱註冊準備中/))
+      .toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-email-enabled', 'false');
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-phone-enabled', 'true');
+    expect(screen.getByTestId('verified-signup-form'))
+      .toHaveAttribute('data-show-email-when-unavailable', 'true');
     expect(screen.getByTestId('verified-signup-form')).toHaveAttribute('data-plan', 'growth');
   });
 

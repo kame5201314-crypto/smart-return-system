@@ -112,6 +112,122 @@ describe('VerifiedSignupForm', () => {
     );
   });
 
+  it('keeps phone registration available while retaining the unavailable Email option', async () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled={false}
+        phoneEnabled
+        showEmailWhenUnavailable
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    expect(screen.getByTestId('email-signup-unavailable-notice')).toHaveTextContent(
+      '手機號碼註冊目前可使用'
+    );
+    const identifierInput = screen.getByLabelText(/手機號碼或電子信箱/);
+    expect(identifierInput).toBeEnabled();
+
+    fireEvent.change(identifierInput, { target: { value: '0912-345-678' } });
+    fireEvent.change(screen.getByLabelText(/^密碼/), { target: { value: 'Password8' } });
+    fireEvent.change(screen.getByLabelText(/確認密碼/), { target: { value: 'Password8' } });
+    fireEvent.change(screen.getByLabelText('推薦碼'), { target: { value: 'PHONE-88' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    await waitFor(() => expect(authMocks.signUp).toHaveBeenCalledWith({
+      phone: '+886912345678',
+      password: 'Password8',
+      options: {
+        captchaToken: 'captcha-token',
+        channel: 'sms',
+        data: { signup_channel: 'phone', referral_code: 'PHONE-88' },
+      },
+    }));
+    expect(await screen.findByRole('heading', {
+      name: '請查收並輸入手機或信箱中的驗證碼',
+    })).toBeInTheDocument();
+  });
+
+  it('fails Email closed before Supabase and requires a fresh CAPTCHA when returning to phone', () => {
+    render(
+      <VerifiedSignupForm
+        emailEnabled={false}
+        phoneEnabled
+        showEmailWhenUnavailable
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    const credentialsForm = screen.getByTestId('verified-signup-form');
+    const identifierInput = screen.getByLabelText(/手機號碼或電子信箱/);
+    const passwordInput = screen.getByLabelText(/^密碼/);
+    const confirmationInput = screen.getByLabelText('確認密碼');
+    const referralInput = screen.getByLabelText('推薦碼');
+    const termsInput = screen.getByRole('checkbox');
+
+    fireEvent.change(identifierInput, { target: { value: '0912345678' } });
+    fireEvent.change(passwordInput, { target: { value: 'Password8' } });
+    fireEvent.change(confirmationInput, { target: { value: 'Password8' } });
+    fireEvent.change(referralInput, { target: { value: 'EMAIL-88' } });
+    fireEvent.click(termsInput);
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    expect(screen.getByRole('button', { name: '註冊' })).toBeEnabled();
+
+    fireEvent.change(identifierInput, { target: { value: 'owner@example.com' } });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
+    );
+    expect(passwordInput).toHaveValue('');
+    expect(passwordInput).toBeDisabled();
+    expect(confirmationInput).toHaveValue('');
+    expect(confirmationInput).toBeDisabled();
+    expect(referralInput).toHaveValue('');
+    expect(referralInput).toBeDisabled();
+    expect(termsInput).not.toBeChecked();
+    expect(termsInput).toBeDisabled();
+    expect(screen.getByRole('button', { name: '信箱註冊即將開放' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '完成安全驗證' })).not.toBeInTheDocument();
+
+    fireEvent.submit(credentialsForm);
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+
+    fireEvent.change(identifierInput, { target: { value: '0912345678' } });
+
+    expect(passwordInput).toBeEnabled();
+    expect(confirmationInput).toBeEnabled();
+    expect(referralInput).toBeEnabled();
+    expect(termsInput).toBeEnabled();
+    expect(screen.getByRole('button', { name: '完成安全驗證' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+
+    fireEvent.change(passwordInput, { target: { value: 'Password8' } });
+    fireEvent.change(confirmationInput, { target: { value: 'Password8' } });
+    fireEvent.click(termsInput);
+    fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
+    expect(screen.getByRole('button', { name: '註冊' })).toBeEnabled();
+
+    // Even a script that changes the DOM value without notifying React must
+    // not reuse the valid phone CAPTCHA to submit an unavailable Email signup.
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value'
+    )?.set;
+    expect(nativeValueSetter).toBeTypeOf('function');
+    nativeValueSetter?.call(identifierInput, 'bypass@example.com');
+    fireEvent.submit(credentialsForm);
+
+    expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
+    );
+  });
+
   it('does not render an unavailable registration form without the explicit fallback prop', () => {
     const { container } = render(
       <VerifiedSignupForm

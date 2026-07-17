@@ -42,13 +42,13 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const verifiedSignup = resolveVerifiedSignupAvailability();
   const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
   const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
-  const showEmailWhenUnavailable = !verifiedSignupEnabled;
+  const showEmailWhenUnavailable = !verifiedSignup.emailEnabled;
   const signupFormVisible = selfServiceEnabled || showEmailWhenUnavailable;
   const verifiedSignupDescription = verifiedSignup.emailEnabled && verifiedSignup.phoneEnabled
     ? '先完成手機號碼或電子信箱驗證，再補齊商家資料。'
     : verifiedSignup.emailEnabled
       ? '先完成電子信箱驗證，再補齊商家資料。'
-      : '先完成台灣手機號碼驗證，再補齊商家資料。';
+      : '手機驗證註冊目前可用；電子信箱註冊準備中。';
   const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
