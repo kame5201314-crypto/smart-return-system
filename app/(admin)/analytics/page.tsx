@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/saas/page-header';
+import { QuickStartGuide } from '@/components/saas/quick-start-guide';
 import {
   Select,
   SelectContent,
@@ -362,6 +363,8 @@ export default function AnalyticsPage() {
           </Link>
         }
       />
+
+      <QuickStartGuide />
 
       {!loading && allReturns.length === 0 && shopeeReturns.length === 0 && (
         <section className="border border-emerald-200 bg-emerald-50 p-5 sm:p-6" aria-labelledby="first-import-title">
