@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildWorkspaceActionAccess,
+  enforceWorkspaceReadOnly,
   UNRESTRICTED_WORKSPACE_ACTION_ACCESS,
 } from '@/lib/saas/workspace-action-access';
 
@@ -37,6 +38,24 @@ describe('workspace action access', () => {
       canUseAI: true,
       canExport: true,
       isReadOnly: false,
+    });
+  });
+
+  it('forces every mutation, export, and AI action off during a tenant preview', () => {
+    expect(enforceWorkspaceReadOnly(UNRESTRICTED_WORKSPACE_ACTION_ACCESS)).toEqual({
+      status: null,
+      canCreateData: false,
+      canUseAI: false,
+      canExport: false,
+      isReadOnly: true,
+    });
+
+    expect(enforceWorkspaceReadOnly(buildWorkspaceActionAccess('trialing'))).toEqual({
+      status: 'trialing',
+      canCreateData: false,
+      canUseAI: false,
+      canExport: false,
+      isReadOnly: true,
     });
   });
 });

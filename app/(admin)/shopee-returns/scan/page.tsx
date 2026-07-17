@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 import {
   getShopeeScanDashboard,
   scanShopeeReturn,
@@ -80,6 +81,7 @@ function getPlatformLabel(platform: ShopeeReturnPlatform | null): string {
 }
 
 export default function ShopeeReturnScanPage() {
+  const { canCreateData } = useWorkspaceAccess();
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const ocrFileInputRef = useRef<HTMLInputElement | null>(null);
   const ocrWorkerRef = useRef<Promise<OcrWorker> | null>(null);
@@ -130,6 +132,7 @@ export default function ShopeeReturnScanPage() {
   }, []);
 
   const handleCode = useCallback(async (rawCode: string) => {
+    if (!canCreateData) return;
     const code = rawCode.trim();
     if (!code) return;
 
@@ -193,7 +196,7 @@ export default function ShopeeReturnScanPage() {
 
     processingRef.current = false;
     setIsProcessing(false);
-  }, [loadDashboard]);
+  }, [canCreateData, loadDashboard]);
 
   const getOcrWorker = useCallback(async () => {
     if (!ocrWorkerRef.current) {
@@ -280,7 +283,7 @@ export default function ShopeeReturnScanPage() {
   }, []);
 
   const startScanner = useCallback(async () => {
-    if (isStarting || isActive) return;
+    if (isStarting || isActive || !canCreateData) return;
 
     setIsStarting(true);
     setCameraError('');
@@ -326,7 +329,7 @@ export default function ShopeeReturnScanPage() {
     } finally {
       setIsStarting(false);
     }
-  }, [handleCode, isActive, isStarting]);
+  }, [canCreateData, handleCode, isActive, isStarting]);
 
   const submitManualCode = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -346,8 +349,8 @@ export default function ShopeeReturnScanPage() {
   useEffect(() => {
     if (autoStartRef.current) return;
     autoStartRef.current = true;
-    void startScanner();
-  }, [startScanner]);
+    if (canCreateData) void startScanner();
+  }, [canCreateData, startScanner]);
 
   useEffect(() => {
     return () => {
@@ -383,7 +386,7 @@ export default function ShopeeReturnScanPage() {
 
           <div className="flex flex-wrap gap-2">
             {!isActive && (
-              <Button onClick={() => void startScanner()} disabled={isStarting}>
+              <Button onClick={() => void startScanner()} disabled={isStarting || !canCreateData}>
                 {isStarting ? (
                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                 ) : (
@@ -474,9 +477,10 @@ export default function ShopeeReturnScanPage() {
                 onChange={(event) => setManualCode(event.target.value)}
                 placeholder="例如 260130D0X7N6FH 或 TW2631984572320"
                 className="font-mono"
+                disabled={!canCreateData}
               />
             </div>
-            <Button type="submit" className="sm:self-end" disabled={isProcessing}>
+            <Button type="submit" className="sm:self-end" disabled={isProcessing || !canCreateData}>
               送出比對
             </Button>
           </form>
@@ -507,7 +511,7 @@ export default function ShopeeReturnScanPage() {
               type="button"
               variant="outline"
               onClick={() => ocrFileInputRef.current?.click()}
-              disabled={ocrProcessing || isProcessing}
+              disabled={ocrProcessing || isProcessing || !canCreateData}
             >
               {ocrProcessing ? (
                 <>
@@ -540,7 +544,7 @@ export default function ShopeeReturnScanPage() {
                       variant={manualCode === candidate ? 'default' : 'outline'}
                       className="font-mono"
                       onClick={() => void applyOcrCandidate(candidate)}
-                      disabled={ocrProcessing || isProcessing}
+                      disabled={ocrProcessing || isProcessing || !canCreateData}
                     >
                       {candidate}
                     </Button>

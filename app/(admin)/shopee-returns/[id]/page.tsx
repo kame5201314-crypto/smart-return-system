@@ -26,6 +26,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
+import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 import {
   getShopeeReturnGroupById,
   updateShopeeReturn,
@@ -121,6 +123,7 @@ function pickSharedDateValue(items: ShopeeReturn[], key: 'scanned_at' | 'inbound
 }
 
 export default function ShopeeReturnDetailPage() {
+  const { canCreateData } = useWorkspaceAccess();
   const params = useParams();
   const router = useRouter();
   const id = params.id as string | undefined;
@@ -193,7 +196,7 @@ export default function ShopeeReturnDetailPage() {
   const totalReturnQuantity = orderItems.reduce((sum, item) => sum + (item.return_quantity || 0), 0);
 
   async function updateOrderStatus(type: 'scanned' | 'inbound' | 'processed' | 'printed') {
-    if (orderItems.length === 0 || updatingStatus) return;
+    if (orderItems.length === 0 || updatingStatus || !canCreateData) return;
 
     setUpdatingStatus(type);
     const now = new Date().toISOString();
@@ -223,6 +226,7 @@ export default function ShopeeReturnDetailPage() {
   }
 
   async function saveItemNote(item: ShopeeReturn) {
+    if (!canCreateData) return;
     if (updatingNoteId) return;
 
     const nextNote = noteDrafts[item.id] ?? '';
@@ -245,6 +249,7 @@ export default function ShopeeReturnDetailPage() {
   }
 
   async function saveItemReturnReasonNote(item: ShopeeReturn) {
+    if (!canCreateData) return;
     if (updatingReturnReasonNoteId) return;
 
     const nextValue = returnReasonNoteDrafts[item.id] ?? '';
@@ -273,13 +278,13 @@ export default function ShopeeReturnDetailPage() {
   }
 
   function openEditDialog() {
-    if (!record) return;
+    if (!record || !canCreateData) return;
     setEditForm(buildEditForm(record));
     setEditOpen(true);
   }
 
   async function saveEdit() {
-    if (!record || !editForm || savingEdit) return;
+    if (!record || !editForm || savingEdit || !canCreateData) return;
 
     const orderNumber = editForm.orderNumber.trim();
     if (!orderNumber) {
@@ -352,7 +357,13 @@ export default function ShopeeReturnDetailPage() {
         <CardHeader className="py-4 flex flex-row items-center justify-between">
           <CardTitle className="text-base">基本資訊</CardTitle>
           {!loading && record && (
-            <Button variant="outline" size="sm" onClick={openEditDialog}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openEditDialog}
+              disabled={!canCreateData}
+              title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+            >
               <Pencil className="w-4 h-4 mr-1" />
               編輯主項資料
             </Button>
@@ -372,7 +383,7 @@ export default function ShopeeReturnDetailPage() {
                   <button
                     type="button"
                     onClick={() => void updateOrderStatus('scanned')}
-                    disabled={!!updatingStatus}
+                    disabled={!!updatingStatus || !canCreateData}
                     className="disabled:opacity-60"
                   >
                     {orderIsScanned ? (
@@ -391,7 +402,7 @@ export default function ShopeeReturnDetailPage() {
                   <button
                     type="button"
                     onClick={() => void updateOrderStatus('inbound')}
-                    disabled={!!updatingStatus}
+                    disabled={!!updatingStatus || !canCreateData}
                     className="disabled:opacity-60"
                   >
                     {orderIsInbound ? (
@@ -410,7 +421,7 @@ export default function ShopeeReturnDetailPage() {
                   <button
                     type="button"
                     onClick={() => void updateOrderStatus('processed')}
-                    disabled={!!updatingStatus}
+                    disabled={!!updatingStatus || !canCreateData}
                     className="disabled:opacity-60"
                   >
                     {orderIsProcessed ? (
@@ -429,7 +440,7 @@ export default function ShopeeReturnDetailPage() {
                   <button
                     type="button"
                     onClick={() => void updateOrderStatus('printed')}
-                    disabled={!!updatingStatus}
+                    disabled={!!updatingStatus || !canCreateData}
                     className="disabled:opacity-60"
                   >
                     {orderIsPrinted ? (
@@ -574,7 +585,7 @@ export default function ShopeeReturnDetailPage() {
                         value={noteDrafts[item.id] ?? ''}
                         placeholder="輸入備註..."
                         className="mt-1 min-h-[84px] text-sm"
-                        disabled={updatingNoteId === item.id}
+                        disabled={updatingNoteId === item.id || !canCreateData}
                         onChange={(event) => setNoteDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))}
                         onBlur={() => void saveItemNote(item)}
                       />
@@ -585,7 +596,7 @@ export default function ShopeeReturnDetailPage() {
                         value={returnReasonNoteDrafts[item.id] ?? ''}
                         placeholder="輸入退貨原因備註..."
                         className="mt-1 min-h-[84px] text-sm"
-                        disabled={updatingReturnReasonNoteId === item.id}
+                        disabled={updatingReturnReasonNoteId === item.id || !canCreateData}
                         onChange={(event) =>
                           setReturnReasonNoteDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
                         }
@@ -747,7 +758,7 @@ export default function ShopeeReturnDetailPage() {
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
               取消
             </Button>
-            <Button onClick={() => void saveEdit()} disabled={savingEdit || !editForm}>
+            <Button onClick={() => void saveEdit()} disabled={savingEdit || !editForm || !canCreateData}>
               {savingEdit ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />

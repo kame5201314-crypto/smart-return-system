@@ -1,6 +1,6 @@
 import { Eye } from 'lucide-react';
 
-import { loadPlatformTenantPreviewMode } from '@/lib/saas/platform-tenant-preview';
+import type { PlatformTenantPreviewMode } from '@/lib/saas/platform-tenant-preview';
 import { TenantPreviewExitButton } from '@/components/saas/tenant-preview-exit-button';
 
 function formatExpiry(value: string): string {
@@ -13,9 +13,7 @@ function formatExpiry(value: string): string {
   });
 }
 
-export async function TenantPreviewBanner() {
-  const mode = await loadPlatformTenantPreviewMode();
-
+export function TenantPreviewBanner({ mode }: { mode: PlatformTenantPreviewMode }) {
   if (mode.state !== 'ready') {
     return null;
   }

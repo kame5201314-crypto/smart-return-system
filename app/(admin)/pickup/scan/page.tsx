@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 import {
   getRecentScannedPickupRecords,
   scanPickupRecord,
@@ -72,6 +73,7 @@ function mapRecordToScanResult(record: PickupRecord): PickupScanResult {
 }
 
 export default function PickupScanPage() {
+  const { canCreateData } = useWorkspaceAccess();
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const autoStartRef = useRef(false);
   const processingRef = useRef(false);
@@ -101,6 +103,7 @@ export default function PickupScanPage() {
   }, []);
 
   const handleCode = useCallback(async (rawCode: string) => {
+    if (!canCreateData) return;
     const code = rawCode.trim();
     if (!code) return;
 
@@ -147,10 +150,10 @@ export default function PickupScanPage() {
 
     processingRef.current = false;
     setIsProcessing(false);
-  }, []);
+  }, [canCreateData]);
 
   const startScanner = useCallback(async () => {
-    if (isStarting || isActive) return;
+    if (isStarting || isActive || !canCreateData) return;
 
     setIsStarting(true);
     setCameraError('');
@@ -196,7 +199,7 @@ export default function PickupScanPage() {
     } finally {
       setIsStarting(false);
     }
-  }, [handleCode, isActive, isStarting]);
+  }, [canCreateData, handleCode, isActive, isStarting]);
 
   const stopScanner = useCallback(async () => {
     if (!scannerRef.current) {
@@ -238,8 +241,8 @@ export default function PickupScanPage() {
   useEffect(() => {
     if (autoStartRef.current) return;
     autoStartRef.current = true;
-    void startScanner();
-  }, [startScanner]);
+    if (canCreateData) void startScanner();
+  }, [canCreateData, startScanner]);
 
   useEffect(() => {
     return () => {
@@ -312,8 +315,9 @@ export default function PickupScanPage() {
               value={manualCode}
               onChange={(event) => setManualCode(event.target.value)}
               placeholder="例如 210-372-2821 或 9074-5843-8256"
+              disabled={!canCreateData}
             />
-            <Button type="submit" disabled={isProcessing}>
+            <Button type="submit" disabled={isProcessing || !canCreateData}>
               送出比對
             </Button>
           </form>

@@ -50,6 +50,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { ProgressTracker } from '@/components/shared/progress-tracker';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
+import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 
 import { getReturnRequestDetail, updateReturnInfo, submitInspection, deleteReturnRequest } from '@/lib/actions/return.actions';
 import { getCurrentUser } from '@/lib/actions/auth';
@@ -157,6 +159,7 @@ function normalizeItemResolutionType(value?: string | null): ItemRefundOption {
 }
 
 export default function ReturnDetailPage() {
+  const { canCreateData } = useWorkspaceAccess();
   const params = useParams();
   const returnRequestId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
@@ -227,6 +230,7 @@ export default function ReturnDetailPage() {
   }, [fetchDetail]);
 
   const openEditInfoDialog = useCallback(() => {
+    if (!canCreateData) return;
     const firstItem = returnData?.return_items?.[0];
     setEditProductName(firstItem?.product_name || '');
     setEditProductSku(firstItem?.product_sku || '');
@@ -234,19 +238,19 @@ export default function ReturnDetailPage() {
     setEditAdminNote((returnData as { admin_note?: string })?.admin_note || '');
     setEditReturnReasonNote(returnData?.return_reason_note || '');
     setEditInfoDialogOpen(true);
-  }, [returnData]);
+  }, [canCreateData, returnData]);
 
   // Auto-open edit dialog if ?edit=true in URL
   useEffect(() => {
-    if (searchParams.get('edit') === 'true' && returnData && returnRequestId) {
+    if (canCreateData && searchParams.get('edit') === 'true' && returnData && returnRequestId) {
       openEditInfoDialog();
       // Clear the query param from URL
       router.replace(`/returns/${returnRequestId}`, { scroll: false });
     }
-  }, [searchParams, returnData, returnRequestId, openEditInfoDialog, router]);
+  }, [canCreateData, searchParams, returnData, returnRequestId, openEditInfoDialog, router]);
 
   async function handleInfoUpdate() {
-    if (!returnData) return;
+    if (!returnData || !canCreateData) return;
 
     try {
       setUpdating(true);
@@ -275,6 +279,7 @@ export default function ReturnDetailPage() {
   }
 
   async function handleItemResolutionChange(itemId: string, nextType: ItemRefundOption) {
+    if (!canCreateData) return;
     if (!returnData || updatingResolutionItemId) return;
 
     const previousType = itemRefundTypes[itemId]
@@ -314,6 +319,7 @@ export default function ReturnDetailPage() {
   }
 
   async function handleReturnReasonNoteSave() {
+    if (!canCreateData) return;
     if (!returnData || updatingReturnReasonNote) return;
 
     const currentValue = returnData.return_reason_note || '';
@@ -342,6 +348,7 @@ export default function ReturnDetailPage() {
   }
 
   async function handleInspectionSubmit(data: InspectionInput) {
+    if (!canCreateData) return;
     try {
       setSubmittingInspection(true);
       const user = await getCurrentUser();
@@ -366,7 +373,7 @@ export default function ReturnDetailPage() {
   }
 
   async function handleDelete() {
-    if (!returnData) return;
+    if (!returnData || !canCreateData) return;
 
     try {
       setDeleting(true);
@@ -431,7 +438,13 @@ export default function ReturnDetailPage() {
           </Badge>
           <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!canCreateData}
+                title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
                 <Trash2 className="w-4 h-4" />
               </Button>
             </DialogTrigger>
@@ -446,7 +459,7 @@ export default function ReturnDetailPage() {
                 <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
                   取消
                 </Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting || !canCreateData}>
                   {deleting ? '刪除中...' : '確認刪除'}
                 </Button>
               </DialogFooter>
@@ -516,7 +529,13 @@ export default function ReturnDetailPage() {
                 <Package className="w-5 h-5" />
                 退貨資訊
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={openEditInfoDialog}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openEditInfoDialog}
+                disabled={!canCreateData}
+                title={!canCreateData ? WORKSPACE_RESTRICTED_ACTION_TITLE : undefined}
+              >
                 <Edit className="w-4 h-4 mr-1" />
                 編輯
               </Button>
@@ -551,7 +570,7 @@ export default function ReturnDetailPage() {
                                       ? itemRefundTypes[item.id] === option.key
                                       : option.key === RETURN_ITEM_RESOLUTION_TYPES.FULL.key
                                   }
-                                  disabled={updatingResolutionItemId === item.id}
+                                  disabled={updatingResolutionItemId === item.id || !canCreateData}
                                   onCheckedChange={(checked) => {
                                     if (checked) {
                                       void handleItemResolutionChange(item.id, option.key);
@@ -617,7 +636,7 @@ export default function ReturnDetailPage() {
                   value={returnReasonNoteDraft}
                   onChange={(event) => setReturnReasonNoteDraft(event.target.value)}
                   onBlur={handleReturnReasonNoteSave}
-                  disabled={updatingReturnReasonNote}
+                  disabled={updatingReturnReasonNote || !canCreateData}
                   placeholder="輸入退貨原因備註..."
                   className="min-h-[96px] text-sm"
                 />
@@ -650,6 +669,7 @@ export default function ReturnDetailPage() {
                             variant={field.value === 'passed' ? 'default' : 'outline'}
                             className={field.value === 'passed' ? 'bg-green-600 hover:bg-green-700' : ''}
                             onClick={() => field.onChange('passed')}
+                            disabled={!canCreateData}
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
                             通過（直接結案）
@@ -659,6 +679,7 @@ export default function ReturnDetailPage() {
                             variant={field.value === 'failed' ? 'default' : 'outline'}
                             className={field.value === 'failed' ? 'bg-red-600 hover:bg-red-700' : ''}
                             onClick={() => field.onChange('failed')}
+                            disabled={!canCreateData}
                           >
                             <XCircle className="w-4 h-4 mr-1" />
                             異常（驗收異常）
@@ -692,7 +713,7 @@ export default function ReturnDetailPage() {
                   <Button
                     type="submit"
                     className="w-full bg-teal-600 hover:bg-teal-700"
-                    disabled={submittingInspection}
+                    disabled={submittingInspection || !canCreateData}
                   >
                     {submittingInspection ? '提交中...' : '提交驗貨結果'}
                   </Button>
@@ -772,7 +793,7 @@ export default function ReturnDetailPage() {
                 <Button variant="outline" onClick={() => setEditInfoDialogOpen(false)}>
                   取消
                 </Button>
-                <Button onClick={handleInfoUpdate} disabled={updating}>
+                <Button onClick={handleInfoUpdate} disabled={updating || !canCreateData}>
                   {updating ? '更新中...' : '確認更新'}
                 </Button>
               </DialogFooter>

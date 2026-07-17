@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 
 import { getReturnRequestDetail, submitInspection } from '@/lib/actions/return.actions';
 import { getCurrentUser } from '@/lib/actions/auth';
@@ -43,6 +44,7 @@ interface ReturnDetail {
 }
 
 export default function InspectionPage() {
+  const { canCreateData } = useWorkspaceAccess();
   const params = useParams();
   const returnRequestId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
@@ -87,6 +89,7 @@ export default function InspectionPage() {
   }, [fetchDetail]);
 
   async function onSubmit(data: InspectionInput) {
+    if (!canCreateData) return;
     try {
       setSubmitting(true);
 
@@ -282,6 +285,7 @@ export default function InspectionPage() {
                           variant={field.value === 'passed' ? 'default' : 'outline'}
                           className={field.value === 'passed' ? 'bg-green-600 hover:bg-green-700' : ''}
                           onClick={() => field.onChange('passed')}
+                          disabled={!canCreateData}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           通過（直接結案）
@@ -291,6 +295,7 @@ export default function InspectionPage() {
                           variant={field.value === 'failed' ? 'default' : 'outline'}
                           className={field.value === 'failed' ? 'bg-red-600 hover:bg-red-700' : ''}
                           onClick={() => field.onChange('failed')}
+                          disabled={!canCreateData}
                         >
                           <XCircle className="w-4 h-4 mr-2" />
                           異常（驗收異常）
@@ -308,7 +313,7 @@ export default function InspectionPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>商品狀態等級 *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!canCreateData}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="選擇等級" />
@@ -344,6 +349,7 @@ export default function InspectionPage() {
                         <Textarea
                           placeholder="輸入驗貨過程的內部備註..."
                           rows={3}
+                          disabled={!canCreateData}
                           {...field}
                         />
                       </FormControl>
@@ -356,7 +362,7 @@ export default function InspectionPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={submitting}
+                  disabled={submitting || !canCreateData}
                 >
                   {submitting ? '提交中...' : '提交驗貨結果'}
                 </Button>

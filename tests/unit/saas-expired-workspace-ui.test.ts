@@ -12,6 +12,7 @@ describe('expired workspace action UI', () => {
     const template = readProjectFile('app/(admin)/template.tsx');
 
     expect(template).toContain('buildWorkspaceActionAccess(context.orgStatus)');
+    expect(template).toContain("previewMode.state === 'ready' ? enforceWorkspaceReadOnly(baseAccess)");
     expect(template).toContain('<WorkspaceAccessProvider access={access}>');
   });
 

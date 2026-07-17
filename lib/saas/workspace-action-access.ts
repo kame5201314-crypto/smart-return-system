@@ -22,7 +22,7 @@ export const UNRESTRICTED_WORKSPACE_ACTION_ACCESS: WorkspaceActionAccess = {
 };
 
 export const WORKSPACE_RESTRICTED_ACTION_TITLE =
-  '工作區目前為唯讀，請升級方案或聯絡客服以恢復使用。';
+  '工作區目前為唯讀；請結束租戶預覽，或確認訂閱狀態並聯絡客服。';
 
 export function buildWorkspaceActionAccess(
   status: SaaSSubscriptionStatus
@@ -34,5 +34,17 @@ export function buildWorkspaceActionAccess(
     canUseAI: policy.canUseAI,
     canExport: policy.canExport,
     isReadOnly: !policy.canCreateData && !policy.canUseAI && !policy.canExport,
+  };
+}
+
+export function enforceWorkspaceReadOnly(
+  access: WorkspaceActionAccess
+): WorkspaceActionAccess {
+  return {
+    ...access,
+    canCreateData: false,
+    canUseAI: false,
+    canExport: false,
+    isReadOnly: true,
   };
 }

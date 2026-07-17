@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 import {
   Select,
   SelectContent,
@@ -55,6 +56,7 @@ function getPlatformLabel(platform: ShopeeReturnPlatform | null): string {
 }
 
 export default function UnmatchedScanPage() {
+  const { canCreateData } = useWorkspaceAccess();
   const [rows, setRows] = useState<ShopeeUnmatchedScan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -103,6 +105,7 @@ export default function UnmatchedScanPage() {
   }, [fetchRows]);
 
   const openBindDialog = (row: ShopeeUnmatchedScan) => {
+    if (!canCreateData) return;
     setTargetRow(row);
     setBindDialogOpen(true);
     setSearchKeyword(row.sample_scanned_code);
@@ -131,6 +134,7 @@ export default function UnmatchedScanPage() {
   };
 
   const bindTarget = async () => {
+    if (!canCreateData) return;
     if (!targetRow) return;
     if (!selectedReturnId) {
       toast.error('請先選擇要綁定的訂單');
@@ -198,7 +202,12 @@ export default function UnmatchedScanPage() {
                     出現次數：{row.hit_count} ｜ 最近時間：{formatDateTime(row.last_seen_at)}
                   </div>
                   <div className="pt-1">
-                    <Button size="sm" variant="outline" onClick={() => openBindDialog(row)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openBindDialog(row)}
+                      disabled={!canCreateData}
+                    >
                       <Link2 className="w-4 h-4 mr-1" />
                       手動綁定訂單
                     </Button>
@@ -259,7 +268,7 @@ export default function UnmatchedScanPage() {
             <Button variant="outline" onClick={() => setBindDialogOpen(false)} disabled={binding}>
               取消
             </Button>
-            <Button onClick={bindTarget} disabled={binding}>
+            <Button onClick={bindTarget} disabled={binding || !canCreateData}>
               {binding ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />綁定中...</> : '確認綁定'}
             </Button>
           </DialogFooter>

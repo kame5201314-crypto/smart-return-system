@@ -1001,17 +1001,30 @@ export default function ShopeeReturnsPage() {
             <Plus className="w-4 h-4 mr-1" />
             {'\u624b\u52d5\u65b0\u589e'}
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
-          >
-            <Link href="/shopee-returns/scan">
+          {canCreateData ? (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+            >
+              <Link href="/shopee-returns/scan">
+                <ScanLine className="w-4 h-4 mr-1" />
+                {'\u6383\u63cf\u5de5\u5177'}
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              title={WORKSPACE_RESTRICTED_ACTION_TITLE}
+              className="border-indigo-300 text-indigo-600"
+            >
               <ScanLine className="w-4 h-4 mr-1" />
               {'\u6383\u63cf\u5de5\u5177'}
-            </Link>
-          </Button>
+            </Button>
+          )}
           {canExport ? (
             <Button
               asChild
