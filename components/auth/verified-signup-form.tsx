@@ -65,6 +65,21 @@ function getSignupErrorMessage(error: unknown): string {
     : getVerifiedSignupErrorMessage(error);
 }
 
+function isPendingSignupConfirmation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const authError = error as { code?: unknown; message?: unknown };
+  const code = typeof authError.code === 'string' ? authError.code.toLowerCase() : '';
+  const message = typeof authError.message === 'string' ? authError.message.toLowerCase() : '';
+
+  return (
+    code === 'email_not_confirmed' ||
+    code === 'phone_not_confirmed' ||
+    message.includes('email not confirmed') ||
+    message.includes('phone not confirmed')
+  );
+}
+
 async function assertVerifiedSignupChannelReady(
   channel: VerifiedSignupChannel
 ): Promise<void> {
@@ -300,6 +315,40 @@ export function VerifiedSignupForm({
         Array.isArray(response.data.user.identities) &&
         response.data.user.identities.length === 0
       ) {
+        // A prior request may already have created the account even though the
+        // browser never advanced. Confirm that the submitted password belongs
+        // to this account before recovering the interrupted flow. This avoids
+        // exposing or resending codes for arbitrary existing identifiers.
+        const loginResponse = nextChannel === 'email'
+          ? await client.auth.signInWithPassword({ email: normalized, password })
+          : await client.auth.signInWithPassword({ phone: normalized, password });
+
+        if (
+          !loginResponse.error &&
+          loginResponse.data.session &&
+          loginResponse.data.user
+        ) {
+          const plan = initialPlan === 'growth' ? 'growth' : 'basic';
+          router.replace(`/signup/complete?plan=${plan}`);
+          router.refresh();
+          return;
+        }
+
+        if (isPendingSignupConfirmation(loginResponse.error)) {
+          setChannel(nextChannel);
+          setNormalizedIdentifier(normalized);
+          setDisplayIdentifier(identifier.trim());
+          setPassword('');
+          setPasswordConfirmation('');
+          setOtp('');
+          setStep('otp');
+          setResendAvailableAt(Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
+          setClock(Date.now());
+          setMessage('帳號已建立，請輸入信箱中的驗證碼完成註冊。');
+          resetCaptcha();
+          return;
+        }
+
         throw new Error('Account already exists');
       }
 
@@ -693,8 +742,11 @@ export function VerifiedSignupForm({
           <Feedback message={message} error={error} />
           {existingAccountDetected ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
-              <p>若此信箱原本使用 Google 建立帳號，可先驗證身分並設定密碼。</p>
-              <Button asChild variant="outline" className="mt-3 w-full bg-white">
+              <p>這個帳號已經完成註冊，請直接前往登入。</p>
+              <Button asChild className="mt-3 w-full">
+                <Link href="/login">返回登入</Link>
+              </Button>
+              <Button asChild variant="outline" className="mt-2 w-full bg-white">
                 <Link href="/auth/google?next=%2Faccount%2Fset-password">
                   使用 Google 驗證並設定密碼
                 </Link>

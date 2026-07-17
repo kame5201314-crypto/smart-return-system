@@ -9,6 +9,7 @@ const navigationMocks = vi.hoisted(() => ({
 
 const authMocks = vi.hoisted(() => ({
   signUp: vi.fn(),
+  signInWithPassword: vi.fn(),
   verifyOtp: vi.fn(),
   getUser: vi.fn(),
   resend: vi.fn(),
@@ -74,6 +75,10 @@ describe('VerifiedSignupForm', () => {
     readinessFetchMock.mockResolvedValue(readinessResponse());
     vi.stubGlobal('fetch', readinessFetchMock);
     authMocks.signUp.mockResolvedValue({ data: { session: null, user: { id: 'user-1' } }, error: null });
+    authMocks.signInWithPassword.mockResolvedValue({
+      data: { session: null, user: null },
+      error: { message: 'Invalid login credentials', code: 'invalid_credentials' },
+    });
     authMocks.verifyOtp.mockResolvedValue({
       data: {
         session: { access_token: 'verified-session' },
@@ -303,7 +308,7 @@ describe('VerifiedSignupForm', () => {
     expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
   });
 
-  it('directs an existing account back to login instead of opening an OTP step', async () => {
+  it('shows a prominent login action when an existing account password does not match', async () => {
     authMocks.signUp.mockResolvedValueOnce({
       data: {
         session: null,
@@ -326,12 +331,84 @@ describe('VerifiedSignupForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       '此帳號已註冊，請返回登入。'
     );
-    expect(screen.getByRole('link', { name: '返回登入' })).toHaveAttribute('href', '/login');
+    expect(screen.getAllByRole('link', { name: '返回登入' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: '返回登入' })[1]).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: '使用 Google 驗證並設定密碼' }))
       .toHaveAttribute('href', '/auth/google?next=%2Faccount%2Fset-password');
     expect(screen.queryByRole('heading', {
       name: '請查收並輸入手機或信箱中的驗證碼',
     })).not.toBeInTheDocument();
+  });
+
+  it('recovers an interrupted first signup by opening the OTP step for the matching password', async () => {
+    authMocks.signUp.mockResolvedValueOnce({
+      data: {
+        session: null,
+        user: { id: 'existing-user', identities: [] },
+      },
+      error: null,
+    });
+    authMocks.signInWithPassword.mockResolvedValueOnce({
+      data: { session: null, user: null },
+      error: { message: 'Email not confirmed', code: 'email_not_confirmed' },
+    });
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fillEmailSignupCredentials();
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    expect(await screen.findByRole('heading', {
+      name: '請查收並輸入手機或信箱中的驗證碼',
+    })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '帳號已建立，請輸入信箱中的驗證碼完成註冊。'
+    );
+    expect(authMocks.signInWithPassword).toHaveBeenCalledWith({
+      email: 'owner@example.com',
+      password: 'Password8',
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('continues an already verified matching account to the registration success page', async () => {
+    authMocks.signUp.mockResolvedValueOnce({
+      data: {
+        session: null,
+        user: { id: 'existing-user', identities: [] },
+      },
+      error: null,
+    });
+    authMocks.signInWithPassword.mockResolvedValueOnce({
+      data: {
+        session: { access_token: 'existing-session' },
+        user: { id: 'existing-user' },
+      },
+      error: null,
+    });
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="growth"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fillEmailSignupCredentials();
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    await waitFor(() => {
+      expect(navigationMocks.replace).toHaveBeenCalledWith('/signup/complete?plan=growth');
+      expect(navigationMocks.refresh).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('fails signup closed when the readiness response cannot be trusted', async () => {
