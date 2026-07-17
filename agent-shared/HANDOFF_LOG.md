@@ -1,5 +1,17 @@
 # Handoff Log
 
+## 2026-07-17 - Invite-only Beta Signup Gate Handoff
+
+- Added `ENABLE_INVITE_ONLY_BETA` plus server-only
+  `SAAS_BETA_ALLOWED_EMAILS` enforcement before trial profile or RPC writes.
+- Existing merchants continue to log in normally; only new self-service trial
+  provisioning is restricted. An enabled gate with an empty or malformed list
+  fails closed.
+- UI errors and rollout checks do not reveal invited Email addresses. Example
+  env files contain no real identities.
+- Production activation still requires an owner-approved Vercel env change and
+  deployment; none was performed here.
+
 ## 2026-07-17 - Custom SMTP Provider Audit Handoff
 
 - A read-only local and Vercel Production audit found no Resend, Email provider,

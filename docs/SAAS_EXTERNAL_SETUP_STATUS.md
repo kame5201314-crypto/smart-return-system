@@ -1,5 +1,19 @@
 # SaaS External Setup Status
 
+## 2026-07-17 Invite-only Beta Signup Gate
+
+- Repository enforcement now supports an explicit server-side closed-Beta gate.
+  Set `ENABLE_INVITE_ONLY_BETA=true` and store approved identities only in
+  `SAAS_BETA_ALLOWED_EMAILS` in the deployment environment.
+- The gate is enforced immediately before trial profile persistence and RPC
+  provisioning. It never affects existing merchant login, and it returns a
+  generic invite-required response without exposing the allowlist.
+- Missing, empty, or malformed allowlist configuration fails closed once the
+  gate is enabled. Rollout readiness reports only the configured entry count,
+  never the Email values.
+- No real Email address, secret, Vercel env, deployment, migration, billing, DNS,
+  or external provider setting was changed by this repository work.
+
 ## 2026-07-17 Custom SMTP Provider Audit
 
 - A read-only audit confirmed that neither `.env.saas.local` nor Vercel

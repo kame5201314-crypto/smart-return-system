@@ -44,6 +44,7 @@ const RETURN_BAND_OPTIONS = [
 ] as const;
 
 function getErrorMessage(code: unknown): string {
+  if (code === 'invite_required') return '目前為邀請制測試，請使用受邀的電子信箱登入。';
   if (code === 'trial_already_claimed') return '這個帳號已使用過試用資格。';
   if (code === 'google_identity_required') return '請先使用 Google 帳號完成驗證。';
   if (code === 'verified_identity_required') return '請先完成信箱或手機驗證。';

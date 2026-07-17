@@ -208,6 +208,31 @@ describe('SaaS rollout readiness check', () => {
     );
   });
 
+  it('fails closed when invite-only Beta has no Email allowlist', () => {
+    const result = runRolloutCheck({
+      ENABLE_INVITE_ONLY_BETA: 'true',
+      SAAS_BETA_ALLOWED_EMAILS: '',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(
+      'Closed Beta invite allowlist - ENABLE_INVITE_ONLY_BETA=true requires SAAS_BETA_ALLOWED_EMAILS'
+    );
+  });
+
+  it('accepts invite-only Beta without exposing configured addresses', () => {
+    const result = runRolloutCheck({
+      ENABLE_INVITE_ONLY_BETA: 'true',
+      SAAS_BETA_ALLOWED_EMAILS: 'friend@example.com,second@example.com',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain(
+      'Closed Beta invite allowlist - 2 invited Email address(es) configured'
+    );
+    expect(result.output).not.toContain('friend@example.com');
+  });
+
   it('fails closed when verified signup lacks CAPTCHA, lifecycle, or its provider', () => {
     const result = runRolloutCheck({
       ENABLE_EMAIL_OTP_SIGNUP: 'true',

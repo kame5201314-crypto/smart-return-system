@@ -1,5 +1,19 @@
 # Active Work
 
+## 2026-07-17 Invite-only Beta Signup Gate
+
+Status: done
+
+Scope: Add a server-enforced Email allowlist for controlled Google/verified
+identity trial provisioning without affecting existing merchant login.
+
+Notes: `ENABLE_INVITE_ONLY_BETA=true` activates the gate and
+`SAAS_BETA_ALLOWED_EMAILS` supplies the approved identities outside Git. The
+check runs before customer-profile persistence and trial RPC calls; missing or
+malformed configuration fails closed, while errors never disclose the list.
+Activation remains a separate Vercel env and deployment step. No real address,
+secret, external setting, migration, or deployment changed in this commit.
+
 ## 2026-07-17 Custom SMTP Provider Audit
 
 Status: blocked

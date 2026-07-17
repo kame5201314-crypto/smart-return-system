@@ -106,6 +106,26 @@ describe('SaaS Google self-service trial contract', () => {
     })).rejects.toMatchObject({ code: 'google_identity_required', status: 403 });
   });
 
+  it('requires an invited Email before creating a closed-Beta trial', async () => {
+    const repository = { provision: vi.fn() };
+    const profileRepository = createProfileRepository();
+    const env = {
+      ENABLE_GOOGLE_AUTH: 'true',
+      ENABLE_GOOGLE_TRIAL_SIGNUP: 'true',
+      ENABLE_INVITE_ONLY_BETA: 'true',
+      SAAS_BETA_ALLOWED_EMAILS: 'friend@example.com',
+    };
+
+    await expect(provisionSelfServiceTrial(payload, {
+      identity,
+      env,
+      repository,
+      profileRepository,
+    })).rejects.toMatchObject({ code: 'invite_required', status: 403 });
+    expect(profileRepository.getOrCreate).not.toHaveBeenCalled();
+    expect(repository.provision).not.toHaveBeenCalled();
+  });
+
   it('normalizes identity and server acceptance time before provisioning', async () => {
     const repository = { provision: vi.fn().mockResolvedValue(result) };
     const profileRepository = createProfileRepository();

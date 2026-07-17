@@ -312,6 +312,33 @@ function checkGoogleTrialReadiness() {
   }
 }
 
+function checkBetaInviteReadiness() {
+  if (!parseBool(process.env.ENABLE_INVITE_ONLY_BETA)) {
+    record('pass', 'Closed Beta invite gate', 'disabled');
+    return;
+  }
+
+  const invitedEmails = normalizeEnvValue(process.env.SAAS_BETA_ALLOWED_EMAILS)
+    .split(/[\s,;]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.includes('@'));
+
+  if (invitedEmails.length === 0) {
+    record(
+      'fail',
+      'Closed Beta invite allowlist',
+      'ENABLE_INVITE_ONLY_BETA=true requires SAAS_BETA_ALLOWED_EMAILS'
+    );
+    return;
+  }
+
+  record(
+    'pass',
+    'Closed Beta invite allowlist',
+    `${new Set(invitedEmails).size} invited Email address(es) configured`
+  );
+}
+
 function checkAuthCaptchaReadiness() {
   if (!parseBool(process.env.SAAS_AUTH_CAPTCHA_READY)) {
     record('pass', 'Auth CAPTCHA rollout', 'server-side validation remains closed');
@@ -475,6 +502,7 @@ checkAppUrlAndObservability();
 checkAiSafety();
 checkControlledRolloutFlags();
 checkGoogleTrialReadiness();
+checkBetaInviteReadiness();
 checkAuthCaptchaReadiness();
 checkVerifiedSignupReadiness();
 checkPasswordRecoveryReadiness();

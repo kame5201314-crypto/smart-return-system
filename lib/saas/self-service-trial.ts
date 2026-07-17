@@ -15,6 +15,7 @@ import {
   type SelfServiceTrialProfileRecord,
   type SelfServiceTrialProfileRepository,
 } from '@/lib/saas/self-service-trial-profile';
+import { isBetaInviteEmailAllowed } from '@/lib/saas/beta-invite-allowlist';
 
 export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-15-v2';
 
@@ -23,6 +24,7 @@ export type SelfServiceTrialIdentityProvider = 'google' | 'email_otp' | 'phone_o
 
 export type SelfServiceTrialErrorCode =
   | 'feature_disabled'
+  | 'invite_required'
   | 'unauthenticated'
   | 'google_identity_required'
   | 'verified_identity_required'
@@ -399,6 +401,19 @@ function requireEnabledIdentityProvider(
   }
 }
 
+function requireBetaInvite(
+  identity: SelfServiceTrialIdentity,
+  env: Record<string, string | undefined> | undefined
+): void {
+  if (isBetaInviteEmailAllowed(identity.email, env)) return;
+
+  throw new SelfServiceTrialError(
+    'invite_required',
+    403,
+    'This closed Beta is available only to invited email addresses.'
+  );
+}
+
 export async function provisionSelfServiceTrial(
   value: unknown,
   options: {
@@ -419,6 +434,7 @@ export async function provisionSelfServiceTrial(
   }
 
   requireEnabledIdentityProvider(options.identity, flags, options.env);
+  requireBetaInvite(options.identity, options.env);
 
   const rateLimit = (options.rateLimiter ?? selfServiceTrialRateLimiter).check(
     `saas_self_service_trial:${options.identity.userId}`,
