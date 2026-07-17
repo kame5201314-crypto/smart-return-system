@@ -3,6 +3,10 @@
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/saas/org-context';
 import type { ApiResponse } from '@/types';
+import {
+  assertSelfServiceTrialReturnCapacity,
+  SelfServiceTrialReturnLimitError,
+} from '@/lib/saas/self-service-trial-return-limits';
 
 export interface BackupRecord {
   id: string;
@@ -103,6 +107,80 @@ function scopeRowsToOrg(rows: unknown[] | undefined, orgId: string): never[] {
     ...(typeof row === 'object' && row !== null ? row : {}),
     org_id: orgId,
   })) as never[];
+}
+
+function getRowId(row: unknown): string | null {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
+  const id = (row as Record<string, unknown>).id;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+}
+
+async function assertTrialRestoreCapacity(
+  supabase: ReturnType<typeof createUntypedAdminClient>,
+  orgId: string,
+  rows: unknown[]
+): Promise<void> {
+  const { data: organization, error: organizationError } = await supabase
+    .from('organizations')
+    .select('status')
+    .eq('id', orgId)
+    .single();
+  if (organizationError || !organization) {
+    throw new SelfServiceTrialReturnLimitError(
+      'trial_return_limit_unavailable',
+      503,
+      'Unable to verify the trial return limit.'
+    );
+  }
+
+  const incomingIds = [...new Set(rows.map(getRowId).filter((id): id is string => Boolean(id)))];
+  let existingIds = new Set<string>();
+  if (incomingIds.length > 0) {
+    const { data: existingRows, error: existingError } = await supabase
+      .from('return_requests')
+      .select('id')
+      .eq('org_id', orgId)
+      .in('id', incomingIds);
+    if (existingError) {
+      throw new SelfServiceTrialReturnLimitError(
+        'trial_return_limit_unavailable',
+        503,
+        'Unable to verify the trial return limit.'
+      );
+    }
+    existingIds = new Set(
+      (existingRows || [])
+        .map((row) => getRowId(row))
+        .filter((id): id is string => Boolean(id))
+    );
+  }
+
+  const rowsWithoutId = rows.filter((row) => !getRowId(row)).length;
+  const newIds = incomingIds.filter((id) => !existingIds.has(id)).length;
+  await assertSelfServiceTrialReturnCapacity({
+    orgId,
+    orgStatus: String((organization as { status?: unknown }).status || ''),
+    additionalReturns: rowsWithoutId + newIds,
+    repository: {
+      async hasSelfServiceTrialClaim(scopedOrgId) {
+        const { data, error } = await supabase
+          .from('saas_self_service_trial_claims')
+          .select('org_id')
+          .eq('org_id', scopedOrgId)
+          .maybeSingle();
+        if (error) throw new Error(error.message || 'Failed to load trial claim.');
+        return Boolean(data);
+      },
+      async countReturns(scopedOrgId) {
+        const { count, error } = await supabase
+          .from('return_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', scopedOrgId);
+        if (error) throw new Error(error.message || 'Failed to count trial returns.');
+        return count ?? 0;
+      },
+    },
+  });
 }
 
 function formatBackupTimestamp(date: Date): string {
@@ -387,7 +465,9 @@ export async function restoreBackup(
     const restored: Record<string, number> = {};
 
     if (selectedTables.includes('return_management')) {
-      const returnRequests = scopeRowsToOrg(backupData.data.return_requests, orgId);
+      const sourceReturnRequests = backupData.data.return_requests || [];
+      await assertTrialRestoreCapacity(supabase, orgId, sourceReturnRequests);
+      const returnRequests = scopeRowsToOrg(sourceReturnRequests, orgId);
       if (returnRequests.length > 0) {
         const { error } = await supabase
           .from('return_requests')
@@ -439,6 +519,14 @@ export async function restoreBackup(
 
     return { success: true, data: { restored } };
   } catch (error) {
+    if (error instanceof SelfServiceTrialReturnLimitError) {
+      return {
+        success: false,
+        error: error.code === 'trial_return_limit_reached'
+          ? '試用工作區最多可保留 50 筆退貨，無法還原超過上限的備份。'
+          : '目前無法確認試用額度，已暫停備份還原，請稍後再試。',
+      };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Backup restore failed',

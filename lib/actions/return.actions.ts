@@ -23,6 +23,11 @@ import {
   isReturnItemResolutionType,
   type ReturnItemResolutionType,
 } from '@/lib/utils/resolution-fallback';
+import {
+  assertSelfServiceTrialReturnCapacity,
+  SelfServiceTrialReturnLimitError,
+  type SelfServiceTrialReturnLimitRepository,
+} from '@/lib/saas/self-service-trial-return-limits';
 
 function mapChannelToPickupPlatform(channelSource: string | null): string {
   if (channelSource === 'official') return '官網';
@@ -53,6 +58,42 @@ async function getWritableReturnOrgContext(): Promise<SaaSOrgContext> {
       writable: true,
     },
   });
+}
+
+function getTrialReturnLimitErrorMessage(error: SelfServiceTrialReturnLimitError): string {
+  if (error.code === 'trial_return_limit_reached') {
+    return '試用工作區最多可建立 50 筆退貨；如需繼續使用，請聯絡客服升級。';
+  }
+  if (error.code === 'trial_import_row_limit_exceeded') {
+    return '試用工作區每次最多匯入 30 列資料，請分次整理後再試。';
+  }
+  return '目前無法確認試用額度，為避免超額已暫停新增，請稍後再試。';
+}
+
+function createTrialReturnLimitRepository(
+  adminClient: ReturnType<typeof createAdminClient>
+): SelfServiceTrialReturnLimitRepository {
+  const untypedAdminClient = createUntypedAdminClient();
+
+  return {
+    async hasSelfServiceTrialClaim(orgId) {
+      const { data, error } = await untypedAdminClient
+        .from('saas_self_service_trial_claims')
+        .select('org_id')
+        .eq('org_id', orgId)
+        .maybeSingle();
+      if (error) throw new Error(error.message || 'Failed to load trial claim.');
+      return Boolean(data);
+    },
+    async countReturns(orgId) {
+      const { count, error } = await adminClient
+        .from('return_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', orgId);
+      if (error) throw new Error(error.message || 'Failed to count trial returns.');
+      return count ?? 0;
+    },
+  };
 }
 
 function getMissingColumnName(error: unknown, table: string): string | null {
@@ -328,6 +369,12 @@ export async function submitReturnApplication(
     }
 
     const adminClient = createAdminClient();
+    await assertSelfServiceTrialReturnCapacity({
+      orgId: orgContext.orgId,
+      orgStatus: orgContext.orgStatus,
+      additionalReturns: 1,
+      repository: createTrialReturnLimitRepository(adminClient),
+    });
 
     // Get order details
     const { data: order, error: orderError } = await adminClient
@@ -465,6 +512,9 @@ export async function submitReturnApplication(
       data: { requestNumber: returnRequest.request_number },
     };
   } catch (error) {
+    if (error instanceof SelfServiceTrialReturnLimitError) {
+      return { success: false, error: getTrialReturnLimitErrorMessage(error) };
+    }
     console.error('Submit return application error:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC };
   }
@@ -1750,10 +1800,7 @@ export async function getReturnsForExport(filters?: {
   }
 }
 
-/**
- * Admin: Manually create a return request
- */
-export async function createManualReturnRequest(input: {
+export interface ManualReturnRequestInput {
   customerName?: string;
   customerPhone?: string;
   orderNumber: string;
@@ -1767,10 +1814,13 @@ export async function createManualReturnRequest(input: {
     quantity: number;
     unitPrice?: number;
   }[];
-}): Promise<ApiResponse<{ id: string; requestNumber: string }>> {
-  try {
-    const orgContext = await getWritableReturnOrgContext();
-    const adminClient = createAdminClient();
+}
+
+async function createManualReturnRequestForOrg(
+  input: ManualReturnRequestInput,
+  orgContext: SaaSOrgContext,
+  adminClient: ReturnType<typeof createAdminClient>
+): Promise<ApiResponse<{ id: string; requestNumber: string }>> {
 
     if (!input.orderNumber.trim()) {
       return { success: false, error: '請輸入訂單編號' };
@@ -1898,12 +1948,86 @@ export async function createManualReturnRequest(input: {
       description: `管理員手動建立退貨申請: ${returnRequest.request_number}`,
     } as never);
 
-    return {
-      success: true,
-      data: { id: returnRequest.id, requestNumber: returnRequest.request_number },
-    };
+  return {
+    success: true,
+    data: { id: returnRequest.id, requestNumber: returnRequest.request_number },
+  };
+}
+
+/**
+ * Admin: Manually create a return request.
+ */
+export async function createManualReturnRequest(
+  input: ManualReturnRequestInput
+): Promise<ApiResponse<{ id: string; requestNumber: string }>> {
+  try {
+    const orgContext = await getWritableReturnOrgContext();
+    const adminClient = createAdminClient();
+    await assertSelfServiceTrialReturnCapacity({
+      orgId: orgContext.orgId,
+      orgStatus: orgContext.orgStatus,
+      additionalReturns: 1,
+      repository: createTrialReturnLimitRepository(adminClient),
+    });
+    return await createManualReturnRequestForOrg(input, orgContext, adminClient);
   } catch (error) {
+    if (error instanceof SelfServiceTrialReturnLimitError) {
+      return { success: false, error: getTrialReturnLimitErrorMessage(error) };
+    }
     console.error('Create manual return request error:', error);
+    return { success: false, error: ERROR_MESSAGES.GENERIC };
+  }
+}
+
+export interface ManualReturnImportResult {
+  imported: number;
+  failures: Array<{ orderNumber: string; error: string }>;
+}
+
+/**
+ * Admin: Import a bounded batch of return requests.
+ * Source row count is derived from the submitted item rows, not trusted metadata.
+ */
+export async function importManualReturnRequests(
+  requests: ManualReturnRequestInput[]
+): Promise<ApiResponse<ManualReturnImportResult>> {
+  try {
+    const orgContext = await getWritableReturnOrgContext();
+    const adminClient = createAdminClient();
+    const normalizedRequests = Array.isArray(requests) ? requests : [];
+    const importRowCount = normalizedRequests.reduce(
+      (total, request) => total + (Array.isArray(request.items) ? request.items.length : 0),
+      0
+    );
+
+    await assertSelfServiceTrialReturnCapacity({
+      orgId: orgContext.orgId,
+      orgStatus: orgContext.orgStatus,
+      additionalReturns: normalizedRequests.length,
+      importRowCount,
+      repository: createTrialReturnLimitRepository(adminClient),
+    });
+
+    let imported = 0;
+    const failures: ManualReturnImportResult['failures'] = [];
+    for (const request of normalizedRequests) {
+      const result = await createManualReturnRequestForOrg(request, orgContext, adminClient);
+      if (result.success) {
+        imported += 1;
+      } else {
+        failures.push({
+          orderNumber: request.orderNumber,
+          error: result.error || '建立退貨單失敗',
+        });
+      }
+    }
+
+    return { success: true, data: { imported, failures } };
+  } catch (error) {
+    if (error instanceof SelfServiceTrialReturnLimitError) {
+      return { success: false, error: getTrialReturnLimitErrorMessage(error) };
+    }
+    console.error('Import manual return requests error:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC };
   }
 }

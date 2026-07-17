@@ -1,5 +1,15 @@
 # Handoff Log
 
+## 2026-07-17 - Self-service Trial Return Hard Limits Handoff
+
+- Active self-service trials are capped at 50 total `return_requests`.
+- Spreadsheet import uses one server action and rejects more than 30 source
+  item rows before any row is written.
+- The same total cap protects manual creation, customer return entry points,
+  and backup restore; existing paid/manual trial behavior is unchanged.
+- This is repository enforcement only. No migration, Vercel/Supabase setting,
+  deployment, or secret changed.
+
 ## 2026-07-17 - Invite-only Beta Signup Gate Handoff
 
 - Added `ENABLE_INVITE_ONLY_BETA` plus server-only

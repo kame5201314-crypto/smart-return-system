@@ -1,5 +1,15 @@
 # SaaS External Setup Status
 
+## 2026-07-17 Closed-Beta Return Volume Guard
+
+- Active self-service trial workspaces now have a server-enforced maximum of
+  50 return requests and 30 source rows per spreadsheet import.
+- The total guard covers merchant manual entry, grouped import, customer return
+  submission, and backup restore. Paid workspaces and manually provisioned
+  trials retain the normal plan policy.
+- The limits require no new env value or migration. No deployment or external
+  platform setting was changed by this repository commit.
+
 ## 2026-07-17 Invite-only Beta Signup Gate
 
 - Repository enforcement now supports an explicit server-side closed-Beta gate.

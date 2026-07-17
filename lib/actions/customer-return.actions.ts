@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { headers } from 'next/headers';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import type { ApiResponse } from '@/types';
 import {
   getExtensionFromMimeType,
@@ -12,6 +12,10 @@ import {
 } from '@/lib/upload/security';
 import { buildReturnImageStorageReference, signReturnImageUrls } from '@/lib/storage/return-images';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
+import {
+  assertSelfServiceTrialReturnCapacity,
+  SelfServiceTrialReturnLimitError,
+} from '@/lib/saas/self-service-trial-return-limits';
 
 const customerReturnSchema = z.object({
   channelSource: z.string().min(1, '請選擇購買通路').max(50),
@@ -285,6 +289,51 @@ export async function submitCustomerReturn(
     const orderRow = orderRows.find((row) => row.org_id === orgId);
     if (!orderRow) {
       return { success: false, error: '訂單資料需要人工確認，請聯絡客服' };
+    }
+
+    const { data: organization, error: organizationError } = await adminClient
+      .from('organizations')
+      .select('status')
+      .eq('id', orgId)
+      .single() as { data: { status: string } | null; error: Error | null };
+    if (organizationError || !organization) {
+      return { success: false, error: '目前無法確認試用額度，請稍後再試' };
+    }
+
+    const untypedAdminClient = createUntypedAdminClient();
+    try {
+      await assertSelfServiceTrialReturnCapacity({
+        orgId,
+        orgStatus: organization.status,
+        additionalReturns: 1,
+        repository: {
+          async hasSelfServiceTrialClaim(scopedOrgId) {
+            const { data, error } = await untypedAdminClient
+              .from('saas_self_service_trial_claims')
+              .select('org_id')
+              .eq('org_id', scopedOrgId)
+              .maybeSingle();
+            if (error) throw new Error(error.message || 'Failed to load trial claim.');
+            return Boolean(data);
+          },
+          async countReturns(scopedOrgId) {
+            const { count, error } = await adminClient
+              .from('return_requests')
+              .select('id', { count: 'exact', head: true })
+              .eq('org_id', scopedOrgId);
+            if (error) throw new Error(error.message || 'Failed to count trial returns.');
+            return count ?? 0;
+          },
+        },
+      });
+    } catch (error) {
+      if (error instanceof SelfServiceTrialReturnLimitError) {
+        if (error.code === 'trial_return_limit_reached') {
+          return { success: false, error: '此試用工作區已達 50 筆退貨上限，請聯絡商家升級。' };
+        }
+        return { success: false, error: '目前無法確認試用額度，請稍後再試。' };
+      }
+      throw error;
     }
 
     let customerId: string | null = orderRow.customer_id || null;

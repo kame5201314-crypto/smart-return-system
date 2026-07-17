@@ -1,5 +1,19 @@
 # Active Work
 
+## 2026-07-17 Self-service Trial Return Hard Limits
+
+Status: done
+
+Scope: Protect the closed Beta from unbounded return data by enforcing a
+50-return workspace cap and a 30-source-row cap per spreadsheet import.
+
+Notes: Enforcement applies only to active self-service trial claims and runs on
+the server before manual creation, grouped imports, authenticated/public return
+applications, and backup restore writes. Paid workspaces and manually created
+trials keep their existing plan behavior. Import row count is derived from the
+submitted item rows, and backup restore counts only records that do not already
+exist. No migration, deployment, env, or external setting changed.
+
 ## 2026-07-17 Invite-only Beta Signup Gate
 
 Status: done

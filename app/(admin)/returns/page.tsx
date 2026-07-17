@@ -30,7 +30,11 @@ import { ReturnsTable, SortField, SortDirection } from '@/components/shared/retu
 import { PageHeader } from '@/components/saas/page-header';
 import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 
-import { getReturnRequests, createManualReturnRequest } from '@/lib/actions/return.actions';
+import {
+  getReturnRequests,
+  createManualReturnRequest,
+  importManualReturnRequests,
+} from '@/lib/actions/return.actions';
 import { RETURN_STATUS_LABELS, CHANNEL_LIST, RETURN_REASONS, RETURN_ITEM_RESOLUTION_TYPES } from '@/config/constants';
 import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 import { filterAndSortReturns } from '@/lib/utils/return-filtering';
@@ -393,27 +397,14 @@ export default function ReturnsPage() {
         return;
       }
 
-      let importedCount = 0;
-      const failed: Array<{ orderNumber: string; error: string }> = [];
-
-      for (const req of requests) {
-        const result = await createManualReturnRequest({
-          orderNumber: req.orderNumber,
-          channelSource: req.channelSource,
-          customerName: req.customerName,
-          customerPhone: req.customerPhone,
-          reasonCategory: req.reasonCategory,
-          reasonDetail: req.reasonDetail,
-          refundAmount: req.refundAmount,
-          items: req.items,
-        });
-
-        if (result.success) {
-          importedCount++;
-        } else {
-          failed.push({ orderNumber: req.orderNumber, error: result.error || '建立失敗' });
-        }
+      const result = await importManualReturnRequests(requests);
+      if (!result.success || !result.data) {
+        toast.error(result.error || '匯入失敗，請稍後再試');
+        return;
       }
+
+      const importedCount = result.data.imported;
+      const failed = result.data.failures;
 
       if (importedCount > 0) {
         toast.success(`已匯入 ${importedCount} 筆退貨單${failed.length > 0 ? `，失敗 ${failed.length} 筆` : ''}`);
@@ -424,7 +415,7 @@ export default function ReturnsPage() {
 
       if (failed.length > 0) {
         console.warn('Return import failures:', failed);
-        toast.error(`部分失敗：${failed.slice(0, 3).map((f) => f.orderNumber).join(', ')}${failed.length > 3 ? ' ...' : ''}`);
+        toast.error(`部分失敗：${failed.slice(0, 3).map((failure) => failure.orderNumber).join(', ')}${failed.length > 3 ? ' ...' : ''}`);
       }
     } catch (error) {
       console.error('Return import error:', error);
