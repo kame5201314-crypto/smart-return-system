@@ -1,6 +1,6 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
@@ -28,9 +28,9 @@ recovery rollout, use
   signup feature-matrix regressions are repository-complete.
 - This is not a Production deployment. OTP signup and recovery flags remain
   off; no SMTP/SMS/Turnstile env or provider setting changed.
-- Migration `044` remains draft-only and must be authorized separately. It is
-  not required for recovery of existing accounts, only verified Email/Phone
-  self-service trial provisioning.
+- Migration `044` was owner-authorized and applied only to SaaS project
+  `auyznbwtjvemyamujmgt` on 2026-07-17. Remote history, required columns, RPC,
+  and service-role-only execution were verified. It must not be rerun.
 
 ## 2026-07-15 Google Production Rollout Completed
 
@@ -98,7 +98,9 @@ recovery rollout, use
   - migration `038_saas_org_member_visibility.sql` is applied
   - migrations `040`, `041`, `042`, and `043` are applied only to SaaS project
     `auyznbwtjvemyamujmgt` and must not be applied again
-  - draft migrations `034`, `036`, and `044` remain unapplied
+  - draft migrations `034` and `036` remain unapplied
+  - migration `044_saas_verified_identity_self_service_trial.sql` is applied
+    only to SaaS project `auyznbwtjvemyamujmgt` and must not be rerun
   - `ENABLE_EMAIL_OTP_SIGNUP`, `ENABLE_PHONE_OTP_SIGNUP`,
     `ENABLE_EMAIL_PASSWORD_RECOVERY`, and
     `ENABLE_PHONE_PASSWORD_RECOVERY` remain disabled pending provider and

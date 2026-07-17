@@ -33,7 +33,9 @@ Last updated: 2026-07-17
   另以 Cloudflare Siteverify 在 server 驗證 token、`password_login` action 與
   trusted app hostname；Supabase platform-admin principal 則仍由 Supabase
   密碼登入端點消耗 token。
-- Migration `044_saas_verified_identity_self_service_trial.sql` 目前只是草稿，尚未套用到任何資料庫。
+- Migration `044_saas_verified_identity_self_service_trial.sql` 已於 2026-07-17
+  由 owner 明確授權後，只套用到 SaaS project `auyznbwtjvemyamujmgt`。遠端
+  migration history 已記錄 `044`；RPC、欄位及 service-role-only 權限均已驗證。
 - 尚未設定 Custom SMTP、SMS provider、Turnstile 或 Production env，因此目前
   Production 只能安全顯示停用中的 Email 註冊介面，不能實際寄送或收取驗證碼。
 
@@ -57,7 +59,8 @@ TURNSTILE_SECRET_KEY=
 
 1. 對應 channel 的 `ENABLE_*_OTP_SIGNUP=true`。
 2. `SAAS_AUTH_CAPTCHA_READY=true` 且有真實 Turnstile site key。
-3. Migration 044 已在 SaaS project 驗證完畢，才可標記 `SAAS_VERIFIED_SIGNUP_MIGRATION_READY=true`。
+3. Migration 044 已在 SaaS project 驗證完畢；部署時可標記
+   `SAAS_VERIFIED_SIGNUP_MIGRATION_READY=true`。
 4. 對應 Custom SMTP 或 SMS provider 已實測，且 readiness 標記為 `true`。
 5. 3 天試用到期 cron 仍保持啟用。
 

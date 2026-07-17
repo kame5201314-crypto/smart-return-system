@@ -1,5 +1,17 @@
 # SaaS External Setup Status
 
+## 2026-07-17 Verified Signup Migration Applied
+
+- Owner authorized migration `044_saas_verified_identity_self_service_trial.sql`
+  only for SaaS project `auyznbwtjvemyamujmgt`.
+- SQL Editor execution succeeded and remote migration history now records `044`
+  as `saas_verified_identity_self_service_trial`.
+- Verification confirmed the provider-neutral trial RPC and all required columns
+  exist. Only `service_role` can execute the RPC; `anon` and `authenticated`
+  cannot execute it.
+- Migrations `040`-`044` must not be rerun. Custom SMTP, SMS, Turnstile,
+  Production readiness flags, and deployment remain separate rollout steps.
+
 ## 2026-07-16 Account Registration Entry And QA
 
 - `dd27745` adds an explicit `註冊新帳號` entry on `/login` and keeps the selected
@@ -40,9 +52,9 @@
   `044_saas_verified_identity_self_service_trial.sql`.
 - Repository implementation commits `a71e3a9` and `de3f052` are pushed to
   `origin/develop-saas`; this is not a Production deployment.
-- Migration `044` has **not** been applied anywhere. Migrations `040`–`043`
-  remain the latest applied self-service chain on SaaS project
-  `auyznbwtjvemyamujmgt` and must not be rerun.
+- This section records the 2026-07-15 repository-only state. It is superseded by
+  the 2026-07-17 entry above: migration `044` is now applied only to SaaS project
+  `auyznbwtjvemyamujmgt`, and migrations `040`-`044` must not be rerun.
 - No Custom SMTP, SMS provider, Turnstile secret/site configuration,
   Production env, deployment, DNS, billing, or external setting was changed.
 - Both `ENABLE_EMAIL_OTP_SIGNUP` and `ENABLE_PHONE_OTP_SIGNUP` remain off until

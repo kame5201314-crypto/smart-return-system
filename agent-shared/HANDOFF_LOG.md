@@ -1,5 +1,16 @@
 # Handoff Log
 
+## 2026-07-17 - Verified Signup Migration Activation Handoff
+
+- Owner-authorized migration `044` was applied only to SaaS Supabase project
+  `auyznbwtjvemyamujmgt` through the project SQL Editor.
+- Remote migration history records `044` as
+  `saas_verified_identity_self_service_trial`.
+- Verification returned true for the RPC and all required columns. Execute is
+  granted to `service_role` and denied to `anon` and `authenticated`.
+- Do not rerun migrations `040`-`044`. Email delivery, Turnstile, Production
+  readiness flags, deployment, and end-to-end OTP smoke remain separate steps.
+
 ## 2026-07-17 - Single-form Signup Redesign Handoff
 
 - `/signup` matches the selected third reference: phone/Email, password,
