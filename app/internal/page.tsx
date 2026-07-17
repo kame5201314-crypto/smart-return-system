@@ -1,33 +1,15 @@
 import Link from 'next/link';
 import {
-  AlertTriangle,
   ArrowRight,
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlatformAdminDashboardContent } from '@/components/internal/platform-admin-dashboard-content';
 import { getCurrentUser, signOut } from '@/lib/actions/auth';
 import { loadPlatformAdminDashboardView } from '@/lib/saas/platform-admin-live-data';
-import type {
-  PlatformAdminDashboardView,
-  PlatformAtRiskAlertCategory,
-  PlatformAtRiskAlertSeverity,
-} from '@/lib/saas/ui-backend-contracts';
-import {
-  PLATFORM_ALERT_SEVERITY_LABEL,
-  PLATFORM_ALERT_TYPE_ACTION,
-  PLATFORM_ALERT_TYPE_MESSAGE,
-} from '@/components/internal/platform-labels';
-
-const ALERT_CATEGORY_LABEL: Record<PlatformAtRiskAlertCategory, string> = {
-  billing: '帳務',
-  trial: '試用',
-  quota: '額度',
-  team: '團隊',
-};
 
 function formatDateTime(value: string | null): string {
   if (!value) return '—';
@@ -40,136 +22,6 @@ function formatDateTime(value: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function severityVariant(
-  severity: PlatformAtRiskAlertSeverity
-): 'destructive' | 'secondary' | 'outline' {
-  if (severity === 'critical') return 'destructive';
-  if (severity === 'warning') return 'secondary';
-  return 'outline';
-}
-
-function DashboardContent({ data }: { data: PlatformAdminDashboardView }) {
-  const summary = data.organizations;
-  const atRisk = data.atRisk;
-  const totalOrganizations = summary.totalOrganizations.toLocaleString('zh-TW');
-  const activeOrTrialing = summary.activeOrTrialingOrganizations.toLocaleString('zh-TW');
-  const trialing = summary.trialingOrganizations.toLocaleString('zh-TW');
-  const needsAttention = atRisk.summary.affectedOrganizations.toLocaleString('zh-TW');
-
-  return (
-    <>
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>租戶總覽</CardTitle>
-          <CardDescription>
-            目前共有 {totalOrganizations} 個租戶，其中 {activeOrTrialing} 個使用中或試用中。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-md border bg-neutral-50 p-4">
-              <p className="text-sm text-muted-foreground">全部租戶</p>
-              <p className="mt-1 text-3xl font-semibold text-gray-950">{totalOrganizations}</p>
-            </div>
-            <div className="rounded-md border bg-neutral-50 p-4">
-              <p className="text-sm text-muted-foreground">試用中</p>
-              <p className="mt-1 text-3xl font-semibold text-gray-950">{trialing}</p>
-            </div>
-            <div className={`rounded-md border p-4 ${atRisk.summary.affectedOrganizations > 0 ? 'border-amber-300 bg-amber-50' : 'bg-neutral-50'}`}>
-              <p className={atRisk.summary.affectedOrganizations > 0 ? 'text-sm text-amber-800' : 'text-sm text-muted-foreground'}>
-                需關注租戶
-              </p>
-              <p className={`mt-1 text-3xl font-semibold ${atRisk.summary.affectedOrganizations > 0 ? 'text-amber-900' : 'text-gray-950'}`}>
-                {needsAttention}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/internal/orgs">
-                查看所有租戶
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {atRisk.topAlerts.length > 0 ? (
-        <Card className="rounded-lg border-amber-300 bg-amber-50/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-950">
-              <AlertTriangle className="size-5 text-amber-600" aria-hidden="true" />
-              需立即關注（{atRisk.summary.totalAlerts}）
-            </CardTitle>
-            <CardDescription className="text-amber-900">
-              {atRisk.summary.criticalAlerts} 項嚴重 · {atRisk.summary.warningAlerts} 項警告 · 共影響 {atRisk.summary.affectedOrganizations} 個租戶
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {atRisk.topAlerts.map((alert) => (
-                <li
-                  key={alert.id}
-                  className="flex flex-col items-start justify-between gap-3 rounded-md border border-amber-200 bg-white p-3 sm:flex-row sm:items-center"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/internal/orgs/${alert.orgId}`}
-                        className="font-medium text-emerald-700 hover:underline"
-                      >
-                        {alert.orgName}
-                      </Link>
-                      <Badge variant={severityVariant(alert.severity)} className="text-xs">
-                        {PLATFORM_ALERT_SEVERITY_LABEL[alert.severity]}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {ALERT_CATEGORY_LABEL[alert.category]}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-amber-900">
-                      {PLATFORM_ALERT_TYPE_MESSAGE[alert.type] ?? alert.message}
-                    </p>
-                    {alert.metric ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        使用 {alert.metric.used.toLocaleString('zh-TW')} / {alert.metric.limit.toLocaleString('zh-TW')}（{alert.metric.percent}%）
-                      </p>
-                    ) : null}
-                    {PLATFORM_ALERT_TYPE_ACTION[alert.type] ? (
-                      <p className="mt-1 text-xs font-medium text-amber-800">
-                        建議動作：{PLATFORM_ALERT_TYPE_ACTION[alert.type]}
-                      </p>
-                    ) : null}
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="shrink-0">
-                    <Link href={`/internal/orgs/${alert.orgId}`}>
-                      跟進
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="rounded-lg border-emerald-200 bg-emerald-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-emerald-950">
-              <ShieldCheck className="size-5 text-emerald-700" aria-hidden="true" />
-              目前無待辦
-            </CardTitle>
-            <CardDescription className="text-emerald-900">
-              沒有試用到期、付款異常、額度爆量或席次滿額的租戶。
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-    </>
-  );
 }
 
 function GatedView({
@@ -295,7 +147,7 @@ export default async function InternalDashboardPage() {
           </Link>
         </Button>
       </div>
-      <DashboardContent data={result.data} />
+      <PlatformAdminDashboardContent data={result.data} />
     </div>
   );
 }
