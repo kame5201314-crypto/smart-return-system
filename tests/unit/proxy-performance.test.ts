@@ -58,6 +58,20 @@ describe('proxy page-load performance boundaries', () => {
     expect(getClaimsMock).not.toHaveBeenCalled();
   });
 
+  it('recovers a Supabase UUID OAuth code even when the PKCE cookie name is unavailable', async () => {
+    const response = await proxy(request(
+      '/?code=11b38631-db10-4e52-bf15-14673077c354&untrusted=discard-me'
+    ));
+
+    expect(response.status).toBeGreaterThanOrEqual(300);
+    expect(response.status).toBeLessThan(400);
+    expect(response.headers.get('location')).toBe(
+      'https://app.example.test/auth/callback?code=11b38631-db10-4e52-bf15-14673077c354&next=%2Fanalytics&plan=basic'
+    );
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
+
   it('does not treat an unrelated marketing code as an OAuth callback', async () => {
     const response = await proxy(request('/?code=referral-code'));
 

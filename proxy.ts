@@ -21,6 +21,27 @@ function hasGoogleOAuthCodeVerifier(request: NextRequest): boolean {
   ));
 }
 
+const SUPABASE_OAUTH_CODE_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function resolveRootGoogleOAuthCode(request: NextRequest): string | null {
+  if (request.nextUrl.pathname !== '/') {
+    return null;
+  }
+
+  const code = request.nextUrl.searchParams.get('code')?.trim();
+  if (!code) {
+    return null;
+  }
+
+  // Supabase can vary or chunk the PKCE cookie name across SSR package
+  // versions. Its authorization code is a UUID, so accept that shape as a
+  // safe fallback while keeping ordinary marketing/referral codes on `/`.
+  return hasGoogleOAuthCodeVerifier(request) || SUPABASE_OAUTH_CODE_PATTERN.test(code)
+    ? code
+    : null;
+}
+
 function redirectToPlatformAdminLogin(request: NextRequest): NextResponse {
   const url = request.nextUrl.clone();
   url.pathname = '/admin/login';
@@ -36,9 +57,7 @@ export async function proxy(request: NextRequest) {
   // is missing from its allowlist. Recover that PKCE callback before the public
   // marketing route can consume it, then send merchants through the normal
   // membership-aware Google callback flow.
-  const oauthCode = pathname === '/' && hasGoogleOAuthCodeVerifier(request)
-    ? request.nextUrl.searchParams.get('code')?.trim()
-    : null;
+  const oauthCode = resolveRootGoogleOAuthCode(request);
   if (oauthCode) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth/callback';
