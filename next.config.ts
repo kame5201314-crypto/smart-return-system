@@ -4,6 +4,11 @@ import { withSentryConfig } from "@sentry/nextjs";
 import { SECURITY_HEADERS } from "./lib/security/headers";
 
 const nextConfig: NextConfig = {
+  logging: {
+    // Server Actions carry passwords and CAPTCHA tokens. Never echo their
+    // invocation arguments into local or hosted runtime logs.
+    serverFunctions: false,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',

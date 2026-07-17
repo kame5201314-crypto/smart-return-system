@@ -35,6 +35,8 @@ interface TurnstileVerificationOptions {
   timeoutMs?: number;
 }
 
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
 function isPlaceholder(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return !normalized || [
@@ -60,6 +62,24 @@ function resolveExpectedHostname(
     return appUrl.hostname.toLowerCase();
   } catch {
     return null;
+  }
+}
+
+export function canBypassPasswordLoginTurnstileForLocalDevelopment(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  if ((env.NODE_ENV || '').trim().toLowerCase() !== 'development') {
+    return false;
+  }
+
+  try {
+    const appUrl = new URL((env.NEXT_PUBLIC_APP_URL || '').trim());
+    return appUrl.protocol === 'http:'
+      && !appUrl.username
+      && !appUrl.password
+      && LOOPBACK_HOSTNAMES.has(appUrl.hostname.toLowerCase());
+  } catch {
+    return false;
   }
 }
 

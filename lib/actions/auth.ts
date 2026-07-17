@@ -29,7 +29,10 @@ import {
   normalizeTaiwanPhoneIdentifier,
   resolveAuthCaptchaAvailability,
 } from '@/lib/auth/verified-signup';
-import { verifyPasswordLoginTurnstile } from '@/lib/auth/turnstile-verification';
+import {
+  canBypassPasswordLoginTurnstileForLocalDevelopment,
+  verifyPasswordLoginTurnstile,
+} from '@/lib/auth/turnstile-verification';
 
 function getConfiguredAdminPassword(): string {
   // Defensive trim: Vercel env values can accidentally include trailing newlines.
@@ -89,7 +92,10 @@ export async function signIn(
         };
       }
 
-      if (resolveAuthCaptchaAvailability().required) {
+      if (
+        resolveAuthCaptchaAvailability().required
+        && !canBypassPasswordLoginTurnstileForLocalDevelopment()
+      ) {
         const captcha = await verifyPasswordLoginTurnstile({
           token: captchaToken,
           remoteIp: clientIp,

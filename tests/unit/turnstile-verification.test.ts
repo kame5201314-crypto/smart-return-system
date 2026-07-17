@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  canBypassPasswordLoginTurnstileForLocalDevelopment,
   PASSWORD_LOGIN_TURNSTILE_ACTION,
   TURNSTILE_SITEVERIFY_URL,
   verifyPasswordLoginTurnstile,
@@ -17,6 +18,26 @@ function jsonResponse(data: unknown, ok = true): Response {
 }
 
 describe('Turnstile server-side verification', () => {
+  it('allows bypass only for an explicit loopback development URL', () => {
+    expect(canBypassPasswordLoginTurnstileForLocalDevelopment({
+      NODE_ENV: 'development',
+      NEXT_PUBLIC_APP_URL: 'http://localhost:3001',
+    })).toBe(true);
+    expect(canBypassPasswordLoginTurnstileForLocalDevelopment({
+      NODE_ENV: 'development',
+      NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3001',
+    })).toBe(true);
+
+    for (const env of [
+      { NODE_ENV: 'production', NEXT_PUBLIC_APP_URL: 'http://localhost:3001' },
+      { NODE_ENV: 'development', NEXT_PUBLIC_APP_URL: 'https://smart-return.example.com' },
+      { NODE_ENV: 'development', NEXT_PUBLIC_APP_URL: 'http://192.168.1.20:3001' },
+      { NODE_ENV: 'development', NEXT_PUBLIC_APP_URL: 'not-a-url' },
+    ]) {
+      expect(canBypassPasswordLoginTurnstileForLocalDevelopment(env)).toBe(false);
+    }
+  });
+
   it('rejects missing and oversized tokens before any network request', async () => {
     const fetcher = vi.fn();
 

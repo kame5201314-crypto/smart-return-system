@@ -16,7 +16,10 @@ const rateLimitMocks = vi.hoisted(() => ({
   success: vi.fn(),
 }));
 
-const turnstileMocks = vi.hoisted(() => ({ verify: vi.fn() }));
+const turnstileMocks = vi.hoisted(() => ({
+  verify: vi.fn(),
+  localBypass: vi.fn(),
+}));
 const adminSessionMocks = vi.hoisted(() => ({ create: vi.fn() }));
 
 vi.mock('next/headers', () => ({
@@ -35,6 +38,7 @@ vi.mock('@/lib/auth/admin-login-rate-limit', () => ({
 }));
 vi.mock('@/lib/auth/turnstile-verification', () => ({
   verifyPasswordLoginTurnstile: turnstileMocks.verify,
+  canBypassPasswordLoginTurnstileForLocalDevelopment: turnstileMocks.localBypass,
 }));
 vi.mock('@/lib/auth/admin-session', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/auth/admin-session')>();
@@ -58,6 +62,7 @@ describe('legacy admin auth action', () => {
     configureCaptcha(false);
     rateLimitMocks.check.mockReturnValue({ allowed: true, retryAfterSeconds: 0 });
     turnstileMocks.verify.mockResolvedValue({ ok: true });
+    turnstileMocks.localBypass.mockReturnValue(false);
     adminSessionMocks.create.mockResolvedValue('admin-session-token');
   });
 
@@ -108,6 +113,22 @@ describe('legacy admin auth action', () => {
     expect(turnstileMocks.verify).toHaveBeenCalledTimes(1);
     expect(cookieMocks.set).toHaveBeenCalledTimes(1);
     expect(rateLimitMocks.success).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows the explicit localhost development bypass without weakening other environments', async () => {
+    configureCaptcha(true);
+    turnstileMocks.localBypass.mockReturnValue(true);
+
+    const result = await signIn(
+      'admin',
+      'strong-admin-password',
+      '/internal',
+      'local-widget-token'
+    );
+
+    expect(result).toEqual({ success: true, redirectTo: '/internal' });
+    expect(turnstileMocks.verify).not.toHaveBeenCalled();
+    expect(cookieMocks.set).toHaveBeenCalledTimes(1);
   });
 
   it('does not spend a Turnstile token after the rate limit is already locked', async () => {
