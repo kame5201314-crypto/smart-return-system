@@ -1,5 +1,18 @@
 # Handoff Log
 
+## 2026-07-17 - Optional Auth Dependency Loading Handoff
+
+- Login, verified signup, and password recovery now load the Turnstile client
+  through one client-only dynamic component instead of placing the provider in
+  each Auth entry bundle.
+- Password recovery no longer imports the Supabase browser SDK at module load;
+  it imports the SDK only when sending or resending a recovery code.
+- Focused Auth/performance regressions and complete local gates passed: lint,
+  typecheck, scripts, backend, unit, UI, E2E, integration, Production build,
+  SaaS doctor, diff check, and agent-boundary. No Auth policy, CAPTCHA
+  requirement, recovery proof, migration, provider, env, deployment, Vercel,
+  Supabase, Billing, DNS, or Production state changed.
+
 ## 2026-07-17 - Page Loading Performance Handoff
 
 - Public marketing, pricing, signup, recovery, legal, and portal routes no

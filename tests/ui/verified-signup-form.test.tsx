@@ -25,8 +25,8 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: authMocks }),
 }));
 
-vi.mock('@marsidev/react-turnstile', () => ({
-  Turnstile: ({ onSuccess }: { onSuccess?: (token: string) => void }) => (
+vi.mock('@/components/auth/auth-turnstile', () => ({
+  AuthTurnstile: ({ onSuccess }: { onSuccess?: (token: string) => void }) => (
     <button type="button" onClick={() => onSuccess?.('captcha-token')}>
       完成安全驗證
     </button>

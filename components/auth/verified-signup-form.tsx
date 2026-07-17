@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Turnstile } from '@marsidev/react-turnstile';
 import {
   Eye,
   EyeOff,
@@ -14,6 +13,7 @@ import {
   UserRound,
 } from 'lucide-react';
 
+import { AuthTurnstile } from '@/components/auth/auth-turnstile';
 import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -661,7 +661,7 @@ export function VerifiedSignupForm({
           </div>
 
           {!allCredentialMethodsUnavailable && !emailInputUnavailable ? (
-            <Turnstile
+            <AuthTurnstile
               key={`credentials-${captchaResetNonce}`}
               siteKey={turnstileSiteKey}
               onSuccess={setCaptchaToken}
@@ -779,7 +779,7 @@ export function VerifiedSignupForm({
               <p className="mb-3 text-xs leading-5 text-neutral-500">
                 重新傳送前，請先完成安全驗證。
               </p>
-              <Turnstile
+              <AuthTurnstile
                 key={`otp-${captchaResetNonce}`}
                 siteKey={turnstileSiteKey}
                 onSuccess={setCaptchaToken}

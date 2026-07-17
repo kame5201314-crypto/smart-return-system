@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Turnstile } from '@marsidev/react-turnstile';
 import {
   AlertCircle,
   ArrowLeft,
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { AuthTurnstile } from '@/components/auth/auth-turnstile';
 import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -288,7 +288,7 @@ export function LoginPageContent({
 
                 {authCaptchaRequired ? (
                   authCaptchaReady ? (
-                    <Turnstile
+                    <AuthTurnstile
                       key={`login-${captchaResetNonce}`}
                       siteKey={turnstileSiteKey}
                       onSuccess={setCaptchaToken}

@@ -33,8 +33,8 @@ vi.mock('@/lib/actions/auth', () => ({
   signIn: authActionMocks.signIn,
 }));
 
-vi.mock('@marsidev/react-turnstile', () => ({
-  Turnstile: ({ onSuccess }: { onSuccess?: (token: string) => void }) => (
+vi.mock('@/components/auth/auth-turnstile', () => ({
+  AuthTurnstile: ({ onSuccess }: { onSuccess?: (token: string) => void }) => (
     <button type="button" onClick={() => onSuccess?.('login-captcha-token')}>
       完成登入安全驗證
     </button>

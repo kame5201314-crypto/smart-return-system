@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { ArrowLeft, Loader2, Mail, Phone, ShieldCheck } from 'lucide-react';
 
+import { AuthTurnstile } from '@/components/auth/auth-turnstile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { verifyPasswordRecoveryOtp } from '@/lib/actions/password-recovery';
@@ -19,7 +19,6 @@ import {
   maskVerifiedSignupIdentifier,
   normalizeVerifiedSignupIdentifier,
 } from '@/lib/auth/verified-signup';
-import { createClient } from '@/lib/supabase/client';
 
 interface PasswordRecoveryFormProps {
   emailEnabled: boolean;
@@ -28,6 +27,11 @@ interface PasswordRecoveryFormProps {
 }
 
 const RESEND_COOLDOWN_SECONDS = 60;
+
+async function createPasswordRecoveryClient() {
+  const { createClient } = await import('@/lib/supabase/client');
+  return createClient();
+}
 
 export function PasswordRecoveryForm({
   emailEnabled,
@@ -83,7 +87,7 @@ export function PasswordRecoveryForm({
   }
 
   async function requestRecovery(target: string, token: string) {
-    const client = createClient();
+    const client = await createPasswordRecoveryClient();
     const response = channel === 'email'
       ? await client.auth.resetPasswordForEmail(target, { captchaToken: token })
       : await client.auth.signInWithOtp({
@@ -227,7 +231,7 @@ export function PasswordRecoveryForm({
             />
           </div>
 
-          <Turnstile
+          <AuthTurnstile
             key={`recovery-request-${captchaResetNonce}`}
             siteKey={turnstileSiteKey}
             onSuccess={setCaptchaToken}
@@ -292,7 +296,7 @@ export function PasswordRecoveryForm({
 
           <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
             <p className="mb-3 text-xs text-neutral-500">重新傳送前請完成安全驗證。</p>
-            <Turnstile
+            <AuthTurnstile
               key={`recovery-resend-${captchaResetNonce}`}
               siteKey={turnstileSiteKey}
               onSuccess={setCaptchaToken}

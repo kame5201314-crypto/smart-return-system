@@ -1,5 +1,23 @@
 # Active Work
 
+## 2026-07-17 Optional Auth Dependency Loading
+
+Status: done
+
+Scope: Reduce initial JavaScript work on login, signup, and password recovery
+without changing CAPTCHA, Supabase Auth, or server-side authorization behavior.
+
+Notes: The three Auth forms now share a client-only dynamic Turnstile boundary,
+so the provider package is fetched only when a CAPTCHA widget is rendered.
+Password recovery also loads the Supabase browser SDK only after the customer
+submits a valid recovery request, matching the existing verified-signup loading
+boundary. Focused Auth and performance regressions passed 34/34; final gates
+passed lint, typecheck, 21 script checks, 16 backend tests, 632 unit tests,
+48 UI tests, 4 E2E tests, 5 integration tests, Production build (68 generated
+pages), SaaS doctor (209 pass / 3 expected warnings / 0 fail), diff check, and
+agent-boundary safety. No deploy, migration, provider, env/secret, Vercel,
+Supabase, Billing, DNS, or Production setting changed.
+
 ## 2026-07-17 Page Loading Performance
 
 Status: done

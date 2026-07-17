@@ -15,6 +15,27 @@ describe('page-loading performance contracts', () => {
     expect(source).toContain('await createVerifiedSignupClient()');
   });
 
+  it('loads optional Auth providers only when their flows need them', () => {
+    const loginSource = readProjectFile('components/auth/login-page-content.tsx');
+    const signupSource = readProjectFile('components/auth/verified-signup-form.tsx');
+    const recoverySource = readProjectFile('components/auth/password-recovery-form.tsx');
+    const turnstileSource = readProjectFile('components/auth/auth-turnstile.tsx');
+
+    for (const source of [loginSource, signupSource, recoverySource]) {
+      expect(source).not.toContain("from '@marsidev/react-turnstile'");
+      expect(source).toContain("from '@/components/auth/auth-turnstile'");
+    }
+
+    expect(turnstileSource).toContain("import dynamic from 'next/dynamic'");
+    expect(turnstileSource).toContain("import('@marsidev/react-turnstile')");
+    expect(turnstileSource).toContain('ssr: false');
+    expect(recoverySource).not.toContain(
+      "import { createClient } from '@/lib/supabase/client'"
+    );
+    expect(recoverySource).toContain("await import('@/lib/supabase/client')");
+    expect(recoverySource).toContain('await createPasswordRecoveryClient()');
+  });
+
   it('keeps Recharts out of the analytics page entry bundle', () => {
     const pageSource = readProjectFile('app/(admin)/analytics/page.tsx');
     const chartSource = readProjectFile('components/analytics/return-analytics-charts.tsx');
