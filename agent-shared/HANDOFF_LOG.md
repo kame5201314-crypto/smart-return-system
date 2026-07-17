@@ -1,5 +1,21 @@
 # Handoff Log
 
+## 2026-07-17 - Single-form Signup Redesign Handoff
+
+- `/signup` matches the selected third reference: phone/Email, password,
+  confirmation, referral, terms, and one register button.
+- Removed Beta/readiness/application/support/Google presentation from the page.
+- Provider-ready flows still require runtime readiness, a fresh channel-bound
+  CAPTCHA, Supabase OTP verification, a matching session, and trial provisioning.
+- Desktop and 390 × 844 Chrome QA passed; form input, terms, submit state, inline
+  closed-channel error, responsive width, and zero console errors were verified.
+- Complete local validation passed: lint, typecheck, 21 script checks, 16 backend
+  tests, 636 unit tests, 49 UI tests, 4 E2E tests, 5 integration tests,
+  Production build (68 generated pages), SaaS doctor (209 pass / 3 expected
+  warnings / 0 fail), diff check, and agent-boundary safety.
+- No external state changed; migration `044`, Auth delivery providers, Turnstile,
+  readiness flags, and deployment remain separate owner-run rollout prerequisites.
+
 ## 2026-07-17 - Google Public Entry Visibility Handoff
 
 - Added default-off `ENABLE_GOOGLE_AUTH_UI` so `/login` and `/signup` can hide

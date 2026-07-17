@@ -9,16 +9,14 @@ Last updated: 2026-07-17
   入口另由 `ENABLE_GOOGLE_AUTH_UI` 控制，預設為 `false`，因此可先隱藏按鈕而不
   刪除或停用既有 Google 帳號。
 - Email OTP 與 Phone OTP 使用獨立旗標，預設皆為 `false`。
-- 當 Google 自助註冊已開啟、但 Email OTP 前置條件尚未完成時，`/signup`
-  仍會保留「任何電子信箱（不限定 Gmail）＋密碼」表單，並將全部欄位與送出
-  按鈕停用；Google 只放在表單下方作為可用的快速選項。
-- 當所有自助註冊方式都關閉時，同一個停用表單仍會保留，並在下方顯示可用的
-  人工申請表，不會退回只剩 Google 或完全看不到 Email 選項的畫面。
-- 當只有 Phone OTP 就緒時，手機註冊仍可正常操作；同一個識別欄位會保留
-  電子信箱提示。輸入 Email 時密碼、推薦碼、條款、CAPTCHA 與送出動作會立即
-  關閉，切回手機號碼後必須重新取得 CAPTCHA，避免尚未就緒的 Email 通道被誤用。
-- 上述準備中介面不掛載 Turnstile、不接受密碼、不呼叫 Supabase `auth.signUp`；
-  寄碼能力仍必須等完整 readiness 通過才會啟用。
+- `/signup` 固定只顯示一個精簡註冊流程：手機／信箱、密碼、確認密碼、推薦碼、
+  條款與註冊按鈕；不顯示 Beta 說明、provider 準備中面板、人工申請表、專人協助
+  展開區或 Google 入口。
+- 欄位在 rollout 尚未完成時仍可輸入，讓畫面與鍵盤流程保持一致；送出時會先依
+  識別內容判斷 Email 或 Phone channel。未就緒的 channel 只顯示一則欄內錯誤，
+  不掛載 Turnstile、不呼叫 readiness endpoint 或 Supabase `auth.signUp`。
+- 當選定 channel 完整就緒時才掛載 Turnstile；由手機切換信箱或由信箱切換手機
+  會清除先前 CAPTCHA token，避免跨 channel 重用。
 - 可操作的註冊頁會在每次寄碼、驗證與重送前，透過同源且 `no-store` 的
   `GET /api/saas/signup/readiness` 重新確認目前通道。旗標已關閉、網路失敗
   或回應格式異常時一律停止，不會呼叫對應 Supabase Auth 方法。
@@ -27,7 +25,7 @@ Last updated: 2026-07-17
   仍由 `/api/saas/trial` 的 provider/readiness 重驗、rate limit 與 DB RPC 防線控制。
 - 部署後可明確執行 `npm run saas:production-smoke:registration`；這個 opt-in
   smoke 會驗證 readiness endpoint 的布林契約、`no-store` header，以及
-  `/signup` 是否依目前 Email readiness 顯示可操作表單或準備中殼層。
+  `/signup` 是否維持單一註冊表單，且沒有準備中面板、人工申請或 Google 入口。
 - 驗證碼與密碼交由 Supabase Auth 處理；應用程式不產生、不保存、不記錄驗證碼或密碼。
 - Cloudflare Turnstile token 直接傳給 Supabase Auth CAPTCHA 驗證；每次寄送或重送後都會失效並重新取得。
 - Supabase Auth CAPTCHA 是 project-wide；Email／手機與平台管理員登入頁都已接上

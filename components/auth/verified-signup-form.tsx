@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 
 import { AuthTurnstile } from '@/components/auth/auth-turnstile';
-import { GoogleSignInIcon } from '@/components/auth/google-sign-in-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -34,7 +33,6 @@ interface VerifiedSignupFormProps {
   showEmailWhenUnavailable?: boolean;
   initialPlan: SaaSPlanCode;
   turnstileSiteKey: string;
-  googleSignupHref?: string;
 }
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -128,13 +126,11 @@ export function VerifiedSignupForm({
   showEmailWhenUnavailable = false,
   initialPlan,
   turnstileSiteKey,
-  googleSignupHref,
 }: VerifiedSignupFormProps) {
   const router = useRouter();
   const emailFallbackVisible = showEmailWhenUnavailable && !emailEnabled;
-  const allCredentialMethodsUnavailable = emailFallbackVisible && !phoneEnabled;
   const [channel, setChannel] = useState<VerifiedSignupChannel>(
-    emailEnabled || allCredentialMethodsUnavailable ? 'email' : 'phone'
+    emailEnabled || !phoneEnabled ? 'email' : 'phone'
   );
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [identifier, setIdentifier] = useState('');
@@ -185,39 +181,18 @@ export function VerifiedSignupForm({
     setCaptchaResetNonce((value) => value + 1);
   }
 
-  const emailInputUnavailable = emailFallbackVisible && identifier.includes('@');
-
-  function clearUnavailableEmailCredentials() {
-    setPassword('');
-    setPasswordConfirmation('');
-    setReferralCode('');
-    setTermsAccepted(false);
-    setShowPassword(false);
-    resetCaptcha();
-  }
-
   function handleIdentifierChange(event: React.ChangeEvent<HTMLInputElement>) {
     const nextIdentifier = event.target.value;
-    const nextEmailInputUnavailable = emailFallbackVisible && nextIdentifier.includes('@');
+    const currentChannel = identifier.includes('@') ? 'email' : 'phone';
+    const nextChannel = nextIdentifier.includes('@') ? 'email' : 'phone';
 
     setIdentifier(nextIdentifier);
-
-    if (nextEmailInputUnavailable) {
-      if (!emailInputUnavailable) clearUnavailableEmailCredentials();
-      setMessage(null);
-      setError('信箱驗證服務準備中，目前暫時無法寄送驗證碼。');
-      setErrorField('identifier');
-      return;
-    }
-
-    if (emailInputUnavailable) {
-      // A previously completed challenge must not be reused after switching
-      // from the unavailable Email path back to the available phone path.
+    if (currentChannel !== nextChannel) {
       resetCaptcha();
-      setMessage(null);
-      setError(null);
-      setErrorField(null);
     }
+    setMessage(null);
+    setError(null);
+    setErrorField(null);
   }
 
   async function handleStart(event: React.FormEvent<HTMLFormElement>) {
@@ -230,10 +205,12 @@ export function VerifiedSignupForm({
     // Keep this presentation-only state fail closed. Even a programmatic form
     // submission must never create an account before Email OTP is ready.
     const submittedIdentifier = identifierInputRef.current?.value ?? identifier;
-    const submittedEmailUnavailable = emailFallbackVisible && submittedIdentifier.includes('@');
-    if (allCredentialMethodsUnavailable || submittedEmailUnavailable) {
-      if (submittedEmailUnavailable) clearUnavailableEmailCredentials();
-      setError('信箱驗證服務準備中，目前暫時無法寄送驗證碼。');
+    const submittedChannel = submittedIdentifier.includes('@') ? 'email' : 'phone';
+    const submittedChannelUnavailable = submittedChannel === 'email'
+      ? !emailEnabled
+      : !phoneEnabled;
+    if (submittedChannelUnavailable) {
+      setError('此註冊方式目前無法使用，請稍後再試。');
       setErrorField('identifier');
       return;
     }
@@ -456,15 +433,15 @@ export function VerifiedSignupForm({
   if (!emailEnabled && !phoneEnabled && !showEmailWhenUnavailable) return null;
 
   const emailVisible = emailEnabled || emailFallbackVisible;
-  const combinedChannels = emailVisible && phoneEnabled;
+  const combinedChannels = showEmailWhenUnavailable || (emailVisible && phoneEnabled);
   const emailOnlyForm = emailVisible && !phoneEnabled;
   const identifierLabel = combinedChannels
-    ? '手機號碼或電子信箱'
+    ? '手機／信箱'
     : emailOnlyForm
       ? '電子信箱'
       : '手機號碼';
   const identifierPlaceholder = combinedChannels
-    ? '請輸入手機號碼或電子信箱'
+    ? '請輸入手機或信箱'
     : emailOnlyForm
       ? 'name@example.com'
       : '0912345678';
@@ -473,31 +450,16 @@ export function VerifiedSignupForm({
     : channel === 'email'
       ? '信箱驗證碼'
       : '手機驗證碼';
+  const selectedChannel: VerifiedSignupChannel = combinedChannels
+    ? identifier.includes('@') ? 'email' : 'phone'
+    : emailOnlyForm ? 'email' : 'phone';
+  const selectedChannelEnabled = selectedChannel === 'email' ? emailEnabled : phoneEnabled;
 
   return (
     <div className="space-y-6">
       {step === 'credentials' ? (
         <>
           <form onSubmit={handleStart} className="space-y-5" data-testid="verified-signup-form">
-            {emailFallbackVisible ? (
-              <div
-                role="status"
-                className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
-                data-testid="email-signup-unavailable-notice"
-              >
-                <p className="font-semibold">信箱驗證服務準備中</p>
-                <p className="mt-1 leading-6">
-                  {phoneEnabled
-                    ? '手機號碼註冊目前可使用；任何電子信箱（不限定 Gmail）的驗證碼寄送仍在設定中。'
-                    : '可使用任何電子信箱註冊，不限定 Gmail。驗證碼寄送正在設定，目前暫停輸入與送出；'}
-                  {!phoneEnabled && googleSignupHref
-                    ? '現在可先使用下方 Google 繼續。'
-                    : !phoneEnabled
-                      ? '目前請先使用下方申請表聯絡我們。'
-                      : null}
-                </p>
-              </div>
-            ) : null}
           <div>
             <div className="flex items-center">
               <span className="mr-1 text-red-500" aria-hidden="true">*</span>
@@ -521,7 +483,7 @@ export function VerifiedSignupForm({
                 placeholder={identifierPlaceholder}
                 maxLength={254}
                 required
-                disabled={allCredentialMethodsUnavailable || isSubmitting}
+                disabled={isSubmitting}
                 aria-invalid={errorField === 'identifier'}
                 aria-describedby={errorField === 'identifier' ? 'verified-signup-error' : undefined}
                 className="h-12 pl-10"
@@ -551,7 +513,7 @@ export function VerifiedSignupForm({
                 minLength={8}
                 maxLength={72}
                 required
-                disabled={allCredentialMethodsUnavailable || emailInputUnavailable || isSubmitting}
+                disabled={isSubmitting}
                 aria-invalid={errorField === 'password'}
                 aria-describedby={
                   errorField === 'password'
@@ -564,7 +526,7 @@ export function VerifiedSignupForm({
               <button
                 type="button"
                 onClick={() => setShowPassword((value) => !value)}
-                disabled={allCredentialMethodsUnavailable || emailInputUnavailable || isSubmitting}
+                disabled={isSubmitting}
                 className="absolute right-3 top-1/2 rounded-sm p-1 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
               >
@@ -598,7 +560,7 @@ export function VerifiedSignupForm({
                 minLength={8}
                 maxLength={72}
                 required
-                disabled={allCredentialMethodsUnavailable || emailInputUnavailable || isSubmitting}
+                disabled={isSubmitting}
                 aria-invalid={errorField === 'passwordConfirmation'}
                 aria-describedby={
                   errorField === 'passwordConfirmation' ? 'verified-signup-error' : undefined
@@ -621,7 +583,7 @@ export function VerifiedSignupForm({
                 value={referralCode}
                 onChange={(event) => setReferralCode(event.target.value)}
                 maxLength={64}
-                disabled={allCredentialMethodsUnavailable || emailInputUnavailable || isSubmitting}
+                disabled={isSubmitting}
                 placeholder="請輸入推薦碼（選填）"
                 className="h-12 pl-10"
               />
@@ -646,7 +608,7 @@ export function VerifiedSignupForm({
               checked={termsAccepted}
               onChange={(event) => setTermsAccepted(event.target.checked)}
               required
-              disabled={allCredentialMethodsUnavailable || emailInputUnavailable || isSubmitting}
+              disabled={isSubmitting}
               aria-invalid={errorField === 'terms'}
               aria-describedby={errorField === 'terms' ? 'verified-signup-error' : undefined}
               className="mt-1 size-4 accent-emerald-700"
@@ -660,7 +622,7 @@ export function VerifiedSignupForm({
             </span>
           </div>
 
-          {!allCredentialMethodsUnavailable && !emailInputUnavailable ? (
+          {selectedChannelEnabled ? (
             <AuthTurnstile
               key={`credentials-${captchaResetNonce}`}
               siteKey={turnstileSiteKey}
@@ -683,21 +645,15 @@ export function VerifiedSignupForm({
               type="submit"
               className="h-12 w-full text-base"
               disabled={
-                allCredentialMethodsUnavailable ||
-                emailInputUnavailable ||
                 isSubmitting ||
-                !captchaToken
+                (selectedChannelEnabled && !captchaToken)
               }
             >
-              {allCredentialMethodsUnavailable || emailInputUnavailable
-                ? '信箱註冊即將開放'
-                : isSubmitting
+              {isSubmitting
                   ? <><Loader2 className="size-4 animate-spin" />傳送中...</>
                   : '註冊'}
             </Button>
           </form>
-
-          {googleSignupHref ? <GoogleSignupOption href={googleSignupHref} /> : null}
         </>
       ) : (
         <form onSubmit={handleVerify} className="space-y-6" data-testid="verified-signup-otp-form">
@@ -844,26 +800,5 @@ function Feedback({ message, error }: { message: string | null; error: string | 
         </p>
       ) : null}
     </>
-  );
-}
-
-function GoogleSignupOption({ href }: { href: string }) {
-  return (
-    <div className="pt-1" data-testid="google-signup-option">
-      <div className="mb-5 flex items-center gap-3" aria-hidden="true">
-        <div className="h-px flex-1 bg-neutral-200" />
-        <span className="text-xs text-neutral-400">或使用 Google 驗證身分</span>
-        <div className="h-px flex-1 bg-neutral-200" />
-      </div>
-      <Button asChild variant="outline" className="h-12 w-full bg-white text-base">
-        <Link href={href}>
-          <GoogleSignInIcon className="size-5" />
-          使用 Google 繼續
-        </Link>
-      </Button>
-      <p className="mt-2 text-center text-xs leading-5 text-neutral-500">
-        Google 驗證後仍需完成商家資料；3 天免費、不需信用卡
-      </p>
-    </div>
   );
 }

@@ -3,18 +3,14 @@ import Link from 'next/link';
 import { ArrowLeft, PackageCheck } from 'lucide-react';
 
 import { VerifiedSignupForm } from '@/components/auth/verified-signup-form';
-import { LeadCaptureForm } from '@/components/marketing/lead-capture-form';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { resolveVerifiedSignupAvailability } from '@/lib/auth/verified-signup';
-import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
-import { resolveSaaSPublicSignupState } from '@/lib/saas/public-signup';
 
 export const metadata: Metadata = {
   title: '註冊新帳號 | Smart Return',
@@ -33,29 +29,12 @@ function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode 
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
   const params = await searchParams;
-  const signupState = resolveSaaSPublicSignupState();
-  const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
-  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
-  const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
   const initialPlan = resolveInitialPlan(params?.plan);
-  const googleTrialEnabled = featureFlags.google_auth
-    && featureFlags.google_auth_ui
-    && featureFlags.google_trial_signup;
   const verifiedSignup = resolveVerifiedSignupAvailability();
-  const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
-  const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;
-  const showEmailWhenUnavailable = !verifiedSignup.emailEnabled;
-  const signupFormVisible = selfServiceEnabled || showEmailWhenUnavailable;
-  const verifiedSignupDescription = verifiedSignup.emailEnabled && verifiedSignup.phoneEnabled
-    ? '先完成手機號碼或電子信箱驗證，再補齊商家資料。'
-    : verifiedSignup.emailEnabled
-      ? '先完成電子信箱驗證，再補齊商家資料。'
-      : '手機驗證註冊目前可用；電子信箱註冊準備中。';
-  const googleTrialPlan = initialPlan === 'growth' ? 'growth' : 'basic';
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10 sm:py-14">
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-xl">
         <div className="mb-8 text-center">
           <Link
             href="/"
@@ -69,68 +48,20 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         </div>
 
         <Card className="border-neutral-200 bg-white shadow-lg" data-testid="signup-card">
-          <CardHeader className="space-y-2 pb-5 sm:px-8 sm:pt-8">
-            <CardTitle className="text-2xl">
+          <CardHeader className="pb-5 sm:px-10 sm:pt-10">
+            <CardTitle className="text-3xl font-medium tracking-tight">
               <h1>建立帳號</h1>
             </CardTitle>
-            <CardDescription className="leading-6">
-              {selfServiceEnabled
-                ? verifiedSignupEnabled
-                  ? verifiedSignupDescription
-                  : '信箱／密碼註冊將支援任何電子信箱（不限定 Gmail）；目前也可使用 Google 快速驗證。'
-                : signupState.description}
-            </CardDescription>
           </CardHeader>
 
-          <CardContent className="sm:px-8 sm:pb-8">
-            {signupFormVisible ? (
-              <VerifiedSignupForm
-                emailEnabled={verifiedSignup.emailEnabled}
-                phoneEnabled={verifiedSignup.phoneEnabled}
-                showEmailWhenUnavailable={showEmailWhenUnavailable}
-                initialPlan={initialPlan}
-                turnstileSiteKey={verifiedSignup.turnstileSiteKey}
-                googleSignupHref={googleTrialEnabled ? `/auth/google?plan=${googleTrialPlan}` : undefined}
-              />
-            ) : null}
-
-            {selfServiceEnabled ? (
-              <>
-                <details
-                  className="mt-6 border-t border-neutral-200 pt-5"
-                  data-testid="signup-support-details"
-                >
-                  <summary className="cursor-pointer text-center text-sm font-medium text-neutral-600 hover:text-neutral-950">
-                    需要專人協助？
-                  </summary>
-                  <div className="mt-5 rounded-lg bg-neutral-50 p-4">
-                    <p className="mb-4 text-sm leading-6 text-neutral-600">
-                      若需要資料匯入或流程評估，留下資訊後將由專人聯絡。
-                    </p>
-                    <LeadCaptureForm
-                      variant="signup"
-                      contactEmail={contactEmail}
-                      initialPlan={initialPlan}
-                      leadCaptureEnabled={featureFlags.public_lead_capture}
-                      lineOaId={lineOaId}
-                    />
-                  </div>
-                </details>
-              </>
-            ) : (
-              <div className="mt-6 border-t border-neutral-200 pt-5">
-                <p className="mb-4 text-sm leading-6 text-neutral-600">
-                  信箱驗證啟用前，請先留下申請資料，我們會協助你建立帳號。
-                </p>
-                <LeadCaptureForm
-                  variant="signup"
-                  contactEmail={contactEmail}
-                  initialPlan={initialPlan}
-                  leadCaptureEnabled={featureFlags.public_lead_capture}
-                  lineOaId={lineOaId}
-                />
-              </div>
-            )}
+          <CardContent className="sm:px-10 sm:pb-10">
+            <VerifiedSignupForm
+              emailEnabled={verifiedSignup.emailEnabled}
+              phoneEnabled={verifiedSignup.phoneEnabled}
+              showEmailWhenUnavailable
+              initialPlan={initialPlan}
+              turnstileSiteKey={verifiedSignup.turnstileSiteKey}
+            />
           </CardContent>
         </Card>
 

@@ -1,5 +1,27 @@
 # Active Work
 
+## 2026-07-17 Single-form Signup Redesign
+
+Status: done
+
+Scope: Match the user's third reference image with one direct account-registration
+form and remove rollout/application UI from `/signup`.
+
+Notes: `/signup` now shows only phone/Email, password, confirmation, optional
+referral code, existing-account link, terms, and register. It removes Beta copy,
+the amber readiness notice, manual lead form, support disclosure, and Google
+entry. Inputs remain interactive while channel readiness is closed; submission
+still fails before CAPTCHA/readiness/Supabase calls. Provider-ready Email and
+Phone paths retain CAPTCHA, OTP verification, session binding, and trial
+completion. Chrome desktop/mobile QA passed with zero console errors and no
+390 px horizontal overflow. No migration, provider, env, deploy, Vercel,
+Supabase, Billing, DNS, or Production state changed.
+
+Validation passed lint, typecheck, 21 script checks, 16 backend tests, 636 unit
+tests, 49 UI tests, 4 E2E tests, 5 integration tests, Production build (68
+generated pages), SaaS doctor (209 pass / 3 expected warnings / 0 fail), diff
+check, and agent-boundary safety.
+
 ## 2026-07-17 Google Public Entry Visibility
 
 Status: done

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const navigationMocks = vi.hoisted(() => ({
@@ -101,7 +101,7 @@ describe('VerifiedSignupForm', () => {
     cleanup();
   });
 
-  it('keeps the Email/password registration form visible but fail closed while Email OTP is unavailable', () => {
+  it('keeps the requested registration form interactive without rollout or Google UI', () => {
     render(
       <VerifiedSignupForm
         emailEnabled={false}
@@ -109,36 +109,27 @@ describe('VerifiedSignupForm', () => {
         showEmailWhenUnavailable
         initialPlan="basic"
         turnstileSiteKey=""
-        googleSignupHref="/auth/google?plan=basic"
       />
     );
 
     const credentialsForm = screen.getByTestId('verified-signup-form');
-    const unavailableNotice = screen.getByTestId('email-signup-unavailable-notice');
-    const googleOption = screen.getByTestId('google-signup-option');
-
-    expect(unavailableNotice).toHaveTextContent('信箱驗證服務準備中');
-    expect(unavailableNotice).toHaveTextContent('驗證碼寄送正在設定，目前暫停輸入與送出');
-    expect(screen.getByLabelText('電子信箱')).toHaveAttribute('type', 'email');
-    expect(screen.getByLabelText('電子信箱')).toBeDisabled();
-    expect(screen.getByLabelText(/^密碼/)).toBeDisabled();
-    expect(screen.getByLabelText('確認密碼')).toBeDisabled();
-    expect(screen.getByLabelText('推薦碼')).toBeDisabled();
-    expect(screen.getByRole('checkbox')).toBeDisabled();
+    expect(screen.queryByTestId('email-signup-unavailable-notice')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('google-signup-option')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('手機／信箱')).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('手機／信箱')).toBeEnabled();
+    expect(screen.getByLabelText(/^密碼/)).toBeEnabled();
+    expect(screen.getByLabelText('確認密碼')).toBeEnabled();
+    expect(screen.getByLabelText('推薦碼')).toBeEnabled();
+    expect(screen.getByRole('checkbox')).toBeEnabled();
     expect(screen.queryByRole('button', { name: '完成安全驗證' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '信箱註冊即將開放' })).toBeDisabled();
-    expect(within(googleOption).getByRole('link', { name: '使用 Google 繼續' }))
-      .toHaveAttribute('href', '/auth/google?plan=basic');
-    expect(
-      credentialsForm.compareDocumentPosition(googleOption)
-      & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: '註冊' })).toBeEnabled();
 
     fireEvent.submit(credentialsForm);
 
     expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(readinessFetchMock).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(
-      '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
+      '此註冊方式目前無法使用，請稍後再試。'
     );
   });
 
@@ -153,10 +144,8 @@ describe('VerifiedSignupForm', () => {
       />
     );
 
-    expect(screen.getByTestId('email-signup-unavailable-notice')).toHaveTextContent(
-      '手機號碼註冊目前可使用'
-    );
-    const identifierInput = screen.getByLabelText(/手機號碼或電子信箱/);
+    expect(screen.queryByTestId('email-signup-unavailable-notice')).not.toBeInTheDocument();
+    const identifierInput = screen.getByLabelText(/手機／信箱/);
     expect(identifierInput).toBeEnabled();
 
     fireEvent.change(identifierInput, { target: { value: '0912-345-678' } });
@@ -193,7 +182,7 @@ describe('VerifiedSignupForm', () => {
     );
 
     const credentialsForm = screen.getByTestId('verified-signup-form');
-    const identifierInput = screen.getByLabelText(/手機號碼或電子信箱/);
+    const identifierInput = screen.getByLabelText(/手機／信箱/);
     const passwordInput = screen.getByLabelText(/^密碼/);
     const confirmationInput = screen.getByLabelText('確認密碼');
     const referralInput = screen.getByLabelText('推薦碼');
@@ -209,36 +198,30 @@ describe('VerifiedSignupForm', () => {
 
     fireEvent.change(identifierInput, { target: { value: 'owner@example.com' } });
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
-    );
-    expect(passwordInput).toHaveValue('');
-    expect(passwordInput).toBeDisabled();
-    expect(confirmationInput).toHaveValue('');
-    expect(confirmationInput).toBeDisabled();
-    expect(referralInput).toHaveValue('');
-    expect(referralInput).toBeDisabled();
-    expect(termsInput).not.toBeChecked();
-    expect(termsInput).toBeDisabled();
-    expect(screen.getByRole('button', { name: '信箱註冊即將開放' })).toBeDisabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(passwordInput).toHaveValue('Password8');
+    expect(passwordInput).toBeEnabled();
+    expect(confirmationInput).toHaveValue('Password8');
+    expect(confirmationInput).toBeEnabled();
+    expect(referralInput).toHaveValue('EMAIL-88');
+    expect(referralInput).toBeEnabled();
+    expect(termsInput).toBeChecked();
+    expect(termsInput).toBeEnabled();
+    expect(screen.getByRole('button', { name: '註冊' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: '完成安全驗證' })).not.toBeInTheDocument();
 
     fireEvent.submit(credentialsForm);
     expect(authMocks.signUp).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '此註冊方式目前無法使用，請稍後再試。'
+    );
 
     fireEvent.change(identifierInput, { target: { value: '0912345678' } });
 
-    expect(passwordInput).toBeEnabled();
-    expect(confirmationInput).toBeEnabled();
-    expect(referralInput).toBeEnabled();
-    expect(termsInput).toBeEnabled();
     expect(screen.getByRole('button', { name: '完成安全驗證' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
     expect(authMocks.signUp).not.toHaveBeenCalled();
 
-    fireEvent.change(passwordInput, { target: { value: 'Password8' } });
-    fireEvent.change(confirmationInput, { target: { value: 'Password8' } });
-    fireEvent.click(termsInput);
     fireEvent.click(screen.getByRole('button', { name: '完成安全驗證' }));
     expect(screen.getByRole('button', { name: '註冊' })).toBeEnabled();
 
@@ -255,7 +238,7 @@ describe('VerifiedSignupForm', () => {
     expect(authMocks.signUp).not.toHaveBeenCalled();
     expect(readinessFetchMock).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(
-      '信箱驗證服務準備中，目前暫時無法寄送驗證碼。'
+      '此註冊方式目前無法使用，請稍後再試。'
     );
   });
 
@@ -392,24 +375,15 @@ describe('VerifiedSignupForm', () => {
         phoneEnabled
         initialPlan="growth"
         turnstileSiteKey="site-key"
-        googleSignupHref="/auth/google?plan=growth"
       />
     );
 
-    expect(screen.getByLabelText(/手機號碼或電子信箱/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/手機／信箱/)).toBeInTheDocument();
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
-    const credentialsForm = screen.getByTestId('verified-signup-form');
-    const googleOption = screen.getByTestId('google-signup-option');
-    const googleLink = within(googleOption).getByRole('link', { name: '使用 Google 繼續' });
-    expect(googleLink).toHaveAttribute('href', '/auth/google?plan=growth');
-    expect(within(googleLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
-    expect(
-      credentialsForm.compareDocumentPosition(googleOption)
-      & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(screen.queryByTestId('google-signup-option')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/手機號碼或電子信箱/), {
+    fireEvent.change(screen.getByLabelText(/手機／信箱/), {
       target: { value: ' Owner@Example.com ' },
     });
     fireEvent.change(screen.getByLabelText(/^密碼/), { target: { value: 'Password8' } });
@@ -433,7 +407,6 @@ describe('VerifiedSignupForm', () => {
     expect(screen.getByText('Owner@Example.com')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '重新傳送（60）' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '返回上一步' })).toBeInTheDocument();
-    expect(screen.queryByTestId('google-signup-option')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/手機或信箱驗證碼/), {
       target: { value: '123456' },
@@ -461,7 +434,7 @@ describe('VerifiedSignupForm', () => {
     );
 
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/手機號碼或電子信箱/), {
+    fireEvent.change(screen.getByLabelText(/手機／信箱/), {
       target: { value: '0912-345-678' },
     });
     fireEvent.change(screen.getByLabelText(/^密碼/), { target: { value: 'Password8' } });
@@ -492,7 +465,7 @@ describe('VerifiedSignupForm', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText(/手機號碼或電子信箱/), {
+    fireEvent.change(screen.getByLabelText(/手機／信箱/), {
       target: { value: 'owner@example.com' },
     });
     fireEvent.change(screen.getByLabelText(/^密碼/), { target: { value: 'Password8' } });
@@ -504,7 +477,7 @@ describe('VerifiedSignupForm', () => {
     expect(await screen.findByRole('button', { name: '返回上一步' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '返回上一步' }));
 
-    expect(screen.getByLabelText(/手機號碼或電子信箱/)).toHaveValue('owner@example.com');
+    expect(screen.getByLabelText(/手機／信箱/)).toHaveValue('owner@example.com');
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   });
 

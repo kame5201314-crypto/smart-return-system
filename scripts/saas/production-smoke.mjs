@@ -147,12 +147,16 @@ async function checkAccountRegistration() {
     signupText = text;
 
     record(
-      text.includes('使用 Google 繼續') ? 'pass' : 'fail',
-      '/signup has Google registration action'
+      text.includes('id="signup-identifier"') && text.includes('手機／信箱')
+        ? 'pass'
+        : 'fail',
+      '/signup has the direct phone or Email registration form'
     );
     record(
-      text.includes('/auth/google?plan=growth') ? 'pass' : 'fail',
-      '/signup preserves growth Google plan'
+      !text.includes('使用 Google 繼續') && !text.includes('lead-capture-form')
+        ? 'pass'
+        : 'fail',
+      '/signup omits Google and manual application UI'
     );
   } catch (error) {
     record('fail', '/signup account registration content', error.message);
@@ -195,10 +199,10 @@ async function checkAccountRegistration() {
         'email-signup-unavailable-notice'
       );
       record(
-        readiness.emailEnabled
-          ? hasUnavailableEmailShell ? 'fail' : 'pass'
-          : hasUnavailableEmailShell ? 'pass' : 'fail',
-        '/signup Email readiness presentation'
+        !hasUnavailableEmailShell && signupText.includes('id="signup-identifier"')
+          ? 'pass'
+          : 'fail',
+        '/signup keeps one registration form without rollout notices'
       );
     }
   } catch (error) {

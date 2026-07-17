@@ -34,8 +34,10 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain("text.includes('註冊新帳號')");
     expect(source).toContain("text.includes('/signup?plan=growth')");
     expect(source).toContain("get('/signup?plan=growth', { text: true })");
-    expect(source).toContain("text.includes('使用 Google 繼續')");
-    expect(source).toContain("text.includes('/auth/google?plan=growth')");
+    expect(source).toContain("text.includes('id=\"signup-identifier\"')");
+    expect(source).toContain("text.includes('手機／信箱')");
+    expect(source).toContain("!text.includes('使用 Google 繼續')");
+    expect(source).toContain("!text.includes('lead-capture-form')");
     expect(source).toContain('get(\'/api/saas/signup/readiness\', { json: true })');
     expect(source).toContain('Object.keys(readiness).sort().join(\',\') === \'emailEnabled,phoneEnabled\'');
     expect(source).toContain('cacheControl.toLowerCase().includes(\'no-store\')');

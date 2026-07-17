@@ -835,23 +835,23 @@ function checkCommercialFoundation() {
     }
   }
 
-  const publicSignupPath = path.resolve(process.cwd(), 'lib/saas/public-signup.ts');
   const signupRequestPath = path.resolve(process.cwd(), 'lib/saas/signup-request.ts');
   const signupRepositoryPath = path.resolve(process.cwd(), 'lib/saas/signup-request-repository.ts');
   const signupPagePath = path.resolve(process.cwd(), 'app/signup/page.tsx');
   const signupApiPath = path.resolve(process.cwd(), 'app/api/saas/signup/route.ts');
-  if (fs.existsSync(publicSignupPath) && fs.existsSync(signupPagePath)) {
-    const publicSignupSource = fs.readFileSync(publicSignupPath, 'utf8');
+  if (fs.existsSync(signupPagePath) && fs.existsSync(verifiedSignupFormPath)) {
     const signupPageSource = fs.readFileSync(signupPagePath, 'utf8');
+    const verifiedSignupFormSource = fs.readFileSync(verifiedSignupFormPath, 'utf8');
     if (
-      publicSignupSource.includes('resolveSaaSPublicSignupState') &&
-      publicSignupSource.includes('public_signup') &&
-      publicSignupSource.includes('closed_beta') &&
-      signupPageSource.includes('resolveSaaSPublicSignupState')
+      signupPageSource.includes('resolveVerifiedSignupAvailability') &&
+      signupPageSource.includes('showEmailWhenUnavailable') &&
+      verifiedSignupFormSource.includes('submittedChannelUnavailable') &&
+      verifiedSignupFormSource.includes('assertVerifiedSignupChannelReady') &&
+      verifiedSignupFormSource.includes('client.auth.signUp')
     ) {
-      record('pass', 'SaaS public signup gate', 'signup page is controlled by public_signup flag');
+      record('pass', 'SaaS public signup gate', 'signup page stays provider/readiness gated before Supabase Auth');
     } else {
-      record('fail', 'SaaS public signup gate', 'signup must stay closed by default and use public_signup flag');
+      record('fail', 'SaaS public signup gate', 'signup must recheck channel readiness before Supabase Auth');
     }
   }
 
@@ -918,12 +918,10 @@ function checkCommercialFoundation() {
   if (
     fs.existsSync(publicLeadFormPath) &&
     fs.existsSync(pricingPagePath) &&
-    fs.existsSync(signupPagePath) &&
     fs.existsSync(contactPagePath)
   ) {
     const formSource = fs.readFileSync(publicLeadFormPath, 'utf8');
     const pricingSource = fs.readFileSync(pricingPagePath, 'utf8');
-    const signupPageSource = fs.readFileSync(signupPagePath, 'utf8');
     const contactPageSource = fs.readFileSync(contactPagePath, 'utf8');
     if (
       formSource.includes("fetch('/api/saas/leads'") &&
@@ -932,10 +930,9 @@ function checkCommercialFoundation() {
       formSource.includes('privacyConsent') &&
       pricingSource.includes('/signup?plan=') &&
       pricingSource.includes('/contact?plan=enterprise') &&
-      signupPageSource.includes('public_lead_capture') &&
       contactPageSource.includes('public_lead_capture')
     ) {
-      record('pass', 'SaaS public lead form', 'pricing plan, consent, contact channels, and attribution are wired behind the lead-only flag');
+      record('pass', 'SaaS public lead form', 'pricing/contact consent, channels, and attribution remain wired behind the lead-only flag');
     } else {
       record('fail', 'SaaS public lead form', 'public lead form must preserve manual contact fallbacks and send plan/attribution only when enabled');
     }

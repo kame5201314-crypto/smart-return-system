@@ -111,7 +111,7 @@
 | `/login` | 商家登入 | Email/Phone + password；Google OAuth 後端可保留，但公開入口預設由 `ENABLE_GOOGLE_AUTH_UI=false` 隱藏；明確的 `註冊新帳號` 入口會保留方案；平台 `/internal` 使用同頁但不顯示商家復原或註冊入口 |
 | `/forgot-password` | 帳號復原（旗標控管） | Email/Phone 6 位數 OTP + CAPTCHA；泛化寄送回應 |
 | `/reset-password` | 設定新密碼（受保護） | 需新 recovery session + 短效 signed HttpOnly proof |
-| `/signup` | 註冊（旗標控管） | Google 註冊／登入入口已上線；Email/Phone 只在對應旗標與 provider ready 時顯示；全關閉時改走申請流程 |
+| `/signup` | 註冊（旗標控管） | 固定顯示單一手機／信箱＋密碼表單；不顯示 Google、Beta、準備中或人工申請區塊；只有 readiness 完整的 channel 才會進入 CAPTCHA、寄碼、OTP 與建帳流程 |
 | `/invite/[token]` | 受邀加入 | 接受邀請、建立帳號 |
 
 註：landing 與 legal 三頁是必要法律與信任素材，沒有就無法正式開放公開註冊。
@@ -123,7 +123,7 @@
 ### 5.1 Google 三天自助試用（Production 已完成）
 
 ```
-未登入訪客 → /signup → Google OAuth → verified Google identity
+既有直接入口 → Google OAuth → verified Google identity
   → /signup/complete 確認品牌與方案
   → service-role RPC 建立唯一 org / owner membership / 3-day subscription
   → 試用 real AI 僅一次；到期 cron 只處理 self-service claim
@@ -131,7 +131,8 @@
 ```
 
 `dd27745` 另在 `/login` 增加保留方案的「註冊新帳號」入口；此入口尚待另行
-授權部署，不影響已上線的 `/signup` Google 自助試用路徑。
+授權部署。公開 `/signup` 現在只呈現 Email／Phone 表單；Google OAuth 後端與
+既有 Google 身分仍保留，但公開入口由 `ENABLE_GOOGLE_AUTH_UI` 隱藏。
 
 Migrations `040`–`043` 已套用到 SaaS project，禁止重跑。Google rollout
 不依賴 Billing 或 Email provider。
@@ -147,6 +148,8 @@ Email 或台灣手機 + password + terms + CAPTCHA
 
 兩個 channel 使用獨立 disabled-by-default flags。Migration `044` 尚未套用；
 Custom SMTP、SMS provider、CAPTCHA/env 與 Production deploy 尚未完成。
+第一步畫面固定使用同一個 `手機／信箱` 欄位，不顯示 rollout 提示或人工申請表；
+只有選定 channel readiness 通過後才會載入 CAPTCHA 並呼叫 Supabase Auth。
 
 ### 5.3 Google 以外的人工 Beta 開通（`public_signup` 關閉，預設）
 
