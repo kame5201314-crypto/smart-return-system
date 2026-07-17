@@ -33,6 +33,7 @@
     "saas:rollout-check:strict": "node scripts/saas/run-with-saas-env.mjs node scripts/saas/check-rollout-readiness.mjs --strict",
     "saas:production-smoke": "node scripts/saas/production-smoke.mjs",
     "saas:production-smoke:registration": "node scripts/saas/production-smoke.mjs --expect-account-registration",
+    "saas:audit-customer-sync": "node scripts/saas/run-with-saas-env.mjs node scripts/saas/audit-platform-customer-sync.mjs",
     "saas:predeploy": "npm run saas:verify-checkout && npm run saas:verify-env && npm run saas:rollout-check && npm run saas:schema-gate && npm run lint && npm run typecheck && npm run test:all && npm run saas:build",
     "safety:agent-boundary": "node scripts/safety/check-agent-boundary.mjs",
     "prebuild:branch-policy": "node scripts/predeploy/check-branch-policy.mjs",
