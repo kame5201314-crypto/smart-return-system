@@ -78,6 +78,7 @@ export function LoginPageContent({
   const googleError = getGoogleErrorMessage(googleErrorCode);
   const googleAuthExpired = googleErrorCode === 'google_auth_expired';
   const passwordResetSucceeded = searchParams.get('password_reset') === 'success';
+  const passwordSetupSucceeded = searchParams.get('password_setup') === 'success';
   const authCaptchaRequired = captchaRequired;
   const authCaptchaReady = !authCaptchaRequired || captchaReady;
 
@@ -104,6 +105,10 @@ export function LoginPageContent({
   useEffect(() => {
     if (passwordResetSucceeded) toast.success('密碼已更新，請使用新密碼登入。');
   }, [passwordResetSucceeded]);
+
+  useEffect(() => {
+    if (passwordSetupSucceeded) toast.success('密碼已設定，請使用信箱與新密碼登入。');
+  }, [passwordSetupSucceeded]);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -215,6 +220,15 @@ export function LoginPageContent({
                 className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-950"
               >
                 密碼已更新，請使用新密碼登入。
+              </div>
+            ) : null}
+
+            {passwordSetupSucceeded ? (
+              <div
+                role="status"
+                className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-950"
+              >
+                密碼已設定，請使用信箱與新密碼登入。
               </div>
             ) : null}
 

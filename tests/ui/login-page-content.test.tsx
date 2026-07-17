@@ -143,6 +143,16 @@ describe('LoginPageContent', () => {
     expect(toastMocks.success).toHaveBeenCalledWith('密碼已更新，請使用新密碼登入。');
   });
 
+  it('confirms that a Google account password was added successfully', () => {
+    navigationMocks.search = 'password_setup=success';
+    render(<LoginPageContent googleAuthEnabled={false} />);
+
+    expect(screen.getByRole('status'))
+      .toHaveTextContent('密碼已設定，請使用信箱與新密碼登入。');
+    expect(toastMocks.success)
+      .toHaveBeenCalledWith('密碼已設定，請使用信箱與新密碼登入。');
+  });
+
   it('never exposes merchant password recovery on the platform admin login', () => {
     navigationMocks.search = 'next=%2Finternal';
     render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);

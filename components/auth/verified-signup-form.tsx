@@ -23,6 +23,7 @@ import {
   resolveVerifiedSignupInput,
   validateVerifiedSignupPassword,
   type VerifiedSignupChannel,
+  VERIFIED_SIGNUP_EXISTING_ACCOUNT_MESSAGE,
   VerifiedSignupValidationError,
 } from '@/lib/auth/verified-signup';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
@@ -148,6 +149,7 @@ export function VerifiedSignupForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [existingAccountDetected, setExistingAccountDetected] = useState(false);
   const [errorField, setErrorField] = useState<SignupErrorField | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const inFlight = useRef(false);
@@ -192,6 +194,7 @@ export function VerifiedSignupForm({
     }
     setMessage(null);
     setError(null);
+    setExistingAccountDetected(false);
     setErrorField(null);
   }
 
@@ -200,6 +203,7 @@ export function VerifiedSignupForm({
     if (inFlight.current) return;
     setError(null);
     setMessage(null);
+    setExistingAccountDetected(false);
     setErrorField(null);
 
     // Keep this presentation-only state fail closed. Even a programmatic form
@@ -322,7 +326,11 @@ export function VerifiedSignupForm({
       setMessage('如果資料正確且可使用，我們已寄出驗證碼。');
       resetCaptcha();
     } catch (caughtError) {
-      setError(getSignupErrorMessage(caughtError));
+      const signupError = getSignupErrorMessage(caughtError);
+      setError(signupError);
+      setExistingAccountDetected(
+        signupError === VERIFIED_SIGNUP_EXISTING_ACCOUNT_MESSAGE
+      );
       if (caughtError instanceof VerifiedSignupValidationError) {
         if (caughtError.code === 'weak_password') {
           setErrorField('password');
@@ -683,6 +691,16 @@ export function VerifiedSignupForm({
           ) : null}
 
           <Feedback message={message} error={error} />
+          {existingAccountDetected ? (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+              <p>若此信箱原本使用 Google 建立帳號，可先驗證身分並設定密碼。</p>
+              <Button asChild variant="outline" className="mt-3 w-full bg-white">
+                <Link href="/auth/google?next=%2Faccount%2Fset-password">
+                  使用 Google 驗證並設定密碼
+                </Link>
+              </Button>
+            </div>
+          ) : null}
             <Button
               type="submit"
               className="h-12 w-full text-base"

@@ -15,6 +15,9 @@ export interface AuthCaptchaAvailability {
   turnstileSiteKey: string;
 }
 
+export const VERIFIED_SIGNUP_EXISTING_ACCOUNT_MESSAGE =
+  '此帳號已註冊，請返回登入。';
+
 export interface ResolvedVerifiedSignupInput {
   channel: VerifiedSignupChannel;
   normalizedIdentifier: string;
@@ -222,7 +225,7 @@ export function getVerifiedSignupErrorMessage(error: unknown): string {
     message.includes('user already registered') ||
     message.includes('user_already_exists')
   ) {
-    return '此帳號已註冊，請返回登入。';
+    return VERIFIED_SIGNUP_EXISTING_ACCOUNT_MESSAGE;
   }
   if (message.includes('captcha')) return '安全驗證已失效，請重新驗證。';
   if (

@@ -327,6 +327,8 @@ describe('VerifiedSignupForm', () => {
       '此帳號已註冊，請返回登入。'
     );
     expect(screen.getByRole('link', { name: '返回登入' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: '使用 Google 驗證並設定密碼' }))
+      .toHaveAttribute('href', '/auth/google?next=%2Faccount%2Fset-password');
     expect(screen.queryByRole('heading', {
       name: '請查收並輸入手機或信箱中的驗證碼',
     })).not.toBeInTheDocument();
