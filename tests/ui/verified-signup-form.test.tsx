@@ -303,6 +303,35 @@ describe('VerifiedSignupForm', () => {
     expect(screen.getByRole('button', { name: '註冊' })).toBeDisabled();
   });
 
+  it('directs an existing account back to login instead of opening an OTP step', async () => {
+    authMocks.signUp.mockResolvedValueOnce({
+      data: {
+        session: null,
+        user: { id: 'existing-user', identities: [] },
+      },
+      error: null,
+    });
+    render(
+      <VerifiedSignupForm
+        emailEnabled
+        phoneEnabled={false}
+        initialPlan="basic"
+        turnstileSiteKey="site-key"
+      />
+    );
+
+    fillEmailSignupCredentials();
+    fireEvent.click(screen.getByRole('button', { name: '註冊' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '此帳號已註冊，請返回登入。'
+    );
+    expect(screen.getByRole('link', { name: '返回登入' })).toHaveAttribute('href', '/login');
+    expect(screen.queryByRole('heading', {
+      name: '請查收並輸入手機或信箱中的驗證碼',
+    })).not.toBeInTheDocument();
+  });
+
   it('fails signup closed when the readiness response cannot be trusted', async () => {
     readinessFetchMock.mockResolvedValueOnce({
       ok: true,

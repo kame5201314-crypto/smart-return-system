@@ -288,6 +288,17 @@ export function VerifiedSignupForm({
 
       if (response.error) throw response.error;
 
+      // Supabase intentionally returns an obfuscated user with no identities
+      // when confirmation is enabled and the identifier already exists. Do
+      // not advance to an OTP screen that can never receive a new code.
+      if (
+        response.data.user &&
+        Array.isArray(response.data.user.identities) &&
+        response.data.user.identities.length === 0
+      ) {
+        throw new Error('Account already exists');
+      }
+
       // A public verified-signup rollout must require confirmation in Supabase Auth.
       // If a session is returned immediately, fail closed instead of silently bypassing OTP.
       if (response.data.session) {

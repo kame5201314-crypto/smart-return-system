@@ -217,6 +217,13 @@ export function getVerifiedSignupErrorMessage(error: unknown): string {
   }
 
   const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (
+    message.includes('account already exists') ||
+    message.includes('user already registered') ||
+    message.includes('user_already_exists')
+  ) {
+    return '此帳號已註冊，請返回登入。';
+  }
   if (message.includes('captcha')) return '安全驗證已失效，請重新驗證。';
   if (
     message.includes('rate limit') ||
