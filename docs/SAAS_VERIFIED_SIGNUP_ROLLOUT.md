@@ -23,6 +23,9 @@ Last updated: 2026-07-17
 - 這個 runtime recheck 用於阻擋舊頁面與 rolling deploy 的過期狀態；它不是
   防止惡意使用者直接呼叫 Supabase Auth 的唯一權限邊界。真正建立工作區與試用
   仍由 `/api/saas/trial` 的 provider/readiness 重驗、rate limit 與 DB RPC 防線控制。
+- 部署後可明確執行 `npm run saas:production-smoke:registration`；這個 opt-in
+  smoke 會驗證 readiness endpoint 的布林契約、`no-store` header，以及
+  `/signup` 是否依目前 Email readiness 顯示可操作表單或準備中殼層。
 - 驗證碼與密碼交由 Supabase Auth 處理；應用程式不產生、不保存、不記錄驗證碼或密碼。
 - Cloudflare Turnstile token 直接傳給 Supabase Auth CAPTCHA 驗證；每次寄送或重送後都會失效並重新取得。
 - Supabase Auth CAPTCHA 是 project-wide；Email／手機與平台管理員登入頁都已接上

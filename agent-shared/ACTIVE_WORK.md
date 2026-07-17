@@ -1,5 +1,25 @@
 # Active Work
 
+## 2026-07-17 Verified Signup Production Smoke Coverage
+
+Status: done
+
+Scope: Detect post-deploy regressions in the account-registration readiness
+endpoint and Email signup presentation without changing the default smoke run.
+
+Notes: The existing opt-in account-registration smoke now reads
+`/api/saas/signup/readiness` inside the existing abort timeout, validates the
+exact Email/Phone boolean contract and `no-store` cache header, then confirms
+`/signup` shows or hides the unavailable Email shell according to current
+server readiness. The default Production smoke remains unchanged unless
+`--expect-account-registration` is supplied. No deploy, migration, provider,
+env/secret, Vercel, Supabase, Billing, DNS, or Production setting changed.
+
+Final validation passed: focused smoke contract 4/4, lint, typecheck, 21
+script checks, 16 backend tests, 620 unit tests, 48 UI tests, 4 E2E tests,
+5 integration tests, Production build (68 generated pages), diff check, and
+agent-boundary safety.
+
 ## 2026-07-17 Verified Signup Runtime Readiness Recheck
 
 Status: done

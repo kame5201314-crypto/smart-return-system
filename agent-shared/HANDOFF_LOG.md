@@ -1,5 +1,17 @@
 # Handoff Log
 
+## 2026-07-17 - Verified Signup Production Smoke Handoff
+
+- Extended only the opt-in account-registration Production smoke to validate
+  the readiness endpoint's exact boolean response and no-store cache policy.
+- The same smoke compares Email readiness with the rendered unavailable Email
+  shell, so deployment drift is detected without hard-coding Email as enabled
+  or disabled.
+- JSON body reads remain inside the existing abort timeout; the default smoke
+  path remains unchanged unless account-registration probing is requested.
+- No deployment, migration, provider, env/secret, Vercel, Supabase, Billing,
+  DNS, or Production setting changed.
+
 ## 2026-07-17 - Verified Signup Runtime Readiness Handoff
 
 - Added a no-store runtime readiness contract that exposes only current

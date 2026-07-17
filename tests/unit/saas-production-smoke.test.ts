@@ -24,6 +24,7 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain('signal: controller.signal');
     expect(source).toContain('clearTimeout(timeout)');
     expect(source.indexOf('await response.text()')).toBeLessThan(source.indexOf('clearTimeout(timeout)'));
+    expect(source.indexOf('await response.json()')).toBeLessThan(source.indexOf('clearTimeout(timeout)'));
   });
 
   it('offers an explicit post-deploy account-registration smoke without changing the default probe', () => {
@@ -35,6 +36,11 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain("get('/signup?plan=growth', { text: true })");
     expect(source).toContain("text.includes('使用 Google 繼續')");
     expect(source).toContain("text.includes('/auth/google?plan=growth')");
+    expect(source).toContain('get(\'/api/saas/signup/readiness\', { json: true })');
+    expect(source).toContain('Object.keys(readiness).sort().join(\',\') === \'emailEnabled,phoneEnabled\'');
+    expect(source).toContain('cacheControl.toLowerCase().includes(\'no-store\')');
+    expect(source).toContain('signupText.includes(');
+    expect(source).toContain('\'email-signup-unavailable-notice\'');
     expect(source).toMatch(/if \(expectAccountRegistration\) \{\s+await checkAccountRegistration\(\);/);
   });
 });

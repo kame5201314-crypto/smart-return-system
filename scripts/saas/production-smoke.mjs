@@ -55,7 +55,8 @@ async function get(path, options = {}) {
       signal: controller.signal,
     });
     const text = options.text ? await response.text() : '';
-    return { url, response, text };
+    const json = options.json ? await response.json() : null;
+    return { url, response, text, json };
   } finally {
     clearTimeout(timeout);
   }
@@ -118,6 +119,7 @@ async function checkPricing() {
 }
 
 async function checkAccountRegistration() {
+  let signupText = '';
   try {
     const { response, text } = await get('/login?plan=growth', { text: true });
     if (response.status !== 200) {
@@ -142,6 +144,7 @@ async function checkAccountRegistration() {
       record('fail', '/signup account registration content', `expected 200, got ${response.status}`);
       return;
     }
+    signupText = text;
 
     record(
       text.includes('使用 Google 繼續') ? 'pass' : 'fail',
@@ -153,6 +156,53 @@ async function checkAccountRegistration() {
     );
   } catch (error) {
     record('fail', '/signup account registration content', error.message);
+  }
+
+  try {
+    const { response, json } = await get('/api/saas/signup/readiness', { json: true });
+    if (response.status !== 200) {
+      record(
+        'fail',
+        '/api/saas/signup/readiness status',
+        `expected 200, got ${response.status}`
+      );
+      return;
+    }
+
+    const readiness = json?.data;
+    const hasExactReadinessShape = (
+      json?.success === true &&
+      readiness &&
+      typeof readiness === 'object' &&
+      typeof readiness.emailEnabled === 'boolean' &&
+      typeof readiness.phoneEnabled === 'boolean' &&
+      Object.keys(readiness).sort().join(',') === 'emailEnabled,phoneEnabled'
+    );
+    record(
+      hasExactReadinessShape ? 'pass' : 'fail',
+      '/api/saas/signup/readiness boolean contract'
+    );
+
+    const cacheControl = response.headers.get('cache-control') || '';
+    record(
+      cacheControl.toLowerCase().includes('no-store') ? 'pass' : 'fail',
+      '/api/saas/signup/readiness no-store',
+      cacheControl || '(empty)'
+    );
+
+    if (hasExactReadinessShape && signupText) {
+      const hasUnavailableEmailShell = signupText.includes(
+        'email-signup-unavailable-notice'
+      );
+      record(
+        readiness.emailEnabled
+          ? hasUnavailableEmailShell ? 'fail' : 'pass'
+          : hasUnavailableEmailShell ? 'pass' : 'fail',
+        '/signup Email readiness presentation'
+      );
+    }
+  } catch (error) {
+    record('fail', '/api/saas/signup/readiness contract', error.message);
   }
 }
 
