@@ -76,6 +76,7 @@ describe('SaaS commercial configuration', () => {
       public_signup: false,
       public_lead_capture: false,
       google_auth: false,
+      google_auth_ui: false,
       google_trial_signup: false,
       email_otp_signup: false,
       phone_otp_signup: false,
@@ -101,6 +102,31 @@ describe('SaaS commercial configuration', () => {
         orgPlan: 'basic',
       }).google_auth
     ).toBe(false);
+  });
+
+  it('keeps public Google entry points hidden independently from OAuth', () => {
+    expect(
+      resolveSaaSFeatureFlags({
+        env: { ENABLE_GOOGLE_AUTH: 'true' },
+        orgPlan: 'basic',
+      })
+    ).toMatchObject({
+      google_auth: true,
+      google_auth_ui: false,
+    });
+
+    expect(
+      resolveSaaSFeatureFlags({
+        env: {
+          ENABLE_GOOGLE_AUTH: 'true',
+          ENABLE_GOOGLE_AUTH_UI: 'true',
+        },
+        orgPlan: 'basic',
+      })
+    ).toMatchObject({
+      google_auth: true,
+      google_auth_ui: true,
+    });
   });
 
   it('does not couple Google login to self-service trial creation', () => {

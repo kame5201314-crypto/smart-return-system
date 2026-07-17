@@ -181,7 +181,9 @@ export function LoginPageContent({
             <CardDescription className="leading-6">
               {isPlatformAdminLogin
                 ? '請使用平台管理員帳號登入。商家請改用一般登入入口。'
-                : '使用帳號密碼登入，或以 Google 繼續。'}
+                : googleAuthEnabled
+                  ? '使用帳號密碼登入，或以 Google 繼續。'
+                  : '使用電子信箱／手機號碼與密碼登入。'}
             </CardDescription>
           </CardHeader>
           <CardContent className="sm:px-8 sm:pb-8">

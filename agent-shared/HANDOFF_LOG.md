@@ -1,5 +1,18 @@
 # Handoff Log
 
+## 2026-07-17 - Google Public Entry Visibility Handoff
+
+- Added default-off `ENABLE_GOOGLE_AUTH_UI` so `/login` and `/signup` can hide
+  Google buttons without disabling OAuth routes or breaking existing accounts.
+- Email/Phone login, registration, OTP readiness, trial provisioning, and
+  server-side authorization remain independent and fail closed.
+- No deploy, migration, provider, env/secret, Vercel, Supabase, Billing, DNS,
+  or Production setting changed. Actual Email delivery remains blocked on the
+  owner-run verified-signup rollout prerequisites documented in
+  `docs/SAAS_VERIFIED_SIGNUP_ROLLOUT.md`.
+- Complete validation passed: lint, typecheck, test:all, Production build,
+  SaaS doctor, diff check, and agent-boundary safety.
+
 ## 2026-07-17 - Password Recovery Runtime Readiness Handoff
 
 - Added a no-store password-recovery readiness API exposing only current

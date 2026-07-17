@@ -28,6 +28,7 @@ function buildContext(overrides: Partial<SaaSOrgContext> = {}): SaaSOrgContext {
       public_signup: false,
       public_lead_capture: false,
       google_auth: false,
+      google_auth_ui: false,
       google_trial_signup: false,
       email_otp_signup: false,
       phone_otp_signup: false,

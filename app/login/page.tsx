@@ -13,7 +13,8 @@ export default function LoginPage() {
   const captcha = resolveAuthCaptchaAvailability();
   const passwordRecovery = resolvePasswordRecoveryAvailability();
   const verifiedSignup = resolveVerifiedSignupAvailability();
-  const googleSignupEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const googleAuthVisible = featureFlags.google_auth && featureFlags.google_auth_ui;
+  const googleSignupEnabled = googleAuthVisible && featureFlags.google_trial_signup;
   const accountRegistrationEnabled = googleSignupEnabled
     || verifiedSignup.emailEnabled
     || verifiedSignup.phoneEnabled;
@@ -27,7 +28,7 @@ export default function LoginPage() {
       }
     >
       <LoginPageContent
-        googleAuthEnabled={featureFlags.google_auth}
+        googleAuthEnabled={googleAuthVisible}
         googleSignupEnabled={googleSignupEnabled}
         accountRegistrationEnabled={accountRegistrationEnabled}
         passwordRecoveryEnabled={passwordRecovery.emailEnabled || passwordRecovery.phoneEnabled}

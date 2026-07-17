@@ -38,7 +38,9 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'hello@smart-return.tw';
   const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID;
   const initialPlan = resolveInitialPlan(params?.plan);
-  const googleTrialEnabled = featureFlags.google_auth && featureFlags.google_trial_signup;
+  const googleTrialEnabled = featureFlags.google_auth
+    && featureFlags.google_auth_ui
+    && featureFlags.google_trial_signup;
   const verifiedSignup = resolveVerifiedSignupAvailability();
   const verifiedSignupEnabled = verifiedSignup.emailEnabled || verifiedSignup.phoneEnabled;
   const selfServiceEnabled = googleTrialEnabled || verifiedSignupEnabled;

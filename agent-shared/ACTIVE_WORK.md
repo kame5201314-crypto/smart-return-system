@@ -1,5 +1,23 @@
 # Active Work
 
+## 2026-07-17 Google Public Entry Visibility
+
+Status: done
+
+Scope: Hide Google login and signup buttons while preserving existing OAuth
+identities, routes, tenants, and the completed Google trial backend.
+
+Notes: Added the independent, default-off `ENABLE_GOOGLE_AUTH_UI` flag. Public
+Google buttons and promotional copy now render only when both the backend Auth
+flag and UI flag are enabled. Email/Phone password login and verified signup
+remain independent. Actual Email delivery still requires the already-documented
+Custom SMTP, Turnstile, migration `044`, readiness flags, deploy, and smoke QA;
+none of those external states were changed in this Git-only task. Validation
+passed lint, typecheck, 21 script checks, 16 backend tests, 636 unit tests, 52
+UI tests, 4 E2E tests, 5 integration tests, Production build (68 generated
+pages), SaaS doctor (209 pass / 3 expected warnings / 0 fail), diff check, and
+agent-boundary safety.
+
 ## 2026-07-17 Password Recovery Runtime Readiness Recheck
 
 Status: done

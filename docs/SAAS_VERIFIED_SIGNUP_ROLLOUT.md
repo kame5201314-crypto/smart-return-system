@@ -5,7 +5,9 @@ Last updated: 2026-07-17
 ## 目前狀態
 
 - 本機程式已加入「信箱或台灣手機號碼 + 密碼 → 6 位數驗證碼 → 建立 3 天試用」流程。
-- Google 登入保持原樣且使用獨立旗標，不會因 OTP 功能關閉而受影響。
+- Google OAuth 後端保持原樣且不會因 OTP 功能關閉而受影響；公開登入／註冊
+  入口另由 `ENABLE_GOOGLE_AUTH_UI` 控制，預設為 `false`，因此可先隱藏按鈕而不
+  刪除或停用既有 Google 帳號。
 - Email OTP 與 Phone OTP 使用獨立旗標，預設皆為 `false`。
 - 當 Google 自助註冊已開啟、但 Email OTP 前置條件尚未完成時，`/signup`
   仍會保留「任何電子信箱（不限定 Gmail）＋密碼」表單，並將全部欄位與送出
@@ -42,6 +44,7 @@ Last updated: 2026-07-17
 ```env
 ENABLE_EMAIL_OTP_SIGNUP=false
 ENABLE_PHONE_OTP_SIGNUP=false
+ENABLE_GOOGLE_AUTH_UI=false
 ENABLE_EMAIL_PASSWORD_RECOVERY=false
 ENABLE_PHONE_PASSWORD_RECOVERY=false
 SAAS_AUTH_CAPTCHA_READY=false

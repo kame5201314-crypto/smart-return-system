@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const signupMocks = vi.hoisted(() => ({
   flags: {
     google_auth: false,
+    google_auth_ui: false,
     google_trial_signup: false,
     public_lead_capture: true,
   },
@@ -79,6 +80,7 @@ async function renderSignup(plan?: string) {
 describe('SignupPage feature composition', () => {
   beforeEach(() => {
     signupMocks.flags.google_auth = false;
+    signupMocks.flags.google_auth_ui = false;
     signupMocks.flags.google_trial_signup = false;
     signupMocks.flags.public_lead_capture = true;
     signupMocks.verified.emailEnabled = false;
@@ -90,6 +92,7 @@ describe('SignupPage feature composition', () => {
 
   it('retains the Email/password registration shell with Google below and preserves a growth selection', async () => {
     signupMocks.flags.google_auth = true;
+    signupMocks.flags.google_auth_ui = true;
     signupMocks.flags.google_trial_signup = true;
 
     await renderSignup('growth');
@@ -115,6 +118,7 @@ describe('SignupPage feature composition', () => {
 
   it('places verified signup before Google and preserves the selected plan for both paths', async () => {
     signupMocks.flags.google_auth = true;
+    signupMocks.flags.google_auth_ui = true;
     signupMocks.flags.google_trial_signup = true;
     signupMocks.verified.emailEnabled = true;
     signupMocks.verified.phoneEnabled = true;
@@ -150,6 +154,21 @@ describe('SignupPage feature composition', () => {
       .toHaveAttribute('data-email-enabled', 'true');
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-phone-enabled', 'false');
+  });
+
+  it('hides Google signup while preserving the Email registration shell', async () => {
+    signupMocks.flags.google_auth = true;
+    signupMocks.flags.google_auth_ui = false;
+    signupMocks.flags.google_trial_signup = true;
+    signupMocks.verified.emailEnabled = true;
+    signupMocks.verified.turnstileSiteKey = 'site-key';
+
+    await renderSignup('basic');
+
+    expect(screen.queryByRole('link', { name: '使用 Google 繼續' }))
+      .not.toBeInTheDocument();
+    expect(screen.getByTestId('verified-signup-form'))
+      .toHaveAttribute('data-email-enabled', 'true');
   });
 
   it('renders only the enabled Taiwan phone verification channel', async () => {

@@ -6,6 +6,10 @@
 這份手冊只定義安全啟用順序，不授權變更 Google Cloud、
 Supabase、Vercel、migration、env 或 Production deployment。
 
+公開頁面的 Google 按鈕另由 `ENABLE_GOOGLE_AUTH_UI` 控制。預設 `false`
+只隱藏 `/login` 與 `/signup` 的入口，不停用 OAuth route、既有 Google 身分或
+已建立的租戶；需要恢復公開入口時才設為 `true`。
+
 ## 目標流程
 
 1. 既有商家成員可用 Google 登入原工作區。

@@ -181,6 +181,18 @@ describe('LoginPageContent', () => {
       .toHaveAttribute('src', expect.stringContaining('google-sign-in-light-square.png'));
   });
 
+  it('hides every public Google entry and its promotional copy when the UI switch is closed', () => {
+    render(<LoginPageContent googleAuthEnabled={false} accountRegistrationEnabled />);
+
+    expect(screen.queryByRole('link', { name: '使用 Google 繼續' }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByText(/第一次使用 Google/)).not.toBeInTheDocument();
+    expect(screen.getByText('使用電子信箱／手機號碼與密碼登入。'))
+      .toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '建立帳號' }))
+      .toHaveAttribute('href', '/signup');
+  });
+
   it('does not forward an unsupported plan or expose merchant signup to platform admins', () => {
     navigationMocks.search = 'plan=enterprise';
     const { rerender } = render(

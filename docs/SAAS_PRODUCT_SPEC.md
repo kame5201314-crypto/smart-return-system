@@ -108,7 +108,7 @@
 | `/legal/terms` | 服務條款 | 必備 |
 | `/legal/privacy` | 隱私權政策 | 必備 |
 | `/legal/refund` | 退費政策 | 7 天內人工審核退費條件 |
-| `/login` | 商家登入 | Google、Email/Phone + password；明確的 `註冊新帳號` 入口會保留方案；平台 `/internal` 使用同頁但不顯示商家復原或註冊入口 |
+| `/login` | 商家登入 | Email/Phone + password；Google OAuth 後端可保留，但公開入口預設由 `ENABLE_GOOGLE_AUTH_UI=false` 隱藏；明確的 `註冊新帳號` 入口會保留方案；平台 `/internal` 使用同頁但不顯示商家復原或註冊入口 |
 | `/forgot-password` | 帳號復原（旗標控管） | Email/Phone 6 位數 OTP + CAPTCHA；泛化寄送回應 |
 | `/reset-password` | 設定新密碼（受保護） | 需新 recovery session + 短效 signed HttpOnly proof |
 | `/signup` | 註冊（旗標控管） | Google 註冊／登入入口已上線；Email/Phone 只在對應旗標與 provider ready 時顯示；全關閉時改走申請流程 |
