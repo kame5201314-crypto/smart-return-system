@@ -8,6 +8,11 @@ import {
 } from '@/lib/auth/verified-signup';
 import { resolvePasswordRecoveryAvailability } from '@/lib/auth/password-recovery';
 
+// Authentication rollout flags are runtime Vercel settings. Rendering this
+// page dynamically prevents a build-time snapshot from hiding an enabled
+// Google login entry in Production.
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   const featureFlags = resolveSaaSFeatureFlags({ orgPlan: 'basic' });
   const captcha = resolveAuthCaptchaAvailability();
