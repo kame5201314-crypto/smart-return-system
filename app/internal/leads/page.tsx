@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 
-import { PlatformLeadsList } from '@/components/internal/platform-leads-list';
+import {
+  PlatformLeadsEmptyState,
+  PlatformLeadsList,
+} from '@/components/internal/platform-leads-list';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import {
   PlatformAdminAccessError,
@@ -56,7 +59,7 @@ export default async function InternalLeadsPage() {
         result.leads.length > 0 ? (
           <PlatformLeadsList leads={result.leads} />
         ) : (
-          <SettingsStateCard variant="empty" message="目前還沒有公開網站申請名單。" />
+          <PlatformLeadsEmptyState />
         )
       ) : result.state === 'gated' ? (
         <SettingsStateCard variant="gated" gated={{ reason: 'role_required', message: result.message }} />

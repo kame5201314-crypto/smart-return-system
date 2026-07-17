@@ -1,8 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, CircleCheck, Loader2, PhoneCall, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  CircleCheck,
+  ClipboardCheck,
+  Inbox,
+  Loader2,
+  PhoneCall,
+  Store,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +34,21 @@ const STATUS_LABEL: Record<PlatformLeadStatus, string> = {
   rejected: '已婉拒',
   converted: '已開通',
 };
+
+const STATUS_ORDER: PlatformLeadStatus[] = [
+  'new',
+  'contacted',
+  'approved',
+  'converted',
+  'rejected',
+];
+
+const LIFECYCLE_STEPS = [
+  { label: '收到申請', description: '行銷頁送出的試用資料會出現在這裡。' },
+  { label: '聯絡確認', description: '確認需求、退貨量與偏好的聯絡方式。' },
+  { label: '人工開通', description: '確認有意願後，由營運人員建立租戶。' },
+  { label: '追蹤試用', description: '開通後到租戶管理查看用量與到期狀態。' },
+] as const;
 
 const RETURN_BAND_LABEL = {
   under_30: '每月少於 30 筆',
@@ -75,10 +101,68 @@ function availableActions(status: PlatformLeadStatus): PlatformLeadAction[] {
   return [];
 }
 
+export function PlatformLeadsEmptyState() {
+  return (
+    <Card className="rounded-lg" role="status">
+      <CardContent className="p-6 sm:p-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <span className="flex size-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <Inbox className="size-5" aria-hidden="true" />
+            </span>
+            <h3 className="mt-4 text-lg font-semibold">目前沒有新的試用申請</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              客戶從行銷頁送出申請後，名單會自動顯示在這裡。系統不會自動建立帳號、租戶或訂閱，仍由營運人員確認後開通。
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
+            <Button asChild variant="outline">
+              <Link href="/">
+                查看行銷頁
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/internal/orgs">
+                前往租戶管理
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-7 border-t pt-6">
+          <h4 className="text-sm font-semibold">試用申請處理流程</h4>
+          <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {LIFECYCLE_STEPS.map((step, index) => (
+              <li key={step.label} className="rounded-md border bg-neutral-50 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-neutral-950 text-xs font-semibold text-white">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm font-medium">{step.label}</span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{step.description}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function PlatformLeadsList({ leads }: { leads: PlatformLeadRecord[] }) {
   const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<'all' | PlatformLeadStatus>('all');
   const [pending, setPending] = useState<{ lead: PlatformLeadRecord; action: PlatformLeadAction } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const statusCounts = Object.fromEntries(
+    STATUS_ORDER.map((status) => [status, leads.filter((lead) => lead.status === status).length])
+  ) as Record<PlatformLeadStatus, number>;
+  const visibleLeads = statusFilter === 'all'
+    ? leads
+    : leads.filter((lead) => lead.status === statusFilter);
 
   async function confirmAction() {
     if (!pending) return;
@@ -105,8 +189,53 @@ export function PlatformLeadsList({ leads }: { leads: PlatformLeadRecord[] }) {
   }
 
   return (
-    <div className="space-y-3">
-      {leads.map((lead) => (
+    <div className="space-y-4">
+      <Card className="rounded-lg">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="size-5 text-emerald-700" aria-hidden="true" />
+                <h3 className="font-semibold">申請進度</h3>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                依客戶生命週期篩選名單；開通租戶前仍需人工確認。
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/internal/orgs">
+                <Store className="size-4" aria-hidden="true" />
+                租戶管理
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2" aria-label="試用申請狀態篩選">
+            <Button
+              type="button"
+              size="sm"
+              variant={statusFilter === 'all' ? 'default' : 'outline'}
+              aria-pressed={statusFilter === 'all'}
+              onClick={() => setStatusFilter('all')}
+            >
+              全部 {leads.length}
+            </Button>
+            {STATUS_ORDER.map((status) => (
+              <Button
+                key={status}
+                type="button"
+                size="sm"
+                variant={statusFilter === status ? 'default' : 'outline'}
+                aria-pressed={statusFilter === status}
+                onClick={() => setStatusFilter(status)}
+              >
+                {STATUS_LABEL[status]} {statusCounts[status]}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {visibleLeads.map((lead) => (
         <Card key={lead.id} className="rounded-lg">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0 space-y-2">
@@ -137,6 +266,7 @@ export function PlatformLeadsList({ leads }: { leads: PlatformLeadRecord[] }) {
                     type="button"
                     size="sm"
                     variant={action === 'reject' ? 'outline' : 'default'}
+                    aria-label={`${ACTION_COPY[action].label}：${lead.companyName}`}
                     onClick={() => setPending({ lead, action })}
                   >
                     <Icon className="size-4" aria-hidden="true" />
@@ -148,6 +278,13 @@ export function PlatformLeadsList({ leads }: { leads: PlatformLeadRecord[] }) {
           </CardContent>
         </Card>
       ))}
+
+      {visibleLeads.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-white px-5 py-8 text-center" role="status">
+          <p className="text-sm font-medium">這個階段目前沒有申請</p>
+          <p className="mt-1 text-xs text-muted-foreground">可切換其他狀態繼續查看。</p>
+        </div>
+      ) : null}
 
       <ConfirmDialog
         open={pending !== null}
