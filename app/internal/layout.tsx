@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { InternalNavLink } from '@/components/internal/nav-link';
 import { InternalMobileNav } from '@/components/internal/mobile-nav';
 import { leavePlatformAdmin } from '@/lib/actions/auth';
-import { resolvePlatformAdminFeatureFlags } from '@/lib/saas/platform-admin';
 
 const internalNav = [
   {
@@ -21,21 +20,9 @@ const internalNav = [
     description: '租戶、方案與狀態',
     iconName: 'building',
   },
-  {
-    href: '/internal/leads',
-    label: '試用申請',
-    description: '新名單與聯絡進度',
-    iconName: 'inbox',
-    requiresLeadCapture: true,
-  },
 ] as const;
 
 export default function InternalLayout({ children }: { children: ReactNode }) {
-  const featureFlags = resolvePlatformAdminFeatureFlags();
-  const visibleNav = internalNav.filter(
-    (item) => !('requiresLeadCapture' in item) || featureFlags.public_lead_capture
-  );
-
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-950">
       <div className="border-b bg-white">
@@ -63,14 +50,14 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[260px_1fr] lg:px-8">
-        <InternalMobileNav items={visibleNav} />
+        <InternalMobileNav items={internalNav} />
         <aside className="hidden h-fit rounded-lg border bg-white p-3 lg:block">
           <div className="mb-3 flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <LayoutDashboard className="size-4" />
             管理選單
           </div>
           <nav className="grid gap-1" aria-label="商業營運後台選單">
-            {visibleNav.map((item) => (
+            {internalNav.map((item) => (
               <InternalNavLink
                 key={item.href}
                 href={item.href}
