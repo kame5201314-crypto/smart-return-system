@@ -1,16 +1,25 @@
-import Link from 'next/link';
-import { AlertTriangle, CalendarClock, CreditCard, Headphones } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CreditCard } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  BillingPlanSelector,
+  type BillingPaymentQueryState,
+} from '@/components/saas/billing-plan-selector';
 import { PageHeader } from '@/components/saas/page-header';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { SAAS_PLAN_DEFINITIONS, type SaaSPlanCode } from '@/lib/config/saas-plans';
 import { loadBillingSettingsView } from '@/lib/saas/settings-live-data';
-import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
 type BillingStatus = BillingSettingsView['org']['status'];
+
+interface BillingSettingsPageProps {
+  searchParams?: Promise<{
+    payment?: string | string[];
+    plan?: string | string[];
+  }>;
+}
 
 const STATUS_LABEL: Record<BillingStatus, string> = {
   trialing: '試用中',
@@ -31,46 +40,44 @@ function formatDate(value: string | null): string {
   });
 }
 
-function daysUntil(value: string | null): number | null {
-  if (!value) return null;
-  const target = new Date(value).getTime();
-  if (Number.isNaN(target)) return null;
-  return Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24));
-}
-
-function describeDaysUntil(days: number | null): string | null {
-  if (days === null) return null;
-  if (days < 0) return `已逾期 ${Math.abs(days)} 天`;
-  if (days === 0) return '今天到期';
-  if (days === 1) return '明天到期';
-  return `還剩 ${days} 天`;
-}
-
 function statusVariant(status: BillingStatus): 'default' | 'secondary' | 'destructive' {
   if (status === 'active') return 'default';
   if (status === 'trialing') return 'secondary';
   return 'destructive';
 }
 
-function BillingContent({ data }: { data: BillingSettingsView }) {
+function firstQueryValue(value: string | string[] | undefined): string | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  return typeof first === 'string' && first.trim() ? first.trim().toLowerCase() : null;
+}
+
+function normalizePaymentState(value: string | string[] | undefined): BillingPaymentQueryState | null {
+  const normalized = firstQueryValue(value);
+  return normalized === 'success' ||
+    normalized === 'pending' ||
+    normalized === 'failed' ||
+    normalized === 'cancelled'
+    ? normalized
+    : null;
+}
+
+function normalizeRequestedPlan(value: string | string[] | undefined): SaaSPlanCode | null {
+  const normalized = firstQueryValue(value);
+  return normalized === 'basic' || normalized === 'growth' || normalized === 'enterprise'
+    ? normalized
+    : null;
+}
+
+function BillingSummary({ data }: { data: BillingSettingsView }) {
   const isTrialing = data.org.status === 'trialing';
   const planName = isTrialing ? '試用版' : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
+  const periodStart = data.subscription?.currentPeriodStart ?? null;
   const periodEnd = isTrialing
     ? data.subscription?.trialEnd ?? null
     : data.subscription?.currentPeriodEnd ?? null;
-  const trialDaysRemaining = isTrialing ? daysUntil(periodEnd) : null;
-  const trialDaysLabel = describeDaysUntil(trialDaysRemaining);
-  const isTrialExpired = trialDaysRemaining !== null && trialDaysRemaining < 0;
-  const cancelAtPeriodEnd = data.subscription?.cancelAtPeriodEnd ?? false;
-  const periodTitle = isTrialing ? '試用期限' : '目前週期';
-  const periodDetail = isTrialing
-    ? `${formatDate(periodEnd)}${trialDaysLabel ? ` · ${trialDaysLabel}` : ''}`
-    : periodEnd
-      ? `至 ${formatDate(periodEnd)}`
-      : '尚未設定';
 
   return (
-    <Card className="w-full max-w-3xl rounded-xl">
+    <Card className="w-full rounded-xl">
       <CardContent className="p-6 sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
@@ -83,57 +90,68 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
               <p className="mt-1 text-sm text-muted-foreground">{data.org.name}</p>
             </div>
           </div>
-          <Badge
-            variant={isTrialExpired ? 'destructive' : statusVariant(data.org.status)}
-            className="w-fit"
-          >
-            {isTrialExpired ? '試用已到期' : STATUS_LABEL[data.org.status]}
+          <Badge variant={statusVariant(data.org.status)} className="w-fit">
+            {STATUS_LABEL[data.org.status]}
           </Badge>
         </div>
 
-        <div className="mt-6 flex items-start gap-3 rounded-lg bg-muted/50 px-4 py-3">
-          <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-medium text-gray-950">{periodTitle}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{periodDetail}</p>
-          </div>
-        </div>
-
-        {cancelAtPeriodEnd ? (
-          <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>訂閱將於 {formatDate(periodEnd)} 到期後結束；若需繼續使用，請聯絡客服。</p>
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex flex-col gap-4 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <Headphones className="mt-0.5 size-5 shrink-0 text-emerald-700" aria-hidden="true" />
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="flex items-start gap-3 rounded-lg bg-muted/50 px-4 py-3">
+            <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium text-gray-950">升級、續約或帳務問題</p>
-              <p className="mt-1 text-sm text-muted-foreground">目前由客服專人協助處理。</p>
+              <p className="text-sm font-medium text-gray-950">
+                {isTrialing ? '試用開始日' : '本期開始日'}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{formatDate(periodStart)}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 sm:shrink-0">
-            <Button asChild>
-              <Link href="/contact">聯絡客服</Link>
-            </Button>
+          <div className="flex items-start gap-3 rounded-lg bg-muted/50 px-4 py-3">
+            <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium text-gray-950">
+                {isTrialing ? '試用到期日' : '本期到期日'}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{formatDate(periodEnd)}</p>
+            </div>
           </div>
         </div>
+
+        <p className="mt-4 text-sm text-muted-foreground">
+          方案採一個月預付制，不會自動續扣。付款成功後，新的使用期限會顯示於此。
+        </p>
+
+        {data.subscription?.cancelAtPeriodEnd ? (
+          <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>目前方案將於 {formatDate(periodEnd)} 到期，屆時不會自動續扣。</p>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-export default async function BillingSettingsPage() {
-  const result = await loadBillingSettingsView();
+export default async function BillingSettingsPage(
+  { searchParams }: BillingSettingsPageProps = {}
+) {
+  const [result, params] = await Promise.all([
+    loadBillingSettingsView(),
+    searchParams ?? Promise.resolve({ payment: undefined, plan: undefined }),
+  ]);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="帳務與訂閱" description="查看目前方案、狀態與使用期限。" />
+      <PageHeader title="帳務與訂閱" description="查看目前方案、使用期限，並直接選擇方案付款。" />
 
       {result.state === 'ready' ? (
-        <BillingContent data={result.data} />
+        <>
+          <BillingSummary data={result.data} />
+          <BillingPlanSelector
+            data={result.data}
+            paymentState={normalizePaymentState(params.payment)}
+            requestedPlan={normalizeRequestedPlan(params.plan)}
+          />
+        </>
       ) : result.state === 'gated' ? (
         <SettingsStateCard variant="gated" gated={result.gated} />
       ) : result.state === 'empty' ? (

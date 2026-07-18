@@ -31,7 +31,7 @@ function buildContext(overrides: Partial<SaaSOrgContext> = {}): SaaSOrgContext {
       email_otp_signup: false,
       phone_otp_signup: false,
       billing: true,
-      subscription_plan: false,
+      subscription_plan: true,
       ai_usage_limit: true,
       advanced_analytics: true,
       multi_tenant_admin: false,
@@ -166,6 +166,77 @@ describe('SaaS settings live data loaders', () => {
       .toContain('線上帳務與自助付款目前尚未開放');
     expect(billingRepository.getOrganizationBilling).toHaveBeenCalledWith({ orgId: 'org-1' });
   });
+
+  it('keeps self-service checkout disabled until both billing flags are enabled', async () => {
+    const context = buildContext({
+      featureFlags: {
+        ...buildContext().featureFlags,
+        billing: true,
+        subscription_plan: false,
+      },
+    });
+    const billingRepository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Demo Store',
+        plan: 'growth',
+        status: 'active',
+        billingEmail: 'owner@example.com',
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+    };
+
+    const result = await loadBillingSettingsView({
+      getContext: vi.fn(async () => context),
+      billingRepository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      data: {
+        actions: {
+          canUpdateBilling: false,
+          canCancelRenewal: false,
+        },
+      },
+    });
+  });
+
+  it.each(['past_due', 'suspended', 'cancelled'] as const)(
+    'allows an owner to pay from a %s workspace when checkout flags are ready',
+    async (orgStatus) => {
+      const context = buildContext({ orgStatus });
+      const billingRepository = {
+        getOrganizationBilling: vi.fn(async () => ({
+          id: 'org-1',
+          name: 'Restore Store',
+          plan: 'basic',
+          status: orgStatus,
+          billingEmail: 'owner@example.com',
+          taxId: null,
+        })),
+        getSubscription: vi.fn(async () => null),
+        getLatestInvoice: vi.fn(async () => null),
+      };
+
+      const result = await loadBillingSettingsView({
+        getContext: vi.fn(async () => context),
+        billingRepository,
+      });
+
+      expect(result).toMatchObject({
+        state: 'ready',
+        data: {
+          actions: {
+            canUpdateBilling: true,
+            canCancelRenewal: true,
+          },
+        },
+      });
+    }
+  );
 
   it('maps feature guard failures to gated settings state', async () => {
     const result = await loadBillingSettingsView({

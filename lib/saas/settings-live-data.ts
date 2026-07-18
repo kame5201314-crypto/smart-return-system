@@ -40,6 +40,7 @@ import {
   type SelfServiceTrialSeatLimitResolution,
 } from '@/lib/saas/self-service-trial-seat-limit';
 import { createDefaultSelfServiceTrialSeatLimitDataRepository } from '@/lib/saas/self-service-trial-seat-limit-data';
+import { getSaaSSubscriptionAccessPolicy } from '@/lib/saas/subscription-access';
 
 type SettingsQueryClient = SettingsBillingQueryClient &
   SettingsUsageQueryClient &
@@ -294,14 +295,17 @@ export async function loadBillingSettingsView(
     const repository =
       deps.billingRepository ??
       createSettingsBillingDataRepository(await getSettingsQueryClient(deps));
+    const billingAccess = getSaaSSubscriptionAccessPolicy(context.orgStatus);
+    const selfServiceBillingEnabled =
+      context.featureFlags.billing && context.featureFlags.subscription_plan;
     const input = await buildBillingSettingsViewInput(repository, {
       orgId: context.orgId,
       actions: {
-        canUpdateBilling: context.featureFlags.billing && canWriteSaaSOrgData(context),
-        canCancelRenewal: context.featureFlags.billing && canWriteSaaSOrgData(context),
-        disabledReason: !context.featureFlags.billing
+        canUpdateBilling: selfServiceBillingEnabled && billingAccess.canManageBilling,
+        canCancelRenewal: selfServiceBillingEnabled && billingAccess.canManageBilling,
+        disabledReason: !selfServiceBillingEnabled
           ? BILLING_FEATURE_DISABLED_MESSAGE
-          : !canWriteSaaSOrgData(context)
+          : !billingAccess.canManageBilling
             ? BILLING_REQUIRED_MESSAGE
             : undefined,
       },

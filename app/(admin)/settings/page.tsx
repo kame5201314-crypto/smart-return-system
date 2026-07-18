@@ -58,7 +58,7 @@ export default async function SettingsPage() {
         description="管理你的方案與資料。"
         actions={
           <Button asChild variant="outline">
-            <Link href="/pricing" target="_blank">
+            <Link href="/settings/billing#plans">
               查看方案
               <ArrowRight className="size-4" />
             </Link>

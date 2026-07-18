@@ -51,7 +51,7 @@ export async function WorkspaceAccessBanner() {
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button asChild size="sm" variant="outline" className="bg-white">
-            <Link href="/pricing" target="_blank">升級方案</Link>
+            <Link href="/settings/billing#plans">升級方案</Link>
           </Button>
           <Button asChild size="sm">
             <Link href="/contact">聯絡客服</Link>

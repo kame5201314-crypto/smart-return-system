@@ -144,6 +144,7 @@ describe('SaaS UI/backend contracts', () => {
         billingEmail: 'billing@example.com',
         taxId: '12345678',
       },
+      history: [],
       actions: {
         canUpdateBilling: true,
         canCancelRenewal: false,
@@ -175,6 +176,95 @@ describe('SaaS UI/backend contracts', () => {
       }).invoiceSummary.latestInvoiceStatus
     ).toBe('failed');
   });
+
+  it('normalizes validated payment and subscription history', () => {
+    expect(
+      buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'basic',
+          status: 'active',
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        history: [
+          {
+            id: 'order-1',
+            plan: 'growth',
+            provider: 'ecpay',
+            amountTwd: 699,
+            status: 'paid',
+            paidAt: '2026-07-19T00:00:00.000Z',
+            periodStart: '2026-07-19T00:00:00.000Z',
+            periodEnd: '2026-08-19T00:00:00.000Z',
+            createdAt: '2026-07-19T00:00:00.000Z',
+          },
+        ],
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+        },
+      }).history
+    ).toEqual([
+      {
+        id: 'order-1',
+        plan: 'growth',
+        provider: 'ecpay',
+        amountTwd: 699,
+        status: 'paid',
+        paidAt: '2026-07-19T00:00:00.000Z',
+        periodStart: '2026-07-19T00:00:00.000Z',
+        periodEnd: '2026-08-19T00:00:00.000Z',
+        createdAt: '2026-07-19T00:00:00.000Z',
+      },
+    ]);
+  });
+
+  it.each(['enterprise', 'legacy-plan'])(
+    'rejects unsupported self-service payment plan %s',
+    (plan) => {
+      expect(() =>
+        buildBillingSettingsView({
+          org: {
+            id: 'org-1',
+            name: 'Demo Org',
+            plan: 'basic',
+            status: 'active',
+          },
+          subscription: null,
+          invoiceSummary: {
+            latestInvoiceId: null,
+            latestInvoiceStatus: null,
+            billingEmail: null,
+            taxId: null,
+          },
+          history: [
+            {
+              id: 'order-1',
+              plan,
+              provider: 'ecpay',
+              amountTwd: 699,
+              status: 'paid',
+              paidAt: null,
+              periodStart: null,
+              periodEnd: null,
+              createdAt: '2026-07-19T00:00:00.000Z',
+            },
+          ],
+          actions: {
+            canUpdateBilling: true,
+            canCancelRenewal: false,
+          },
+        })
+      ).toThrow(`Invalid self-service billing plan: ${plan}`);
+    }
+  );
 
   it('rejects invalid billing settings status values', () => {
     expect(() =>

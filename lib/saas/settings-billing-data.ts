@@ -9,7 +9,7 @@ interface SupabaseQueryResult {
   error: SupabaseQueryError | null;
 }
 
-export interface SettingsBillingQueryBuilder {
+export interface SettingsBillingQueryBuilder extends PromiseLike<SupabaseQueryResult> {
   select(columns: string): SettingsBillingQueryBuilder;
   eq(column: string, value: unknown): SettingsBillingQueryBuilder;
   order(column: string, options: { ascending: boolean }): SettingsBillingQueryBuilder;
@@ -25,6 +25,11 @@ export interface SettingsBillingDataRepository {
   getOrganizationBilling(input: { orgId: string }): Promise<SettingsBillingOrgData | null>;
   getSubscription(input: { orgId: string }): Promise<SettingsBillingSubscriptionData | null>;
   getLatestInvoice(input: { orgId: string }): Promise<SettingsBillingInvoiceData | null>;
+  listPaymentOrders?(input: { orgId: string; limit?: number }): Promise<SettingsBillingPaymentOrderData[]>;
+  listSubscriptionPeriods?(input: {
+    orgId: string;
+    limit?: number;
+  }): Promise<SettingsBillingSubscriptionPeriodData[]>;
 }
 
 export interface SettingsBillingOrgData {
@@ -49,6 +54,22 @@ export interface SettingsBillingInvoiceData {
   status: string;
 }
 
+export interface SettingsBillingPaymentOrderData {
+  id: string;
+  plan: string;
+  provider: string;
+  amountTwd: number;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface SettingsBillingSubscriptionPeriodData {
+  paymentOrderId: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -63,6 +84,10 @@ function stringOrFallback(value: unknown, fallback: string): string {
 
 function booleanOrFalse(value: unknown): boolean {
   return typeof value === 'boolean' ? value : false;
+}
+
+function nonNegativeNumberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function assertNoSupabaseError(error: SupabaseQueryError | null, fallbackMessage: string): void {
@@ -121,6 +146,57 @@ function normalizeInvoice(row: unknown): SettingsBillingInvoiceData | null {
   };
 }
 
+function normalizePaymentOrder(row: unknown): SettingsBillingPaymentOrderData | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const id = stringOrNull(row.id);
+  const plan = stringOrNull(row.plan);
+  const provider = stringOrNull(row.provider);
+  const amountTwd = nonNegativeNumberOrNull(row.amount_twd);
+  const createdAt = stringOrNull(row.created_at);
+  if (!id || !plan || !provider || amountTwd === null || !createdAt) {
+    return null;
+  }
+
+  return {
+    id,
+    plan,
+    provider,
+    amountTwd,
+    status: stringOrFallback(row.status, 'pending'),
+    paidAt: stringOrNull(row.paid_at),
+    createdAt,
+  };
+}
+
+function normalizeSubscriptionPeriod(
+  row: unknown
+): SettingsBillingSubscriptionPeriodData | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const paymentOrderId = stringOrNull(row.payment_order_id);
+  const periodStart = stringOrNull(row.period_start);
+  const periodEnd = stringOrNull(row.period_end);
+  if (!paymentOrderId || !periodStart || !periodEnd) {
+    return null;
+  }
+
+  return { paymentOrderId, periodStart, periodEnd };
+}
+
+function isHistoryTableUnavailable(error: SupabaseQueryError | null, table: string): boolean {
+  const message = error?.message?.toLowerCase() ?? '';
+  return message.includes(table) && (
+    message.includes('does not exist') ||
+    message.includes('schema cache') ||
+    message.includes('could not find')
+  );
+}
+
 export function createSettingsBillingDataRepository(
   client: SettingsBillingQueryClient
 ): SettingsBillingDataRepository {
@@ -159,6 +235,40 @@ export function createSettingsBillingDataRepository(
       assertNoSupabaseError(error, 'Failed to load latest invoice data.');
       return normalizeInvoice(data);
     },
+
+    async listPaymentOrders(input) {
+      const { data, error } = await client
+        .from('payment_orders')
+        .select('id, plan, provider, amount_twd, status, paid_at, created_at')
+        .eq('org_id', input.orgId)
+        .order('created_at', { ascending: false })
+        .limit(input.limit ?? 24);
+
+      if (isHistoryTableUnavailable(error, 'payment_orders')) return [];
+      assertNoSupabaseError(error, 'Failed to load payment history.');
+      return Array.isArray(data)
+        ? data
+            .map(normalizePaymentOrder)
+            .filter((row): row is SettingsBillingPaymentOrderData => row !== null)
+        : [];
+    },
+
+    async listSubscriptionPeriods(input) {
+      const { data, error } = await client
+        .from('subscription_periods')
+        .select('payment_order_id, period_start, period_end, created_at')
+        .eq('org_id', input.orgId)
+        .order('created_at', { ascending: false })
+        .limit(input.limit ?? 24);
+
+      if (isHistoryTableUnavailable(error, 'subscription_periods')) return [];
+      assertNoSupabaseError(error, 'Failed to load subscription period history.');
+      return Array.isArray(data)
+        ? data
+            .map(normalizeSubscriptionPeriod)
+            .filter((row): row is SettingsBillingSubscriptionPeriodData => row !== null)
+        : [];
+    },
   };
 }
 
@@ -169,10 +279,12 @@ export async function buildBillingSettingsViewInput(
     actions: BillingSettingsView['actions'];
   }
 ): Promise<BillingSettingsViewInput | null> {
-  const [org, subscription, latestInvoice] = await Promise.all([
+  const [org, subscription, latestInvoice, paymentOrders, subscriptionPeriods] = await Promise.all([
     repository.getOrganizationBilling({ orgId: input.orgId }),
     repository.getSubscription({ orgId: input.orgId }),
     repository.getLatestInvoice({ orgId: input.orgId }),
+    repository.listPaymentOrders?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
+    repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
   ]);
 
   if (!org) {
@@ -193,6 +305,14 @@ export async function buildBillingSettingsViewInput(
       billingEmail: org.billingEmail,
       taxId: org.taxId,
     },
+    history: paymentOrders.map((order) => {
+      const period = subscriptionPeriods.find((item) => item.paymentOrderId === order.id);
+      return {
+        ...order,
+        periodStart: period?.periodStart ?? null,
+        periodEnd: period?.periodEnd ?? null,
+      };
+    }),
     actions: input.actions,
   };
 }

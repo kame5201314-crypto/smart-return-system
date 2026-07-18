@@ -36,6 +36,14 @@ export type OrgSubscriptionStatus =
 
 export type BillingProvider = 'manual' | 'ecpay' | 'stripe' | 'tappay';
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'failed' | 'void';
+export type BillingPaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'manual_review'
+  | 'expired'
+  | 'cancelled'
+  | 'refunded';
 export type TeamMemberRole = 'owner' | 'admin' | 'staff' | 'viewer';
 export type TeamMemberStatus = 'active' | 'invited' | 'disabled';
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
@@ -67,6 +75,17 @@ export interface BillingSettingsView {
     billingEmail: string | null;
     taxId: string | null;
   };
+  history: Array<{
+    id: string;
+    plan: SaaSPlanCode;
+    provider: BillingProvider;
+    amountTwd: number;
+    status: BillingPaymentStatus;
+    paidAt: string | null;
+    periodStart: string | null;
+    periodEnd: string | null;
+    createdAt: string;
+  }>;
   actions: {
     canUpdateBilling: boolean;
     canCancelRenewal: boolean;
@@ -94,6 +113,17 @@ export interface BillingSettingsViewInput {
     billingEmail: string | null;
     taxId: string | null;
   };
+  history?: Array<{
+    id: string;
+    plan: unknown;
+    provider: string;
+    amountTwd: number;
+    status: string;
+    paidAt: string | null;
+    periodStart: string | null;
+    periodEnd: string | null;
+    createdAt: string;
+  }>;
   actions: BillingSettingsView['actions'];
 }
 
@@ -401,6 +431,15 @@ const ORG_STATUSES: readonly OrgSubscriptionStatus[] = [
 
 const BILLING_PROVIDERS: readonly BillingProvider[] = ['manual', 'ecpay', 'stripe', 'tappay'];
 const INVOICE_STATUSES: readonly InvoiceStatus[] = ['draft', 'issued', 'paid', 'failed', 'void'];
+const BILLING_PAYMENT_STATUSES: readonly BillingPaymentStatus[] = [
+  'pending',
+  'paid',
+  'failed',
+  'manual_review',
+  'expired',
+  'cancelled',
+  'refunded',
+];
 const TEAM_MEMBER_ROLES: readonly TeamMemberRole[] = ['owner', 'admin', 'staff', 'viewer'];
 const TEAM_MEMBER_STATUSES: readonly TeamMemberStatus[] = ['active', 'invited', 'disabled'];
 const INVITE_STATUSES: readonly InviteStatus[] = ['pending', 'accepted', 'expired', 'revoked'];
@@ -461,6 +500,18 @@ function normalizeBillingProvider(value: string): BillingProvider {
 
 function normalizeInvoiceStatus(value: string): InvoiceStatus {
   return normalizeAllowed(value, INVOICE_STATUSES, 'invoice status');
+}
+
+function normalizeBillingPaymentStatus(value: string): BillingPaymentStatus {
+  return normalizeAllowed(value, BILLING_PAYMENT_STATUSES, 'billing payment status');
+}
+
+function normalizeBillingPaidPlan(value: unknown): Exclude<SaaSPlanCode, 'enterprise'> {
+  if (value === 'basic' || value === 'growth') {
+    return value;
+  }
+
+  throw new Error(`Invalid self-service billing plan: ${String(value)}`);
 }
 
 function normalizeTeamMemberRole(value: string): TeamMemberRole {
@@ -675,6 +726,17 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
       billingEmail: input.invoiceSummary.billingEmail,
       taxId: input.invoiceSummary.taxId,
     },
+    history: (input.history ?? []).map((item) => ({
+      id: requireString(item.id, 'billing.history.id'),
+      plan: normalizeBillingPaidPlan(item.plan),
+      provider: normalizeBillingProvider(item.provider),
+      amountTwd: nonNegativeNumber(item.amountTwd, 'billing.history.amountTwd'),
+      status: normalizeBillingPaymentStatus(item.status),
+      paidAt: item.paidAt,
+      periodStart: item.periodStart,
+      periodEnd: item.periodEnd,
+      createdAt: requireString(item.createdAt, 'billing.history.createdAt'),
+    })),
     actions: {
       canUpdateBilling: requireBoolean(
         input.actions.canUpdateBilling,

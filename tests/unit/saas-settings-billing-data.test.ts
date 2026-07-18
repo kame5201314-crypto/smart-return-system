@@ -29,6 +29,8 @@ function createChain(data: unknown, error: { message?: string } | null = null): 
   chain.order = vi.fn(() => chain) as Mock<(column: string, options: { ascending: boolean }) => SettingsBillingQueryBuilder>;
   chain.limit = vi.fn(() => chain) as Mock<(count: number) => SettingsBillingQueryBuilder>;
   chain.maybeSingle = vi.fn(async () => ({ data, error }));
+  chain.then = ((onfulfilled, onrejected) =>
+    Promise.resolve({ data, error }).then(onfulfilled, onrejected)) as TestQueryBuilder['then'];
 
   return chain;
 }
@@ -55,11 +57,32 @@ describe('SaaS settings billing data repository', () => {
       status: 'failed',
       created_at: '2026-05-20T00:00:00.000Z',
     });
+    const paymentOrdersChain = createChain([
+      {
+        id: 'payment-order-1',
+        plan: 'growth',
+        provider: 'ecpay',
+        amount_twd: 699,
+        status: 'paid',
+        paid_at: '2026-05-20T00:00:00.000Z',
+        created_at: '2026-05-20T00:00:00.000Z',
+      },
+    ]);
+    const subscriptionPeriodsChain = createChain([
+      {
+        payment_order_id: 'payment-order-1',
+        period_start: '2026-05-20T00:00:00.000Z',
+        period_end: '2026-06-20T00:00:00.000Z',
+        created_at: '2026-05-20T00:00:00.000Z',
+      },
+    ]);
     const from = vi
       .fn()
       .mockReturnValueOnce(organizationChain)
       .mockReturnValueOnce(subscriptionChain)
-      .mockReturnValueOnce(invoiceChain);
+      .mockReturnValueOnce(invoiceChain)
+      .mockReturnValueOnce(paymentOrdersChain)
+      .mockReturnValueOnce(subscriptionPeriodsChain);
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
 
     const input = await buildBillingSettingsViewInput(repository, {
@@ -86,6 +109,15 @@ describe('SaaS settings billing data repository', () => {
         billingEmail: 'billing@example.com',
         taxId: '12345678',
       },
+      history: [
+        {
+          id: 'payment-order-1',
+          plan: 'growth',
+          status: 'paid',
+          periodStart: '2026-05-20T00:00:00.000Z',
+          periodEnd: '2026-06-20T00:00:00.000Z',
+        },
+      ],
     });
     expect(buildBillingSettingsView(input!)).toMatchObject({
       invoiceSummary: {
@@ -95,11 +127,15 @@ describe('SaaS settings billing data repository', () => {
     expect(from).toHaveBeenNthCalledWith(1, 'organizations');
     expect(from).toHaveBeenNthCalledWith(2, 'subscriptions');
     expect(from).toHaveBeenNthCalledWith(3, 'invoices');
+    expect(from).toHaveBeenNthCalledWith(4, 'payment_orders');
+    expect(from).toHaveBeenNthCalledWith(5, 'subscription_periods');
     expect(subscriptionChain.select).toHaveBeenCalledWith(
       'provider, current_period_start, current_period_end, trial_end, cancel_at_period_end'
     );
     expect(invoiceChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(invoiceChain.limit).toHaveBeenCalledWith(1);
+    expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
+    expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
   });
 
   it('returns null when organization billing data is missing', async () => {
@@ -107,7 +143,9 @@ describe('SaaS settings billing data repository', () => {
       .fn()
       .mockReturnValueOnce(createChain(null))
       .mockReturnValueOnce(createChain(null))
-      .mockReturnValueOnce(createChain(null));
+      .mockReturnValueOnce(createChain(null))
+      .mockReturnValueOnce(createChain([]))
+      .mockReturnValueOnce(createChain([]));
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
 
     await expect(

@@ -465,7 +465,10 @@ export default function AIReportPage() {
             {!canUseAI && (
               <p className="text-sm text-amber-800" role="status">
                 工作區目前為唯讀，AI 分析已停用。請
-                <Link className="mx-1 font-medium underline underline-offset-2" href="/pricing">
+                <Link
+                  className="mx-1 font-medium underline underline-offset-2"
+                  href="/settings/billing#plans"
+                >
                   升級方案
                 </Link>
                 或
