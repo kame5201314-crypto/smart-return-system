@@ -87,6 +87,43 @@ describe('SaaS canonical surface routing', () => {
     )).toBe('https://app.smart-return.test/analytics');
   });
 
+  it('canonicalizes legacy internal login links without treating unsafe next values as admin intent', () => {
+    expect(resolveSaasSurfaceRedirect(
+      'https://app.smart-return.test/login?next=%2Finternal%2Forgs',
+      MULTI_HOST_ENV
+    )).toBe(
+      'https://admin.smart-return.test/admin/login?next=%2Finternal%2Forgs'
+    );
+    expect(resolveSaasSurfaceRedirect(
+      'https://www.smart-return.test/login?next=%2Finternal',
+      MULTI_HOST_ENV
+    )).toBe('https://admin.smart-return.test/admin/login?next=%2Finternal');
+    expect(resolveSaasSurfaceRedirect(
+      'https://app.smart-return.test/login?next=%2Fadmin',
+      MULTI_HOST_ENV
+    )).toBe('https://admin.smart-return.test/admin/login?next=%2Finternal');
+    expect(resolveSaasSurfaceRedirect(
+      'https://app.smart-return.test/login?next=%2F%2Fevil.example',
+      MULTI_HOST_ENV
+    )).toBeNull();
+    expect(resolveSaasSurfaceRedirect(
+      'https://app.smart-return.test/login',
+      MULTI_HOST_ENV
+    )).toBeNull();
+  });
+
+  it('uses the dedicated admin login on a valid single-host deployment', () => {
+    const env = {
+      NODE_ENV: 'production',
+      NEXT_PUBLIC_APP_URL: 'https://smart-return.test',
+    };
+
+    expect(resolveSaasSurfaceRedirect(
+      'https://smart-return.test/login?next=%2Finternal%2Fleads',
+      env
+    )).toBe('https://smart-return.test/admin/login?next=%2Finternal%2Fleads');
+  });
+
   it('never uses an incoming hostile host as a redirect destination', () => {
     expect(resolveSaasSurfaceRedirect(
       'https://evil.example/internal/orgs?next=%2F%2Fevil.example',

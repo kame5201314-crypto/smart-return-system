@@ -61,6 +61,17 @@ function matchesPath(pathname: string, basePath: string): boolean {
   return pathname === basePath || pathname.startsWith(`${basePath}/`);
 }
 
+function normalizeExplicitInternalNextPath(value: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed === '/admin') return '/internal';
+
+  const normalized = normalizeInternalNextPath(trimmed);
+  return normalized === trimmed ? normalized : null;
+}
+
 export function normalizeConfiguredSurfaceOrigin(
   value: unknown,
   nodeEnv: string | undefined = process.env.NODE_ENV
@@ -157,7 +168,6 @@ export function resolveSaasSurfaceRedirect(
   env: Record<string, string | undefined> = process.env
 ): string | null {
   const origins = resolveSaasSurfaceOrigins(env);
-  if (!origins.enabled) return null;
 
   let source: URL;
   try {
@@ -165,6 +175,23 @@ export function resolveSaasSurfaceRedirect(
   } catch {
     return null;
   }
+
+  // Older admin links used the shared merchant login route with an internal
+  // `next` parameter. Canonicalize that intent before the generic `/login`
+  // app-surface rule so an admin session is created on the trusted admin host
+  // instead of being lost during the subsequent cross-host redirect.
+  if (source.pathname === '/login' && origins.admin) {
+    const safeNext = normalizeExplicitInternalNextPath(source.searchParams.get('next'));
+    if (safeNext) {
+      return buildTrustedRedirect(
+        origins.admin,
+        '/admin/login',
+        `?next=${encodeURIComponent(safeNext)}`
+      );
+    }
+  }
+
+  if (!origins.enabled) return null;
 
   if (source.origin === origins.admin && source.pathname === '/') {
     return buildTrustedRedirect(origins.admin, '/admin', '');

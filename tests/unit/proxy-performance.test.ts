@@ -117,6 +117,21 @@ describe('proxy page-load performance boundaries', () => {
     expect(getClaimsMock).not.toHaveBeenCalled();
   });
 
+  it('canonicalizes legacy platform-admin login links before any Auth lookup', async () => {
+    process.env.NEXT_PUBLIC_MARKETING_URL = 'https://www.example.test';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.test';
+    process.env.NEXT_PUBLIC_ADMIN_URL = 'https://admin.example.test';
+
+    const response = await proxy(request('/login?next=%2Finternal%2Forgs'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://admin.example.test/admin/login?next=%2Finternal%2Forgs'
+    );
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
+
   it('checks verified claims on login because authenticated users are redirected', async () => {
     const response = await proxy(request('/login'));
 
