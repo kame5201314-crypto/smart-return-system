@@ -27,6 +27,8 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       GEMINI_API_KEY: 'gemini-key',
       GEMINI_TEXT_MODEL: 'gemini-2.5-flash-lite',
       NEXT_PUBLIC_APP_URL: 'https://saas.smart-return.test',
+      NEXT_PUBLIC_MARKETING_URL: '',
+      NEXT_PUBLIC_ADMIN_URL: '',
       ENABLE_IMAGE_AI: 'false',
       ENABLE_AI_USAGE_LIMIT: 'true',
       ENABLE_PUBLIC_SIGNUP: 'false',
@@ -116,6 +118,25 @@ describe('SaaS rollout readiness check', () => {
     expect(result.status).toBe(1);
     expect(result.output).toContain('NEXT_PUBLIC_APP_URL');
     expect(result.output).toContain('missing; needed for invite links');
+  });
+
+  it('accepts distinct optional surface origins and rejects unsafe admin origins', () => {
+    const valid = runRolloutCheck({
+      NEXT_PUBLIC_MARKETING_URL: 'https://www.smart-return.test',
+      NEXT_PUBLIC_ADMIN_URL: 'https://admin.smart-return.test',
+    });
+    expect(valid.status).toBe(0);
+    expect(valid.output).toContain('NEXT_PUBLIC_ADMIN_URL - https://admin.smart-return.test');
+
+    for (const adminUrl of [
+      'http://admin.smart-return.test',
+      'https://admin.smart-return.test/path',
+      'https://saas.smart-return.test',
+    ]) {
+      const invalid = runRolloutCheck({ NEXT_PUBLIC_ADMIN_URL: adminUrl });
+      expect(invalid.status).toBe(1);
+      expect(invalid.output).toContain('NEXT_PUBLIC_ADMIN_URL');
+    }
   });
 
   it('requires billing credentials when billing is enabled', () => {

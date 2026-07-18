@@ -10,6 +10,7 @@ import {
 } from '@/lib/auth/proxy-login-redirect';
 import { CUSTOMER_POST_LOGIN_PATH } from '@/lib/auth/post-login-redirect';
 import { isPublicRoute } from '@/lib/auth/public-routes';
+import { resolveSaasSurfaceRedirect } from '@/lib/auth/saas-surface-host';
 
 function isPlatformAdminEntryPath(pathname: string): boolean {
   return pathname === '/admin' || pathname === '/internal' || pathname.startsWith('/internal/');
@@ -66,6 +67,11 @@ export async function proxy(request: NextRequest) {
     url.searchParams.set('next', CUSTOMER_POST_LOGIN_PATH);
     url.searchParams.set('plan', 'basic');
     return NextResponse.redirect(url);
+  }
+
+  const canonicalSurfaceUrl = resolveSaasSurfaceRedirect(request.url);
+  if (canonicalSurfaceUrl) {
+    return NextResponse.redirect(canonicalSurfaceUrl, 307);
   }
 
   // Public pages other than the login entry never use the authenticated

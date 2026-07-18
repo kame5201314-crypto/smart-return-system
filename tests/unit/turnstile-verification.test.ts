@@ -94,6 +94,44 @@ describe('Turnstile server-side verification', () => {
     expect(body.get('remoteip')).toBe('203.0.113.7');
   });
 
+  it('accepts a separately configured trusted platform-admin hostname', async () => {
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({
+      success: true,
+      action: PASSWORD_LOGIN_TURNSTILE_ACTION,
+      hostname: 'admin.smart-return.example.com',
+    }));
+
+    const result = await verifyPasswordLoginTurnstile(
+      { token: 'verified-admin-token' },
+      {
+        env: {
+          ...VALID_ENV,
+          NEXT_PUBLIC_ADMIN_URL: 'https://admin.smart-return.example.com',
+        },
+        fetcher,
+      }
+    );
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('fails closed before Siteverify when a configured admin origin is invalid', async () => {
+    const fetcher = vi.fn();
+
+    for (const adminUrl of [
+      'http://admin.smart-return.example.com',
+      'https://user:pass@admin.smart-return.example.com',
+      'https://admin.smart-return.example.com/path',
+    ]) {
+      expect(await verifyPasswordLoginTurnstile(
+        { token: 'token' },
+        { env: { ...VALID_ENV, NEXT_PUBLIC_ADMIN_URL: adminUrl }, fetcher }
+      )).toEqual({ ok: false, reason: 'configuration_error' });
+    }
+
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('rejects challenge, action, and hostname mismatches', async () => {
     const cases = [
       [{ success: false }, 'challenge_rejected'],

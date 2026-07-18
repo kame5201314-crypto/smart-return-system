@@ -50,19 +50,30 @@ function isPlaceholder(value: string): boolean {
   ].some((marker) => normalized.includes(marker));
 }
 
-function resolveExpectedHostname(
+function resolveExpectedHostnames(
   env: Record<string, string | undefined>
-): string | null {
-  try {
-    const appUrl = new URL((env.NEXT_PUBLIC_APP_URL || '').trim());
-    if (!appUrl.hostname || appUrl.username || appUrl.password) return null;
-    const production = (env.NODE_ENV || '').trim().toLowerCase() === 'production';
-    if (production && appUrl.protocol !== 'https:') return null;
-    if (!['https:', 'http:'].includes(appUrl.protocol)) return null;
-    return appUrl.hostname.toLowerCase();
-  } catch {
-    return null;
+): Set<string> | null {
+  const configuredUrls = [env.NEXT_PUBLIC_APP_URL];
+  if ((env.NEXT_PUBLIC_ADMIN_URL || '').trim()) {
+    configuredUrls.push(env.NEXT_PUBLIC_ADMIN_URL);
   }
+
+  const hostnames = new Set<string>();
+  for (const configuredUrl of configuredUrls) {
+    try {
+      const url = new URL((configuredUrl || '').trim());
+      if (!url.hostname || url.username || url.password) return null;
+      if ((url.pathname !== '/' && url.pathname !== '') || url.search || url.hash) return null;
+      const production = (env.NODE_ENV || '').trim().toLowerCase() === 'production';
+      if (production && url.protocol !== 'https:') return null;
+      if (!['https:', 'http:'].includes(url.protocol)) return null;
+      hostnames.add(url.hostname.toLowerCase());
+    } catch {
+      return null;
+    }
+  }
+
+  return hostnames.size > 0 ? hostnames : null;
 }
 
 export function canBypassPasswordLoginTurnstileForLocalDevelopment(
@@ -100,8 +111,8 @@ export async function verifyPasswordLoginTurnstile(
 
   const env = options.env || process.env;
   const secret = (env.TURNSTILE_SECRET_KEY || '').trim();
-  const expectedHostname = resolveExpectedHostname(env);
-  if (isPlaceholder(secret) || !expectedHostname) {
+  const expectedHostnames = resolveExpectedHostnames(env);
+  if (isPlaceholder(secret) || !expectedHostnames) {
     return { ok: false, reason: 'configuration_error' };
   }
   if (
@@ -144,7 +155,7 @@ export async function verifyPasswordLoginTurnstile(
     }
     if (
       typeof data.hostname !== 'string' ||
-      data.hostname.trim().toLowerCase() !== expectedHostname
+      !expectedHostnames.has(data.hostname.trim().toLowerCase())
     ) {
       return { ok: false, reason: 'hostname_mismatch' };
     }

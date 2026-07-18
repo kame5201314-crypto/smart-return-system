@@ -34,6 +34,8 @@ function buildAllowedOrigins(
       [
         originFromUrl(requestUrl),
         originFromUrl(env.NEXT_PUBLIC_APP_URL),
+        originFromUrl(env.NEXT_PUBLIC_ADMIN_URL),
+        originFromUrl(env.NEXT_PUBLIC_MARKETING_URL),
       ].filter((origin): origin is string => Boolean(origin))
     )
   );

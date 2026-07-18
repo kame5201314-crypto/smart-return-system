@@ -185,6 +185,7 @@ function checkRequiredSecrets() {
 
 function checkAppUrlAndObservability() {
   const appUrl = normalizeEnvValue(process.env.NEXT_PUBLIC_APP_URL);
+  let appOrigin = '';
   if (isPlaceholder(appUrl)) {
     warnOrFail('NEXT_PUBLIC_APP_URL', 'missing; needed for invite links, callbacks, and smoke checks');
   } else if (/^https:\/\/localhost(?::\d+)?/i.test(appUrl) || /^http:\/\/localhost(?::\d+)?/i.test(appUrl)) {
@@ -193,6 +194,42 @@ function checkAppUrlAndObservability() {
     warnOrFail('NEXT_PUBLIC_APP_URL', `expected https URL for rollout: ${appUrl}`);
   } else {
     record('pass', 'NEXT_PUBLIC_APP_URL', appUrl);
+    try {
+      appOrigin = new URL(appUrl).origin;
+    } catch {
+      appOrigin = '';
+    }
+  }
+
+  for (const key of ['NEXT_PUBLIC_MARKETING_URL', 'NEXT_PUBLIC_ADMIN_URL']) {
+    const value = normalizeEnvValue(process.env[key]);
+    if (!value) {
+      record('pass', key, 'optional; single-host fallback');
+      continue;
+    }
+
+    try {
+      const parsed = new URL(value);
+      if (
+        isPlaceholder(value)
+        || parsed.protocol !== 'https:'
+        || !parsed.hostname
+        || parsed.hostname === 'localhost'
+        || parsed.username
+        || parsed.password
+        || (parsed.pathname !== '/' && parsed.pathname !== '')
+        || parsed.search
+        || parsed.hash
+      ) {
+        throw new Error('untrusted surface URL');
+      }
+      if (appOrigin && parsed.origin === appOrigin) {
+        throw new Error('surface URL must differ from NEXT_PUBLIC_APP_URL');
+      }
+      record('pass', key, parsed.origin);
+    } catch (error) {
+      warnOrFail(key, error instanceof Error ? error.message : 'expected a trusted HTTPS origin');
+    }
   }
 
   const sentryDsn =

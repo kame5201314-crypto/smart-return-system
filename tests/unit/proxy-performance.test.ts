@@ -22,6 +22,9 @@ describe('proxy page-load performance boundaries', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.example.test';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-test-key';
+    delete process.env.NEXT_PUBLIC_MARKETING_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.NEXT_PUBLIC_ADMIN_URL;
     delete process.env.ADMIN_EMAIL;
     delete process.env.ADMIN_USERNAME;
     delete process.env.PLATFORM_ADMIN_ROLES;
@@ -86,6 +89,30 @@ describe('proxy page-load performance boundaries', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('location')).toBeNull();
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
+
+  it('canonicalizes configured SaaS surfaces before any Auth lookup', async () => {
+    process.env.NEXT_PUBLIC_MARKETING_URL = 'https://www.example.test';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.test';
+    process.env.NEXT_PUBLIC_ADMIN_URL = 'https://admin.example.test';
+
+    const internalResponse = await proxy(request('/internal/orgs?status=trial'));
+    expect(internalResponse.status).toBe(307);
+    expect(internalResponse.headers.get('location')).toBe(
+      'https://admin.example.test/internal/orgs?status=trial'
+    );
+
+    const adminRootResponse = await proxy(new NextRequest('https://admin.example.test/'));
+    expect(adminRootResponse.status).toBe(307);
+    expect(adminRootResponse.headers.get('location')).toBe('https://admin.example.test/admin');
+
+    const merchantResponse = await proxy(
+      new NextRequest('https://admin.example.test/analytics')
+    );
+    expect(merchantResponse.status).toBe(307);
+    expect(merchantResponse.headers.get('location')).toBe('https://app.example.test/analytics');
     expect(createServerClientMock).not.toHaveBeenCalled();
     expect(getClaimsMock).not.toHaveBeenCalled();
   });

@@ -31,6 +31,44 @@ describe('same-origin request guard', () => {
     expect(result.allowed).toBe(true);
   });
 
+  it('allows configured platform-admin and marketing origins without trusting attackers', () => {
+    const env = {
+      NEXT_PUBLIC_APP_URL: 'https://app.smart-return.example.com',
+      NEXT_PUBLIC_ADMIN_URL: 'https://admin.smart-return.example.com',
+      NEXT_PUBLIC_MARKETING_URL: 'https://www.smart-return.example.com',
+    };
+
+    for (const origin of [env.NEXT_PUBLIC_ADMIN_URL, env.NEXT_PUBLIC_MARKETING_URL]) {
+      expect(checkSameOriginRequest({
+        requestUrl: 'https://deployment.vercel.app/api/internal/saas/orgs',
+        headers: new Headers({ origin }),
+        env,
+      }).allowed).toBe(true);
+    }
+
+    expect(checkSameOriginRequest({
+      requestUrl: 'https://deployment.vercel.app/api/internal/saas/orgs',
+      headers: new Headers({ origin: 'https://attacker.example.com' }),
+      env,
+    }).allowed).toBe(false);
+  });
+
+  it('still rejects explicit cross-site metadata for a configured admin origin', () => {
+    const result = checkSameOriginRequest({
+      requestUrl: 'https://admin.smart-return.example.com/api/internal/saas/orgs',
+      headers: new Headers({
+        origin: 'https://admin.smart-return.example.com',
+        'sec-fetch-site': 'cross-site',
+      }),
+      env: {
+        NEXT_PUBLIC_APP_URL: 'https://app.smart-return.example.com',
+        NEXT_PUBLIC_ADMIN_URL: 'https://admin.smart-return.example.com',
+      },
+    });
+
+    expect(result.allowed).toBe(false);
+  });
+
   it('rejects mismatched origin requests', () => {
     const result = checkSameOriginRequest({
       requestUrl: 'https://smart-return.example.com/api/saas/team/invites',
