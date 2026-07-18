@@ -2,6 +2,7 @@ import {
   normalizeSaaSSubscriptionStatus,
   type SaaSSubscriptionStatus,
 } from '@/lib/saas/subscription-access';
+import { ADMIN_UUID } from '@/lib/auth/admin-session';
 
 export type PlatformBillingOperation =
   | 'mark_manual_payment'
@@ -117,6 +118,17 @@ function requireUuid(value: unknown, field: string): string {
   return normalized;
 }
 
+function requireActorUserId(value: unknown): string {
+  const normalized = requireString(value, 'actorUserId', 64);
+  if (normalized.toLowerCase() === ADMIN_UUID) {
+    return ADMIN_UUID;
+  }
+  if (!UUID_PATTERN.test(normalized)) {
+    failInvalid('actorUserId must be a valid UUID.');
+  }
+  return normalized;
+}
+
 function optionalUuid(value: unknown, field: string): string | null {
   const normalized = optionalString(value, field, 64);
   if (!normalized) {
@@ -195,6 +207,15 @@ function assertPeriodOrder(periodStart: string | null, periodEnd: string | null)
   }
 }
 
+function assertManualPaymentEndAfterEffectiveAt(
+  periodEnd: string | null,
+  effectiveAt: string
+): void {
+  if (!periodEnd || new Date(periodEnd).getTime() <= new Date(effectiveAt).getTime()) {
+    failInvalid('periodEnd must be later than effectiveAt.');
+  }
+}
+
 function normalizeOperationFromRpc(value: unknown): PlatformBillingOperation {
   if (VALID_OPERATIONS.includes(value as PlatformBillingOperation)) {
     return value as PlatformBillingOperation;
@@ -249,11 +270,12 @@ export function normalizePlatformBillingOperationRequest(
     const periodStart = normalizeIsoDate(value.periodStart, 'periodStart', false);
     const periodEnd = normalizeIsoDate(value.periodEnd, 'periodEnd', true);
     assertPeriodOrder(periodStart, periodEnd);
+    assertManualPaymentEndAfterEffectiveAt(periodEnd, effectiveAt);
 
     return {
       operation,
       orgId,
-      actorUserId: requireUuid(actorUserId, 'actorUserId'),
+      actorUserId: requireActorUserId(actorUserId),
       reason: normalizeOptionalReason(value.reason),
       amountTwd: normalizeAmount(value.amountTwd, 'amountTwd', true),
       periodStart,
@@ -269,7 +291,7 @@ export function normalizePlatformBillingOperationRequest(
     return {
       operation,
       orgId,
-      actorUserId: requireUuid(actorUserId, 'actorUserId'),
+      actorUserId: requireActorUserId(actorUserId),
       reason: requireReason(value.reason, operation),
       amountTwd: normalizeAmount(value.amountTwd, 'amountTwd', true),
       periodStart: null,
@@ -284,7 +306,7 @@ export function normalizePlatformBillingOperationRequest(
   return {
     operation,
     orgId,
-    actorUserId: requireUuid(actorUserId, 'actorUserId'),
+    actorUserId: requireActorUserId(actorUserId),
     reason: requireReason(value.reason, operation),
     amountTwd: null,
     periodStart: null,
@@ -301,10 +323,19 @@ export function normalizePlatformBillingOperationRequest(
 export function buildPlatformBillingOperationRpcArgs(
   input: PlatformBillingOperationInput
 ): Record<string, unknown> {
+  const isLegacyAdmin = input.actorUserId.toLowerCase() === ADMIN_UUID;
+  const metadata = isLegacyAdmin
+    ? {
+        ...input.metadata,
+        actorSubject: 'legacy_admin_session',
+        actorPrincipalId: ADMIN_UUID,
+      }
+    : input.metadata;
+
   return {
     p_operation: input.operation,
     p_org_id: input.orgId,
-    p_actor_user_id: input.actorUserId,
+    p_actor_user_id: isLegacyAdmin ? null : input.actorUserId,
     p_reason: input.reason,
     p_amount_twd: input.amountTwd,
     p_period_start: input.periodStart,
@@ -312,7 +343,7 @@ export function buildPlatformBillingOperationRpcArgs(
     p_effective_at: input.effectiveAt,
     p_idempotency_key: input.idempotencyKey,
     p_invoice_id: input.invoiceId,
-    p_metadata: input.metadata,
+    p_metadata: metadata,
   };
 }
 

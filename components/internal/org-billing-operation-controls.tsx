@@ -26,6 +26,7 @@ interface OrgBillingOperationControlsProps {
   orgName: string;
   status: OrgStatus;
   suggestedAmountTwd?: number | null;
+  canManageBillingOperations: boolean;
 }
 
 interface OperationResponse {
@@ -60,6 +61,12 @@ const OPERATION_COPY: Record<BillingOperation, {
   },
 };
 
+export function resolveMinimumManualPaymentEndDate(now = new Date()): string {
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return tomorrow.toISOString().slice(0, 10);
+}
+
 function resolveErrorMessage(payload: OperationResponse | null): string {
   if (!payload) return '操作失敗，請稍後再試。';
   if (payload.code === 'permission_denied') return '權限不足，無法執行此操作。';
@@ -72,6 +79,7 @@ export function OrgBillingOperationControls({
   orgName,
   status,
   suggestedAmountTwd,
+  canManageBillingOperations,
 }: OrgBillingOperationControlsProps) {
   const router = useRouter();
   const [operation, setOperation] = useState<BillingOperation | null>(null);
@@ -82,10 +90,25 @@ export function OrgBillingOperationControls({
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState<string | null>(null);
+
+  if (!canManageBillingOperations) {
+    return null;
+  }
 
   const currentOperation: BillingOperation | null =
     status === 'cancelled' ? null : status === 'suspended' ? 'resume_org' : 'suspend_org';
   const copy = operation ? OPERATION_COPY[operation] : null;
+
+  function openManualPaymentDialog() {
+    setPaymentIdempotencyKey(`internal-manual-payment-${orgId}-${crypto.randomUUID()}`);
+    setPaymentOpen(true);
+  }
+
+  function closeManualPaymentDialog() {
+    setPaymentOpen(false);
+    setPaymentIdempotencyKey(null);
+  }
 
   async function submitOperation() {
     if (!operation || !copy) return;
@@ -145,6 +168,11 @@ export function OrgBillingOperationControls({
 
     setSubmitting(true);
     try {
+      const idempotencyKey = paymentIdempotencyKey ??
+        `internal-manual-payment-${orgId}-${crypto.randomUUID()}`;
+      if (!paymentIdempotencyKey) {
+        setPaymentIdempotencyKey(idempotencyKey);
+      }
       const response = await fetch('/api/internal/saas/billing/operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,7 +183,7 @@ export function OrgBillingOperationControls({
           periodStart: periodStart ? `${periodStart}T00:00:00.000Z` : null,
           periodEnd: `${periodEnd}T00:00:00.000Z`,
           reason: paymentNote.trim() || null,
-          idempotencyKey: `internal-manual-payment-${orgId}-${crypto.randomUUID()}`,
+          idempotencyKey,
           metadata: {
             source: 'internal_org_detail',
             orgName,
@@ -170,7 +198,7 @@ export function OrgBillingOperationControls({
       }
 
       toast.success('已記錄人工付款並更新服務期間。');
-      setPaymentOpen(false);
+      closeManualPaymentDialog();
       setPeriodStart('');
       setPeriodEnd('');
       setPaymentNote('');
@@ -197,7 +225,7 @@ export function OrgBillingOperationControls({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border bg-neutral-50 p-3">
           <p className="text-xs font-medium text-muted-foreground">日常帳務</p>
-          <Button type="button" variant="outline" className="mt-2 w-full bg-white" onClick={() => setPaymentOpen(true)}>
+          <Button type="button" variant="outline" className="mt-2 w-full bg-white" onClick={openManualPaymentDialog}>
             <Banknote className="size-4" aria-hidden="true" />
             記錄人工付款
           </Button>
@@ -282,7 +310,12 @@ export function OrgBillingOperationControls({
       <Dialog
         open={paymentOpen}
         onOpenChange={(open) => {
-          if (!submitting) setPaymentOpen(open);
+          if (submitting) return;
+          if (open) {
+            setPaymentOpen(true);
+          } else {
+            closeManualPaymentDialog();
+          }
         }}
       >
         <DialogContent className="sm:max-w-lg" showCloseButton={!submitting}>
@@ -322,6 +355,7 @@ export function OrgBillingOperationControls({
                 type="date"
                 value={periodEnd}
                 onChange={(event) => setPeriodEnd(event.target.value)}
+                min={resolveMinimumManualPaymentEndDate()}
                 disabled={submitting}
               />
             </div>
@@ -338,7 +372,7 @@ export function OrgBillingOperationControls({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPaymentOpen(false)} disabled={submitting}>
+            <Button type="button" variant="outline" onClick={closeManualPaymentDialog} disabled={submitting}>
               取消
             </Button>
             <Button type="button" onClick={submitManualPayment} disabled={submitting}>

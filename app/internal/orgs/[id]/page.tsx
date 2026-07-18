@@ -481,6 +481,7 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
               orgName={result.data.organization.name}
               status={result.data.organization.status}
               suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
+              canManageBillingOperations={result.context.permissions.includes('manage_billing_operations')}
             />
           </CardContent>
         </Card>
