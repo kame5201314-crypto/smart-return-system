@@ -9,6 +9,7 @@ const navigationMocks = vi.hoisted(() => ({
 
 const toastMocks = vi.hoisted(() => ({
   error: vi.fn(),
+  info: vi.fn(),
   success: vi.fn(),
 }));
 
@@ -135,6 +136,49 @@ describe('SelfServiceTrialForm', () => {
     expect(toastMocks.error).toHaveBeenCalledWith(
       '請輸入有效的台灣手機號碼，例如 0912345678。'
     );
+  });
+
+  it('does not announce a new three-day trial when an expired claim is reused', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        redirectTo: '/analytics',
+        data: {
+          reused: true,
+          trialEnd: '2000-01-01T00:00:00.000Z',
+        },
+      }),
+    });
+
+    const { container } = render(
+      <SelfServiceTrialForm
+        identityLabel="owner@example.com"
+        identityProvider="google"
+        verifiedEmail="owner@example.com"
+        initialPlan="basic"
+      />
+    );
+
+    fireEvent.change(container.querySelector('#trial-org-name') as HTMLInputElement, {
+      target: { value: 'Existing Store' },
+    });
+    fireEvent.change(container.querySelector('#trial-contact-name') as HTMLInputElement, {
+      target: { value: 'Owner' },
+    });
+    fireEvent.change(container.querySelector('#trial-contact-phone') as HTMLInputElement, {
+      target: { value: '0912345678' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.submit(screen.getByTestId('merchant-profile-form'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(toastMocks.info).toHaveBeenCalledWith(
+      '此帳號的試用已到期，將返回原工作區。'
+    );
+    expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(navigationMocks.replace).toHaveBeenCalledWith('/analytics');
+    expect(navigationMocks.refresh).toHaveBeenCalled();
   });
 
   it('requires LINE ID when LINE is the preferred contact channel', () => {

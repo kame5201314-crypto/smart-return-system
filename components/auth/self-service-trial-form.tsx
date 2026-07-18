@@ -136,6 +136,10 @@ export function SelfServiceTrialForm({
         success?: boolean;
         code?: string;
         redirectTo?: string;
+        data?: {
+          reused?: boolean;
+          trialEnd?: string;
+        };
       };
 
       if (!response.ok || !payload.success) {
@@ -143,7 +147,18 @@ export function SelfServiceTrialForm({
         return;
       }
 
-      toast.success('商家資料已完成，3 天試用工作區已建立。');
+      if (payload.data?.reused) {
+        const trialEnd = payload.data.trialEnd
+          ? new Date(payload.data.trialEnd).getTime()
+          : Number.NaN;
+        if (Number.isFinite(trialEnd) && trialEnd <= Date.now()) {
+          toast.info('此帳號的試用已到期，將返回原工作區。');
+        } else {
+          toast.info('已找到原有試用工作區，將沿用原試用期限。');
+        }
+      } else {
+        toast.success('商家資料已完成，3 天試用工作區已建立。');
+      }
       router.replace(payload.redirectTo || '/analytics');
       router.refresh();
     } catch {

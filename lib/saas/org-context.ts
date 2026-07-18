@@ -13,6 +13,7 @@ import {
   normalizeSaaSSubscriptionStatus,
   type SaaSSubscriptionStatus,
 } from '@/lib/saas/subscription-access';
+import { resolveSaaSSubscriptionTimedStatus } from '@/lib/saas/subscription-lifecycle';
 import { createClient } from '@/lib/supabase/server';
 
 export type SaaSOrgRole = 'owner' | 'admin' | 'staff' | 'viewer';
@@ -26,6 +27,8 @@ export interface SaaSOrgRecord {
   status?: unknown;
   feature_flags?: unknown;
   featureFlags?: unknown;
+  subscriptions?: unknown;
+  trialEnd?: unknown;
 }
 
 export interface SaaSOrgMembershipRecord {
@@ -98,9 +101,10 @@ interface SupabaseOrgQueryError {
 interface SupabaseOrgQueryBuilder {
   select(columns: string): SupabaseOrgQueryBuilder;
   eq(column: string, value: string): SupabaseOrgQueryBuilder;
-  order(column: string, options: { ascending: boolean }): SupabaseOrgQueryBuilder;
-  limit(count: number): SupabaseOrgQueryBuilder;
-  maybeSingle(): Promise<{ data: unknown; error: SupabaseOrgQueryError | null }>;
+  order(column: string, options: { ascending: boolean }): PromiseLike<{
+    data: unknown;
+    error: SupabaseOrgQueryError | null;
+  }>;
 }
 
 interface SupabaseOrgQueryClient {
@@ -161,6 +165,38 @@ function normalizeJoinedOrganization(value: unknown): SaaSOrgRecord | null {
   return isRecord(value) ? (value as SaaSOrgRecord) : null;
 }
 
+function normalizeJoinedTrialEnd(value: unknown): string | null {
+  const subscription = Array.isArray(value) ? value[0] : value;
+  if (!isRecord(subscription)) return null;
+  return stringOrNull(subscription.trial_end ?? subscription.trialEnd);
+}
+
+function resolveMembershipOrgStatus(
+  membership: SaaSOrgMembershipRecord,
+  now?: Date | string | number
+): SaaSOrgStatus {
+  return resolveSaaSSubscriptionTimedStatus({
+    status: membership.organization.status,
+    trialEnd: membership.organization.trialEnd as Date | string | number | null | undefined,
+    now,
+  }).nextStatus;
+}
+
+export function selectPreferredSaaSOrgMembership(
+  value: unknown,
+  now?: Date | string | number
+): SaaSOrgMembershipRecord | null {
+  if (!Array.isArray(value)) return null;
+
+  const memberships = value
+    .map(normalizeMembershipRow)
+    .filter((membership): membership is SaaSOrgMembershipRecord => membership !== null);
+
+  return memberships.find((membership) => (
+    canCreateSaaSData(resolveMembershipOrgStatus(membership, now))
+  )) ?? memberships[0] ?? null;
+}
+
 export function normalizeMembershipRow(row: unknown): SaaSOrgMembershipRecord | null {
   if (!isRecord(row)) {
     return null;
@@ -172,6 +208,7 @@ export function normalizeMembershipRow(row: unknown): SaaSOrgMembershipRecord | 
   if (!organization || !orgId) {
     return null;
   }
+  const trialEnd = normalizeJoinedTrialEnd(organization.subscriptions);
 
   return {
     orgId,
@@ -179,6 +216,7 @@ export function normalizeMembershipRow(row: unknown): SaaSOrgMembershipRecord | 
     organization: {
       ...organization,
       id: stringOrNull(organization.id) ?? orgId,
+      ...(trialEnd !== null ? { trialEnd } : {}),
     },
   };
 }
@@ -188,6 +226,7 @@ export function buildSaaSOrgContext(params: {
   membership: SaaSOrgMembershipRecord;
   isPlatformAdmin?: boolean;
   env?: Record<string, string | undefined>;
+  now?: Date | string | number;
 }): SaaSOrgContext {
   const { userId, membership } = params;
   const organization = membership.organization;
@@ -201,7 +240,7 @@ export function buildSaaSOrgContext(params: {
     orgId: membership.orgId,
     orgName: stringOrNull(organization.name) ?? '',
     orgSlug: stringOrNull(organization.slug),
-    orgStatus: normalizeSaaSOrgStatus(organization.status),
+    orgStatus: resolveMembershipOrgStatus(membership, params.now),
     role: normalizeSaaSOrgRole(membership.role),
     plan,
     planDefinition: getSaaSPlanDefinition(plan),
@@ -272,14 +311,15 @@ export function createSupabaseOrgMembershipRepository(
         injectedClient ?? ((await createClient()) as unknown as SupabaseOrgQueryClient);
       let query = client
         .from('organization_members')
-        .select('org_id, role, organizations!inner(id, name, slug, plan, status, feature_flags)')
-        .eq('user_id', input.userId);
+        .select('org_id, role, status, organizations!inner(id, name, slug, plan, status, feature_flags, subscriptions(trial_end))')
+        .eq('user_id', input.userId)
+        .eq('status', 'active');
 
       if (input.orgId) {
         query = query.eq('org_id', input.orgId);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: true }).limit(1).maybeSingle();
+      const { data, error } = await query.order('created_at', { ascending: true });
       if (error) {
         throw new SaaSOrgContextError(
           'lookup_failed',
@@ -288,7 +328,7 @@ export function createSupabaseOrgMembershipRepository(
         );
       }
 
-      return normalizeMembershipRow(data);
+      return selectPreferredSaaSOrgMembership(data);
     },
   };
 }

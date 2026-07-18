@@ -7,6 +7,7 @@ import {
   normalizeMembershipRow,
   normalizeSaaSOrgRole,
   normalizeSaaSOrgStatus,
+  selectPreferredSaaSOrgMembership,
   SaaSOrgContextError,
   canExportSaaSOrgData,
   canWriteSaaSOrgData,
@@ -134,6 +135,37 @@ describe('SaaS org context', () => {
     expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'past_due' })).toBe(false);
     expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'suspended' })).toBe(false);
     expect(canWriteSaaSOrgData({ ...baseContext, orgStatus: 'cancelled' })).toBe(false);
+  });
+
+  it('treats an expired trial as suspended while leaving an active plan active', () => {
+    const trialMembership: SaaSOrgMembershipRecord = {
+      orgId: 'org-trial',
+      role: 'owner',
+      organization: {
+        id: 'org-trial',
+        plan: 'basic',
+        status: 'trialing',
+        trialEnd: '2026-06-09T00:00:00.000Z',
+      },
+    };
+
+    expect(buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: trialMembership,
+      now: new Date('2026-07-18T00:00:00.000Z'),
+    }).orgStatus).toBe('suspended');
+
+    expect(buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        ...trialMembership,
+        organization: {
+          ...trialMembership.organization,
+          status: 'active',
+        },
+      },
+      now: new Date('2026-07-18T00:00:00.000Z'),
+    }).orgStatus).toBe('active');
   });
 
   it('uses the subscription access policy for export actions', () => {
@@ -376,25 +408,52 @@ describe('SaaS org context', () => {
     expect(normalizeMembershipRow({ org_id: 'org-1', role: 'staff' })).toBeNull();
   });
 
+  it('prefers a usable workspace over an older expired workspace', () => {
+    expect(selectPreferredSaaSOrgMembership([
+      {
+        org_id: 'org-old-trial',
+        role: 'owner',
+        status: 'active',
+        organizations: {
+          id: 'org-old-trial',
+          plan: 'growth',
+          status: 'trialing',
+          subscriptions: [{ trial_end: '2026-06-09T00:00:00.000Z' }],
+        },
+      },
+      {
+        org_id: 'org-active',
+        role: 'staff',
+        status: 'active',
+        organizations: {
+          id: 'org-active',
+          plan: 'basic',
+          status: 'active',
+          subscriptions: [{ trial_end: '2026-01-01T00:00:00.000Z' }],
+        },
+      },
+    ], new Date('2026-07-18T00:00:00.000Z'))?.orgId).toBe('org-active');
+  });
+
   it('wraps the Supabase membership query without using service-role access', async () => {
-    const maybeSingle = vi.fn(async () => ({
-      data: {
+    const order = vi.fn(async () => ({
+      data: [{
         org_id: 'org-1',
         role: 'owner',
+        status: 'active',
         organizations: {
           id: 'org-1',
           plan: 'enterprise',
           status: 'active',
+          subscriptions: [{ trial_end: null }],
         },
-      },
+      }],
       error: null,
     }));
     const query = {
       select: vi.fn(() => query),
       eq: vi.fn(() => query),
-      order: vi.fn(() => query),
-      limit: vi.fn(() => query),
-      maybeSingle,
+      order,
     };
     const client = {
       from: vi.fn(() => query),
@@ -409,21 +468,19 @@ describe('SaaS org context', () => {
     expect(membership?.orgId).toBe('org-1');
     expect(client.from).toHaveBeenCalledWith('organization_members');
     expect(query.select).toHaveBeenCalledWith(
-      'org_id, role, organizations!inner(id, name, slug, plan, status, feature_flags)'
+      'org_id, role, status, organizations!inner(id, name, slug, plan, status, feature_flags, subscriptions(trial_end))'
     );
     expect(query.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(query.eq).toHaveBeenCalledWith('status', 'active');
     expect(query.eq).toHaveBeenCalledWith('org_id', 'org-1');
     expect(query.order).toHaveBeenCalledWith('created_at', { ascending: true });
-    expect(query.limit).toHaveBeenCalledWith(1);
   });
 
   it('raises a typed lookup error when the membership query fails', async () => {
     const query = {
       select: vi.fn(() => query),
       eq: vi.fn(() => query),
-      order: vi.fn(() => query),
-      limit: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({
+      order: vi.fn(async () => ({
         data: null,
         error: { message: 'database unavailable' },
       })),
