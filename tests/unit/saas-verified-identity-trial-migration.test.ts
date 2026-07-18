@@ -8,8 +8,7 @@ const source = fs.readFileSync(
 );
 
 describe('migration 044 verified identity self-service trial', () => {
-  it('is an unapplied SaaS-only draft and preserves the old Google RPC signature', () => {
-    expect(source).toContain('Not applied to any database');
+  it('preserves the immutable SaaS-only migration source and old Google RPC signature', () => {
     expect(source).toContain('Never apply to master/live/internal Supabase');
     expect(source).toContain('CREATE OR REPLACE FUNCTION public.create_google_self_service_trial');
     expect(source).toContain("'google'");
@@ -42,6 +41,8 @@ describe('migration 044 verified identity self-service trial', () => {
   });
 
   it('atomically creates the same trial resources used by quota and expiry protection', () => {
+    expect(source).toContain("NOW() + INTERVAL '3 days'");
+    expect(source).toContain("trial_end_at TIMESTAMPTZ := NOW() + INTERVAL '3 days'");
     expect(source).toContain('INSERT INTO public.organizations');
     expect(source).toContain('INSERT INTO public.organization_members');
     expect(source).toContain('INSERT INTO public.subscriptions');

@@ -71,7 +71,18 @@ function normalizeCandidate(value: unknown): TrialExpiryCandidate | null {
   const subscriptionId = stringOrNull(value.id);
   const orgId = stringOrNull(value.org_id);
   const trialEnd = stringOrNull(value.trial_end);
-  if (!subscriptionId || !orgId || !trialEnd || value.status !== 'trialing') return null;
+  const selfServiceOrg = isRecord(value.self_service_org) ? value.self_service_org : null;
+  const selfServiceClaim = selfServiceOrg && isRecord(selfServiceOrg.self_service_claim)
+    ? selfServiceOrg.self_service_claim
+    : null;
+  const claimedOrgId = selfServiceClaim ? stringOrNull(selfServiceClaim.org_id) : null;
+  if (
+    !subscriptionId ||
+    !orgId ||
+    !trialEnd ||
+    value.status !== 'trialing' ||
+    claimedOrgId !== orgId
+  ) return null;
   return { subscriptionId, orgId, status: 'trialing', trialEnd };
 }
 
@@ -107,7 +118,9 @@ export function createTrialExpiryRepository(client: TrialExpiryClient): TrialExp
     async listExpiredTrials(input) {
       const { data, error } = await client
         .from('subscriptions')
-        .select('id, org_id, status, trial_end')
+        .select(
+          'id, org_id, status, trial_end, self_service_org:organizations!inner(self_service_claim:saas_self_service_trial_claims!inner(org_id))'
+        )
         .eq('status', 'trialing')
         .lte('trial_end', input.now)
         .order('trial_end', { ascending: true })

@@ -64,7 +64,23 @@ describe('scoped SaaS trial expiry worker', () => {
 
   it('queries only expired trialing rows and uses the scoped RPC', async () => {
     const then = vi.fn((resolve) => Promise.resolve(resolve({
-      data: [{ id: subscriptionId, org_id: orgId, status: 'trialing', trial_end: '2026-07-13T00:00:00.000Z' }],
+      data: [
+        {
+          id: subscriptionId,
+          org_id: orgId,
+          status: 'trialing',
+          trial_end: '2026-07-13T00:00:00.000Z',
+          self_service_org: {
+            self_service_claim: { org_id: orgId },
+          },
+        },
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          org_id: '55555555-5555-4555-8555-555555555555',
+          status: 'trialing',
+          trial_end: '2026-06-09T00:00:00.000Z',
+        },
+      ],
       error: null,
     })));
     const query = {
@@ -92,6 +108,9 @@ describe('scoped SaaS trial expiry worker', () => {
 
     expect(query.eq).toHaveBeenCalledWith('status', 'trialing');
     expect(query.lte).toHaveBeenCalledWith('trial_end', '2026-07-14T00:00:00.000Z');
+    expect(query.select).toHaveBeenCalledWith(
+      'id, org_id, status, trial_end, self_service_org:organizations!inner(self_service_claim:saas_self_service_trial_claims!inner(org_id))'
+    );
     expect(client.rpc).toHaveBeenCalledWith('suspend_expired_trial_organization', {
       p_org_id: orgId,
       p_effective_at: '2026-07-14T00:00:00.000Z',
