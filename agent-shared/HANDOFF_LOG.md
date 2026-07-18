@@ -6333,3 +6333,18 @@ The owner subsequently authorized completing the Production rollout:
 - Focused validation passed 75 routing/security tests, lint, typecheck, and a
   21/21 read-only Production smoke. No migration, secret, Supabase setting,
   DNS, Billing, Email provider, or `master` change was made.
+- `3b14d2d` was deployed to Production as
+  `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh`; the stable Vercel alias is Ready and the
+  post-deploy smoke passed 21/21.
+- `bbabdb6 fix(saas): canonicalize legacy admin login links` routes old
+  `/login?next=/internal...` links to the trusted dedicated admin entry before
+  any Auth lookup, preventing host-only admin-session loss after a cross-host
+  redirect. Focused routing tests passed 26/26.
+- `7464050 fix(saas): isolate merchant and admin sessions` makes tenant pages
+  use the merchant Supabase principal even when an independent admin cookie is
+  also present; admin-required routes keep the admin session. Focused auth and
+  org-context tests passed 42/42.
+- `bbabdb6` and `7464050` are pushed but not deployed. Migration `044` is
+  already applied only to SaaS project `auyznbwtjvemyamujmgt`; migrations
+  `040`-`044` must not be rerun. Email delivery, Billing, custom-domain env/DNS,
+  and all other external settings remain unchanged.

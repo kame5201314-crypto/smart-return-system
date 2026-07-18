@@ -16,6 +16,15 @@ host. A future admin-domain cutover still requires verified DNS/Vercel,
 Turnstile hostname allowlisting, env configuration, and smoke testing. No
 migration, secret, provider, Billing, Supabase, DNS, or `master` change was made.
 
+Production deployment `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh` is Ready at
+`https://smart-return-system-saas.vercel.app` and contains repository commit
+`3b14d2d`; post-deploy smoke passed 21/21. Follow-up commits `bbabdb6` and
+`7464050` are pushed but not deployed: they canonicalize legacy
+`/login?next=/internal...` links to the dedicated admin login and prevent a
+coexisting admin cookie from shadowing the merchant Supabase identity on tenant
+pages. Migration `044` is already applied only to SaaS project
+`auyznbwtjvemyamujmgt` and must not be rerun.
+
 ## 2026-07-17 Self-service Trial Single-seat Guard
 
 Status: done
@@ -341,12 +350,13 @@ response plus a short-lived signed HttpOnly proof; legacy admin password login
 now validates Turnstile through server-side Siteverify before password
 comparison. Admin credentials are read at request time, and the regression suite
 no longer reloads the auth module per test. Focused tests, lint, typecheck,
-script validation, SaaS doctor, and agent-boundary passed for each change. These
-commits are not deployed. Migration
-`044` remains unapplied; OTP/recovery flags remain false; no SMTP/SMS/CAPTCHA
+script validation, SaaS doctor, and agent-boundary passed for each change. At
+that historical point, these commits were not deployed and migration `044` was
+still unapplied. OTP/recovery flags remained false; no SMTP/SMS/CAPTCHA
 provider, env/secret, Vercel, Supabase, Billing, DNS, or Production setting was
-changed. Google Production rollout and applied migrations `040`–`043` remain
-complete and unchanged.
+changed. Google Production rollout and applied migrations `040`–`043` remained
+complete and unchanged. The current status at the top of this file supersedes
+this snapshot.
 
 Final repository validation passed: lint, typecheck, script/backend tests,
 104 unit files / 587 tests, 8 UI files / 23 tests, 3 E2E files / 4 tests,
@@ -434,26 +444,19 @@ Notes: Lead capture is independently gated from public signup. Owner-authorized 
 
 ## Current
 
-2026-07-16 auth, dependency, account-registration entry, and registration QA
-work is complete and pushed through `39b8c9f`. All new signup/recovery flags
-remain fail-closed. Draft migration `044` is not applied, no SMTP/SMS/CAPTCHA
-provider or Production env is configured, and no deploy occurred in this work.
-Existing Google Production rollout and applied migrations `040`–`043` remain
-unchanged.
+The current functional changes are complete and pushed through `7464050`. Production is
+Ready on deployment `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh`, aliased to
+`https://smart-return-system-saas.vercel.app`, and runs the attributable
+`3b14d2d` admin-entry separation baseline; post-deploy smoke passed 21/21.
+Follow-up commits `bbabdb6` and `7464050` are not deployed yet.
 
-A 2026-07-16 read-only Vercel inspection shows Ready Production deployment
-`dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`; its metadata does not expose a Git SHA.
-The existing Google self-service signup path is live. Public Production lacks
-the new `dd27745` login entry/copy markers, so that runtime commit is not live;
-`160a3fa` and `39b8c9f` are test-only commits. Runtime `a29f725` / deployment
-`dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` remains the latest historical record with an
-attributable SHA. Google Auth, automatic 3-day trials, single-use trial AI,
-scoped expiry, public lead capture, and platform admin operations remain
-enabled. Legacy public signup, billing, email delivery, and non-Google auth
-providers remain disabled; these flags do not disable the live Google trial.
-The older snapshot below
-is retained only as historical context where it does not conflict with this
-update.
+Google Auth, automatic 3-day trials, single-use trial AI, scoped expiry, public
+lead capture, and platform admin operations remain enabled. Migration `044` was
+applied only to SaaS project `auyznbwtjvemyamujmgt` on 2026-07-17; migrations
+`040`-`044` must not be rerun. Legacy public signup, Billing, Email/Phone OTP,
+recovery, Email delivery, and non-Google providers remain disabled. The older
+snapshot below is retained only as historical context where it does not
+conflict with this update.
 
 ```text
 Owner: none
