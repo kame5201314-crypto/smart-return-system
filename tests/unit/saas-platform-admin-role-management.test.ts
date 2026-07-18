@@ -165,6 +165,8 @@ describe('SaaS platform admin role management', () => {
     await expect(response.json()).resolves.toMatchObject({
       success: true,
       data: {
+        managementReady: true,
+        source: 'database',
         assignments: [
           {
             id: roleAssignmentId,
@@ -174,6 +176,43 @@ describe('SaaS platform admin role management', () => {
       },
     });
     expect(repository.listRoleAssignments).toHaveBeenCalledWith({ limit: 999 });
+  });
+
+  it('falls back to the authenticated runtime role while migration 036 is unavailable', async () => {
+    const repository = createRepository();
+    vi.mocked(repository.listRoleAssignments).mockRejectedValueOnce(
+      new PlatformAdminRoleManagementError(
+        'operation_failed',
+        500,
+        "Could not find the table 'public.platform_admin_roles' in the schema cache"
+      )
+    );
+
+    const response = await handleListPlatformAdminRoles(
+      new NextRequest('http://localhost/api/internal/saas/platform-admins?limit=20'),
+      {
+        requireAccess: async () => platformAdminContext,
+        repository,
+      }
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      success: true,
+      data: {
+        source: 'runtime_access',
+        managementReady: false,
+        assignments: [
+          {
+            id: `runtime:${actorUserId}`,
+            principalType: 'email',
+            principal: platformAdminContext.userEmail,
+            role: 'owner',
+            status: 'active',
+          },
+        ],
+      },
+    });
   });
 
   it('manages a role assignment through the guarded internal route', async () => {
