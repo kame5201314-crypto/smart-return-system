@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { resolveBillingProviderConfig, verifyECPayCheckMacValue } from '@/lib/saas/billing';
 import {
-  createBillingEventsRepository,
-  resolveBillingWebhookState,
-  resolveECPayWebhookEvent,
-  verifyECPayCheckMacValue,
-  type BillingEventsRepository,
-  type BillingEventsQueryClient,
-} from '@/lib/saas/billing';
-import { createUntypedAdminClient } from '@/lib/supabase/admin';
+  createECPayCheckoutRepository,
+  parseECPayPaymentDate,
+  resolveECPayPrepaidAmountTwd,
+  type ECPayCheckoutRepository,
+} from '@/lib/saas/billing-ecpay';
 
 type ECPayWebhookPayload = Record<string, string>;
 
-interface HandlerDependencies {
+export interface ECPayWebhookDependencies {
   env?: Record<string, string | undefined>;
-  repository?: BillingEventsRepository;
+  repository?: ECPayCheckoutRepository;
   verifySignature?: (payload: ECPayWebhookPayload) => boolean | Promise<boolean>;
-  resolveOrgId?: (payload: ECPayWebhookPayload) => string | null | Promise<string | null>;
 }
 
 class BillingWebhookError extends Error {
@@ -30,125 +27,172 @@ class BillingWebhookError extends Error {
   }
 }
 
-function getRepository(deps: HandlerDependencies): BillingEventsRepository {
-  return deps.repository ?? createBillingEventsRepository(
-    createUntypedAdminClient() as unknown as BillingEventsQueryClient
-  );
+function requiredPayloadValue(payload: ECPayWebhookPayload, key: string): string {
+  const value = payload[key]?.trim();
+  if (!value) {
+    throw new BillingWebhookError('invalid_request', 400, `${key} is required.`);
+  }
+  return value;
 }
 
-function parseWebhookPayload(rawBody: string, contentType: string | null): ECPayWebhookPayload {
-  if (contentType?.includes('application/json')) {
-    const parsed = JSON.parse(rawBody) as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(parsed).map(([key, value]) => [key, String(value)])
-    );
+function requiredInteger(payload: ECPayWebhookPayload, key: string): number {
+  const value = requiredPayloadValue(payload, key);
+  if (!/^-?\d+$/.test(value)) {
+    throw new BillingWebhookError('invalid_request', 400, `${key} must be an integer.`);
   }
-
-  const params = new URLSearchParams(rawBody);
-  return Object.fromEntries(params.entries());
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new BillingWebhookError('invalid_request', 400, `${key} is outside the safe range.`);
+  }
+  return parsed;
 }
 
 async function readWebhookPayload(request: NextRequest): Promise<ECPayWebhookPayload> {
-  const rawBody = await request.text();
-  if (!rawBody.trim()) {
-    throw new BillingWebhookError('invalid_request', 400, 'Webhook body is required.');
-  }
-
-  try {
-    return parseWebhookPayload(rawBody, request.headers.get('content-type'));
-  } catch {
-    throw new BillingWebhookError('invalid_request', 400, 'Webhook body is invalid.');
-  }
-}
-
-async function resolveWebhookOrgId(
-  payload: ECPayWebhookPayload,
-  deps: HandlerDependencies
-): Promise<string> {
-  const orgId = (await deps.resolveOrgId?.(payload)) || payload.CustomField1 || payload.org_id;
-  if (!orgId?.trim()) {
+  const contentType = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
+  if (contentType !== 'application/x-www-form-urlencoded') {
     throw new BillingWebhookError(
-      'org_not_resolved',
-      422,
-      'Billing webhook organization could not be resolved.'
+      'unsupported_media_type',
+      415,
+      'ECPay webhook must be form encoded.'
     );
   }
-  return orgId.trim();
+  const rawBody = await request.text();
+  if (!rawBody.trim() || rawBody.length > 64_000) {
+    throw new BillingWebhookError('invalid_request', 400, 'Webhook body is invalid.');
+  }
+  const params = new URLSearchParams(rawBody);
+  const payload: ECPayWebhookPayload = {};
+  for (const key of new Set(params.keys())) {
+    const values = params.getAll(key);
+    if (values.length !== 1) {
+      throw new BillingWebhookError('invalid_request', 400, 'Duplicate webhook fields are invalid.');
+    }
+    payload[key] = values[0] ?? '';
+  }
+  return payload;
+}
+
+function plainAcknowledgement(): NextResponse {
+  return new NextResponse('1|OK', {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
 export async function handleECPayBillingWebhook(
   request: NextRequest,
-  deps: HandlerDependencies = {}
+  deps: ECPayWebhookDependencies = {}
 ) {
   try {
-    const state = resolveBillingWebhookState('ecpay', deps.env);
-
-    if (!state.billingEnabled || !state.providerEnabled) {
-      return NextResponse.json(
-        { success: false, error: 'Billing webhook is disabled.', code: 'billing_disabled' },
-        { status: 404 }
-      );
-    }
-
-    if (!state.config.configured) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'ECPay billing credentials are not configured.',
-          code: 'credentials_missing',
-          missingEnv: state.config.missingEnv,
-        },
-        { status: 503 }
+    const env = deps.env ?? process.env;
+    // New checkout creation is feature-flag gated, but verified callbacks for
+    // already-created orders must continue to drain after the flag is turned
+    // off. Otherwise a customer could be charged while access is never
+    // activated. The webhook still requires complete credentials, a valid
+    // signature, the configured merchant, and a matching server-side order.
+    const config = resolveBillingProviderConfig('ecpay', env);
+    if (!config.configured) {
+      throw new BillingWebhookError(
+        'credentials_missing',
+        503,
+        'ECPay billing credentials are not configured.'
       );
     }
 
     const payload = await readWebhookPayload(request);
     const signatureValid = await (
-      deps.verifySignature?.(payload) ??
-      verifyECPayCheckMacValue(payload, deps.env)
+      deps.verifySignature?.(payload) ?? verifyECPayCheckMacValue(payload, env)
     );
-
     if (!signatureValid) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'ECPay webhook signature verification failed.',
-          code: 'signature_required',
-        },
-        { status: 401 }
+      throw new BillingWebhookError(
+        'signature_required',
+        401,
+        'ECPay webhook signature verification failed.'
       );
     }
 
-    const orgId = await resolveWebhookOrgId(payload, deps);
-    const event = resolveECPayWebhookEvent(payload);
-    const result = await getRepository(deps).recordEvent({
-      orgId,
-      provider: 'ecpay',
-      providerEventId: event.providerEventId,
-      eventType: event.eventType,
+    const merchantId = requiredPayloadValue(payload, 'MerchantID');
+    if (merchantId !== env.ECPAY_MERCHANT_ID?.trim()) {
+      throw new BillingWebhookError('merchant_mismatch', 401, 'ECPay MerchantID does not match.');
+    }
+    const merchantTradeNo = requiredPayloadValue(payload, 'MerchantTradeNo');
+    if (!/^[A-Za-z0-9]{1,20}$/.test(merchantTradeNo)) {
+      throw new BillingWebhookError(
+        'invalid_request',
+        400,
+        'MerchantTradeNo must be 1-20 alphanumeric characters.'
+      );
+    }
+    const tradeAmountTwd = requiredInteger(payload, 'TradeAmt');
+    const rtnCode = requiredInteger(payload, 'RtnCode');
+    const simulatePaidValue = requiredPayloadValue(payload, 'SimulatePaid');
+    if (simulatePaidValue !== '0' && simulatePaidValue !== '1') {
+      throw new BillingWebhookError('invalid_request', 400, 'SimulatePaid must be 0 or 1.');
+    }
+    const simulatePaid = simulatePaidValue === '1';
+    const tradeNo = payload.TradeNo?.trim() || null;
+    if (rtnCode === 1 && !tradeNo) {
+      throw new BillingWebhookError('invalid_request', 400, 'TradeNo is required for payment success.');
+    }
+    const paymentDate = parseECPayPaymentDate(payload.PaymentDate);
+    if (rtnCode === 1 && !paymentDate) {
+      throw new BillingWebhookError('invalid_request', 400, 'PaymentDate is invalid.');
+    }
+
+    const repository = deps.repository ?? createECPayCheckoutRepository();
+    const order = await repository.findOrderByMerchantTradeNo(
+      merchantTradeNo,
+      merchantId,
+      config.mode
+    );
+    if (!order) {
+      throw new BillingWebhookError('order_not_found', 404, 'Payment order was not found.');
+    }
+    const serverAmount = resolveECPayPrepaidAmountTwd(order.plan);
+    if (order.amountTwd !== serverAmount || tradeAmountTwd !== serverAmount) {
+      throw new BillingWebhookError(
+        'amount_mismatch',
+        409,
+        'ECPay amount does not match the server payment order.'
+      );
+    }
+
+    await repository.processNotification({
+      order,
+      providerEventId: [
+        config.mode,
+        merchantId,
+        merchantTradeNo,
+        tradeNo ?? 'no-trade',
+        `rtn${rtnCode}`,
+        `sim${simulatePaid ? 1 : 0}`,
+      ].join(':'),
+      tradeNo,
+      merchantId,
+      tradeAmountTwd,
+      rtnCode,
+      rtnMessage: payload.RtnMsg?.trim() || '',
+      simulatePaid,
+      paymentDate,
       payload,
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        provider: 'ecpay',
-        eventStatus: result.status,
-      },
-      { status: result.status === 'duplicate' ? 200 : 202 }
-    );
+    return plainAcknowledgement();
   } catch (error) {
     if (error instanceof BillingWebhookError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
-        { status: error.status }
+        { status: error.status, headers: { 'Cache-Control': 'no-store' } }
       );
     }
 
     console.error('ECPay billing webhook failed:', error);
     return NextResponse.json(
       { success: false, error: 'ECPay billing webhook failed.', code: 'webhook_failed' },
-      { status: 500 }
+      { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }
 }

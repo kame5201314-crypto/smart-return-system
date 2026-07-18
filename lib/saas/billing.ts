@@ -95,6 +95,15 @@ export function resolveBillingProviderConfig(
 ): BillingProviderConfig {
   const requiredEnv = BILLING_PROVIDER_ENV[provider];
   const missingEnv = requiredEnv.filter((key) => !normalizeEnvValue(env[key]));
+  const modeValue = provider === 'ecpay'
+    ? normalizeEnvValue(env.ECPAY_MODE).toLowerCase()
+    : provider === 'tappay'
+      ? normalizeEnvValue(env.TAPPAY_MODE).toLowerCase()
+      : '';
+  const modeKey = provider === 'ecpay' ? 'ECPAY_MODE' : provider === 'tappay' ? 'TAPPAY_MODE' : null;
+  if (modeKey && modeValue && modeValue !== 'test' && modeValue !== 'production') {
+    missingEnv.push(modeKey);
+  }
   const mode =
     provider === 'ecpay'
       ? normalizeBillingMode(env.ECPAY_MODE)

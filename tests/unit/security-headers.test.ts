@@ -20,7 +20,9 @@ describe('security headers', () => {
     expect(CONTENT_SECURITY_POLICY).toContain("frame-ancestors 'none'");
     expect(CONTENT_SECURITY_POLICY).toContain("object-src 'none'");
     expect(CONTENT_SECURITY_POLICY).toContain("base-uri 'self'");
-    expect(CONTENT_SECURITY_POLICY).toContain("form-action 'self'");
+    expect(CONTENT_SECURITY_POLICY).toContain(
+      "form-action 'self' https://payment-stage.ecpay.com.tw https://payment.ecpay.com.tw"
+    );
     expect(CONTENT_SECURITY_POLICY).toContain(
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://challenges.cloudflare.com"
     );

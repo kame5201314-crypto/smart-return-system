@@ -222,6 +222,7 @@ function checkCommercialFoundation() {
     'lib/saas/onboarding-live-data.ts',
     'lib/saas/onboarding-route.ts',
     'lib/saas/billing.ts',
+    'lib/saas/billing-ecpay.ts',
     'lib/saas/settings-billing-data.ts',
     'lib/saas/settings-team-data.ts',
     'lib/saas/settings-usage-data.ts',
@@ -255,6 +256,8 @@ function checkCommercialFoundation() {
     'app/api/saas/team/invites/[id]/revoke/route.ts',
     'app/api/saas/team/invites/[id]/resend/route.ts',
     'app/api/billing/ecpay/webhook/route.ts',
+    'app/api/billing/ecpay/result/route.ts',
+    'app/api/saas/billing/checkout/route.ts',
     'scripts/saas/check-migration-plan.mjs',
     'scripts/saas/check-saas-schema-readiness.mjs',
     'scripts/saas/check-rollout-readiness.mjs',
@@ -293,6 +296,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/043_saas_google_trial_claims_service_role_read.sql',
     'supabase/migrations/044_saas_verified_identity_self_service_trial.sql',
     'supabase/migrations/045_saas_suspended_org_write_guards.sql',
+    'supabase/migrations/046_saas_self_service_billing.sql',
     'lib/auth/verified-signup.ts',
     'components/auth/verified-signup-form.tsx',
     'lib/saas/lead-capture-service.ts',
@@ -562,6 +566,7 @@ function checkCommercialFoundation() {
       securityHeadersSource.includes('Permissions-Policy') &&
       securityHeadersSource.includes("frame-ancestors 'none'") &&
       securityHeadersSource.includes("object-src 'none'") &&
+      securityHeadersSource.includes("form-action 'self' https://payment-stage.ecpay.com.tw https://payment.ecpay.com.tw") &&
       nextConfigSource.includes('SECURITY_HEADERS') &&
       nextConfigSource.includes('headers()')
     ) {
@@ -1634,14 +1639,17 @@ function checkCommercialFoundation() {
       billingSource.includes('verifyECPayCheckMacValue') &&
       billingSource.includes('provider_event_id') &&
       billingSource.includes("status: input.status ?? 'received'") &&
-      ecpayRouteSource.includes('billing_disabled') &&
+      ecpayRouteSource.includes("resolveBillingProviderConfig('ecpay', env)") &&
       ecpayRouteSource.includes('credentials_missing') &&
       ecpayRouteSource.includes('signature_required') &&
-      ecpayRouteSource.includes('verifyECPayCheckMacValue')
+      ecpayRouteSource.includes('verifyECPayCheckMacValue') &&
+      ecpayRouteSource.includes('findOrderByMerchantTradeNo(') &&
+      ecpayRouteSource.includes('config.mode') &&
+      ecpayRouteSource.includes('return plainAcknowledgement()')
     ) {
-      record('pass', 'SaaS billing webhook foundation', 'ECPay route is disabled by flag and verifies CheckMacValue before recording events');
+      record('pass', 'SaaS billing webhook foundation', 'new checkout is flag-gated while verified existing ECPay orders continue to drain through the credential, signature, merchant, and server-order gates');
     } else {
-      record('fail', 'SaaS billing webhook foundation', 'billing webhook must be flag-gated, credential-gated, and CheckMacValue-gated');
+      record('fail', 'SaaS billing webhook foundation', 'checkout must be flag-gated while verified existing callbacks remain credential, CheckMacValue, merchant, and server-order gated');
     }
   }
 

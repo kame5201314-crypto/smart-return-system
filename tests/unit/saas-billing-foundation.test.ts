@@ -12,9 +12,12 @@ import {
   resolveBillingWebhookState,
   resolveECPayWebhookEvent,
   verifyECPayCheckMacValue,
-  type BillingEventsRepository,
   type BillingEventsQueryClient,
 } from '@/lib/saas/billing';
+import {
+  type ECPayCheckoutRepository,
+  type ECPayPaymentOrder,
+} from '@/lib/saas/billing-ecpay';
 
 const completeECPayEnv = {
   ENABLE_BILLING: 'true',
@@ -63,9 +66,51 @@ function buildWebhookRequest(body: Record<string, string>): NextRequest {
   });
 }
 
-function createRepository(result: 'created' | 'duplicate' = 'created'): BillingEventsRepository {
+const paymentOrder: ECPayPaymentOrder = {
+  id: 'order-1',
+  orgId: 'org-1',
+  actorUserId: 'user-1',
+  provider: 'ecpay',
+  providerMode: 'test',
+  plan: 'basic',
+  amountTwd: 499,
+  merchantId: 'merchant-1',
+  merchantTradeNo: 'SRPAYMENT1',
+  status: 'pending',
+  createdAt: '2026-07-19T00:00:00.000Z',
+};
+
+function createRepository(
+  result: 'processed' | 'duplicate' | 'ignored' | 'failed' = 'processed'
+): ECPayCheckoutRepository {
   return {
-    recordEvent: vi.fn(async () => ({ status: result })),
+    createOrder: vi.fn(async () => paymentOrder),
+    findOrderByMerchantTradeNo: vi.fn(async () => paymentOrder),
+    processNotification: vi.fn(async () => result),
+  };
+}
+
+function buildSignedWebhookPayload(
+  overrides: Partial<Record<string, string>> = {}
+): Record<string, string> {
+  const payload = {
+    MerchantID: completeECPayEnv.ECPAY_MERCHANT_ID,
+    MerchantTradeNo: paymentOrder.merchantTradeNo,
+    TradeAmt: String(paymentOrder.amountTwd),
+    RtnCode: '1',
+    RtnMsg: 'Succeeded',
+    SimulatePaid: '0',
+    TradeNo: 'gateway-trade-1',
+    PaymentDate: '2026/07/19 12:00:00',
+    ...overrides,
+  };
+  return {
+    ...payload,
+    CheckMacValue: buildECPayCheckMacValue({
+      payload,
+      hashKey: completeECPayEnv.ECPAY_HASH_KEY,
+      hashIv: completeECPayEnv.ECPAY_HASH_IV,
+    }),
   };
 }
 
@@ -204,22 +249,25 @@ describe('SaaS billing foundation', () => {
     ).toBe(false);
   });
 
-  it('returns 404 for ECPay webhook when billing is disabled', async () => {
+  it('continues draining verified existing orders after new checkout is disabled', async () => {
     const repository = createRepository();
+    const env = {
+      ...completeECPayEnv,
+      ENABLE_BILLING: 'false',
+      BILLING_PROVIDER: 'stripe',
+    };
+    const payload = buildSignedWebhookPayload();
     const response = await handleECPayBillingWebhook(
-      buildWebhookRequest({ MerchantTradeNo: 'trade-1' }),
+      buildWebhookRequest(payload),
       {
-        env: {},
+        env,
         repository,
       }
     );
 
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({
-      success: false,
-      code: 'billing_disabled',
-    });
-    expect(repository.recordEvent).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('1|OK');
+    expect(repository.processNotification).toHaveBeenCalledTimes(1);
   });
 
   it('returns 503 for ECPay webhook when billing is enabled without credentials', async () => {
@@ -240,7 +288,7 @@ describe('SaaS billing foundation', () => {
       success: false,
       code: 'credentials_missing',
     });
-    expect(repository.recordEvent).not.toHaveBeenCalled();
+    expect(repository.processNotification).not.toHaveBeenCalled();
   });
 
   it('rejects ECPay webhook processing until signature verification passes', async () => {
@@ -258,37 +306,32 @@ describe('SaaS billing foundation', () => {
       success: false,
       code: 'signature_required',
     });
-    expect(repository.recordEvent).not.toHaveBeenCalled();
+    expect(repository.processNotification).not.toHaveBeenCalled();
   });
 
   it('records ECPay webhook events after default CheckMacValue verification passes', async () => {
     const repository = createRepository();
-    const payload = {
-      ...ecpayOfficialChecksumPayload,
-      CheckMacValue: ecpayOfficialCheckMacValue,
-    };
+    const payload = buildSignedWebhookPayload();
     const response = await handleECPayBillingWebhook(
       buildWebhookRequest(payload),
       {
-        env: ecpayOfficialChecksumEnv,
+        env: completeECPayEnv,
         repository,
-        resolveOrgId: () => 'org-1',
       }
     );
 
-    expect(response.status).toBe(202);
-    expect(await response.json()).toMatchObject({
-      success: true,
-      provider: 'ecpay',
-      eventStatus: 'created',
-    });
-    expect(repository.recordEvent).toHaveBeenCalledWith({
-      orgId: 'org-1',
-      provider: 'ecpay',
-      providerEventId: 'ECPay1738978034',
-      eventType: 'ecpay.payment_succeeded',
-      payload,
-    });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('1|OK');
+    expect(response.headers.get('content-type')).toContain('text/plain');
+    expect(repository.processNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: paymentOrder,
+        providerEventId: 'test:merchant-1:SRPAYMENT1:gateway-trade-1:rtn1:sim0',
+        tradeAmountTwd: 499,
+        simulatePaid: false,
+        payload,
+      })
+    );
   });
 
   it('does not record ECPay webhook events when default CheckMacValue verification fails', async () => {
@@ -301,7 +344,6 @@ describe('SaaS billing foundation', () => {
       {
         env: ecpayOfficialChecksumEnv,
         repository,
-        resolveOrgId: () => 'org-1',
       }
     );
 
@@ -310,17 +352,13 @@ describe('SaaS billing foundation', () => {
       success: false,
       code: 'signature_required',
     });
-    expect(repository.recordEvent).not.toHaveBeenCalled();
+    expect(repository.processNotification).not.toHaveBeenCalled();
   });
 
   it('records verified ECPay webhook events through the injected repository', async () => {
     const repository = createRepository();
     const response = await handleECPayBillingWebhook(
-      buildWebhookRequest({
-        MerchantTradeNo: 'trade-1',
-        RtnCode: '1',
-        CustomField1: 'org-1',
-      }),
+      buildWebhookRequest(buildSignedWebhookPayload()),
       {
         env: completeECPayEnv,
         repository,
@@ -328,22 +366,8 @@ describe('SaaS billing foundation', () => {
       }
     );
 
-    expect(response.status).toBe(202);
-    expect(await response.json()).toMatchObject({
-      success: true,
-      provider: 'ecpay',
-      eventStatus: 'created',
-    });
-    expect(repository.recordEvent).toHaveBeenCalledWith({
-      orgId: 'org-1',
-      provider: 'ecpay',
-      providerEventId: 'trade-1',
-      eventType: 'ecpay.payment_succeeded',
-      payload: {
-        MerchantTradeNo: 'trade-1',
-        RtnCode: '1',
-        CustomField1: 'org-1',
-      },
-    });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('1|OK');
+    expect(repository.processNotification).toHaveBeenCalledTimes(1);
   });
 });
