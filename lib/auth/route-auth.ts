@@ -16,18 +16,23 @@ export interface RouteAuthResult {
 export async function requireRouteAuth(options?: { requireAdmin?: boolean }): Promise<RouteAuthResult> {
   const requireAdmin = options?.requireAdmin ?? false;
 
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
-  const adminSession = await verifyAdminSessionToken(adminToken);
+  // The legacy admin cookie and the merchant Supabase session can coexist in
+  // one browser. Only consult the admin cookie for platform-admin routes so it
+  // cannot shadow the merchant identity used by tenant pages and APIs.
+  if (requireAdmin) {
+    const cookieStore = await cookies();
+    const adminToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+    const adminSession = await verifyAdminSessionToken(adminToken);
 
-  if (adminSession) {
-    return {
-      ok: true,
-      status: 200,
-      userId: ADMIN_UUID,
-      userEmail: undefined,
-      isAdmin: true,
-    };
+    if (adminSession) {
+      return {
+        ok: true,
+        status: 200,
+        userId: ADMIN_UUID,
+        userEmail: undefined,
+        isAdmin: true,
+      };
+    }
   }
 
   let userId: string | null = null;

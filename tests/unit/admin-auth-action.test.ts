@@ -48,7 +48,7 @@ vi.mock('@/lib/auth/admin-session', async (importOriginal) => {
 });
 vi.mock('@/lib/supabase/server', () => ({ createClient: supabaseMocks.createClient }));
 
-import { leavePlatformAdmin, signIn } from '@/lib/actions/auth';
+import { getCurrentMerchantUser, leavePlatformAdmin, signIn } from '@/lib/actions/auth';
 
 function configureCaptcha(captchaReady: boolean) {
   vi.stubEnv('SAAS_AUTH_CAPTCHA_READY', captchaReady ? 'true' : 'false');
@@ -185,5 +185,36 @@ describe('legacy admin auth action', () => {
     expect(cookieMocks.delete).toHaveBeenCalledWith('admin_session');
     expect(supabaseMocks.createClient).not.toHaveBeenCalled();
     expect(navigationMocks.redirect).toHaveBeenCalledWith('/analytics');
+  });
+
+  it('loads the merchant identity without consulting a coexisting admin cookie', async () => {
+    const profileQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      single: vi.fn().mockResolvedValue({
+        data: { name: 'Merchant Owner', role: 'owner', org_id: 'org-1' },
+      }),
+    };
+    profileQuery.select.mockReturnValue(profileQuery);
+    profileQuery.eq.mockReturnValue(profileQuery);
+    const getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: 'merchant-user', email: 'merchant@example.test' } },
+      error: null,
+    });
+    supabaseMocks.createClient.mockResolvedValue({
+      auth: { getUser },
+      from: vi.fn().mockReturnValue(profileQuery),
+    });
+    cookieMocks.get.mockReturnValue({ value: 'valid-admin-session' });
+
+    await expect(getCurrentMerchantUser()).resolves.toEqual({
+      id: 'merchant-user',
+      email: 'merchant@example.test',
+      name: 'Merchant Owner',
+      role: 'owner',
+      orgId: 'org-1',
+    });
+    expect(cookieMocks.get).not.toHaveBeenCalled();
+    expect(getUser).toHaveBeenCalledOnce();
   });
 });

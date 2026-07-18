@@ -277,6 +277,10 @@ export async function getCurrentUser() {
     };
   }
 
+  return getCurrentMerchantUser();
+}
+
+export async function getCurrentMerchantUser() {
   const supabase = await createClient();
   const {
     data: { user },

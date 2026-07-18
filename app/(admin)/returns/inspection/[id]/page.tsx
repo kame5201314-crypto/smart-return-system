@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider';
 
 import { getReturnRequestDetail, submitInspection } from '@/lib/actions/return.actions';
-import { getCurrentUser } from '@/lib/actions/auth';
+import { getCurrentMerchantUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import { INSPECTION_GRADES, ERROR_MESSAGES } from '@/config/constants';
 
@@ -94,7 +94,7 @@ export default function InspectionPage() {
       setSubmitting(true);
 
       // Get current user
-      const user = await getCurrentUser();
+      const user = await getCurrentMerchantUser();
       if (!user) {
         toast.error('請先登入');
         return;

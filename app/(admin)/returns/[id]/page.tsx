@@ -54,7 +54,7 @@ import { useWorkspaceAccess } from '@/components/saas/workspace-access-provider'
 import { WORKSPACE_RESTRICTED_ACTION_TITLE } from '@/lib/saas/workspace-action-access';
 
 import { getReturnRequestDetail, updateReturnInfo, submitInspection, deleteReturnRequest } from '@/lib/actions/return.actions';
-import { getCurrentUser } from '@/lib/actions/auth';
+import { getCurrentMerchantUser } from '@/lib/actions/auth';
 import { inspectionSchema, type InspectionInput } from '@/lib/validations/return.schema';
 import {
   RETURN_STATUS_LABELS,
@@ -351,7 +351,7 @@ export default function ReturnDetailPage() {
     if (!canCreateData) return;
     try {
       setSubmittingInspection(true);
-      const user = await getCurrentUser();
+      const user = await getCurrentMerchantUser();
       if (!user) {
         toast.error('請先登入');
         return;
@@ -377,7 +377,7 @@ export default function ReturnDetailPage() {
 
     try {
       setDeleting(true);
-      const user = await getCurrentUser();
+      const user = await getCurrentMerchantUser();
       if (!user) {
         toast.error('請先登入');
         return;

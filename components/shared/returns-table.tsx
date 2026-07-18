@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RETURN_STATUS_LABELS, RETURN_STATUS_COLORS, CHANNEL_LIST } from '@/config/constants';
 import { deleteReturnRequest } from '@/lib/actions/return.actions';
-import { getCurrentUser } from '@/lib/actions/auth';
+import { getCurrentMerchantUser } from '@/lib/actions/auth';
 
 // Helper to get channel label in Chinese
 function getChannelLabel(channelSource: string | null): string {
@@ -98,7 +98,7 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
 
     try {
       setBatchDeleting(true);
-      const user = await getCurrentUser();
+      const user = await getCurrentMerchantUser();
       if (!user) {
         toast.error('請先登入');
         return;
@@ -137,7 +137,7 @@ export function ReturnsTable({ items, sortField, sortDirection, onSort, onRefres
 
     try {
       setDeleting(true);
-      const user = await getCurrentUser();
+      const user = await getCurrentMerchantUser();
       if (!user) {
         toast.error('請先登入');
         return;

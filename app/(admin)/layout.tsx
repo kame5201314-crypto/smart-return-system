@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { getCurrentUser, signOut } from '@/lib/actions/auth';
+import { getCurrentMerchantUser, signOut } from '@/lib/actions/auth';
 
 const navItems = [
   { href: '/analytics', label: '數據中心', icon: BarChart3, exact: true },
@@ -88,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     async function loadUser() {
-      const userData = await getCurrentUser();
+      const userData = await getCurrentMerchantUser();
       setUser(userData);
     }
     loadUser();
