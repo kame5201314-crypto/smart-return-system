@@ -16,6 +16,33 @@ recovery rollout, use
 [`SAAS_VERIFIED_SIGNUP_ROLLOUT.md`](./SAAS_VERIFIED_SIGNUP_ROLLOUT.md) and
 [`SAAS_PASSWORD_RECOVERY_ROLLOUT.md`](./SAAS_PASSWORD_RECOVERY_ROLLOUT.md).
 
+## 2026-07-18 Platform Admin Entry Separation
+
+- `/admin/login` is now a dedicated platform-admin login page. It no longer
+  forwards to the merchant `/login` page.
+- An authenticated merchant who opens `/admin`, `/internal`, or an
+  `/internal/*` route is sent to the dedicated admin login entry instead of
+  being silently returned to `/analytics`. Server-side platform-role checks
+  remain unchanged and still protect every internal operation.
+- The legacy platform-admin cookie is independent from the merchant Supabase
+  session. Leaving the commercial operations console removes only the admin
+  session, so an existing merchant workspace session does not need to sign in
+  again.
+- The repository supports optional trusted canonical origins through
+  `NEXT_PUBLIC_MARKETING_URL`, `NEXT_PUBLIC_APP_URL`, and
+  `NEXT_PUBLIC_ADMIN_URL`. Only the existing app URL remains required. Until a
+  new marketing or admin origin is explicitly configured, runtime behavior
+  remains single-host and backward compatible.
+- Canonical redirects are built only from validated environment origins; the
+  incoming Host header is never used as a redirect destination. Turnstile and
+  same-origin guards accept a separately configured admin origin without
+  weakening their attacker-host rejection.
+- Current customer-facing Production remains
+  `https://smart-return-system-saas.vercel.app`. A distinct admin hostname is
+  not active yet. Activating one still requires verified DNS/Vercel ownership,
+  `NEXT_PUBLIC_ADMIN_URL`, the Cloudflare Turnstile hostname allowlist, and
+  post-cutover smoke tests. Do not set only DNS and skip those dependencies.
+
 ## 2026-07-16 Auth Repository Work Completed
 
 - `6eafe1a`, `efe50ee`, `36e21fd`, `54bbeb7`, `91d1b1c`, `679f067`,

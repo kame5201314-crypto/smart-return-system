@@ -1,5 +1,21 @@
 # Active Work
 
+## 2026-07-18 Platform Admin Login And Surface Separation
+
+Status: repository-complete; split-domain activation pending external DNS
+
+Scope: Keep merchant access in the AI return workspace while providing a
+separate commercial operations login and an optional dedicated admin origin.
+
+Notes: `/admin/login` now renders a platform-admin-only form even when a
+merchant session exists. Merchants remain blocked from `/internal*`, the admin
+cookie can coexist with the merchant Supabase session, and leaving the console
+does not sign the merchant out. Optional marketing/app/admin canonical origins
+are validated before use; unconfigured deployments keep the current single
+host. A future admin-domain cutover still requires verified DNS/Vercel,
+Turnstile hostname allowlisting, env configuration, and smoke testing. No
+migration, secret, provider, Billing, Supabase, DNS, or `master` change was made.
+
 ## 2026-07-17 Self-service Trial Single-seat Guard
 
 Status: done

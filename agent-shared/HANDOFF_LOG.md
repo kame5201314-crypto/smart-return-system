@@ -6313,3 +6313,23 @@ The owner subsequently authorized completing the Production rollout:
   path is live, but Production does not contain the new `dd27745` login
   entry/copy markers. No deploy, migration, env/secret, Supabase/Vercel setting,
   provider, Billing, DNS, or Production mutation was performed.
+
+## 2026-07-18 Merchant And Platform-Admin Login Separation
+
+- `66e95ac fix(saas): separate platform admin login` creates a dedicated
+  `/admin/login` page and keeps it reachable even when the browser already has
+  a merchant Supabase session. Merchant access to `/internal*` remains denied
+  and now receives an explicit platform-admin login entry.
+- `88e855d fix(saas): preserve merchant session when leaving admin` removes
+  only the independent admin cookie when leaving the operations console; it no
+  longer signs out the merchant Supabase session at the same time.
+- `64b4b39 feat(saas): support trusted multi-host entry routing` adds optional,
+  fail-safe marketing/app/admin canonical origins, trusted-host-only redirects,
+  multi-host Turnstile validation, same-origin support, and strict rollout
+  validation. The new optional origins are not enabled in Production.
+- `b7751b8 test(saas): verify dedicated admin entry in smoke` verifies the
+  independent admin copy/actions and safe internal next paths without using
+  administrator credentials.
+- Focused validation passed 75 routing/security tests, lint, typecheck, and a
+  21/21 read-only Production smoke. No migration, secret, Supabase setting,
+  DNS, Billing, Email provider, or `master` change was made.
