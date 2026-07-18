@@ -45,4 +45,15 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain('\'email-signup-unavailable-notice\'');
     expect(source).toMatch(/if \(expectAccountRegistration\) \{\s+await checkAccountRegistration\(\);/);
   });
+
+  it('locks the dedicated platform-admin entry and internal next-path contract', () => {
+    expect(source).toContain("get('/admin/login?next=%2Finternal', { text: true })");
+    expect(source).toContain("text.includes('平台管理後台登入')");
+    expect(source).toContain("text.includes('商家請改用一般登入入口')");
+    expect(source).toContain("!text.includes('使用 Google 繼續')");
+    expect(source).toContain("!text.includes('建立帳號')");
+    expect(source).toContain("expectRedirect('/internal/orgs'");
+    expect(source).toContain('/\\/admin\\/login\\?next=%2Finternal%2Forgs/');
+    expect(source).not.toContain('|\\/login\\?next=%2Finternal');
+  });
 });

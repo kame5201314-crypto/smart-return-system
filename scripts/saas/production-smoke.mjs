@@ -210,6 +210,31 @@ async function checkAccountRegistration() {
   }
 }
 
+async function checkPlatformAdminEntry() {
+  try {
+    const { response, text } = await get('/admin/login?next=%2Finternal', { text: true });
+    if (response.status !== 200) {
+      record('fail', '/admin/login dedicated content', `expected 200, got ${response.status}`);
+      return;
+    }
+
+    record(
+      text.includes('平台管理後台登入') && text.includes('商家請改用一般登入入口')
+        ? 'pass'
+        : 'fail',
+      '/admin/login has dedicated platform-admin copy'
+    );
+    record(
+      !text.includes('使用 Google 繼續') && !text.includes('建立帳號')
+        ? 'pass'
+        : 'fail',
+      '/admin/login omits merchant Google and registration actions'
+    );
+  } catch (error) {
+    record('fail', '/admin/login dedicated content', error.message);
+  }
+}
+
 async function main() {
   console.log(
     `[saas-production-smoke] baseUrl=${baseUrl} timeoutMs=${requestTimeoutMs} `
@@ -229,6 +254,7 @@ async function main() {
   }
 
   await checkPricing();
+  await checkPlatformAdminEntry();
   if (expectAccountRegistration) {
     await checkAccountRegistration();
   }
@@ -238,7 +264,8 @@ async function main() {
   }
 
   await expectRedirect('/internal', /\/admin\/login\?next=%2Finternal/);
-  await expectRedirect('/admin', /\/admin\/login\?next=%2Finternal|\/login\?next=%2Finternal/);
+  await expectRedirect('/internal/orgs', /\/admin\/login\?next=%2Finternal%2Forgs/);
+  await expectRedirect('/admin', /\/admin\/login\?next=%2Finternal/);
   await expectRedirect('/reset-password', /\/login(?:\?|$)/);
 
   let failed = 0;
