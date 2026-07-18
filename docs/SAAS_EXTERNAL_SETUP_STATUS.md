@@ -300,7 +300,11 @@ for the controlled customer handoff and first-session walkthrough.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
 - `npm run saas:migration-plan:strict` passes and the local migration chain now
-  ends at `044_saas_verified_identity_self_service_trial.sql`.
+  ends at the unapplied draft `045_saas_suspended_org_write_guards.sql`.
+  Migration `045` closes stale-session RLS writes for disabled members,
+  suspended organizations, and expired trials. It has not been applied and
+  requires a separate SaaS-project-only rollout authorization; never rerun
+  the already-applied migrations `040`–`044`.
 - `npm run saas:schema-gate:strict` passes after owner-authorized migrations
   `033`, `037`-`044` apply; never rerun `040`-`044`.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
