@@ -251,6 +251,17 @@ export async function signOut(): Promise<void> {
   redirect('/login');
 }
 
+export async function leavePlatformAdmin(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(ADMIN_SESSION_COOKIE);
+
+  // The legacy platform-admin session is intentionally independent from the
+  // merchant Supabase session. Removing only this cookie lets an operator
+  // return to an already signed-in merchant workspace without signing in again.
+  revalidatePath('/', 'layout');
+  redirect('/analytics');
+}
+
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const adminToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;

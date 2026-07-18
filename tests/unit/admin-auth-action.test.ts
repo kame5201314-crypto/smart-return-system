@@ -21,13 +21,15 @@ const turnstileMocks = vi.hoisted(() => ({
   localBypass: vi.fn(),
 }));
 const adminSessionMocks = vi.hoisted(() => ({ create: vi.fn() }));
+const navigationMocks = vi.hoisted(() => ({ redirect: vi.fn() }));
+const supabaseMocks = vi.hoisted(() => ({ createClient: vi.fn() }));
 
 vi.mock('next/headers', () => ({
   headers: async () => headerMocks.headers,
   cookies: async () => cookieMocks,
 }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-vi.mock('next/navigation', () => ({ redirect: vi.fn() }));
+vi.mock('next/navigation', () => ({ redirect: navigationMocks.redirect }));
 vi.mock('@/lib/auth/admin-login-rate-limit', () => ({
   buildAdminLoginRateLimitKey: ({ loginId, clientIp }: { loginId: string; clientIp: string }) =>
     `${loginId}:${clientIp}`,
@@ -44,9 +46,9 @@ vi.mock('@/lib/auth/admin-session', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/auth/admin-session')>();
   return { ...original, createAdminSessionToken: adminSessionMocks.create };
 });
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/server', () => ({ createClient: supabaseMocks.createClient }));
 
-import { signIn } from '@/lib/actions/auth';
+import { leavePlatformAdmin, signIn } from '@/lib/actions/auth';
 
 function configureCaptcha(captchaReady: boolean) {
   vi.stubEnv('SAAS_AUTH_CAPTCHA_READY', captchaReady ? 'true' : 'false');
@@ -175,5 +177,13 @@ describe('legacy admin auth action', () => {
       error: '管理員帳號或密碼錯誤',
     });
     expect(rateLimitMocks.failure).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the platform console without signing out the merchant Supabase session', async () => {
+    await leavePlatformAdmin();
+
+    expect(cookieMocks.delete).toHaveBeenCalledWith('admin_session');
+    expect(supabaseMocks.createClient).not.toHaveBeenCalled();
+    expect(navigationMocks.redirect).toHaveBeenCalledWith('/analytics');
   });
 });

@@ -4,7 +4,7 @@ import { LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InternalNavLink } from '@/components/internal/nav-link';
 import { InternalMobileNav } from '@/components/internal/mobile-nav';
-import { signOut } from '@/lib/actions/auth';
+import { leavePlatformAdmin } from '@/lib/actions/auth';
 import { resolvePlatformAdminFeatureFlags } from '@/lib/saas/platform-admin';
 
 const internalNav = [
@@ -53,10 +53,10 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
               </p>
             </div>
           </div>
-          <form action={signOut}>
+          <form action={leavePlatformAdmin}>
             <Button type="submit" variant="outline" size="sm">
               <LogOut className="size-4" />
-              登出並切換至商家帳號
+              離開管理後台
             </Button>
           </form>
         </div>
