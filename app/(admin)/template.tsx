@@ -4,22 +4,27 @@ import { PlatformAdminModeIndicator } from '@/components/saas/platform-admin-mod
 import { TenantPreviewBanner } from '@/components/saas/tenant-preview-banner';
 import { WorkspaceAccessBanner } from '@/components/saas/workspace-access-banner';
 import { WorkspaceAccessProvider } from '@/components/saas/workspace-access-provider';
+import { requireRouteAuth } from '@/lib/auth/route-auth';
 import { getOrgContext } from '@/lib/saas/org-context';
 import { loadPlatformTenantPreviewMode } from '@/lib/saas/platform-tenant-preview';
 import {
   buildWorkspaceActionAccess,
   enforceWorkspaceReadOnly,
-  UNRESTRICTED_WORKSPACE_ACTION_ACCESS,
   type WorkspaceActionAccess,
 } from '@/lib/saas/workspace-action-access';
+import { resolveWorkspaceActionAccess } from '@/lib/saas/workspace-action-access-fallback';
 
 async function loadWorkspaceActionAccess(): Promise<WorkspaceActionAccess> {
-  try {
-    const context = await getOrgContext();
-    return buildWorkspaceActionAccess(context.orgStatus);
-  } catch {
-    return UNRESTRICTED_WORKSPACE_ACTION_ACCESS;
-  }
+  return resolveWorkspaceActionAccess({
+    loadTenantAccess: async () => {
+      const context = await getOrgContext();
+      return buildWorkspaceActionAccess(context.orgStatus);
+    },
+    verifyPlatformAdmin: async () => {
+      const auth = await requireRouteAuth({ requireAdmin: true });
+      return auth.ok && auth.isAdmin;
+    },
+  });
 }
 
 export default async function AdminTemplate({ children }: { children: ReactNode }) {

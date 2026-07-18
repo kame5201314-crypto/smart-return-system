@@ -16,6 +16,7 @@ import {
   assertSelfServiceTrialReturnCapacity,
   SelfServiceTrialReturnLimitError,
 } from '@/lib/saas/self-service-trial-return-limits';
+import { resolveCustomerReturnWorkspaceAccess } from '@/lib/saas/customer-return-workspace-access';
 
 const customerReturnSchema = z.object({
   channelSource: z.string().min(1, '請選擇購買通路').max(50),
@@ -59,6 +60,20 @@ function toRecord(value: unknown): Record<string, unknown> {
     return value as Record<string, unknown>;
   }
   return {};
+}
+
+function readJoinedSubscriptionAccess(value: unknown): {
+  status: unknown;
+  trialEnd: unknown;
+} | null {
+  const subscription = Array.isArray(value) ? value[0] : value;
+  if (!subscription || typeof subscription !== 'object') {
+    return null;
+  }
+  return {
+    status: 'status' in subscription ? subscription.status : null,
+    trialEnd: 'trial_end' in subscription ? subscription.trial_end : null,
+  };
 }
 
 function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
@@ -293,18 +308,40 @@ export async function submitCustomerReturn(
 
     const { data: organization, error: organizationError } = await adminClient
       .from('organizations')
-      .select('status')
+      .select('status, subscriptions(status, trial_end)')
       .eq('id', orgId)
-      .single() as { data: { status: string } | null; error: Error | null };
+      .single() as {
+        data: { status: string; subscriptions?: unknown } | null;
+        error: Error | null;
+      };
     if (organizationError || !organization) {
-      return { success: false, error: '目前無法確認試用額度，請稍後再試' };
+      return { success: false, error: '目前無法確認工作區權限，請稍後再試' };
+    }
+
+    const subscriptionAccess = readJoinedSubscriptionAccess(organization.subscriptions);
+    const workspaceAccess = resolveCustomerReturnWorkspaceAccess({
+      orgStatus: organization.status,
+      subscriptionStatus: subscriptionAccess?.status,
+      trialEnd: subscriptionAccess?.trialEnd,
+    });
+    if (!workspaceAccess.canCreate) {
+      if (
+        workspaceAccess.reason === 'trial_expiry_unavailable'
+        || workspaceAccess.reason === 'subscription_status_mismatch'
+      ) {
+        return { success: false, error: '目前無法確認工作區權限，請稍後再試' };
+      }
+      return {
+        success: false,
+        error: '此商家的退貨工作區目前為唯讀，暫時無法新增退貨，請聯絡商家。',
+      };
     }
 
     const untypedAdminClient = createUntypedAdminClient();
     try {
       await assertSelfServiceTrialReturnCapacity({
         orgId,
-        orgStatus: organization.status,
+        orgStatus: workspaceAccess.effectiveStatus,
         additionalReturns: 1,
         repository: {
           async hasSelfServiceTrialClaim(scopedOrgId) {
