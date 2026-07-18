@@ -44,19 +44,19 @@ const OPERATION_COPY: Record<BillingOperation, {
   placeholder: string;
 }> = {
   suspend_org: {
-    title: '暫停租戶',
-    description: '暫停後，此租戶將無法新增退貨、執行 AI 分析或匯出資料，但仍可查看既有資料。',
-    buttonLabel: '暫停租戶',
-    confirmLabel: '確認暫停',
-    successMessage: '已暫停租戶',
-    placeholder: '例：試用到期未續約，先暫停服務並等待客戶回覆。',
+    title: '停權租戶',
+    description: '停權後，租戶會立即轉為唯讀，客戶仍可登入查看既有資料。',
+    buttonLabel: '停權租戶',
+    confirmLabel: '確認停權',
+    successMessage: '租戶已停權（唯讀）',
+    placeholder: '例：試用到期未續約，先停權並等待客戶回覆。',
   },
   resume_org: {
-    title: '恢復租戶',
+    title: '恢復使用權限',
     description: '恢復後，此租戶會回到使用中狀態，可重新新增退貨、執行 AI 分析與匯出資料。',
-    buttonLabel: '恢復租戶',
+    buttonLabel: '恢復使用權限',
     confirmLabel: '確認恢復',
-    successMessage: '已恢復租戶',
+    successMessage: '已恢復租戶使用權限',
     placeholder: '例：已確認續約或補款，恢復服務。',
   },
 };
@@ -84,6 +84,7 @@ export function OrgBillingOperationControls({
   const router = useRouter();
   const [operation, setOperation] = useState<BillingOperation | null>(null);
   const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [amountTwd, setAmountTwd] = useState(suggestedAmountTwd ? String(suggestedAmountTwd) : '');
@@ -114,9 +115,10 @@ export function OrgBillingOperationControls({
     if (!operation || !copy) return;
     const normalizedReason = reason.trim();
     if (normalizedReason.length < 4) {
-      toast.error('請填寫清楚的操作原因，至少 4 個字。');
+      setReasonError('請填寫清楚的操作原因，至少 4 個字。');
       return;
     }
+    setReasonError(null);
 
     setSubmitting(true);
     try {
@@ -143,6 +145,7 @@ export function OrgBillingOperationControls({
       toast.success(copy.successMessage);
       setOperation(null);
       setReason('');
+      setReasonError(null);
       router.refresh();
     } catch {
       toast.error('操作失敗，請稍後再試。');
@@ -212,9 +215,13 @@ export function OrgBillingOperationControls({
 
   if (!currentOperation) {
     return (
-      <p className="text-xs text-muted-foreground">
-        此租戶已取消；恢復前請先確認資料保留與帳務處理方式。
-      </p>
+      <div className="rounded-md border bg-neutral-50 p-3">
+        <p className="text-xs font-medium text-muted-foreground">存取權限</p>
+        <p className="mt-2 text-sm font-medium">租戶已取消</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          恢復前請先確認資料保留與帳務處理方式。
+        </p>
+      </div>
     );
   }
 
@@ -222,35 +229,34 @@ export function OrgBillingOperationControls({
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-md border bg-neutral-50 p-3">
-          <p className="text-xs font-medium text-muted-foreground">日常帳務</p>
-          <Button type="button" variant="outline" className="mt-2 w-full bg-white" onClick={openManualPaymentDialog}>
-            <Banknote className="size-4" aria-hidden="true" />
-            記錄人工付款
-          </Button>
-        </div>
-        <div className={currentOperation === 'suspend_org' ? 'rounded-md border border-red-200 bg-red-50 p-3' : 'rounded-md border border-emerald-200 bg-emerald-50 p-3'}>
-          <p className={currentOperation === 'suspend_org' ? 'text-xs font-medium text-red-800' : 'text-xs font-medium text-emerald-800'}>
-            租戶狀態操作
-          </p>
-          <Button
-            type="button"
-            className="mt-2 w-full"
-            variant={currentOperation === 'suspend_org' ? 'destructive' : 'default'}
-            onClick={() => {
-              setReason('');
-              setOperation(currentOperation);
-            }}
-          >
-            {currentOperation === 'suspend_org' ? (
-              <PauseCircle className="size-4" aria-hidden="true" />
-            ) : (
-              <PlayCircle className="size-4" aria-hidden="true" />
-            )}
-            {currentCopy.buttonLabel}
-          </Button>
-        </div>
+      <div className="rounded-md border bg-neutral-50 p-3">
+        <p className="text-xs font-medium text-muted-foreground">帳務續約</p>
+        <Button type="button" variant="outline" className="mt-2 w-full bg-white" onClick={openManualPaymentDialog}>
+          <Banknote className="size-4" aria-hidden="true" />
+          記錄人工付款
+        </Button>
+      </div>
+      <div className={currentOperation === 'suspend_org' ? 'rounded-md border border-red-200 bg-red-50 p-3' : 'rounded-md border border-emerald-200 bg-emerald-50 p-3'}>
+        <p className={currentOperation === 'suspend_org' ? 'text-xs font-medium text-red-800' : 'text-xs font-medium text-emerald-800'}>
+          存取權限
+        </p>
+        <Button
+          type="button"
+          className="mt-2 w-full"
+          variant={currentOperation === 'suspend_org' ? 'destructive' : 'default'}
+          onClick={() => {
+            setReason('');
+            setReasonError(null);
+            setOperation(currentOperation);
+          }}
+        >
+          {currentOperation === 'suspend_org' ? (
+            <PauseCircle className="size-4" aria-hidden="true" />
+          ) : (
+            <PlayCircle className="size-4" aria-hidden="true" />
+          )}
+          {currentCopy.buttonLabel}
+        </Button>
       </div>
 
       <Dialog
@@ -260,6 +266,7 @@ export function OrgBillingOperationControls({
           if (!open) {
             setOperation(null);
             setReason('');
+            setReasonError(null);
           }
         }}
       >
@@ -268,19 +275,47 @@ export function OrgBillingOperationControls({
             <DialogTitle>{copy?.title}</DialogTitle>
             <DialogDescription>{copy?.description}</DialogDescription>
           </DialogHeader>
+          <div className={operation === 'suspend_org'
+            ? 'rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900'
+            : 'rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900'}>
+            <p className="font-medium">{operation === 'suspend_org' ? '停權後的影響' : '恢復後的影響'}</p>
+            {operation === 'suspend_org' ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5">
+                <li>客戶仍可登入並查看既有資料。</li>
+                <li>禁止新增、匯入、匯出與 AI 分析。</li>
+                <li>既有客戶資料不會刪除。</li>
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs leading-5">
+                客戶可重新新增與匯入退貨資料、匯出資料，並在方案額度內使用 AI 分析。
+              </p>
+            )}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="billing-operation-reason">操作原因</Label>
             <Textarea
               id="billing-operation-reason"
               value={reason}
-              onChange={(event) => setReason(event.target.value)}
+              onChange={(event) => {
+                const nextReason = event.target.value;
+                setReason(nextReason);
+                if (nextReason.trim().length >= 4) setReasonError(null);
+              }}
               placeholder={copy?.placeholder}
               disabled={submitting}
+              aria-invalid={reasonError ? true : undefined}
+              aria-describedby={reasonError ? 'billing-operation-reason-error' : 'billing-operation-reason-help'}
               rows={4}
             />
-            <p className="text-xs text-muted-foreground">
-              原因會寫入 audit log，供後續追蹤與客戶溝通使用。
-            </p>
+            {reasonError ? (
+              <p id="billing-operation-reason-error" className="text-xs font-medium text-red-700" role="alert">
+                {reasonError}
+              </p>
+            ) : (
+              <p id="billing-operation-reason-help" className="text-xs text-muted-foreground">
+                原因會寫入操作紀錄，供後續追蹤與客戶溝通使用。
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -289,6 +324,7 @@ export function OrgBillingOperationControls({
               onClick={() => {
                 setOperation(null);
                 setReason('');
+                setReasonError(null);
               }}
               disabled={submitting}
             >

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, AlertTriangle, ArrowLeft, FileClock, Flag, ReceiptText, UsersRound } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, ChevronDown, FileClock, Flag, ReceiptText, UsersRound } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -112,6 +112,33 @@ const NOTE_TYPE_LABEL: Record<string, string> = {
   internal: '內部備註',
 };
 
+function formatProvisioningSource(
+  source: PlatformOrganizationDetailView['organization']['provisioningSource']
+): string {
+  if (source === 'google_self_service') return 'Google 註冊';
+  if (source === 'email_otp_self_service') return '信箱註冊';
+  if (source === 'phone_otp_self_service') return '手機註冊';
+  return '人工開通';
+}
+
+function formatOrganizationStatus(
+  org: PlatformOrganizationDetailView['organization']
+): string {
+  const trialExpired =
+    org.status === 'trialing' && org.daysUntilTrialEnd !== null && org.daysUntilTrialEnd <= 0;
+  if (org.status === 'trialing' && org.daysUntilTrialEnd !== null) {
+    return trialExpired ? '試用已到期' : `試用中（剩 ${org.daysUntilTrialEnd} 天）`;
+  }
+  return PLATFORM_ORG_STATUS_LABEL[org.status];
+}
+
+function statusBadgeClass(status: PlatformOrganizationDetailView['organization']['status']): string {
+  if (status === 'suspended') return 'border-red-200 bg-red-50 text-red-800 hover:bg-red-50';
+  if (status === 'past_due') return 'border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-50';
+  if (status === 'active') return 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50';
+  return 'border-neutral-200 bg-white text-neutral-700 hover:bg-white';
+}
+
 function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const org = data.organization;
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
@@ -122,35 +149,17 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   // 與租戶清單同一套「需關注」定義：帳務/額度風險或試用已到期。
   const needsAttention = org.health.riskLevel === 'at_risk' || trialExpired;
 
-  const statusValue =
-    org.status === 'trialing' && org.daysUntilTrialEnd !== null
-      ? trialExpired
-        ? '試用已到期'
-        : `試用中（剩 ${org.daysUntilTrialEnd} 天）`
-      : PLATFORM_ORG_STATUS_LABEL[org.status];
-
   const summaryCards = [
-    ['方案', plan.name],
-    ['狀態', statusValue],
-    ['擁有者', org.ownerEmail ?? '—'],
     ['預估月營收', formatTwd(org.health.estimatedMrrTwd)],
+    ['試用到期', org.trialEnd ? formatDate(org.trialEnd) : '—'],
+    ['本月退貨', `${org.usage.returnsThisMonth.toLocaleString('zh-TW')} 筆`],
+    ['本月 AI', `${org.usage.aiUsedThisMonth.toLocaleString('zh-TW')} 次`],
   ] as const;
 
-  const provisioningSourceLabel = org.provisioningSource === 'google_self_service'
-    ? 'Google 自助試用'
-    : org.provisioningSource === 'email_otp_self_service'
-      ? '信箱驗證自助試用'
-      : org.provisioningSource === 'phone_otp_self_service'
-        ? '手機驗證自助試用'
-        : '人工開通';
-
   const billingRows = [
-    ['開通來源', provisioningSourceLabel],
-    ['試用到期日', org.trialEnd ? formatDate(org.trialEnd) : '—'],
-    ['試用 AI', formatSelfServiceTrialAI(org.selfServiceTrialAI)],
     ['帳務 Email', org.billingEmail ?? '—'],
     ['統一編號', org.taxId ?? '—'],
-    ['方案', plan.name],
+    ['試用 AI', formatSelfServiceTrialAI(org.selfServiceTrialAI)],
     ['建立日期', formatDate(org.createdAt)],
   ] as const;
 
@@ -291,9 +300,9 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UsersRound className="size-5 text-emerald-700" aria-hidden="true" />
-              成員與權限
+              成員資訊
             </CardTitle>
-            <CardDescription>組織內所有成員與其角色。</CardDescription>
+            <CardDescription>查看組織內成員、角色與目前狀態。</CardDescription>
           </CardHeader>
           <CardContent>
             {data.members.length === 0 ? (
@@ -347,15 +356,20 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Flag className="size-5 text-emerald-700" aria-hidden="true" />
-              功能開關
-            </CardTitle>
-            <CardDescription>此租戶目前開啟的功能。</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <details className="group h-fit rounded-lg border bg-white shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+            <span>
+              <span className="flex items-center gap-2 font-semibold">
+                <Flag className="size-5 text-emerald-700" aria-hidden="true" />
+                進階功能資訊
+              </span>
+              <span className="mt-1 block text-sm text-muted-foreground">
+                技術支援需要時再展開查看功能開關。
+              </span>
+            </span>
+            <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="border-t px-6 py-5">
             {featureFlags.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">尚未設定功能開關。</p>
             ) : (
@@ -372,8 +386,8 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                 </TableBody>
               </Table>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </details>
 
         <Card className="rounded-lg">
           <CardHeader>
@@ -431,6 +445,8 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
   const result = await loadPlatformOrganizationDetailView(id);
   redirectUnauthenticatedPlatformAdminResult(result, `/internal/orgs/${id}`);
   const title = result.state === 'ready' ? result.data.organization.name : '租戶詳情';
+  const readyOrg = result.state === 'ready' ? result.data.organization : null;
+  const readyPlan = readyOrg ? SAAS_PLAN_DEFINITIONS[readyOrg.plan] : null;
 
   return (
     <div className="space-y-6">
@@ -442,10 +458,24 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
               返回租戶清單
             </Link>
           </Button>
-          <h2 className="text-2xl font-semibold">{title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            此租戶的方案、訂閱、用量與健康度概況。
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-semibold">{title}</h2>
+            {readyOrg ? (
+              <Badge variant="outline" className={statusBadgeClass(readyOrg.status)}>
+                {formatOrganizationStatus(readyOrg)}
+              </Badge>
+            ) : null}
+            {readyPlan ? <Badge variant="outline">{readyPlan.name}</Badge> : null}
+          </div>
+          {readyOrg ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {readyOrg.ownerEmail ?? '未提供帳號信箱'} · {formatProvisioningSource(readyOrg.provisioningSource)}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              此租戶的方案、訂閱、用量與健康度概況。
+            </p>
+          )}
         </div>
       </div>
 
@@ -453,9 +483,9 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>租戶操作</CardTitle>
-            <CardDescription>依風險分級執行唯讀查看、營運紀錄、帳務與租戶狀態操作。</CardDescription>
+            <CardDescription>預覽、跟進、帳務與存取權限集中在同一處。</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 xl:grid-cols-[0.8fr_0.8fr_1.4fr]">
+          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-md border bg-neutral-50 p-3">
               <p className="text-xs font-medium text-muted-foreground">主要操作</p>
               <div className="mt-2">

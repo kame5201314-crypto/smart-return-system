@@ -49,11 +49,37 @@ const data: PlatformOrganizationListView = {
       plan: 'growth',
       status: 'active',
       ownerEmail: 'healthy@example.com',
+      provisioningSource: 'google_self_service',
       health: {
         ...baseOrg.health,
         riskLevel: 'healthy',
         riskReasons: [],
         estimatedMrrTwd: 699,
+      },
+    },
+  ],
+};
+
+const dataWithSuspended: PlatformOrganizationListView = {
+  summary: {
+    ...data.summary,
+    totalOrganizations: 3,
+    pausedOrPastDueOrganizations: 2,
+    atRiskOrganizations: 2,
+  },
+  organizations: [
+    ...data.organizations,
+    {
+      ...baseOrg,
+      id: 'org-suspended',
+      name: '已停權品牌',
+      slug: 'suspended-brand',
+      status: 'suspended',
+      ownerEmail: 'suspended@example.com',
+      provisioningSource: 'email_otp_self_service',
+      health: {
+        ...baseOrg.health,
+        riskReasons: ['suspended'],
       },
     },
   ],
@@ -70,7 +96,8 @@ describe('PlatformOrganizationsExplorer', () => {
     expect(screen.getByText('顯示 1 / 2 個租戶')).toBeInTheDocument();
     expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
     expect(screen.getAllByText('健康品牌').length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: '查看租戶：健康品牌' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Google 註冊').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: '管理租戶：健康品牌' }).length).toBeGreaterThan(0);
   });
 
   it('filters the list to tenants that need attention', () => {
@@ -81,5 +108,17 @@ describe('PlatformOrganizationsExplorer', () => {
     expect(screen.getByText('顯示 1 / 2 個租戶')).toBeInTheDocument();
     expect(screen.getAllByText('待補款品牌').length).toBeGreaterThan(0);
     expect(screen.queryByText('健康品牌')).not.toBeInTheDocument();
+  });
+
+  it('separates past-due tenants from suspended read-only tenants', () => {
+    render(<PlatformOrganizationsExplorer data={dataWithSuspended} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '已停權 1' }));
+
+    expect(screen.getByText('顯示 1 / 3 個租戶')).toBeInTheDocument();
+    expect(screen.getAllByText('已停權品牌').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('已停權（唯讀）').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('信箱註冊').length).toBeGreaterThan(0);
+    expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
   });
 });

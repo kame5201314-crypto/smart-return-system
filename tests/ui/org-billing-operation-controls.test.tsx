@@ -39,6 +39,91 @@ describe('OrgBillingOperationControls', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  it('explains the read-only impact and suspends a tenant with an inline reason error', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <OrgBillingOperationControls
+        orgId="11111111-1111-4111-8111-111111111111"
+        orgName="待停權租戶"
+        status="active"
+        suggestedAmountTwd={699}
+        canManageBillingOperations
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '停權租戶' }));
+    expect(screen.getByText('停權後的影響')).toBeInTheDocument();
+    expect(screen.getByText('客戶仍可登入並查看既有資料。')).toBeInTheDocument();
+    expect(screen.getByText('禁止新增、匯入、匯出與 AI 分析。')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '確認停權' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('至少 4 個字');
+    expect(screen.getByLabelText('操作原因')).toHaveAttribute('aria-invalid', 'true');
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('操作原因'), {
+      target: { value: '試用到期未續約' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '確認停權' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [, request] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      operation: 'suspend_org',
+      orgId: '11111111-1111-4111-8111-111111111111',
+      reason: '試用到期未續約',
+    });
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
+  it('offers a clear restore action for suspended tenants', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <OrgBillingOperationControls
+        orgId="22222222-2222-4222-8222-222222222222"
+        orgName="已停權租戶"
+        status="suspended"
+        suggestedAmountTwd={699}
+        canManageBillingOperations
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: '停權租戶' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '恢復使用權限' }));
+    expect(screen.getByText('恢復後的影響')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('操作原因'), {
+      target: { value: '款項已確認入帳' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '確認恢復' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [, request] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      operation: 'resume_org',
+      orgId: '22222222-2222-4222-8222-222222222222',
+      reason: '款項已確認入帳',
+    });
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
   it('submits a guarded manual payment with period and idempotency data', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       void _input;

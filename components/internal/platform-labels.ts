@@ -9,7 +9,7 @@ export const PLATFORM_ORG_STATUS_LABEL: Record<OrgSubscriptionStatus, string> = 
   trialing: '試用中',
   active: '使用中',
   past_due: '待補款',
-  suspended: '已暫停',
+  suspended: '已停權（唯讀）',
   cancelled: '已取消',
 };
 
@@ -23,7 +23,7 @@ export const PLATFORM_RISK_LEVEL_LABEL: Record<PlatformRiskLevel, string> = {
 
 export const PLATFORM_RISK_REASON_LABEL: Record<PlatformOrganizationRiskReason, string> = {
   past_due: '付款逾期',
-  suspended: '已暫停',
+  suspended: '已停權（唯讀）',
   cancelled: '已取消',
   returns_high: '退貨量達 80%',
   returns_limit: '退貨量已滿',
@@ -44,7 +44,7 @@ export function formatRiskReasons(reasons: readonly PlatformOrganizationRiskReas
 
 export const PLATFORM_ALERT_TYPE_MESSAGE: Record<PlatformAtRiskAlertType, string> = {
   past_due: '付款已逾期，寫入、AI 與匯出維持限制中。',
-  suspended: '租戶已暫停，請在資料保留期限前處理。',
+  suspended: '租戶已停權並轉為唯讀，請在資料保留期限前處理。',
   cancelled: '租戶已取消，支援前請先確認保留與重啟政策。',
   trial_ending: '試用即將到期。',
   trial_expired: '試用已到期，但租戶仍停留在試用狀態。',

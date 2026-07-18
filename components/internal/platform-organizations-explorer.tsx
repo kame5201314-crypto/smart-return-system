@@ -17,7 +17,14 @@ import {
 } from '@/components/internal/platform-labels';
 
 type PlatformOrg = PlatformOrganizationListView['organizations'][number];
-type OrgFilter = 'all' | 'attention' | 'trialing' | 'active' | 'past_due' | 'healthy';
+type OrgFilter =
+  | 'all'
+  | 'attention'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'suspended'
+  | 'healthy';
 type OrgSort = 'priority' | 'trial_end' | 'usage' | 'name';
 
 const FILTER_LABEL: Record<OrgFilter, string> = {
@@ -25,13 +32,17 @@ const FILTER_LABEL: Record<OrgFilter, string> = {
   attention: '需關注',
   trialing: '試用中',
   active: '使用中',
-  past_due: '待補款／暫停',
+  past_due: '待補款',
+  suspended: '已停權',
   healthy: '健康',
 };
 
-function formatTwd(value: number): string {
-  return `NT$${value.toLocaleString('zh-TW')}`;
-}
+const PROVISIONING_SOURCE_LABEL: Record<PlatformOrg['provisioningSource'], string> = {
+  manual: '人工開通',
+  google_self_service: 'Google 註冊',
+  email_otp_self_service: '信箱註冊',
+  phone_otp_self_service: '手機註冊',
+};
 
 function formatTrialEnd(value: string | null): string {
   if (!value) return '—';
@@ -75,7 +86,6 @@ function matchesFilter(org: PlatformOrg, filter: OrgFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'attention') return needsAttention(org);
   if (filter === 'healthy') return org.health.riskLevel === 'healthy' && !isTrialExpired(org);
-  if (filter === 'past_due') return org.status === 'past_due' || org.status === 'suspended';
   return org.status === filter;
 }
 
@@ -145,14 +155,42 @@ function HealthBadge({ org }: { org: PlatformOrg }) {
   return <Badge variant="outline" className={className}>{label}</Badge>;
 }
 
+function StatusBadge({ org }: { org: PlatformOrg }) {
+  const className = org.status === 'suspended'
+    ? 'border-red-200 bg-red-50 text-red-800 hover:bg-red-50'
+    : org.status === 'past_due'
+      ? 'border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-50'
+      : org.status === 'active'
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50'
+        : 'border-neutral-200 bg-white text-neutral-700 hover:bg-white';
+
+  return (
+    <Badge variant="outline" className={className}>
+      {PLATFORM_ORG_STATUS_LABEL[org.status]}
+    </Badge>
+  );
+}
+
+function ProvisioningSourceBadge({ org }: { org: PlatformOrg }) {
+  return (
+    <Badge variant="outline" className="border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-50">
+      {PROVISIONING_SOURCE_LABEL[org.provisioningSource]}
+    </Badge>
+  );
+}
+
 function SummaryChips({
   summary,
   attentionCount,
+  pastDueCount,
+  suspendedCount,
   filter,
   onFilterChange,
 }: {
   summary: PlatformOrganizationListView['summary'];
   attentionCount: number;
+  pastDueCount: number;
+  suspendedCount: number;
   filter: OrgFilter;
   onFilterChange: (filter: OrgFilter) => void;
 }) {
@@ -175,12 +213,22 @@ function SummaryChips({
       >
         試用中 <span className="font-semibold">{summary.trialingOrganizations}</span>
       </button>
-      <span className={`${chipClass} border-neutral-200 bg-white text-neutral-700`}>
-        月營收 <span className="font-semibold">{formatTwd(summary.estimatedActiveMrrTwd)}</span>
-      </span>
-      <span className={`${chipClass} border-neutral-200 bg-white text-neutral-700`}>
-        試用潛在 <span className="font-semibold">{formatTwd(summary.trialPipelineMrrTwd)}</span>
-      </span>
+      <button
+        type="button"
+        className={`${chipClass} border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100`}
+        aria-pressed={filter === 'past_due'}
+        onClick={() => onFilterChange(filter === 'past_due' ? 'all' : 'past_due')}
+      >
+        待補款 <span className="font-semibold">{pastDueCount}</span>
+      </button>
+      <button
+        type="button"
+        className={`${chipClass} border-red-200 bg-red-50 text-red-800 hover:bg-red-100`}
+        aria-pressed={filter === 'suspended'}
+        onClick={() => onFilterChange(filter === 'suspended' ? 'all' : 'suspended')}
+      >
+        已停權 <span className="font-semibold">{suspendedCount}</span>
+      </button>
     </div>
   );
 }
@@ -195,13 +243,15 @@ function TenantMobileCard({ org }: { org: PlatformOrg }) {
           <Link className="font-semibold text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
             {org.name}
           </Link>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {plan.name} · {PLATFORM_ORG_STATUS_LABEL[org.status]}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{plan.name}</p>
         </div>
         <HealthBadge org={org} />
       </div>
       <p className="mt-3 break-all text-xs text-muted-foreground">{org.ownerEmail ?? '未提供帳號信箱'}</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <StatusBadge org={org} />
+        <ProvisioningSourceBadge org={org} />
+      </div>
       <div className="mt-2 text-xs text-muted-foreground"><TrialCountdown org={org} /></div>
       <div className="mt-2"><UsageLine org={org} /></div>
       {suggestions.length > 0 ? (
@@ -211,8 +261,8 @@ function TenantMobileCard({ org }: { org: PlatformOrg }) {
         </div>
       ) : null}
       <Button asChild variant="outline" size="sm" className="mt-4 w-full">
-        <Link href={`/internal/orgs/${org.id}`} aria-label={`查看租戶：${org.name}`}>
-          查看租戶
+        <Link href={`/internal/orgs/${org.id}`} aria-label={`管理租戶：${org.name}`}>
+          管理租戶
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
       </Button>
@@ -225,6 +275,8 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
   const [filter, setFilter] = useState<OrgFilter>('all');
   const [sort, setSort] = useState<OrgSort>('priority');
   const attentionCount = data.organizations.filter(needsAttention).length;
+  const pastDueCount = data.organizations.filter((org) => org.status === 'past_due').length;
+  const suspendedCount = data.organizations.filter((org) => org.status === 'suspended').length;
 
   const visibleOrganizations = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('zh-TW');
@@ -250,6 +302,8 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
       <SummaryChips
         summary={data.summary}
         attentionCount={attentionCount}
+        pastDueCount={pastDueCount}
+        suspendedCount={suspendedCount}
         filter={filter}
         onFilterChange={setFilter}
       />
@@ -336,10 +390,15 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
                           {org.name}
                         </Link>
                         <p className="mt-1 max-w-52 break-all text-xs text-muted-foreground">{org.ownerEmail ?? '未提供帳號信箱'}</p>
+                        <div className="mt-2">
+                          <ProvisioningSourceBadge org={org} />
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <p>{SAAS_PLAN_DEFINITIONS[org.plan].name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{PLATFORM_ORG_STATUS_LABEL[org.status]}</p>
+                        <div className="mt-2">
+                          <StatusBadge org={org} />
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-xs text-muted-foreground"><TrialCountdown org={org} /></td>
                       <td className="px-4 py-4"><UsageLine org={org} /></td>
@@ -351,8 +410,8 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
                       </td>
                       <td className="px-4 py-4 text-right">
                         <Button asChild variant="outline" size="sm">
-                          <Link href={`/internal/orgs/${org.id}`} aria-label={`查看租戶：${org.name}`}>
-                            查看
+                          <Link href={`/internal/orgs/${org.id}`} aria-label={`管理租戶：${org.name}`}>
+                            管理
                             <ArrowRight className="size-4" aria-hidden="true" />
                           </Link>
                         </Button>
