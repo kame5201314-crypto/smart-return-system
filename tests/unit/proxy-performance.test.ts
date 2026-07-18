@@ -98,6 +98,15 @@ describe('proxy page-load performance boundaries', () => {
     expect(getClaimsMock).toHaveBeenCalledOnce();
   });
 
+  it('keeps the dedicated platform-admin login public even when browser cookies exist', async () => {
+    const response = await proxy(request('/admin/login?next=%2Finternal', 'sb-session=merchant'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(createServerClientMock).not.toHaveBeenCalled();
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
+
   it('accepts verified claims for protected merchant pages', async () => {
     getClaimsMock.mockResolvedValue({
       data: {
@@ -132,6 +141,26 @@ describe('proxy page-load performance boundaries', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('routes an authenticated merchant to the dedicated platform-admin login', async () => {
+    getClaimsMock.mockResolvedValue({
+      data: {
+        claims: {
+          sub: 'merchant-user-id',
+          email: 'merchant@example.test',
+        },
+      },
+      error: null,
+    });
+
+    const response = await proxy(request('/internal/orgs'));
+
+    expect(response.status).toBeGreaterThanOrEqual(300);
+    expect(response.status).toBeLessThan(400);
+    expect(response.headers.get('location')).toBe(
+      'https://app.example.test/admin/login?next=%2Finternal%2Forgs'
+    );
   });
 
   it('keeps anonymous protected requests behind the login boundary', async () => {

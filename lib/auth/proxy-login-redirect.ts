@@ -1,9 +1,11 @@
 import {
-  CUSTOMER_POST_LOGIN_PATH,
   PLATFORM_ADMIN_POST_LOGIN_PATH,
   type PostLoginRedirectPath,
 } from '@/lib/auth/post-login-redirect';
-import { normalizeInternalNextPath } from '@/lib/auth/internal-login-redirect';
+import {
+  buildInternalLoginRedirect,
+  normalizeInternalNextPath,
+} from '@/lib/auth/internal-login-redirect';
 
 const CUSTOMER_ACCOUNT_GATE_PATH = '/signup/complete';
 
@@ -46,5 +48,5 @@ export function resolveAuthenticatedAdminEntryRedirect(input: {
     return null;
   }
 
-  return CUSTOMER_POST_LOGIN_PATH;
+  return buildInternalLoginRedirect(input.pathname);
 }

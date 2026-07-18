@@ -139,10 +139,7 @@ export async function proxy(request: NextRequest) {
     isPlatformAdminAuthenticated,
   });
   if (authenticatedAdminEntryRedirect) {
-    const url = request.nextUrl.clone();
-    url.pathname = authenticatedAdminEntryRedirect;
-    url.search = '';
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL(authenticatedAdminEntryRedirect, request.url));
   }
 
   if (!isAuthenticated) {

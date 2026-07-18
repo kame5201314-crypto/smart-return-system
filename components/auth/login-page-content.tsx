@@ -36,6 +36,8 @@ type LoginInput = z.infer<typeof loginSchema>;
 
 interface LoginPageContentProps {
   googleAuthEnabled: boolean;
+  mode?: 'merchant' | 'platform-admin';
+  requestedPath?: string;
   googleSignupEnabled?: boolean;
   accountRegistrationEnabled?: boolean;
   passwordRecoveryEnabled?: boolean;
@@ -58,6 +60,8 @@ function getGoogleErrorMessage(value: string | null): string | null {
 
 export function LoginPageContent({
   googleAuthEnabled,
+  mode = 'merchant',
+  requestedPath,
   googleSignupEnabled = false,
   accountRegistrationEnabled = googleSignupEnabled,
   passwordRecoveryEnabled = false,
@@ -69,7 +73,10 @@ export function LoginPageContent({
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
   const planParam = searchParams.get('plan');
-  const isPlatformAdminLogin = isPlatformAdminNext(nextParam);
+  const isPlatformAdminLogin = mode === 'platform-admin' || isPlatformAdminNext(nextParam);
+  const effectiveNextPath = mode === 'platform-admin'
+    ? (requestedPath ?? '/internal')
+    : nextParam;
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -125,12 +132,10 @@ export function LoginPageContent({
         return;
       }
       setIsLoading(true);
-      const nextPath =
-        typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('next');
       const result = await signIn(
         data.email,
         data.password,
-        nextPath ?? undefined,
+        effectiveNextPath ?? undefined,
         captchaToken ?? undefined
       );
 

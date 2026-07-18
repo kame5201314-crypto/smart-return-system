@@ -45,15 +45,15 @@ describe('proxy authenticated login redirect policy', () => {
   });
 
   it.each([
-    '/admin',
-    '/internal',
-    '/internal/orgs',
-  ])('routes an authenticated merchant away from platform entry %s', (pathname) => {
+    ['/admin', '/admin/login?next=%2Finternal'],
+    ['/internal', '/admin/login?next=%2Finternal'],
+    ['/internal/orgs', '/admin/login?next=%2Finternal%2Forgs'],
+  ])('routes an authenticated merchant from platform entry %s to its dedicated login', (pathname, expected) => {
     expect(resolveAuthenticatedAdminEntryRedirect({
       pathname,
       isAuthenticated: true,
       isPlatformAdminAuthenticated: false,
-    })).toBe('/analytics');
+    })).toBe(expected);
   });
 
   it('lets platform admins and non-admin-entry paths continue through normal routing', () => {

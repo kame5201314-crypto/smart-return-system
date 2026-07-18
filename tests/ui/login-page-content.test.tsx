@@ -157,6 +157,37 @@ describe('LoginPageContent', () => {
     ));
   });
 
+  it('renders a dedicated platform-admin mode and submits its server-normalized destination', async () => {
+    authActionMocks.signIn.mockResolvedValue({ success: true, redirectTo: '/internal/orgs' });
+    render(
+      <LoginPageContent
+        mode="platform-admin"
+        requestedPath="/internal/orgs"
+        googleAuthEnabled
+        accountRegistrationEnabled
+      />
+    );
+
+    expect(screen.getByText('平台管理後台登入')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '使用 Google 繼續' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '建立帳號' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('管理員帳號或電子信箱'), {
+      target: { value: 'operator@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('密碼'), {
+      target: { value: 'Password8' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '登入' }));
+
+    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith(
+      'operator@example.com',
+      'Password8',
+      '/internal/orgs',
+      undefined
+    ));
+  });
+
   it('shows recovery only for merchant login and reports a completed reset', () => {
     navigationMocks.search = 'password_reset=success';
     render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);
