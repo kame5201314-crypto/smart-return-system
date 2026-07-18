@@ -35,11 +35,12 @@ function daysUntil(value: string | null): number | null {
   if (!value) return null;
   const target = new Date(value).getTime();
   if (Number.isNaN(target)) return null;
-  return Math.max(0, Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24)));
+  return Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 function describeDaysUntil(days: number | null): string | null {
   if (days === null) return null;
+  if (days < 0) return `已逾期 ${Math.abs(days)} 天`;
   if (days === 0) return '今天到期';
   if (days === 1) return '明天到期';
   return `還剩 ${days} 天`;
@@ -52,14 +53,18 @@ function statusVariant(status: BillingStatus): 'default' | 'secondary' | 'destru
 }
 
 function BillingContent({ data }: { data: BillingSettingsView }) {
-  const planName = SAAS_PLAN_DEFINITIONS[data.org.plan].name;
-  const periodEnd = data.subscription?.currentPeriodEnd ?? null;
   const isTrialing = data.org.status === 'trialing';
-  const trialDaysLeft = isTrialing ? describeDaysUntil(daysUntil(periodEnd)) : null;
+  const planName = isTrialing ? '試用版' : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
+  const periodEnd = isTrialing
+    ? data.subscription?.trialEnd ?? null
+    : data.subscription?.currentPeriodEnd ?? null;
+  const trialDaysRemaining = isTrialing ? daysUntil(periodEnd) : null;
+  const trialDaysLabel = describeDaysUntil(trialDaysRemaining);
+  const isTrialExpired = trialDaysRemaining !== null && trialDaysRemaining < 0;
   const cancelAtPeriodEnd = data.subscription?.cancelAtPeriodEnd ?? false;
   const periodTitle = isTrialing ? '試用期限' : '目前週期';
   const periodDetail = isTrialing
-    ? `${formatDate(periodEnd)}${trialDaysLeft ? ` · ${trialDaysLeft}` : ''}`
+    ? `${formatDate(periodEnd)}${trialDaysLabel ? ` · ${trialDaysLabel}` : ''}`
     : periodEnd
       ? `至 ${formatDate(periodEnd)}`
       : '尚未設定';
@@ -78,8 +83,11 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
               <p className="mt-1 text-sm text-muted-foreground">{data.org.name}</p>
             </div>
           </div>
-          <Badge variant={statusVariant(data.org.status)} className="w-fit">
-            {STATUS_LABEL[data.org.status]}
+          <Badge
+            variant={isTrialExpired ? 'destructive' : statusVariant(data.org.status)}
+            className="w-fit"
+          >
+            {isTrialExpired ? '試用已到期' : STATUS_LABEL[data.org.status]}
           </Badge>
         </div>
 

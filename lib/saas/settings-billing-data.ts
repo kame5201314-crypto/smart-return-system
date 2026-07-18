@@ -40,6 +40,7 @@ export interface SettingsBillingSubscriptionData {
   provider: string | null;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
+  trialEnd: string | null;
   cancelAtPeriodEnd: boolean;
 }
 
@@ -99,6 +100,7 @@ function normalizeSubscription(row: unknown): SettingsBillingSubscriptionData | 
     provider: stringOrNull(row.provider),
     currentPeriodStart: stringOrNull(row.current_period_start),
     currentPeriodEnd: stringOrNull(row.current_period_end),
+    trialEnd: stringOrNull(row.trial_end),
     cancelAtPeriodEnd: booleanOrFalse(row.cancel_at_period_end),
   };
 }
@@ -137,7 +139,7 @@ export function createSettingsBillingDataRepository(
     async getSubscription(input) {
       const { data, error } = await client
         .from('subscriptions')
-        .select('provider, current_period_start, current_period_end, cancel_at_period_end')
+        .select('provider, current_period_start, current_period_end, trial_end, cancel_at_period_end')
         .eq('org_id', input.orgId)
         .maybeSingle();
 

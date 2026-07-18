@@ -64,6 +64,7 @@ describe('SaaS settings live data loaders', () => {
         provider: 'manual',
         currentPeriodStart: '2026-05-01T00:00:00.000Z',
         currentPeriodEnd: '2026-06-01T00:00:00.000Z',
+        trialEnd: null,
         cancelAtPeriodEnd: false,
       })),
       getLatestInvoice: vi.fn(async () => ({
@@ -132,6 +133,7 @@ describe('SaaS settings live data loaders', () => {
         provider: 'manual',
         currentPeriodStart: '2026-07-18T00:00:00.000Z',
         currentPeriodEnd: '2026-07-21T00:00:00.000Z',
+        trialEnd: '2026-07-21T00:00:00.000Z',
         cancelAtPeriodEnd: false,
       })),
       getLatestInvoice: vi.fn(async () => null),
@@ -152,6 +154,7 @@ describe('SaaS settings live data loaders', () => {
         },
         subscription: {
           currentPeriodEnd: '2026-07-21T00:00:00.000Z',
+          trialEnd: '2026-07-21T00:00:00.000Z',
         },
         actions: {
           canUpdateBilling: false,

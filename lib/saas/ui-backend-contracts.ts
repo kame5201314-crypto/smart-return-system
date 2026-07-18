@@ -58,6 +58,7 @@ export interface BillingSettingsView {
     provider: BillingProvider | null;
     currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
+    trialEnd: string | null;
     cancelAtPeriodEnd: boolean;
   } | null;
   invoiceSummary: {
@@ -84,6 +85,7 @@ export interface BillingSettingsViewInput {
     provider: string | null;
     currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
+    trialEnd: string | null;
     cancelAtPeriodEnd: boolean;
   } | null;
   invoiceSummary: {
@@ -658,6 +660,7 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
             : null,
           currentPeriodStart: input.subscription.currentPeriodStart,
           currentPeriodEnd: input.subscription.currentPeriodEnd,
+          trialEnd: input.subscription.trialEnd,
           cancelAtPeriodEnd: requireBoolean(
             input.subscription.cancelAtPeriodEnd,
             'billing.subscription.cancelAtPeriodEnd'

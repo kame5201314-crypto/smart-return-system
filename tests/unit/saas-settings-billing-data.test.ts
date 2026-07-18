@@ -47,6 +47,7 @@ describe('SaaS settings billing data repository', () => {
       provider: 'manual',
       current_period_start: '2026-05-01T00:00:00.000Z',
       current_period_end: '2026-06-01T00:00:00.000Z',
+      trial_end: '2026-05-15T00:00:00.000Z',
       cancel_at_period_end: false,
     });
     const invoiceChain = createChain({
@@ -77,6 +78,7 @@ describe('SaaS settings billing data repository', () => {
       },
       subscription: {
         provider: 'manual',
+        trialEnd: '2026-05-15T00:00:00.000Z',
       },
       invoiceSummary: {
         latestInvoiceId: 'invoice-1',
@@ -93,6 +95,9 @@ describe('SaaS settings billing data repository', () => {
     expect(from).toHaveBeenNthCalledWith(1, 'organizations');
     expect(from).toHaveBeenNthCalledWith(2, 'subscriptions');
     expect(from).toHaveBeenNthCalledWith(3, 'invoices');
+    expect(subscriptionChain.select).toHaveBeenCalledWith(
+      'provider, current_period_start, current_period_end, trial_end, cancel_at_period_end'
+    );
     expect(invoiceChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(invoiceChain.limit).toHaveBeenCalledWith(1);
   });

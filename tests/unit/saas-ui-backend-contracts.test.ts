@@ -109,6 +109,7 @@ describe('SaaS UI/backend contracts', () => {
           provider: 'manual',
           currentPeriodStart: '2026-05-01T00:00:00.000Z',
           currentPeriodEnd: '2026-05-15T00:00:00.000Z',
+          trialEnd: '2026-05-15T00:00:00.000Z',
           cancelAtPeriodEnd: false,
         },
         invoiceSummary: {
@@ -134,6 +135,7 @@ describe('SaaS UI/backend contracts', () => {
         provider: 'manual',
         currentPeriodStart: '2026-05-01T00:00:00.000Z',
         currentPeriodEnd: '2026-05-15T00:00:00.000Z',
+        trialEnd: '2026-05-15T00:00:00.000Z',
         cancelAtPeriodEnd: false,
       },
       invoiceSummary: {
