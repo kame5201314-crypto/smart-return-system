@@ -1,5 +1,26 @@
 # SaaS External Setup Status
 
+## 2026-07-19 Self-Service Prepaid Billing Repository Readiness
+
+- Repository code now supports an authenticated owner/admin selecting Basic or
+  Growth inside `/settings/billing`, creating a server-priced one-month ECPay
+  prepaid checkout, and showing current period, expiry, payment history, and
+  subscription-period history. It is intentionally non-recurring and never
+  stores card data.
+- Draft migration `046_saas_self_service_billing.sql` adds immutable payment and
+  period ledgers plus service-role-only checkout/settlement RPCs. Verified
+  payment settlement is atomic and idempotent; simulated, mismatched, stale
+  downgrade, and platform-suspension cases do not activate or downgrade a
+  tenant. Stage/Production identifiers are merchant-namespaced.
+- `046` is not applied. Production still has `ENABLE_BILLING=false`,
+  `ENABLE_SUBSCRIPTION_PLAN=false`, and no ECPay credentials. No deployment,
+  migration, provider activation, env/secret edit, or real charge was performed
+  for this repository work.
+- Required external sequence is documented in
+  `docs/SAAS_SELF_SERVICE_PREPAID_BILLING_ROLLOUT.md`: disposable-project SQL
+  proof, ECPay Stage credentials, Stage-only flags, full callback/race matrix,
+  legal invoice/refund confirmation, and separate Production approval.
+
 ## 2026-07-18 Admin Entry Separation Production Baseline
 
 - Production deployment `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh` is Ready at

@@ -150,6 +150,7 @@ Status values:
 | done | SaaS migration apply plan check | Read-only `saas:migration-plan` checks SaaS project ref, DB password, and the current local migration chain; local draft chain now extends through `033` |
 | done | SaaS rollout readiness check | This commit; added read-only `saas:rollout-check` gates for Gemini key, app URL/domain, Sentry/logging, billing credentials, AI safety flags, and SaaS project safety |
 | done | Billing foundation | ECPay webhook route is flag/credential/CheckMacValue gated and records idempotent billing_events only after verification |
+| done | Self-service prepaid billing repository foundation | In-app Basic/Growth one-month checkout, ECPay form/return/webhook contracts, payment and subscription-period history, CSP/provider isolation, callback drain, stale-downgrade and platform-suspension guards, draft migration 046, and regression tests are complete. Migration 046, ECPay credentials, billing flags, deploy, and real charges remain separately blocked external actions |
 | done | ECPay webhook signature verification | This commit; default route path verifies CheckMacValue locally before recording events |
 | done | Billing event status schema draft | This commit; added `029` draft and backend record defaults for `billing_events.status` |
 | done | Invoice status schema and DTO alignment | This commit; added `030` draft and aligned billing settings invoice statuses |

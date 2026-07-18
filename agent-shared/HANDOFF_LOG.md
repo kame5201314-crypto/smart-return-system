@@ -6348,3 +6348,23 @@ The owner subsequently authorized completing the Production rollout:
   already applied only to SaaS project `auyznbwtjvemyamujmgt`; migrations
   `040`-`044` must not be rerun. Email delivery, Billing, custom-domain env/DNS,
   and all other external settings remain unchanged.
+
+## 2026-07-19 Self-Service Prepaid Billing Repository Handoff
+
+- Merchant upgrade entry points now stay inside `/settings/billing#plans`.
+  Owner/admin users can select Basic or Growth, renew the same plan, and view
+  current dates plus bounded payment/subscription history. Enterprise remains
+  assisted, and lower-plan self-service changes are disabled.
+- Checkout accepts only the plan from the browser; tenant, actor, price,
+  merchant order, provider fields, and one-month period are resolved on the
+  server. The ECPay browser return never grants access. Only the verified
+  server notification can call the service-role settlement RPC.
+- Draft migration `046` adds payment/period ledgers and atomic settlement. It
+  distinguishes billing expiry from platform suspension, blocks stale paid
+  downgrades, namespaces Stage/Production events by merchant, drains callbacks
+  after new checkout is disabled, and records exceptional paid cases for
+  manual review rather than changing access.
+- Repository tests, lint, typecheck, build, safety, and readiness are required
+  before commits are pushed. This handoff does not authorize or report a
+  migration apply, ECPay credential setup, billing flag enablement, deployment,
+  or real charge; those remain separate rollout actions.
