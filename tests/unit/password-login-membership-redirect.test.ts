@@ -66,6 +66,19 @@ function createMerchantAuthClient(input: {
   };
 }
 
+function signInAsMerchant(
+  identifier: string,
+  password: string,
+  requestedPath?: string
+) {
+  return signIn({
+    identifier,
+    password,
+    surface: 'merchant',
+    requestedPath,
+  });
+}
+
 describe('password login membership-aware redirect', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -82,10 +95,9 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('merchant@example.com', 'Password8', '/returns')).resolves.toEqual({
-      success: true,
-      redirectTo: '/analytics',
-    });
+    await expect(
+      signInAsMerchant('merchant@example.com', 'Password8', '/returns')
+    ).resolves.toEqual({ success: true, redirectTo: '/analytics' });
 
     expect(auth.from).toHaveBeenCalledWith('organization_members');
     expect(auth.select).toHaveBeenCalledWith('org_id, status');
@@ -100,17 +112,18 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('merchant@example.com', 'Password8', '/internal/orgs')).resolves.toEqual({
-      success: true,
-      redirectTo: '/analytics',
-    });
+    await expect(
+      signInAsMerchant('merchant@example.com', 'Password8', '/internal/orgs')
+    ).resolves.toEqual({ success: true, redirectTo: '/analytics' });
   });
 
   it('requires a merchant without memberships to complete onboarding', async () => {
     const auth = createMerchantAuthClient({ memberships: [] });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('new@example.com', 'Password8', '/analytics')).resolves.toEqual({
+    await expect(
+      signInAsMerchant('new@example.com', 'Password8', '/analytics')
+    ).resolves.toEqual({
       success: true,
       redirectTo: '/signup/complete?plan=basic',
     });
@@ -122,7 +135,7 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn(' Pending@Example.com ', 'Password8')).resolves.toEqual({
+    await expect(signInAsMerchant(' Pending@Example.com ', 'Password8')).resolves.toEqual({
       success: false,
       error: '信箱尚未完成驗證，請輸入驗證碼後再登入。',
       verificationPath: '/signup?verify=email&identifier=pending%40example.com',
@@ -136,7 +149,7 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('disabled@example.com', 'Password8')).resolves.toEqual({
+    await expect(signInAsMerchant('disabled@example.com', 'Password8')).resolves.toEqual({
       success: true,
       redirectTo: '/signup/complete?plan=basic&state=membership_disabled',
     });
@@ -149,7 +162,7 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('0912-345-678', 'Password8')).resolves.toEqual({
+    await expect(signInAsMerchant('0912-345-678', 'Password8')).resolves.toEqual({
       success: true,
       redirectTo: '/signup/complete?plan=basic',
     });
@@ -168,10 +181,59 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('operator@example.com', 'Password8', '/internal/orgs')).resolves.toEqual({
+    await expect(signIn({
+      identifier: 'operator@example.com',
+      password: 'Password8',
+      surface: 'platform-admin',
+      requestedPath: '/internal/orgs',
+    })).resolves.toEqual({
       success: true,
       redirectTo: '/internal/orgs',
     });
+    expect(auth.from).not.toHaveBeenCalled();
+  });
+
+  it('keeps an ADMIN_EMAIL merchant on Supabase auth when using the merchant surface', async () => {
+    vi.stubEnv('ADMIN_EMAIL', 'merchant@example.com');
+    const auth = createMerchantAuthClient({
+      memberships: [{ org_id: 'org-active', status: 'active' }],
+    });
+    supabaseMocks.createClient.mockResolvedValue(auth.client);
+
+    await expect(signInAsMerchant(
+      'merchant@example.com',
+      'Password8',
+      '/internal/orgs'
+    )).resolves.toEqual({
+      success: true,
+      redirectTo: '/analytics',
+    });
+
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({
+      email: 'merchant@example.com',
+      password: 'Password8',
+      options: undefined,
+    });
+    expect(auth.from).toHaveBeenCalledWith('organization_members');
+  });
+
+  it('rejects an ordinary merchant from the platform-admin surface', async () => {
+    const auth = createMerchantAuthClient({
+      memberships: [{ org_id: 'org-active', status: 'active' }],
+    });
+    supabaseMocks.createClient.mockResolvedValue(auth.client);
+
+    await expect(signIn({
+      identifier: 'merchant@example.com',
+      password: 'Password8',
+      surface: 'platform-admin',
+      requestedPath: '/internal',
+    })).resolves.toEqual({
+      success: false,
+      error: '管理員帳號或密碼錯誤',
+    });
+
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
     expect(auth.from).not.toHaveBeenCalled();
   });
 
@@ -181,7 +243,7 @@ describe('password login membership-aware redirect', () => {
     });
     supabaseMocks.createClient.mockResolvedValue(auth.client);
 
-    await expect(signIn('merchant@example.com', 'Password8')).resolves.toEqual({
+    await expect(signInAsMerchant('merchant@example.com', 'Password8')).resolves.toEqual({
       success: false,
       error: '登入後無法確認工作區權限，請稍後再試',
     });

@@ -22,7 +22,7 @@ import {
 import { getPostLoginRedirect, type PostLoginRedirectPath } from '@/lib/auth/post-login-redirect';
 import {
   createGoogleOAuthMembershipRepository,
-  resolveGoogleOAuthDestination,
+  resolveMerchantMembershipDestination,
 } from '@/lib/auth/google-oauth';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
 import {
@@ -46,6 +46,16 @@ export interface AuthResult {
   verificationPath?: string;
 }
 
+export type AuthSurface = 'merchant' | 'platform-admin';
+
+export interface SignInInput {
+  identifier: string;
+  password: string;
+  surface: AuthSurface;
+  requestedPath?: string;
+  captchaToken?: string;
+}
+
 function isPendingIdentityConfirmation(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const authError = error as { code?: unknown; message?: unknown };
@@ -60,16 +70,18 @@ function isPendingIdentityConfirmation(error: unknown): boolean {
   );
 }
 
-export async function signIn(
-  identifier: string,
-  password: string,
-  requestedPath?: string,
-  captchaToken?: string
-): Promise<AuthResult> {
+export async function signIn({
+  identifier,
+  password,
+  surface,
+  requestedPath,
+  captchaToken,
+}: SignInInput): Promise<AuthResult> {
   try {
     const normalizedLoginId = identifier.trim().toLowerCase();
+    const isPlatformAdminSurface = surface === 'platform-admin';
 
-    if (isAdminLoginId(normalizedLoginId)) {
+    if (isPlatformAdminSurface && isAdminLoginId(normalizedLoginId)) {
       const adminPassword = getConfiguredAdminPassword();
       const requestHeaders = await headers();
       const clientIp = getClientIpFromHeaders(requestHeaders);
@@ -197,7 +209,14 @@ export async function signIn(
     }
 
     let redirectTo: PostLoginRedirectPath;
-    if (isPlatformAdmin) {
+    if (isPlatformAdminSurface) {
+      if (!isPlatformAdmin) {
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: '管理員帳號或密碼錯誤',
+        };
+      }
       redirectTo = getPostLoginRedirect({
         isAdmin: true,
         requestedPath,
@@ -208,11 +227,7 @@ export async function signIn(
           supabase as unknown as Parameters<typeof createGoogleOAuthMembershipRepository>[0]
         );
         const memberships = await membershipRepository.listMemberships(signInData.user.id);
-        redirectTo = resolveGoogleOAuthDestination({
-          user: {
-            id: signInData.user.id,
-            email: signInData.user.email ?? (isEmail ? normalizedLoginId : null),
-          },
+        redirectTo = resolveMerchantMembershipDestination({
           memberships,
           requestedPath,
         });

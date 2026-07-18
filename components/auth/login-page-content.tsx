@@ -46,11 +46,6 @@ interface LoginPageContentProps {
   turnstileSiteKey?: string;
 }
 
-function isPlatformAdminNext(value: string | null): boolean {
-  if (!value) return false;
-  return value === '/admin' || value === '/internal' || value.startsWith('/internal/');
-}
-
 function getGoogleErrorMessage(value: string | null): string | null {
   if (value === 'google_auth_disabled') return 'Google 登入目前尚未開放。';
   if (value === 'google_auth_expired') return '登入流程已失效，請重新使用 Google 登入';
@@ -73,7 +68,7 @@ export function LoginPageContent({
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
   const planParam = searchParams.get('plan');
-  const isPlatformAdminLogin = mode === 'platform-admin' || isPlatformAdminNext(nextParam);
+  const isPlatformAdminLogin = mode === 'platform-admin';
   const effectiveNextPath = mode === 'platform-admin'
     ? (requestedPath ?? '/internal')
     : nextParam;
@@ -132,12 +127,13 @@ export function LoginPageContent({
         return;
       }
       setIsLoading(true);
-      const result = await signIn(
-        data.email,
-        data.password,
-        effectiveNextPath ?? undefined,
-        captchaToken ?? undefined
-      );
+      const result = await signIn({
+        identifier: data.email,
+        password: data.password,
+        surface: mode,
+        requestedPath: effectiveNextPath ?? undefined,
+        captchaToken: captchaToken ?? undefined,
+      });
 
       if (!result.success) {
         if (result.verificationPath) {

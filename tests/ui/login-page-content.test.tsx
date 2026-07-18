@@ -94,12 +94,13 @@ describe('LoginPageContent', () => {
     fireEvent.click(screen.getByRole('button', { name: '完成登入安全驗證' }));
     fireEvent.click(screen.getByRole('button', { name: '登入' }));
 
-    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith(
-      'owner@example.com',
-      'Password8',
-      undefined,
-      'login-captcha-token'
-    ));
+    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith({
+      identifier: 'owner@example.com',
+      password: 'Password8',
+      surface: 'merchant',
+      requestedPath: undefined,
+      captchaToken: 'login-captcha-token',
+    }));
     expect(navigationMocks.push).toHaveBeenCalledWith('/analytics');
   });
 
@@ -127,10 +128,10 @@ describe('LoginPageContent', () => {
     );
   });
 
-  it('also challenges the platform login page so Supabase admin principals are not locked out', async () => {
+  it('does not let an internal next parameter impersonate the platform-admin surface', async () => {
     navigationMocks.search = 'next=%2Finternal';
     window.history.replaceState({}, '', '/login?next=%2Finternal');
-    authActionMocks.signIn.mockResolvedValue({ success: true, redirectTo: '/internal' });
+    authActionMocks.signIn.mockResolvedValue({ success: true, redirectTo: '/analytics' });
     render(
       <LoginPageContent
         googleAuthEnabled={false}
@@ -140,7 +141,9 @@ describe('LoginPageContent', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText('管理員帳號或電子信箱'), {
+    expect(screen.getByText('登入工作區')).toBeInTheDocument();
+    expect(screen.queryByText('平台管理後台登入')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
       target: { value: 'operator@example.com' },
     });
     fireEvent.change(screen.getByLabelText('密碼'), {
@@ -149,12 +152,14 @@ describe('LoginPageContent', () => {
     fireEvent.click(screen.getByRole('button', { name: '完成登入安全驗證' }));
     fireEvent.click(screen.getByRole('button', { name: '登入' }));
 
-    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith(
-      'operator@example.com',
-      'Password8',
-      '/internal',
-      'login-captcha-token'
-    ));
+    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith({
+      identifier: 'operator@example.com',
+      password: 'Password8',
+      surface: 'merchant',
+      requestedPath: '/internal',
+      captchaToken: 'login-captcha-token',
+    }));
+    expect(navigationMocks.push).toHaveBeenCalledWith('/analytics');
   });
 
   it('renders a dedicated platform-admin mode and submits its server-normalized destination', async () => {
@@ -180,12 +185,13 @@ describe('LoginPageContent', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '登入' }));
 
-    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith(
-      'operator@example.com',
-      'Password8',
-      '/internal/orgs',
-      undefined
-    ));
+    await waitFor(() => expect(authActionMocks.signIn).toHaveBeenCalledWith({
+      identifier: 'operator@example.com',
+      password: 'Password8',
+      surface: 'platform-admin',
+      requestedPath: '/internal/orgs',
+      captchaToken: undefined,
+    }));
   });
 
   it('shows recovery only for merchant login and reports a completed reset', () => {
@@ -210,7 +216,14 @@ describe('LoginPageContent', () => {
 
   it('never exposes merchant password recovery on the platform admin login', () => {
     navigationMocks.search = 'next=%2Finternal';
-    render(<LoginPageContent googleAuthEnabled={false} passwordRecoveryEnabled />);
+    render(
+      <LoginPageContent
+        mode="platform-admin"
+        requestedPath="/internal"
+        googleAuthEnabled={false}
+        passwordRecoveryEnabled
+      />
+    );
 
     expect(screen.queryByRole('link', { name: '忘記密碼？' }))
       .not.toBeInTheDocument();
@@ -269,7 +282,14 @@ describe('LoginPageContent', () => {
       .toHaveAttribute('href', '/signup');
 
     navigationMocks.search = 'next=%2Finternal&plan=growth';
-    rerender(<LoginPageContent googleAuthEnabled accountRegistrationEnabled />);
+    rerender(
+      <LoginPageContent
+        mode="platform-admin"
+        requestedPath="/internal"
+        googleAuthEnabled
+        accountRegistrationEnabled
+      />
+    );
 
     expect(screen.queryByRole('link', { name: '建立帳號' }))
       .not.toBeInTheDocument();

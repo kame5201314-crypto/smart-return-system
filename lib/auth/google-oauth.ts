@@ -146,6 +146,14 @@ export function resolveGoogleOAuthDestination(input: {
     return '/internal';
   }
 
+  return resolveMerchantMembershipDestination(input);
+}
+
+export function resolveMerchantMembershipDestination(input: {
+  memberships: GoogleOAuthMembership[];
+  requestedPath?: unknown;
+  trialPlan?: unknown;
+}): string {
   const activeMembership = input.memberships.find(
     (membership) => membership.status !== 'disabled'
   );

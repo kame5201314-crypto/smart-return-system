@@ -55,6 +55,20 @@ function configureCaptcha(captchaReady: boolean) {
   vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', captchaReady ? 'site-key' : '');
 }
 
+function signInAsPlatformAdmin(
+  identifier: string,
+  password: string,
+  captchaToken?: string
+) {
+  return signIn({
+    identifier,
+    password,
+    surface: 'platform-admin',
+    requestedPath: '/internal',
+    captchaToken,
+  });
+}
+
 describe('legacy admin auth action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,7 +85,7 @@ describe('legacy admin auth action', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it('preserves legacy behavior while the CAPTCHA rollout flag is closed', async () => {
-    const result = await signIn('admin', 'strong-admin-password', '/internal');
+    const result = await signInAsPlatformAdmin('admin', 'strong-admin-password');
 
     expect(result).toEqual({ success: true, redirectTo: '/internal' });
     expect(turnstileMocks.verify).not.toHaveBeenCalled();
@@ -82,10 +96,9 @@ describe('legacy admin auth action', () => {
     turnstileMocks.verify.mockResolvedValue({ ok: false, reason: 'challenge_rejected' });
     configureCaptcha(true);
 
-    const result = await signIn(
+    const result = await signInAsPlatformAdmin(
       'admin',
       'strong-admin-password',
-      '/internal',
       'invalid-token'
     );
 
@@ -104,10 +117,9 @@ describe('legacy admin auth action', () => {
   it('creates the admin cookie only after server verification succeeds', async () => {
     configureCaptcha(true);
 
-    const result = await signIn(
+    const result = await signInAsPlatformAdmin(
       'admin',
       'strong-admin-password',
-      '/internal',
       'verified-token'
     );
 
@@ -121,10 +133,9 @@ describe('legacy admin auth action', () => {
     configureCaptcha(true);
     turnstileMocks.localBypass.mockReturnValue(true);
 
-    const result = await signIn(
+    const result = await signInAsPlatformAdmin(
       'admin',
       'strong-admin-password',
-      '/internal',
       'local-widget-token'
     );
 
@@ -137,7 +148,7 @@ describe('legacy admin auth action', () => {
     rateLimitMocks.check.mockReturnValue({ allowed: false, retryAfterSeconds: 60 });
     configureCaptcha(true);
 
-    const result = await signIn('admin', 'strong-admin-password', '/internal', 'token');
+    const result = await signInAsPlatformAdmin('admin', 'strong-admin-password', 'token');
 
     expect(result).toEqual({
       success: false,
@@ -156,7 +167,7 @@ describe('legacy admin auth action', () => {
     ] as const) {
       turnstileMocks.verify.mockResolvedValueOnce({ ok: false, reason });
 
-      expect(await signIn('admin', 'strong-admin-password', '/internal', 'token'))
+      expect(await signInAsPlatformAdmin('admin', 'strong-admin-password', 'token'))
         .toEqual({ success: false, error });
     }
 
@@ -166,13 +177,13 @@ describe('legacy admin auth action', () => {
 
   it('returns Traditional Chinese messages for missing configuration and bad passwords', async () => {
     vi.stubEnv('ADMIN_PASSWORD', '');
-    expect(await signIn('admin', 'anything', '/internal')).toEqual({
+    expect(await signInAsPlatformAdmin('admin', 'anything')).toEqual({
       success: false,
       error: '管理員登入尚未完成設定，請聯絡系統管理員。',
     });
 
     vi.stubEnv('ADMIN_PASSWORD', 'strong-admin-password');
-    expect(await signIn('admin', 'wrong-password', '/internal')).toEqual({
+    expect(await signInAsPlatformAdmin('admin', 'wrong-password')).toEqual({
       success: false,
       error: '管理員帳號或密碼錯誤',
     });

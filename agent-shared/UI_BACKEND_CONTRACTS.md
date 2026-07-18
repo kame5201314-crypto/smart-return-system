@@ -35,7 +35,7 @@ app/login/page.tsx
 Server action:
 
 ```text
-signIn(identifier, password, requestedPath?, captchaToken?)
+signIn({ identifier, password, surface, requestedPath?, captchaToken? })
 ```
 
 Success response:

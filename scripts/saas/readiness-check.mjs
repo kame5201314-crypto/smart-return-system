@@ -292,6 +292,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/042_saas_scope_trial_expiry_to_self_service.sql',
     'supabase/migrations/043_saas_google_trial_claims_service_role_read.sql',
     'supabase/migrations/044_saas_verified_identity_self_service_trial.sql',
+    'supabase/migrations/045_saas_suspended_org_write_guards.sql',
     'lib/auth/verified-signup.ts',
     'components/auth/verified-signup-form.tsx',
     'lib/saas/lead-capture-service.ts',
@@ -761,6 +762,7 @@ function checkCommercialFoundation() {
   }
 
   if (
+    fs.existsSync(authActionPath) &&
     fs.existsSync(postLoginRedirectPath) &&
     fs.existsSync(internalLoginRedirectPath) &&
     fs.existsSync(proxyLoginRedirectPath) &&
@@ -773,6 +775,7 @@ function checkCommercialFoundation() {
     fs.existsSync(googleOAuthCallbackPath) &&
     fs.existsSync(adminLoginPagePath)
   ) {
+    const authActionSource = fs.readFileSync(authActionPath, 'utf8');
     const postLoginSource = fs.readFileSync(postLoginRedirectPath, 'utf8');
     const internalRedirectSource = fs.readFileSync(internalLoginRedirectPath, 'utf8');
     const proxyLoginRedirectSource = fs.readFileSync(proxyLoginRedirectPath, 'utf8');
@@ -805,10 +808,16 @@ function checkCommercialFoundation() {
       proxyLoginRedirectSource.includes("input.pathname.startsWith('/internal/')") &&
       proxyLoginRedirectSource.includes('normalizeInternalNextPath') &&
       adminLoginPageSource.includes('normalizeInternalNextPath') &&
-      adminLoginPageSource.includes('/login?next=') &&
+      adminLoginPageSource.includes('mode="platform-admin"') &&
+      adminLoginPageSource.includes('requestedPath={nextPath}') &&
       loginPageSource.includes('LoginPageContent') &&
-      loginPageContentSource.includes('new URLSearchParams(window.location.search).get') &&
+      loginPageContentSource.includes('const searchParams = useSearchParams()') &&
+      loginPageContentSource.includes("const isPlatformAdminLogin = mode === 'platform-admin'") &&
+      loginPageContentSource.includes('surface: mode') &&
+      !loginPageContentSource.includes('isPlatformAdminNext') &&
       loginPageContentSource.includes('result.redirectTo') &&
+      authActionSource.includes("surface === 'platform-admin'") &&
+      authActionSource.includes('isPlatformAdminSurface && isAdminLoginId') &&
       googleOAuthSource.includes('normalizeLocalRedirectPath') &&
       googleOAuthSource.includes('resolveGoogleOAuthAppOrigin') &&
       googleOAuthSource.includes('isExplicitPlatformAdminPrincipal') &&
@@ -829,9 +838,9 @@ function checkCommercialFoundation() {
       platformAdminIdentitySource.includes('ADMIN_EMAIL') &&
       platformAdminIdentitySource.includes('PLATFORM_ADMIN_ROLES')
     ) {
-      record('pass', 'SaaS auth redirect contract', 'post-login and Google OAuth redirects use explicit principals, trusted app origins, and sanitized next paths');
+      record('pass', 'SaaS auth redirect contract', 'merchant and platform-admin surfaces stay isolated while redirects use explicit principals, trusted app origins, and sanitized next paths');
     } else {
-      record('fail', 'SaaS auth redirect contract', 'login must use explicit platform admin principals, server-provided redirectTo, and sanitized next paths');
+      record('fail', 'SaaS auth redirect contract', 'login must isolate merchant and platform-admin surfaces, use explicit principals, server-provided redirectTo, and sanitized next paths');
     }
   }
 
