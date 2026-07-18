@@ -58,15 +58,12 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByText('試用中')).toBeInTheDocument();
     expect(screen.getByText(/2026\/07\/21/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '聯絡客服' })).toHaveAttribute('href', '/contact');
-    expect(screen.getByRole('link', { name: '查看用量' })).toHaveAttribute(
-      'href',
-      '/settings/usage'
-    );
 
     expect(screen.queryByText('付款與週期')).not.toBeInTheDocument();
     expect(screen.queryByText('發票資料')).not.toBeInTheDocument();
     expect(screen.queryByText('訂閱狀態說明')).not.toBeInTheDocument();
     expect(screen.queryByText('查看方案')).not.toBeInTheDocument();
+    expect(screen.queryByText('查看用量')).not.toBeInTheDocument();
   });
 
   it('keeps the scheduled cancellation warning inside the compact card', async () => {

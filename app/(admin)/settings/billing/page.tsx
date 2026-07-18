@@ -110,9 +110,6 @@ function BillingContent({ data }: { data: BillingSettingsView }) {
             <Button asChild>
               <Link href="/contact">聯絡客服</Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/settings/usage">查看用量</Link>
-            </Button>
           </div>
         </div>
       </CardContent>

@@ -1,10 +1,8 @@
 import Link from 'next/link';
 import {
   ArrowRight,
-  BarChart3,
   CreditCard,
   Database,
-  UsersRound,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -23,20 +21,8 @@ const coreSettingCards: SettingCard[] = [
   {
     href: '/settings/billing',
     title: '帳務與訂閱',
-    description: '查看目前方案、試用狀態、付款週期與電子發票資訊。',
+    description: '查看目前方案、試用狀態與使用期限。',
     icon: CreditCard,
-  },
-  {
-    href: '/settings/usage',
-    title: '用量與額度',
-    description: '追蹤本月退貨量、AI 分析額度與成員席次使用情況。',
-    icon: BarChart3,
-  },
-  {
-    href: '/settings/team',
-    title: '團隊與角色',
-    description: '管理成員、設定角色權限與邀請新夥伴加入。',
-    icon: UsersRound,
   },
 ];
 
@@ -69,7 +55,7 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="設定"
-        description="管理你的方案、用量、團隊與資料。"
+        description="管理你的方案與資料。"
         actions={
           <Button asChild variant="outline">
             <Link href="/pricing" target="_blank">
@@ -80,7 +66,7 @@ export default async function SettingsPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {settingCards.map((item) => {
           const Icon = item.icon;
           return (
