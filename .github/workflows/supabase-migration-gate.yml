@@ -1,0 +1,63 @@
+name: Supabase Migration Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - develop-saas
+    paths:
+      - ".github/workflows/supabase-migration-gate.yml"
+      - "supabase/migrations/**"
+      - "supabase/tests/database/**"
+  push:
+    branches:
+      - develop-saas
+    paths:
+      - ".github/workflows/supabase-migration-gate.yml"
+      - "supabase/migrations/**"
+      - "supabase/tests/database/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migration-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay-and-test:
+    name: Replay migrations and run database smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DO_NOT_TRACK: "1"
+      SUPABASE_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Initialize ephemeral local configuration
+        shell: bash
+        run: |
+          if [[ ! -f supabase/config.toml ]]; then
+            supabase init
+          fi
+
+      - name: Start disposable Supabase Postgres
+        run: supabase db start
+
+      - name: Replay migrations 000 through 046 from an empty database
+        run: supabase db reset --local --no-seed
+
+      - name: Run suspended-tenant and billing database smoke tests
+        run: supabase test db --local supabase/tests/database
+
+      - name: Destroy disposable database
+        if: always()
+        run: supabase stop --no-backup
