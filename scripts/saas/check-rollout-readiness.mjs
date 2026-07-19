@@ -28,6 +28,20 @@ function parseBool(value) {
   return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
+function isProductionBillingContext() {
+  const vercelEnv = normalizeEnvValue(process.env.VERCEL_ENV).toLowerCase();
+  if (vercelEnv === 'production') return true;
+
+  // A strict SaaS rollout check run outside Vercel is the local equivalent of
+  // validating Production configuration. Explicit Preview context remains
+  // eligible for ECPay Stage acceptance with ECPAY_MODE=test.
+  return (
+    strict
+    && normalizeEnvValue(process.env.APP_MODE).toLowerCase() === 'saas'
+    && !vercelEnv
+  );
+}
+
 function isPlaceholder(value) {
   const normalized = normalizeEnvValue(value).toLowerCase();
   return (
@@ -492,7 +506,16 @@ function checkPasswordRecoveryReadiness() {
 
 function checkBillingReadiness() {
   const billingEnabled = parseBool(process.env.ENABLE_BILLING);
+  const subscriptionPlanEnabled = parseBool(process.env.ENABLE_SUBSCRIPTION_PLAN);
   const provider = normalizeEnvValue(process.env.BILLING_PROVIDER).toLowerCase();
+
+  if (billingEnabled !== subscriptionPlanEnabled) {
+    record(
+      'fail',
+      'Billing feature flags',
+      'ENABLE_BILLING and ENABLE_SUBSCRIPTION_PLAN must be enabled or disabled together'
+    );
+  }
 
   if (!billingEnabled) {
     record('warn', 'Billing rollout', 'ENABLE_BILLING=false; OK for manual Beta, not ready for paid self-serve');
@@ -511,6 +534,18 @@ function checkBillingReadiness() {
     } else {
       record('pass', `billing:${key}`, 'set');
     }
+  }
+
+  if (
+    provider === 'ecpay'
+    && isProductionBillingContext()
+    && normalizeEnvValue(process.env.ECPAY_MODE).toLowerCase() !== 'production'
+  ) {
+    record(
+      'fail',
+      'billing:ECPAY_MODE',
+      'must be production for a Production SaaS billing rollout'
+    );
   }
 }
 

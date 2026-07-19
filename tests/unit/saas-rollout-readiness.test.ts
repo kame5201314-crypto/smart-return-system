@@ -50,6 +50,8 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       ENABLE_SUBSCRIPTION_PLAN: 'false',
       ENABLE_ADVANCED_ANALYTICS: 'false',
       ENABLE_MULTI_TENANT_ADMIN: 'false',
+      VERCEL: '',
+      VERCEL_ENV: '',
       SAAS_ROLLOUT_SKIP_GIT_CHECK: '1',
       ...env,
     },
@@ -142,6 +144,7 @@ describe('SaaS rollout readiness check', () => {
   it('requires billing credentials when billing is enabled', () => {
     const result = runRolloutCheck({
       ENABLE_BILLING: 'true',
+      ENABLE_SUBSCRIPTION_PLAN: 'true',
       BILLING_PROVIDER: 'ecpay',
       ECPAY_MERCHANT_ID: '',
       ECPAY_HASH_KEY: '',
@@ -153,6 +156,102 @@ describe('SaaS rollout readiness check', () => {
     expect(result.output).toContain('billing:ECPAY_MERCHANT_ID');
     expect(result.output).toContain('billing:ECPAY_HASH_KEY');
     expect(result.output).toContain('billing:ECPAY_HASH_IV');
+  });
+
+  it.each([
+    { ENABLE_BILLING: 'true', ENABLE_SUBSCRIPTION_PLAN: 'false' },
+    { ENABLE_BILLING: 'false', ENABLE_SUBSCRIPTION_PLAN: 'true' },
+  ])('requires billing and subscription flags to change together', (flagEnv) => {
+    const result = runRolloutCheck({
+      ...flagEnv,
+      BILLING_PROVIDER: 'ecpay',
+      ECPAY_MERCHANT_ID: 'merchant-1',
+      ECPAY_HASH_KEY: 'hash-key',
+      ECPAY_HASH_IV: 'hash-iv',
+      ECPAY_MODE: 'production',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('Billing feature flags');
+    expect(result.output).toContain(
+      'ENABLE_BILLING and ENABLE_SUBSCRIPTION_PLAN must be enabled or disabled together'
+    );
+  });
+
+  it('requires ECPAY_MODE=production in a strict SaaS Production rollout check', () => {
+    const result = runRolloutCheck({
+      ENABLE_BILLING: 'true',
+      ENABLE_SUBSCRIPTION_PLAN: 'true',
+      BILLING_PROVIDER: 'ecpay',
+      ECPAY_MERCHANT_ID: 'merchant-1',
+      ECPAY_HASH_KEY: 'hash-key',
+      ECPAY_HASH_IV: 'hash-iv',
+      ECPAY_MODE: 'test',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('billing:ECPAY_MODE');
+    expect(result.output).toContain('must be production for a Production SaaS billing rollout');
+  });
+
+  it('passes a strict SaaS Production rollout with paired flags and formal mode', () => {
+    const result = runRolloutCheck({
+      ENABLE_BILLING: 'true',
+      ENABLE_SUBSCRIPTION_PLAN: 'true',
+      BILLING_PROVIDER: 'ecpay',
+      ECPAY_MERCHANT_ID: 'merchant-1',
+      ECPAY_HASH_KEY: 'hash-key',
+      ECPAY_HASH_IV: 'hash-iv',
+      ECPAY_MODE: 'production',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('ENABLE_SUBSCRIPTION_PLAN - enabled intentionally');
+    expect(result.output).toContain('billing:ECPAY_MODE - set');
+  });
+
+  it('requires ECPAY_MODE=production on Vercel Production even without strict args', () => {
+    const result = runRolloutCheck(
+      {
+        ENABLE_BILLING: 'true',
+        ENABLE_SUBSCRIPTION_PLAN: 'true',
+        BILLING_PROVIDER: 'ecpay',
+        ECPAY_MERCHANT_ID: 'merchant-1',
+        ECPAY_HASH_KEY: 'hash-key',
+        ECPAY_HASH_IV: 'hash-iv',
+        ECPAY_MODE: 'test',
+        SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+        VERCEL: '1',
+        VERCEL_ENV: 'production',
+      },
+      []
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('billing:ECPAY_MODE');
+    expect(result.output).toContain('must be production for a Production SaaS billing rollout');
+  });
+
+  it('allows ECPay Stage mode in an explicit Preview context', () => {
+    const result = runRolloutCheck({
+      ENABLE_BILLING: 'true',
+      ENABLE_SUBSCRIPTION_PLAN: 'true',
+      BILLING_PROVIDER: 'ecpay',
+      ECPAY_MERCHANT_ID: 'merchant-1',
+      ECPAY_HASH_KEY: 'hash-key',
+      ECPAY_HASH_IV: 'hash-iv',
+      ECPAY_MODE: 'test',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+      VERCEL: '1',
+      VERCEL_ENV: 'preview',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('billing:ECPAY_MODE - set');
+    expect(result.output).not.toContain('must be production for a Production SaaS billing rollout');
   });
 
   it('requires logging when public signup is enabled', () => {
