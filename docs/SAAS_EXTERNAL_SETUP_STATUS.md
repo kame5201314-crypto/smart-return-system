@@ -306,11 +306,9 @@ for the controlled customer handoff and first-session walkthrough.
 
 - Dedicated SaaS Supabase project is `auyznbwtjvemyamujmgt` (`auyznbwtjvemyamujmgt.supabase.co`).
 - The internal/live Supabase project refs `fdzfnenizyppxglypden` and `sntbrntwztkllwkutooi` are not used.
-- A read-only Vercel inspection on 2026-07-18 shows Ready Production deployment
-  `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh`, aliased to
-  `https://smart-return-system-saas.vercel.app`, at attributable commit
-  `3b14d2d`. Post-deploy smoke passed 21/21. Follow-up commits `bbabdb6` and
-  `7464050` are pushed but not deployed.
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready at
+  `https://smart-return-system-saas.vercel.app` with the prepaid Billing code.
+  The earlier 2026-07-18 deployment and smoke records below are historical.
 - Full SaaS migration chain through `032_saas_invite_creation_rpc.sql` has been applied to the SaaS project.
 - Migration `033_saas_platform_billing_operations.sql` has been applied to SaaS project `auyznbwtjvemyamujmgt` after explicit owner authorization; remote migration history records `033` as applied. It adds `perform_platform_billing_operation()` for manual payment marking, suspend/resume, refund request, and audit logging.
 - Draft migration `034_saas_notification_email_queue.sql` exists for notification/email queue storage but has not been applied.
@@ -325,15 +323,15 @@ for the controlled customer handoff and first-session walkthrough.
   required columns, and service-role-only execution were verified. Do not rerun
   `040`-`044`; drafts `034` and `036` remain separate and unapplied.
 - Migrations `045_saas_suspended_org_write_guards.sql`,
-  `046_saas_self_service_billing.sql`, and
-  `047_saas_billing_table_privileges.sql` have been applied only to SaaS project
-  `auyznbwtjvemyamujmgt`. Migration `047` supplies the explicit table grants
-  required for authenticated RLS-scoped billing-history reads and trusted
-  service-role workflows without opening anonymous access or tenant writes.
-  Do not rerun `045`-`047` or apply them to another Supabase project.
+  `046_saas_self_service_billing.sql`,
+  `047_saas_billing_table_privileges.sql`, and
+  `048_saas_checkout_order_hardening.sql` have been applied only to SaaS project
+  `auyznbwtjvemyamujmgt`. Migration `047` supplies the explicit table grants;
+  migration `048` adds atomic pending-order reuse and durable checkout limits.
+  Do not rerun `045`-`048` or apply them to another Supabase project.
 - Vercel Production project `smart-return-system-saas` has owner-authorized
   `ENABLE_PUBLIC_LEAD_CAPTURE=true`; the current Ready deployment is
-  `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh` at commit `3b14d2d`.
+  `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4`.
 - Return image runtime code now stores private storage references instead of newly generated public URLs and signs `return-images` objects on read for portal and merchant return-detail surfaces. Owner authorized deploying this runtime and switching the SaaS Supabase `return-images` bucket to private on 2026-07-14; bucket verification now reports `public=false`.
 - External owner action runbook is documented in `docs/SAAS_EXTERNAL_OWNER_ACTIONS.md`; it separates owner-provided values from Codex execution steps.
 - Billing event retry is currently dry-run only; provider replay remains disabled pending ECPay sandbox validation and audit-log retry wiring.
@@ -354,13 +352,13 @@ for the controlled customer handoff and first-session walkthrough.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
-- The local migration plan now ends at
-  `048_saas_checkout_order_hardening.sql`. Migration `048` is pending and must
-  not be applied without separate authorization. Migrations `045`-`047` are
-  already applied only to SaaS project `auyznbwtjvemyamujmgt`; never rerun them
-  or the already-applied migrations `040`-`044`.
-- `npm run saas:schema-gate:strict` passes after owner-authorized migrations
-  `033`, `037`-`044` apply; never rerun `040`-`044`.
+- The local migration plan ends at `048_saas_checkout_order_hardening.sql`.
+  Migration `048` was applied on 2026-07-20 only to SaaS project
+  `auyznbwtjvemyamujmgt` after Migration Gate run `29696812039`. Migrations
+  `045`-`048` and the already-applied `040`-`044` must never be rerun or applied
+  to another project.
+- `npm run saas:migration-plan:strict` and the strict Billing schema gate pass
+  through migration `048` (25 tables, 126 columns, and Billing RPC checks).
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.
 - `npm run saas:rollout-check:strict` passes for the local Manual Beta environment and also checks admin login credential readiness.
 - Launch security hardening now includes Next.js security headers for CSP, HSTS, clickjacking, MIME sniffing, referrer policy, and browser permissions policy.
@@ -387,12 +385,13 @@ for the controlled customer handoff and first-session walkthrough.
 - `npm run saas:predeploy` passed locally after the latest UI handoffs through `a63cfe2`, the subsequent explicit platform admin identity hardening, `/admin` merchant-entry redirect hardening, launch security headers, dependency audit hardening, post-push Vercel preview status record, platform admin login throttling, mutation same-origin guard, and public signup rate limiting.
 - The remaining expected rollout warning is:
   - Billing is disabled, which is acceptable for manual Beta but not paid self-serve launch.
-- The 2026-07-15 SHA-attributable Google rollout baseline was runtime `a29f725`
-  on deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` (Ready). The current Ready
-  deployment is `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh` at attributable commit
-  `3b14d2d`; post-deploy smoke passed 21/21.
-- Billing/ECPay credentials plus `ENABLE_BILLING` and email provider delivery remain pending because the required external values/credentials are not available in this checkout.
-- Current owner-confirmed Production URL is `https://smart-return-system-saas.vercel.app`. Google Auth, trial signup, and trial expiry are enabled; Billing and Email delivery remain disabled. Historical deployment IDs below are retained only as earlier rollout records.
+- The 2026-07-15 Google rollout and 2026-07-18 smoke baselines are retained as
+  historical records. The current Ready deployment is
+  `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` with prepaid Billing code.
+- Formal Production ECPay credentials, owner-approved Billing flag activation,
+  and email provider delivery remain pending. `ENABLE_BILLING=false` and
+  `ENABLE_SUBSCRIPTION_PLAN=false` are intentional.
+- Current owner-confirmed Production URL is `https://smart-return-system-saas.vercel.app`. Google Auth, trial signup, and trial expiry are enabled; Production Billing and Email delivery remain disabled. Historical deployment IDs below are retained only as earlier rollout records.
 - The attributable `a29f725` baseline included the lead capture
   contract/API/form/operations queue and manual payment UI, plus the previously
   deployed 499/699, isolation, operator, signed return-image, expired-workspace,
@@ -415,12 +414,13 @@ for the controlled customer handoff and first-session walkthrough.
 - Owner chose to skip email provider setup for now.
 - Owner confirmed broad multi-customer rollout, so public multi-tenant hardening is active. P1 Shopee, pickup, customer portal, and upload/signed-url isolation is complete. P2 backup action and backup cron gating is complete locally; `/api/cron/backup` now skips unless `SAAS_BACKUP_ORG_ID` is configured. Non-backup platform maintenance cron routes now skip unless `ENABLE_PLATFORM_MAINTENANCE_CRON=true` is configured. Neither env var was set in Vercel by this local code/doc change.
 - Repository-side phone-only team settings, password recovery, and legacy admin
-  Turnstile validation are complete. Remaining work requires owner/external
-  values or explicit per-action authorization: production
-  `PLATFORM_ADMIN_ROLES`, Custom SMTP/SMS/Turnstile setup, OTP/recovery rollout,
-  public signup posture, email delivery credentials, Stage 2 Billing/ECPay, and
-  draft migrations `034`/`036`/`044`. Custom domain work is intentionally
-  deferred while the owner uses the Vercel production URL.
+  Turnstile validation are complete. Billing repository/schema/Stage work is
+  also complete. Remaining work requires owner/external values or explicit
+  per-action authorization: formal Production ECPay credentials and Billing
+  flag rollout, `PLATFORM_ADMIN_ROLES`, Custom SMTP/SMS/Turnstile setup,
+  OTP/recovery rollout, public signup posture, email delivery credentials, and
+  draft migrations `034`/`036`. Custom domain work is intentionally deferred
+  while the owner uses the Vercel production URL.
 
 ## 2026-07-14 Owner-Authorized Signed Return Image Production Rollout
 

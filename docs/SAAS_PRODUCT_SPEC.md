@@ -2,7 +2,7 @@
 
 日期：2026-05-20
 版本：v2（對齊 MVP-first 紀律）
-狀態：Draft（Google trial 已上線；付費／Email／Phone rollout 待定案）
+狀態：Draft（Google trial 已上線；預付 Billing 程式／Stage 已完成，Production 收款待正式憑證與旗標）
 分支：`develop-saas`
 適用：SaaS Vercel Project + SaaS Supabase Project
 
@@ -10,10 +10,25 @@
 方案、旗標、DB foundation 已在 [`lib/config/saas-plans.ts`](../lib/config/saas-plans.ts)、[`lib/config/feature-flags.ts`](../lib/config/feature-flags.ts)、[`supabase/migrations/023_saas_commercial_foundation.sql`](../supabase/migrations/023_saas_commercial_foundation.sql)
 落地，這份文件補上產品語意、流程、頁面、狀態機。
 
+## 2026-07-20 Superseding Billing Decision
+
+本節取代下方較早期的「Beta 不接金流」與 recurring subscription 規劃：
+
+- MVP 方案為入門版 NT$399／月、成長版 NT$699／月；每次付款購買一個月，
+  不自動續扣，也不儲存信用卡資料。
+- 已登入的 owner/admin 在 `/settings/billing` 選擇方案；後端依伺服器價格
+  建立 ECPay hosted checkout。只有通過簽章驗證與獨立 `QueryTradeInfo`
+  查詢的 webhook 可以啟用付費期間，瀏覽器 return 不會授權。
+- Migrations `045`-`048`、嚴格 Billing schema gate、Preview ECPay Stage
+  NT$399 付款驗收與 Production 程式部署均已完成。
+- Production 收款仍停用，等待正式 ECPay 憑證由安全管道提供，以及 owner
+  明確授權 Billing 旗標與小額實付／退款／對帳驗收。
+
 ## v2 對齊 MVP-first 的決策
 
-- **Beta 期不接金流**。Google 三天試用可自助建立；非 Google／付費帳號仍由
-  owner 人工控管。Stage 2 才接綠界，Stage 5 才接 Stripe；TapPay 短期不接。
+- **Google trial 已上線，預付 Billing 已完成 Stage 驗收**。Production 收款
+  仍關閉，待正式 ECPay 憑證、owner 核准 flags 與小額實付／退款／對帳驗收；
+  Stripe、TapPay 與 recurring billing 不在目前 MVP。
 - **角色四層**：Owner / Admin / Staff / Viewer（取代 023 的 owner/admin/member），由 `024_extend_member_roles.sql` 擴充 CHECK。
 - **Trial**：人工開通 Beta 可維持 owner 管理的 `trialing`；Google 自助試用已是
   3 天，且只允許一次成功的 real AI 分析。
@@ -33,9 +48,10 @@
 
 - 每月固定費用、依方案分兩個公開方案（入門版 / 成長版）與大量需求洽談。
 - 計費幣別：TWD。
-- 計費週期：每月，自動續訂。
+- 計費週期：每次預付一個月，不自動續訂。
 - 試用期：新註冊組織 3 天 trial，期間功能完整可用、不需信用卡。
-- 主金流（台灣）：ECPay 定期定額 → 信用卡定期授權；含電子發票。
+- 主金流（台灣）：ECPay AioCheckOut 單次付款；電子發票／收據依 owner
+  核准的外部營運流程處理，不宣稱已完成 provider 自動開票。
 - 國際備案：Stripe Subscription（先以 feature flag 關閉，第二階段才開放）。
 - 行動支付備案：TapPay（同上）。
 - Legacy `ENABLE_PUBLIC_SIGNUP` 申請／provisioning 路徑預設關閉；Google
@@ -254,55 +270,42 @@ Stage 判斷：
 
 ## 7. 計費流程
 
-### 7.1 啟用付費（trial 結束或 Owner 主動升級）
+### 7.1 購買一個月付費期間（trial 結束或 Owner 主動升級）
 
 ```
-/app/settings/billing 點 [升級到成長版]
-  → 顯示方案、月費、首月起算日
-  → 建立 ECPay 定期定額授權 session
-      provider=ecpay
-      amount=699
-      period=Month
-      frequency=1
-      execTimes=99
-  → 跳轉 ECPay 授權頁
-  → 授權成功
-      ECPay 回呼 webhook (PeriodReturnURL)
-      建立 billing_events: type=subscription.authorized
-      更新 subscriptions: status=active, provider=ecpay, provider_customer_id=...,
-        current_period_start=now, current_period_end=now+1 month
-      更新 organizations: status=active, plan=growth
-  → 顯示成功頁 + 寄電子發票（透過 ECPay 發票 API）
+/settings/billing 點 [升級至入門版] 或 [升級至成長版]
+  → 伺服器依方案決定 NT$399 / NT$699，不接受前端傳入金額
+  → 原子重用既有 pending order 或建立受 rate limit 保護的新訂單
+  → 跳轉 ECPay AioCheckOut hosted payment page
+  → 瀏覽器 ReturnURL 只顯示付款處理狀態，不授權方案
+  → ECPay signed webhook
+      驗證 CheckMacValue
+      對成功付款獨立呼叫 QueryTradeInfo 並核對商店、訂單、金額、狀態、日期
+      原子寫入付款 ledger 與一個月 subscription period
+      更新 organizations: status=active, plan=<server-priced plan>
+  → /settings/billing 顯示目前期間、到期日與付款／期間歷史
 ```
 
-### 7.2 每月扣款（自動）
+### 7.2 到期與再次預付（無自動扣款）
 
 ```
-ECPay 每月扣款日自動扣款
-  → 成功
-      webhook: subscription.invoice_paid
-      延長 subscriptions.current_period_end += 1 month
-      寫 billing_events
-      開立電子發票（B2C 二聯 / B2B 三聯）
-      寄發票通知 email
-  → 失敗
-      webhook: subscription.invoice_failed
-      subscriptions.status = past_due
-      organizations.status = past_due
-      七天寬限期：仍可登入、看資料、不能新增退貨；AI 全部關閉
-      第 4、7 天寄繳費提醒
-      第 8 天 → suspended
-          只能看資料、不能編輯
-      第 30 天 → cancelled（除非 Owner 重新付款）
+付費期間到期前
+  → 顯示到期日與再次購買一個月的入口
+  → 不保存卡片、不建立自動續扣授權
+期間到期且未再次付款
+  → 保留歷史資料唯讀，新增／匯入／匯出／AI 依 access policy 停用
+再次付款成功
+  → 只由 verified webhook + QueryTradeInfo 建立新的 paid period
+  → 恢復方案寫入權限
 ```
 
 ### 7.3 升降級
 
 | 動作 | 生效時間 | 計費處理 |
 |---|---|---|
-| 升級（入門版 → 成長版 / 大量需求） | 下一個 billing cycle | MVP 不做 proration；封閉 Beta 可由 Platform Admin 手動即時調整 |
-| 降級 | 下一個 billing cycle | 本期維持原方案額度，下期起套新方案 |
-| 取消 | 期末取消 | 本期到期日仍可用，到期後 cancelled |
+| 升級（入門版 → 成長版） | 新的已驗證付款期間 | MVP 不做 proration；由伺服器阻擋不安全降級或金額覆寫 |
+| 降級 | 線上不支援 | 本期維持原方案；需等到期後選擇新方案或由營運依 SOP 處理 |
+| 取消 | 不適用自動續扣 | 每次只購買一個月；不再次付款即不會續期 |
 | 立即取消 + 退費 | 首次付款後 7 天內人工審核 | 需符合退費政策的低使用量條件；超過 7 天不退月費 |
 
 ### 7.4 AI Pack 加購（Stage 4+）
@@ -320,14 +323,12 @@ MVP 不實作 AI Pack，也不建立 `subscription_addons` 表。Stage 4+ 若要
 ### 8.1 `organizations.status`
 
 ```
-trialing ──(trial 結束未付款)──▶ suspended
-trialing ──(主動升級成功)─────▶ active
-active ──(扣款失敗)────────────▶ past_due
-past_due ──(7 天內補繳)───────▶ active
-past_due ──(超過 7 天)─────────▶ suspended
-suspended ──(30 天內補繳)─────▶ active
-suspended ──(超過 30 天)──────▶ cancelled
-任一狀態 ──(Owner 主動取消)──▶ cancelled
+trialing ──(trial 結束未付款)──────▶ suspended
+trialing ──(verified 預付成功)─────▶ active
+active ──(paid period 到期未續付)─▶ suspended
+suspended ──(verified 預付成功)───▶ active
+past_due ──(verified 預付成功)────▶ active（相容既有人工帳務狀態）
+任一狀態 ──(平台正式停權)────────▶ suspended（不可自行 checkout 解鎖）
 ```
 
 ### 8.2 各狀態的可用範圍
@@ -456,16 +457,16 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_org_created
 
 | Route | Provider | 用途 |
 |---|---|---|
-| `/api/billing/ecpay/webhook` | ECPay | 定期定額授權、扣款結果、發票 |
+| `/api/billing/ecpay/webhook` | ECPay | AioCheckOut 單次預付結果、獨立交易查詢與 paid-period settlement |
 | `/api/billing/stripe/webhook` | Stripe | 預留，旗標關閉時回 404 |
 | `/api/billing/tappay/webhook` | TapPay | 預留 |
 
 共用流程：
-1. 驗簽 → 失敗 401。
-2. 寫 `billing_events`（unique by provider + event_id，防重放）。
-3. 用 idempotent handler 更新 `subscriptions` / `invoices` / `organizations.status`。
-4. 寄通知（升級成功、扣款失敗、即將到期等）。
-5. 成功回 200。
+1. 驗證 `CheckMacValue`；失敗即 fail closed。
+2. 真實成功付款再以 `QueryTradeInfo` 獨立核對商店、訂單、金額、狀態與付款日期。
+3. 用 idempotent settlement 寫 immutable payment / subscription-period ledger，
+   並更新 `subscriptions` / `organizations.status`。
+4. Provider callback 回應不依賴瀏覽器 return；通知與電子發票屬獨立未來 rollout。
 
 ### 11.2 主要 server actions
 
@@ -536,14 +537,15 @@ internal (multi-tenant admin):
 
 - 服務條款 / 隱私權政策 / 退費政策 三頁完成。
 - 個資法：登入紀錄、第三方 SDK 揭露、Cookie 同意 banner。
-- 電子發票：透過 ECPay 發票模組，B2C/B2B 兩種版型。
+- 發票／收據：目前依 owner 核准的人工或外部營運流程；ECPay 電子發票
+  自動化須另行設計與驗收後才能對外承諾。
 - 統一編號 + 載具欄位（`organizations.tax_id`、`invoice_carrier`）。
 - 首次訂閱付款後 7 天內可申請人工審核退費，但需同時符合：
   - AI 使用次數小於或等於方案月額度的 20%。
   - 退貨單建立筆數小於或等於方案軟限制的 5%。
   - 未匯出任何報表。
   - 未邀請任何成員。
-- 月費續訂週期原則不退費；客戶可隨時取消下期續訂，並可用到本期結束。
+- 單月預付期間原則不自動續訂；客戶不需取消下期扣款，已購期間可用到到期日。
 - AI Pack 若於 Stage 4+ 啟用，一經使用不退。
 - 資料刪除：Owner 點 [刪除組織] → 7 天 cooldown → 排程刪除 + 匯出 zip。
 - 稽核紀錄至少保留 12 個月。
@@ -564,15 +566,15 @@ internal (multi-tenant admin):
 | S1.6 AI 額度門禁 | `org.plan` × `ai_usage_events` 計數，100% 阻擋顯示「請聯絡客服升級方案」 |
 | S1.7 跑通 2 個 Beta 客戶 | 真實匯入蝦皮資料，至少跑完一輪退貨流程與 AI 報告 |
 
-### Stage 2：付費 Beta（接綠界 + 訂閱頁 + 發票）— 3 週
+### Stage 2：預付 Beta（綠界單次付款 + 訂閱頁）— 程式／schema／Stage E2E 已完成
 
 | 任務 | 範圍 |
 |---|---|
 | S2.1 Plans 頁 | `/pricing` + `/app/settings/billing` 升級流程 |
-| S2.2 ECPay 定期定額 | 授權頁、`/api/billing/ecpay/webhook`、idempotent + billing_events |
-| S2.3 訂閱狀態機 | trialing / active / past_due / suspended / cancelled 全鏈路（7 天 / 30 天寬限）|
-| S2.4 電子發票 | 統編 + 載具欄位、ECPay 發票 API、`invoices` 表 |
-| S2.5 通知（最小） | 扣款成功 / 失敗 / AI 100% / 邀請信，重用既有 `email_queue` |
+| S2.2 ECPay 單月預付 | AioCheckOut、verified webhook + `QueryTradeInfo`、idempotent ledger；Stage E2E 完成，Production 憑證／flags 待 owner 核准 |
+| S2.3 訂閱狀態機 | trialing / active / suspended 與 verified paid-period 恢復；平台正式停權不可由 checkout 解鎖 |
+| S2.4 發票／收據 | 目前使用 owner 核准的外部營運流程；provider 自動發票為 future scope |
+| S2.5 通知（未來） | 付款成功 / 到期提醒 / AI 100% / 邀請信；待 Custom SMTP 與 email queue rollout |
 | S2.6 法規三頁 | `/legal/terms`、`/legal/privacy`、`/legal/refund`（7 天內人工審核退費條件）|
 
 ### Stage 3：正式上線（公開註冊 + 完整自助）— 3 週

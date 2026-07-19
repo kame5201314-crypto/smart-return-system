@@ -1,12 +1,26 @@
 # SaaS Go-Live Risk And Service Plan
 
-Last updated: 2026-07-01
+Last updated: 2026-07-20
 
 This document turns the current launch discussion into an ordered execution
 plan for the SaaS commercial version. It is intentionally limited to the
 `develop-saas` SaaS checkout and does not authorize deployment, Supabase
 migrations, Vercel environment changes, billing/provider enablement, DNS
 changes, or live/internal project work by itself.
+
+## 2026-07-20 Prepaid Billing Stage And Schema Rollout
+
+- The current MVP Billing model is one-month prepaid: Basic NT$399 and Growth
+  NT$699, with no automatic renewal or card storage.
+- Migrations `045`-`048` are applied only to SaaS project
+  `auyznbwtjvemyamujmgt` and must not be rerun. The migration and strict Billing
+  schema gates passed.
+- Preview ECPay Stage completed a Basic NT$399 3D-verified payment, signed
+  callback verification, independent payment query, and paid-period creation.
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready with the
+  code, but formal Production ECPay credentials are not supplied and the
+  Billing/subscription flags remain disabled. Production activation and a real
+  charge require a separate owner-approved rollout.
 
 ## 2026-07-01 Local Execution Pass
 
@@ -160,7 +174,7 @@ Result:
 |---|---|---|
 | Closed free/manual Beta | Green with controlled scope | Core merchant workspace, platform admin privacy boundary, tenant isolation hardening, Sentry, security headers, and 399/699 plan contract are in place. |
 | First paid manual customer | Yellow | Invoice/receipt workflow, legal wording, refund handling, and payment records must be operational before collecting money. |
-| Public self-serve paid launch | Red | ECPay recurring billing, email delivery, public signup/self-serve provisioning, lifecycle jobs, and provider-backed invoice flow are not enabled. |
+| Public self-serve paid launch | Yellow | Prepaid code, migrations, and Stage E2E are complete. Formal Production ECPay credentials, owner-approved Billing flags, bounded real-charge/refund/reconciliation smoke, and legal/invoice operations remain before collecting money. |
 
 The product can be tested with a small set of manually provisioned Beta
 customers. It should not be marketed as a fully self-serve paid SaaS until the
@@ -220,10 +234,10 @@ merchant or platform backends.
 
 | Area | Blocker | Required solution |
 |---|---|---|
-| Public signup | Google 3-day self-service trial is live；Email/Phone verified signup and paid self-serve remain closed. | For OTP signup, complete provider/CAPTCHA setup, separately authorize migration `044`, and keep abuse/rate limits. Decide paid self-serve posture independently from the completed Google path. |
+| Public signup | Google 3-day self-service trial is live；Email/Phone verified signup remains closed. | Migration `044` is already applied. Complete provider/CAPTCHA setup, disposable-account smoke, and per-channel flag rollout while keeping abuse/rate limits. |
 | Account recovery | Repository recovery is complete but both channel flags and providers remain off. | Complete six-digit SMTP/SMS templates, CAPTCHA secrets, disposable-account smoke, then enable one channel at a time. |
 | Email | Email queue is dry-run only. | Add provider adapter, preferably Resend first, with templates, retry/status updates, and delivery tests. |
-| ECPay billing | Webhook foundation exists but recurring authorization, processor, subscription updates, invoice issuing, and reconciliation are not ready. | Build and sandbox-test recurring payment lifecycle before enabling billing. |
+| ECPay billing | One-month prepaid checkout, verified settlement, paid-period history, migrations, and Stage E2E are complete. Production credentials and flags remain closed. | Supply formal Production credentials out of band, run the approved real-charge/refund/reconciliation smoke, and keep recurring billing/card storage outside the current MVP. |
 | Subscription lifecycle | Google self-service trial expiry and post-expiry read-only are live; failed payment, grace period, and paid cancellation remain incomplete. | Add paid lifecycle jobs and operator alerts, then test past_due/suspended/cancelled cases before Billing. |
 | Platform admin roles | DB-backed platform admin role management uses draft `036`. | Apply `036` only when owner wants DB-managed platform admin roles; keep env mapping until then. |
 | Operational monitoring | Sentry is configured, but business alerts for trial expiry, quota overage, payment failure, and AI cost are still manual. | Add notification/ops alert pipeline after email/provider decision. |
@@ -313,7 +327,9 @@ signals and account state, not customer PII.
 ### Defer Until Public Paid Launch
 
 9. Resend/email delivery.
-10. ECPay recurring billing and invoice integration.
+10. Production prepaid ECPay credential/flag cutover and bounded
+    charge/refund/reconciliation smoke. Recurring billing and provider invoice
+    integration remain future scope.
 11. Public self-serve signup.
 12. DB-backed platform admin role migration `036`.
 13. Automated lifecycle and operations alerts.

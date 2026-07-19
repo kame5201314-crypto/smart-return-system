@@ -1,10 +1,24 @@
 # SaaS Pre-Launch Checklist
 
-Last verified: 2026-07-16
+Last verified: 2026-07-20
 
 This checklist is for the SaaS commercial checkout on `develop-saas`.
 It does not authorize production deployment, Supabase migrations, or Vercel
 setting changes by itself. External changes still need explicit owner approval.
+
+## 2026-07-20 Paid Self-Service Readiness Update
+
+- Migrations `045`-`048` are applied only to SaaS project
+  `auyznbwtjvemyamujmgt`; never rerun or apply them elsewhere. Migration Gate
+  run `29696812039` and the strict Billing schema gate passed.
+- Preview ECPay Stage completed a Basic NT$399 payment with 3D verification,
+  signed callback verification, independent payment query, and paid-period
+  creation. Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready
+  with the prepaid Billing code.
+- Production payment is not open: formal Production ECPay credentials are not
+  supplied, and `ENABLE_BILLING=false` /
+  `ENABLE_SUBSCRIPTION_PLAN=false` remain intentional. A real charge still
+  requires a separate owner-approved rollout and refund/reconciliation smoke.
 
 ## Current Gate Status
 
@@ -26,13 +40,12 @@ Production Sentry DSNs are configured. The remaining expected Manual Beta
 non-blocking warning is that Billing is disabled; this is intentional for the
 current free/manual posture but not sufficient for paid self-serve launch.
 
-The latest read-only Vercel inspection shows Ready Production deployment
-`dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`; its metadata does not expose an attributable
-Git SHA. The existing Google self-service signup path is live, but Public
-Production does not contain the new login entry/copy markers from `dd27745`;
-`160a3fa` and `39b8c9f` are test-only commits. The current working copy has an
-ignored `.env.saas.local`; keep it untracked and never copy its values into Git,
-documentation, commands, or chat.
+The current Ready Production deployment is
+`dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` at the stable SaaS URL. It includes the
+prepaid Billing code, but the Production Billing flags remain disabled and no
+formal Production ECPay credentials are present. The current working copy has
+an ignored `.env.saas.local`; keep it untracked and never copy its values into
+Git, documentation, commands, or chat.
 
 ## Launch Mode Decision
 
@@ -43,8 +56,9 @@ Choose one launch mode before deployment:
 | Google trial + manual paid Beta | Google self-service trial flags enabled; `ENABLE_PUBLIC_SIGNUP=false`, `ENABLE_BILLING=false`, and `ENABLE_SUBSCRIPTION_PLAN=false`; owner manually provisions non-Google/manual organizations and handles upgrades. |
 | Paid self-serve | Billing provider credentials configured, webhook verified, public signup/subscription flags intentionally enabled, and payment smoke tests completed. |
 
-Current mode: **Google 免費自助試用已公開；付費轉換、Email/Phone 註冊及一般
-public signup 仍採人工 Beta**。
+Current mode: **Google trial is public; prepaid Billing code is deployed but
+Production self-service payment remains disabled pending formal credentials and
+an owner-approved flag rollout.**
 
 ## Local Inspection Mode
 
@@ -79,8 +93,9 @@ QA already completed; do not change that value without new authorization.
   self-service trial flags.
 - `ENABLE_BILLING=false` unless billing rollout is explicitly approved.
 - `ENABLE_EMAIL_OTP_SIGNUP=false` and `ENABLE_PHONE_OTP_SIGNUP=false` until
-  migration `044`, matching provider, CAPTCHA, and disposable-account smoke are
-  separately approved.
+  matching provider, CAPTCHA, disposable-account smoke, and per-channel flag
+  rollout are separately approved. Migration `044` is already applied and must
+  not be rerun.
 - `ENABLE_EMAIL_PASSWORD_RECOVERY=false` and
   `ENABLE_PHONE_PASSWORD_RECOVERY=false` until the matching six-digit
   Email/SMS delivery flow is verified.

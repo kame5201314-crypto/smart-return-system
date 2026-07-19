@@ -1,5 +1,25 @@
 # Handoff Log
 
+## 2026-07-20 - Self-Service Prepaid Billing Rollout Handoff
+
+- Basic NT$399 and Growth NT$699 are implemented as one-month prepaid plans;
+  there is no automatic renewal or card storage.
+- Migrations `045`-`048` are applied only to SaaS project
+  `auyznbwtjvemyamujmgt` and must not be rerun or applied elsewhere. Migration
+  Gate run `29696812039` and the strict Billing schema gate passed.
+- Preview ECPay Stage completed a Basic NT$399 payment with 3D verification,
+  signed callback verification, independent `QueryTradeInfo` confirmation, and
+  paid subscription-period creation. Preview protection was restored afterward.
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready with the
+  prepaid Billing code. Production payment remains closed because formal ECPay
+  credentials are not supplied and `ENABLE_BILLING=false` /
+  `ENABLE_SUBSCRIPTION_PLAN=false` remain intentional.
+- Follow-up hardening commits `5f7eb08`, `8c31054`, `5659df8`, and `4ec49c2`
+  add the checkout same-origin regression, platform-suspension guard, verified
+  provider payment-date settlement, and safe actionable checkout failures.
+- No Production Billing activation or real customer charge is authorized by
+  this handoff. Custom SMTP remains a separate external rollout.
+
 ## 2026-07-17 - Self-service Trial Single-seat Guard Handoff
 
 - Active self-service trials now resolve to one effective team seat: the owner.

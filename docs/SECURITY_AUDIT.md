@@ -1,15 +1,19 @@
 # SaaS 資安稽核報告（Security Launch Audit）
 
-- 原始稽核：2026-06-13；完成狀態更新：2026-07-16
+- 原始稽核：2026-06-13；完成狀態更新：2026-07-20
 - 分支：`develop-saas`
 - 方法：Claude 與 Codex **兩個獨立稽核**交叉驗證，結論零分歧。
 - 性質：原始稽核為唯讀；本次同步已完成修正與驗收證據。
-- Production 現況：2026-07-16 唯讀檢查顯示 Ready deployment
-  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`，網址
-  `https://smart-return-system-saas.vercel.app`（Google 免費自助試用 + 人工付費
-  Beta）；Vercel
-  inspect 未提供可歸屬的 Git SHA。既有 Google 自助試用已上線；新的登入頁註冊
-  入口／文案 `dd27745` 已推送但尚未部署，`160a3fa`、`39b8c9f` 為測試 commit。
+- 2026-07-20 Billing gate 更新：checkout POST 有 same-origin 防線與 durable
+  rate limit，價格由伺服器控制；webhook 必須通過簽章與獨立
+  `QueryTradeInfo` 驗證；正式平台停權會阻擋 checkout。Migrations `045`-`048`
+  與 Preview ECPay Stage E2E 已完成，Production 程式已部署，但正式憑證未
+  提供且 Billing 旗標仍關閉，因此尚未開放 Production 收款。
+- Production 現況：2026-07-20 Ready deployment
+  `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` 位於
+  `https://smart-return-system-saas.vercel.app`。Google 免費自助試用已上線；
+  預付 Billing 程式已部署，但正式 ECPay 憑證尚未提供，兩個 Billing 旗標仍
+  關閉，因此 Production 收款尚未開放。
 
 ---
 
@@ -18,7 +22,7 @@
 | 階段 | 判定 | 說明 |
 |---|---|---|
 | **Google 免費自助試用 + 人工付費 Beta** | 🟢 **GREEN — 已上線** | Google 三天試用已公開；付費轉換及非 Google 帳號仍維持人工控管。 |
-| **Google trial 以外的 Email/Phone／付費公開 rollout** | 🟡 **YELLOW — 暫不開放** | 需先完成 email provider、Billing/ECPay、法務定稿與實際資料保留／刪除責任人、對應 auth rollout，以及 P1/P2 安全修正與部分 migration，且每項皆需 owner 另行授權。 |
+| **Google trial 以外的 Email/Phone／付費公開 rollout** | 🟡 **YELLOW — 暫不開放** | Prepaid Billing 程式、migrations `045`-`048` 與 Stage E2E 已完成；仍需正式 ECPay 憑證、owner 核准 flags、實付／退款／對帳 smoke，以及法務／發票營運。Email/Phone provider/CAPTCHA/flags 是獨立 rollout。 |
 
 兩個獨立稽核對以上判定**完全一致**。
 
@@ -42,7 +46,7 @@
 | Legacy admin CAPTCHA | Commits `36e21fd`、`063633b`：server-side Siteverify 驗證 token、`password_login` action、trusted hostname、timeout；一般挑戰失敗在密碼比對前 fail closed 並計入 rate limit，provider/configuration outage 不會鎖住正常管理員 | ✅（repo，未 deploy） |
 | 密碼復原與註冊 session 安全 | Commits `efe50ee`、`91d1b1c`、`679f067`：泛化寄送回應、`shouldCreateUser=false`、new-session/user/contact match、10 分鐘 signed HttpOnly proof、失敗 session cleanup、同步防重送、guarded reset action，且 global sign-out 失敗不誤報成功 | ✅（repo，flags off） |
 | 公開寫入面驗證 | 消費者退貨 portal 寫入經 `customerReturnSchema`（zod）驗證 + 欄位長度上限 + 手機 regex | ✅ |
-| ECPay webhook | `app/api/billing/ecpay/webhook/route.ts` + `CheckMacValue` 簽章驗證（Billing 目前停用） | ✅ |
+| ECPay prepaid checkout / webhook | Same-origin checkout POST、伺服器價格、durable idempotency/rate limit、平台停權 guard、`CheckMacValue` 簽章、獨立 `QueryTradeInfo` 驗證、RLS/grants 與 Preview Stage E2E；Production Billing 旗標仍關閉 | ✅（Stage / repo） |
 | 相依套件漏洞 | Commits `d411a4b`、`44bd903`：production high/critical CI gate；`npm audit --omit=dev` 與完整 audit 均為 0 low / 4 moderate / **0 high / 0 critical**。剩餘 Next/PostCSS 與 ExcelJS/UUID 路徑需 breaking change，不使用 `--force` 自動修正 | ✅ |
 
 > **備份說明（需 owner 確認，非本稽核可驗證）**：repo 內已實作**應用層 backup cron gating**；但 Supabase **平台層的每日自動備份是否啟用**屬 Supabase Dashboard 設定，無法從 repo 驗證。owner 應於 Supabase Dashboard 確認 daily backup 已開啟。
@@ -87,8 +91,9 @@
 
 - ❌ 不要開 `ENABLE_PUBLIC_SIGNUP=true`
 - ❌ 不要啟用 Billing / ECPay（`ENABLE_BILLING`）
-- ❌ 不要套用 draft migration `034` / `036` / `044`；不要重跑已套用的 `030`、
-  `033`、`035` 或 `037`–`043`
+- ❌ 不要套用 draft migration `034` / `036`；不要重跑已套用的 `040`–`048`
+- ❌ 不要在正式 ECPay 憑證與 owner 核准的 Production rollout 前開啟
+  `ENABLE_BILLING` 或 `ENABLE_SUBSCRIPTION_PLAN`
 - ❌ 不要為了自訂網域卡住 Beta — 先用 `https://smart-return-system-saas.vercel.app`
 
 ---
@@ -96,11 +101,14 @@
 ## 5. 建議執行順序
 
 1. `fix-auth` 與 `schema-drift-alert` P1 已完成並有回歸測試。
-2. Google 免費自助試用 + 人工付費 Beta 已上線；SHA-attributable
-   `a29f725` deployment 的 Production smoke 16/16，錯誤 log 為 0。
+2. Google 免費自助試用已上線；目前 Ready Production deployment 是
+   `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4`，包含預付 Billing 程式但收款 flags
+   仍關閉。
 3. Owner 仍應持續維持強 `ADMIN_PASSWORD`，並確認 Supabase 平台層 daily
    backup 設定。
-4. 公開付費前再完成 Email、Billing/ECPay、法務/個資與 MFA 等 P2 工作。
+4. 公開付費前完成 Production ECPay cutover、實付／退款／對帳 smoke、
+   法務／發票營運與必要 P2 工作。Email OTP delivery 是獨立 rollout，除非
+   產品決策要求，並非預付 Billing 技術啟用的前置 migration。
 
 ---
 

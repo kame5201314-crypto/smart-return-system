@@ -35,23 +35,25 @@ domain / billing / secret changes
 
 ## Current External Blockers
 
-- SaaS migrations `040`–`043` are applied only to project
-  `auyznbwtjvemyamujmgt` and must not be rerun. Drafts `034`, `036`, and `044`
-  remain unapplied and each requires a separate feature-matched authorization.
+- SaaS migrations `040`-`048` are applied only to project
+  `auyznbwtjvemyamujmgt` and must not be rerun or applied to another project.
+  Drafts `034` and `036` remain unapplied and each requires a separate
+  feature-matched authorization.
 - `npm run saas:migration-plan:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:schema-gate:strict` passes against project `auyznbwtjvemyamujmgt`.
 - `npm run saas:rollout-check` reports the remaining rollout blockers without changing external state.
 - Google login, 3-day self-service trial, single-use AI, scoped expiry, Sentry,
   and post-expiry read-only are already live. They are not current blockers.
-- Repository auth/dependency hardening and account-registration QA through
-  `39b8c9f` are pushed. The runtime login entry in `dd27745` is not deployed;
-  `160a3fa` and `39b8c9f` are test-only commits.
-- OTP signup/recovery remains blocked on Custom SMTP/SMS, Cloudflare and
-  Supabase CAPTCHA secrets, per-channel smoke, deployment/env authorization,
-  and migration `044` only if new verified signup provisioning is selected.
-- Paid self-serve remains blocked on legal/invoice decisions, Email delivery,
-  Billing/ECPay, and paid lifecycle automation. Optional domain and DB-backed
-  platform roles remain separate future approvals.
+- Verified Email/Phone migration `044` is applied, but OTP delivery/recovery
+  remains blocked on provider/CAPTCHA readiness, per-channel smoke, and an
+  explicitly approved Production flag rollout. Custom SMTP still requires a
+  verified sender domain and credentials supplied out of band.
+- Prepaid Billing repository code, migrations `045`-`048`, strict schema gate,
+  ECPay Stage acceptance, and Production code deployment are complete. Formal
+  Production ECPay credentials, owner-approved Billing flag activation, and a
+  bounded real-charge/refund/reconciliation smoke remain external blockers.
+- Company legal/tax/invoice/refund decisions, optional custom domain, and
+  DB-backed platform roles remain separate future approvals.
 
 ## Routing Strategy
 

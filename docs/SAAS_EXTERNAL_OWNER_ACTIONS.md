@@ -1,10 +1,29 @@
 # SaaS External Owner Actions
 
-Last updated: 2026-07-17
+Last updated: 2026-07-20
 
 This runbook converts the remaining SaaS rollout blockers into owner decisions
 and safe Codex handoffs. It does not authorize deployment, Supabase migrations,
 environment changes, billing/provider enablement, or DNS changes by itself.
+
+## 2026-07-20 Self-Service Prepaid Billing Current State
+
+- Basic NT$399 and Growth NT$699 use a one-month prepaid model with no automatic
+  renewal and no card storage.
+- Migrations `045`-`048` are applied only to SaaS project
+  `auyznbwtjvemyamujmgt`; never rerun them or apply them elsewhere. Migration
+  Gate run `29696812039` and the strict Billing schema gate passed.
+- Preview ECPay Stage completed a Basic NT$399 3D-verified payment, signed
+  callback verification, independent payment query, and paid-period creation.
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready with the
+  prepaid Billing code, but Production payment is still closed. Formal
+  Production ECPay MerchantID/HashKey/HashIV are not supplied, and
+  `ENABLE_BILLING=false` / `ENABLE_SUBSCRIPTION_PLAN=false` must remain closed
+  until the owner approves the bounded Production rollout and real-charge,
+  refund, and reconciliation smoke.
+- Follow [`SAAS_SELF_SERVICE_PREPAID_BILLING_ROLLOUT.md`](./SAAS_SELF_SERVICE_PREPAID_BILLING_ROLLOUT.md)
+  for the remaining owner-controlled sequence. Email OTP delivery and Custom
+  SMTP remain a separate external queue.
 
 For the Google login and self-service trial rollout, use
 [`SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md`](./SAAS_GOOGLE_AUTH_TRIAL_ROLLOUT.md).
@@ -78,32 +97,25 @@ recovery rollout, use
 ## Current Verified State
 
 - Branch: `develop-saas`
-- A read-only Vercel inspection on 2026-07-16 shows Ready Production deployment
-  `dpl_2szSTLaacjvu9yw2DMEhn1QUWJw3`, aliased to
-  `https://smart-return-system-saas.vercel.app`. Vercel inspection metadata does
-  not expose a Git commit SHA for this deployment.
-- For the attributable 2026-07-15 `a29f725` deployment, post-deploy smoke passed
-  16/16, OAuth recovery browser QA passed, and the deployment error-log scan
-  returned zero errors.
-- Runtime `a29f725` on deployment `dpl_7ZznosE1KVLdB4oj1sFFCwDAwJtC` remains the
-  latest historical deployment record with an attributable Git SHA.
-- Repository account-registration work through `39b8c9f` is pushed to
-  `origin/develop-saas`. The existing Google self-service signup path is live,
-  but Public Production does not yet contain the new `dd27745` login entry/copy
-  markers (`註冊新帳號` and `使用 Google 註冊或登入`). That runtime commit still
-  requires a separately authorized deployment; `160a3fa` and `39b8c9f` are
-  test-only commits.
-- Historical signed-image runtime `f009621` and lead-capture runtime `ba70e90`
-  are superseded deployment records, not the current Production source.
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready at
+  `https://smart-return-system-saas.vercel.app` with the current prepaid Billing
+  code. Older deployment IDs below are historical rollout records.
+- Migrations `040`-`048` are applied only to SaaS project
+  `auyznbwtjvemyamujmgt` and must never be rerun or applied elsewhere. Drafts
+  `034` and `036` remain unapplied.
+- Preview ECPay Stage acceptance passed, but Production Billing remains closed
+  until formal Production credentials are supplied and the owner authorizes the
+  bounded flag activation and real-charge/refund/reconciliation smoke.
 - SaaS Supabase bucket `return-images` is now private (`public=false`) after
   the signed URL runtime was deployed. Bucket verification found no existing
   stored objects to live-fetch during the smoke, but the private visibility
   switch itself succeeded against project `auyznbwtjvemyamujmgt`.
 - Latest Sentry setup / redeploy: 2026-06-06
-- Current Google-trial + manual paid-Beta posture:
+- Current Google-trial + deployed-but-disabled prepaid Billing posture:
   - `ENABLE_PUBLIC_SIGNUP=false` (legacy request/provisioning path; independent
     Google self-service trial remains enabled)
   - `ENABLE_BILLING=false`
+  - `ENABLE_SUBSCRIPTION_PLAN=false`
   - `ENABLE_GOOGLE_AUTH=true`
   - `ENABLE_GOOGLE_TRIAL_SIGNUP=true`
   - `ENABLE_TRIAL_EXPIRY_CRON=true`
@@ -168,14 +180,17 @@ handling SOP that should be reviewed before paid/public rollout.
 
 Current decision:
 
-- Google free self-service trial is live; paid conversion, Email/Phone signup,
-  and general public signup remain controlled/manual Beta.
+- Google free self-service trial is live. Prepaid Billing code, schema, and Stage
+  E2E are complete, while Production payment and Email/Phone signup remain
+  closed behind independent external rollouts.
 - First paid manual customers require invoice/receipt capability, finalized
   legal/refund wording, and a manual payment record SOP before collecting
   money.
-- Public self-serve paid launch remains blocked by email delivery, ECPay
-  recurring billing, public signup/provisioning posture, lifecycle automation,
-  and provider-backed invoice flow.
+- Public self-service prepaid payment remains blocked by formal Production ECPay
+  credentials, owner-approved flags, a bounded real-charge/refund/reconciliation
+  smoke, and approved legal/invoice operations. Email delivery is an independent
+  rollout; recurring billing and provider-backed invoice automation are future
+  scope, not current MVP blockers.
 
 The next owner-authorized technical actions, in order, are:
 
@@ -185,8 +200,9 @@ The next owner-authorized technical actions, in order, are:
 2. Before any paid customer, confirm invoice/receipt capability and finalize
    public legal pages for paid use.
 3. Use `docs/SAAS_MANUAL_PAYMENT_SUPPORT_SOP.md` for manual payment tracking,
-   refund review, support SLA, and onboarding until ECPay/email automation is
-   explicitly authorized and implemented.
+   refund review, support SLA, and onboarding until the formal Production ECPay
+   cutover and bounded payment smoke are explicitly authorized. Prepaid code and
+   Stage E2E are already complete.
 4. Use `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md` for every first-session
    Beta onboarding so account handoff, Shopee/manual-channel scope, AI
    walkthrough, and `/internal` follow-up stay consistent.
@@ -194,8 +210,8 @@ The next owner-authorized technical actions, in order, are:
    support before promising DPA, deletion, retention, or incident-notice terms
    to paying customers.
 6. If Email/Phone account flows are desired, provide Custom SMTP/SMS and
-   Cloudflare Turnstile values out of band, authorize one channel at a time,
-   and authorize migration `044` separately only for new verified signup.
+   Cloudflare Turnstile values out of band and authorize one channel at a time.
+   Migration `044` is already applied and must not be rerun.
 
 ## Paid Customer Invoice / Legal Owner Inputs
 
@@ -768,8 +784,8 @@ Owner must provide or complete out of band:
 - For Phone, a Supabase-supported SMS provider with Taiwan delivery, spend
   limit, fraud protection, and tested `+8869XXXXXXXX` delivery.
 - Explicit per-channel authorization for signup and/or password recovery.
-- Separate migration `044` authorization only if verified Email/Phone signup
-  should create self-service trial organizations.
+- Migration `044` is already applied only to the SaaS project and must not be
+  rerun; no migration action is required for this provider/flag rollout.
 
 Safe handoff template:
 
@@ -784,8 +800,7 @@ Scope:
 - Enable only the named signup/recovery flag(s).
 - Run existing Email/Phone/Google/legacy-admin/Supabase-admin login smoke.
 - Use disposable accounts for OTP and recovery QA.
-- Do not apply migration 044 unless this authorization explicitly says
-  "apply migration 044 to auyznbwtjvemyamujmgt only".
+- Do not rerun migration `044` or apply it to another project.
 - Do not touch master/live/internal Supabase.
 ```
 
@@ -796,23 +811,24 @@ Owner must provide:
 - ECPay merchant ID
 - Hash key
 - Hash IV
-- Environment choice: sandbox or production
-- Public pricing decision and whether Stage 2 paid Beta is authorized
-- Explicit approval for `ENABLE_BILLING=true`
+- Formal Production merchant credentials (Stage credentials are not acceptable)
+- Explicit approval for the bounded Production prepaid rollout
+- Explicit approval for `ENABLE_BILLING=true` and
+  `ENABLE_SUBSCRIPTION_PLAN=true`
 - Invoice method: manual invoice/receipt, ECPay electronic invoice, or another
   approved channel
 - Company/tax identity for paid receipts/invoices
-- Payment-failure grace days before `past_due` / `suspended`
 - Refund SOP and invoice void/allowance handling
-- Sandbox test account and production cutover criteria
+- Production cutover, real small-charge, refund, and reconciliation criteria
 
-Handoff after Stage 2 is approved:
+Handoff after the Production prepaid cutover is approved:
 
 ```text
-I authorize Stage 2 billing setup for smart-return-system-saas.
+I authorize the bounded Production prepaid Billing rollout for
+smart-return-system-saas.
 
 Provider:
-- ECPay <sandbox|production>
+- ECPay production
 
 Credentials:
 - ECPAY_MERCHANT_ID=<provided out-of-band>
@@ -821,22 +837,24 @@ Credentials:
 
 Flags:
 - ENABLE_BILLING=true
+- ENABLE_SUBSCRIPTION_PLAN=true
 - BILLING_PROVIDER=ecpay
 
 Scope:
 - Configure SaaS project only.
 - Do not touch master/live/internal Supabase.
-- Do not apply migration 033 unless I explicitly include that authorization.
-- Run rollout checks and webhook signature tests before deploy.
+- Do not rerun migrations `040`-`048`.
+- Run rollout checks, a real small charge, refund/void handling, and
+  reconciliation verification before treating Production Billing as open.
 - Update docs and push develop-saas.
 ```
 
-## Migrations 033-044 Status
+## Migrations 033-048 Status
 
 Applied migrations must not be rerun, and unapplied drafts require explicit
 per-migration authorization; never apply this range as a bundle. Migrations
-`033`, `035`, and `037`–`043` have already been applied to the SaaS project;
-the remaining unapplied drafts are only `034`, `036`, and `044`.
+`033`, `035`, and `037`-`048` have already been applied to the SaaS project;
+the remaining unapplied drafts are only `034` and `036`.
 
 ### `033_saas_platform_billing_operations.sql`
 
@@ -1010,30 +1028,31 @@ Purpose:
 - Preserves the existing Google RPC and applied migrations `040`–`043`.
 - Adds provider/contact uniqueness and service-role-only provisioning checks.
 
-Recommended timing:
+Activation note:
 
-- Only after the chosen Custom SMTP/SMS provider, six-digit OTP template,
-  CAPTCHA, login regression smoke, and disposable-account flow are ready.
-- Recovery for existing accounts may be rolled out without `044`; do not use
-  password recovery as a reason to apply this migration early.
+- The migration is already applied. Keep Email/Phone signup flags closed until
+  the chosen Custom SMTP/SMS provider, six-digit OTP template, CAPTCHA, login
+  regression smoke, and disposable-account flow are ready.
+- Recovery for existing accounts is a separate per-channel provider/flag
+  rollout and does not require another migration.
 
 Risk:
 
-- Medium. It changes self-service provisioning and trial claim identity data.
-- Apply only to SaaS project `auyznbwtjvemyamujmgt`, after backup/review and a
-  migration-specific authorization. Never rerun `040`–`043`.
+- Medium when originally applied because it changed self-service provisioning
+  and trial claim identity data. Never rerun `040`-`044`.
 
 Status:
 
-- Draft-only; not applied anywhere.
-- Do not bundle with `034` or `036`.
+- Applied only to SaaS project `auyznbwtjvemyamujmgt` on 2026-07-17; remote
+  history, required columns, RPC, and service-role-only execution were verified.
+- Do not rerun or bundle it with `034` or `036`.
 
 ## Migration Authorization Template
 
 Use this only after choosing one migration:
 
 ```text
-I authorize applying migration <034|036|044> to the SaaS Supabase project
+I authorize applying migration <034|036> to the SaaS Supabase project
 auyznbwtjvemyamujmgt only.
 
 Scope:
@@ -1052,11 +1071,13 @@ Scope:
   safe to use that way.
 - Do not commit DSN, API keys, ECPay credentials, SMTP credentials, or DNS
   tokens.
-- Do not apply migrations `033`-`044` as a bundle. `033`, `035`, `037`–`043`
-  are already applied; the remaining unapplied drafts are `034`, `036`, and
-  `044`.
+- Do not apply migrations `033`-`048` as a bundle. `033`, `035`, and
+  `037`-`048` are already applied; the remaining unapplied drafts are `034` and
+  `036`.
 - Do not enable `ENABLE_PUBLIC_SIGNUP=true` as part of these actions.
-- Do not enable `ENABLE_BILLING=true` during Closed Manual Beta.
+- Do not enable `ENABLE_BILLING=true` or `ENABLE_SUBSCRIPTION_PLAN=true` until
+  formal Production ECPay credentials and the owner-approved rollout checklist
+  are complete.
 - Do not change `master`.
 - Do not touch internal/live Supabase projects.
 
