@@ -42,6 +42,8 @@ type PolledPaymentStatus =
 
 const PAYMENT_POLL_INTERVAL_MS = 2_000;
 const PAYMENT_POLL_MAX_ATTEMPTS = 15;
+const CHECKOUT_REQUEST_TIMEOUT_MS = 10_000;
+const CHECKOUT_GENERIC_ERROR_MESSAGE = '目前無法建立付款流程，請稍後再試。';
 
 const PLAN_ORDER: Array<Extract<SaaSPlanCode, 'basic' | 'growth'>> = ['basic', 'growth'];
 
@@ -155,6 +157,44 @@ function normalizePolledPaymentStatus(payload: unknown): PolledPaymentStatus | n
   ].includes(normalized)
     ? (normalized as PolledPaymentStatus)
     : null;
+}
+
+function checkoutErrorMessage(payload: unknown, status: number): string {
+  const code = isRecord(payload) && typeof payload.code === 'string'
+    ? payload.code.trim()
+    : '';
+
+  if (status === 429 || code === 'checkout_rate_limited') {
+    const retryAfterSeconds = isRecord(payload)
+      && typeof payload.retryAfterSeconds === 'number'
+      && Number.isFinite(payload.retryAfterSeconds)
+      && payload.retryAfterSeconds > 0
+      ? Math.ceil(payload.retryAfterSeconds)
+      : null;
+    return retryAfterSeconds
+      ? `付款操作過於頻繁，請在 ${retryAfterSeconds} 秒後再試。`
+      : '付款操作過於頻繁，請稍後再試。';
+  }
+
+  switch (code) {
+    case 'unauthenticated':
+      return '登入狀態已失效，請重新登入後再試。';
+    case 'membership_required':
+    case 'role_forbidden':
+      return '目前帳號沒有啟動付款的權限。';
+    case 'billing_disabled':
+    case 'credentials_missing':
+    case 'provider_not_ready':
+      return '線上付款目前暫時無法使用，請稍後再試。';
+    case 'platform_suspension_requires_review':
+      return '此工作區已由平台管理員停權，解除停權前無法線上付款。';
+    case 'plan_downgrade_not_supported':
+      return '目前不支援線上降級，請改選現有或更高方案。';
+    case 'checkout_order_not_pending':
+      return '此付款訂單已失效，請重新建立付款流程。';
+    default:
+      return CHECKOUT_GENERIC_ERROR_MESSAGE;
+  }
 }
 
 function formatDate(value: string | null): string {
@@ -303,6 +343,8 @@ export function BillingPlanSelector({
   async function startCheckout(plan: Extract<SaaSPlanCode, 'basic' | 'growth'>) {
     setProcessingPlan(plan);
     setError(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CHECKOUT_REQUEST_TIMEOUT_MS);
 
     try {
       const response = await fetch('/api/saas/billing/checkout', {
@@ -310,27 +352,31 @@ export function BillingPlanSelector({
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ plan }),
+        signal: controller.signal,
       });
       const payload = (await response.json().catch(() => null)) as unknown;
       if (!response.ok) {
-        const message = isRecord(payload) && typeof payload.error === 'string'
-          ? payload.error
-          : '目前無法建立付款流程，請稍後再試。';
-        throw new Error(message);
+        setError(checkoutErrorMessage(payload, response.status));
+        setProcessingPlan(null);
+        return;
       }
 
       const nextSubmission = normalizeProviderSubmission(payload);
       if (!nextSubmission) {
-        throw new Error('付款服務回應不完整，請稍後再試。');
+        setError('付款服務回應不完整，請稍後再試。');
+        setProcessingPlan(null);
+        return;
       }
       setSubmission(nextSubmission);
     } catch (checkoutError) {
       setError(
-        checkoutError instanceof Error && checkoutError.message
-          ? checkoutError.message
-          : '目前無法建立付款流程，請稍後再試。'
+        checkoutError instanceof Error && checkoutError.name === 'AbortError'
+          ? '等待付款服務回應逾時，請稍後再試。'
+          : CHECKOUT_GENERIC_ERROR_MESSAGE
       );
       setProcessingPlan(null);
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

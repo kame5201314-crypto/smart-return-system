@@ -287,6 +287,7 @@ describe('BillingSettingsPage', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ plan: 'basic' }),
+        signal: expect.any(AbortSignal),
       })
     );
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
@@ -296,6 +297,76 @@ describe('BillingSettingsPage', () => {
     expect(form).not.toBeNull();
     expect(form?.querySelector('input[name="MerchantTradeNo"]')).toHaveValue('trade-1');
     expect(form?.querySelector('input[name="TradeAmt"]')).toHaveValue('399');
+  });
+
+  it('aborts checkout after ten seconds and lets the user retry', async () => {
+    vi.useFakeTimers();
+    billingMocks.result.data.actions.canUpdateBilling = true;
+    billingMocks.result.data.actions.disabledReason = undefined;
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          const abortError = new Error('internal timeout detail');
+          abortError.name = 'AbortError';
+          reject(abortError);
+        }, { once: true });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /升級至入門版 NT\$399/ }));
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    const checkoutSignal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal | undefined;
+    expect(checkoutSignal?.aborted).toBe(true);
+    expect(screen.getByRole('alert')).toHaveTextContent('等待付款服務回應逾時，請稍後再試。');
+    expect(screen.queryByText('internal timeout detail')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /升級至入門版 NT\$399/ })).toBeEnabled();
+  });
+
+  it('shows a friendly Traditional Chinese checkout rate-limit message', async () => {
+    billingMocks.result.data.actions.canUpdateBilling = true;
+    billingMocks.result.data.actions.disabledReason = undefined;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: false,
+      error: 'Too many checkout orders were created. Please retry later.',
+      code: 'checkout_rate_limited',
+      retryAfterSeconds: 73,
+    }), {
+      status: 429,
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /升級至入門版 NT\$399/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '付款操作過於頻繁，請在 73 秒後再試。'
+    );
+    expect(screen.queryByText(/Too many checkout orders/)).not.toBeInTheDocument();
+  });
+
+  it('does not expose backend checkout error details', async () => {
+    billingMocks.result.data.actions.canUpdateBilling = true;
+    billingMocks.result.data.actions.disabledReason = undefined;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: false,
+      error: 'relation payment_orders does not exist; tenant=secret-org',
+      code: 'lookup_failed',
+    }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /升級至成長版 NT\$699/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '目前無法建立付款流程，請稍後再試。'
+    );
+    expect(screen.queryByText(/payment_orders|secret-org/)).not.toBeInTheDocument();
   });
 
   it('allows an active customer to prepay one more month on the current plan', async () => {
