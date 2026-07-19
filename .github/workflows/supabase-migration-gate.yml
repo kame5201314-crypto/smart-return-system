@@ -52,7 +52,7 @@ jobs:
       - name: Start disposable Supabase Postgres
         run: supabase db start
 
-      - name: Replay migrations 000 through 046 from an empty database
+      - name: Replay migrations 000 through 048 from an empty database
         run: supabase db reset --local --no-seed
 
       - name: Run suspended-tenant and billing database smoke tests

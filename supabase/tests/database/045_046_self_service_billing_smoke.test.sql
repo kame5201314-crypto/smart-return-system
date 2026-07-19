@@ -387,7 +387,7 @@ BEGIN
     399,
     'MGATESIM001',
     'migration-gate-simulated-order-0001',
-    '{"merchant_id":"3002607"}'::jsonb
+    '{"merchant_id":"3002608"}'::jsonb
   );
   INSERT INTO billing_gate_capture (check_name, passed, value)
   VALUES ('simulated_order', TRUE, result);
@@ -401,7 +401,7 @@ BEGIN
     399,
     'MGATEMISMATCH001',
     'migration-gate-mismatch-order-0001',
-    '{"merchant_id":"3002607"}'::jsonb
+    '{"merchant_id":"3002609"}'::jsonb
   );
   INSERT INTO billing_gate_capture (check_name, passed, value)
   VALUES ('mismatch_order', TRUE, result);
@@ -410,7 +410,7 @@ BEGIN
     'MGATESIM001',
     'evt-migration-simulated-001',
     'TGSIM001',
-    '3002607',
+    '3002608',
     'test',
     399,
     1,
@@ -450,7 +450,7 @@ BEGIN
     'MGATEMISMATCH001',
     'evt-migration-mismatch-001',
     'TGMISMATCH001',
-    '3002607',
+    '3002609',
     'test',
     400,
     1,

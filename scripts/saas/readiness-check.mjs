@@ -299,6 +299,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/045_saas_suspended_org_write_guards.sql',
     'supabase/migrations/046_saas_self_service_billing.sql',
     'supabase/migrations/047_saas_billing_table_privileges.sql',
+    'supabase/migrations/048_saas_checkout_order_hardening.sql',
     'lib/auth/verified-signup.ts',
     'components/auth/verified-signup-form.tsx',
     'lib/saas/lead-capture-service.ts',

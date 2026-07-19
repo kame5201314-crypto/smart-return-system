@@ -14,6 +14,15 @@ export type ECPayPrepaidPlan = Extract<SaaSPlanCode, 'basic' | 'growth'>;
 export type ECPayProviderMode = BillingMode;
 export type ECPayNotificationStatus = 'processed' | 'duplicate' | 'ignored' | 'failed';
 
+export class ECPayCheckoutRateLimitError extends Error {
+  readonly code = 'checkout_rate_limited';
+
+  constructor(readonly retryAfterSeconds: number) {
+    super('Too many checkout orders were created. Please retry later.');
+    this.name = 'ECPayCheckoutRateLimitError';
+  }
+}
+
 export interface ECPayPaymentOrder {
   id: string;
   orgId: string;
@@ -227,6 +236,20 @@ function normalizePaymentOrder(value: unknown): ECPayPaymentOrder {
     status: requireString(row.status ?? row.order_status, 'status'),
     createdAt: stringOrNull(row.created_at ?? row.createdAt),
   };
+}
+
+function throwCheckoutRateLimitResult(value: unknown): void {
+  const row = firstRecord(value);
+  if (stringOrNull(row?.error_code)?.toLowerCase() !== 'checkout_rate_limited') {
+    return;
+  }
+
+  const retryAfterSeconds = integerOrNull(row?.retry_after_seconds);
+  if (retryAfterSeconds === null || retryAfterSeconds < 1) {
+    throw new Error('ECPay checkout rate-limit RPC returned an invalid retry interval.');
+  }
+
+  throw new ECPayCheckoutRateLimitError(retryAfterSeconds);
 }
 
 function normalizeNotificationStatus(value: unknown): ECPayNotificationStatus {
@@ -580,6 +603,7 @@ export function createECPayCheckoutRepository(
         },
       });
       throwRepositoryError(error, 'Failed to create ECPay payment order.');
+      throwCheckoutRateLimitResult(data);
 
       const rpcOrder = normalizePaymentOrder(data);
       const order = await repository.findOrderByMerchantTradeNo(

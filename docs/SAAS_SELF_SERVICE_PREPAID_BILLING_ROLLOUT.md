@@ -10,6 +10,10 @@ Last updated: 2026-07-20
   to `payment_orders` and `subscription_periods`, keeps anonymous access and
   authenticated writes revoked, and grants `service_role` the table privileges
   required by trusted billing workflows.
+- Migration `048_saas_checkout_order_hardening.sql` is prepared in the
+  repository but is **not applied**. It must pass the disposable database gate
+  and receive explicit SaaS migration authorization before self-service billing
+  is enabled.
 - Preview ECPay Stage E2E passed for the Basic NT$399 plan, including the hosted
   checkout, 3D verification, signed callback, independent verified webhook
   settlement, and creation of the paid subscription period.
@@ -55,6 +59,16 @@ reconciliation rollout.
   ECPay fields are derived on the server.
 - Every checkout has a unique, server-persisted merchant trade number and an
   idempotency key.
+- Checkout creation is serialized per organization. An unexpired pending order
+  for the same provider environment, merchant, plan, and amount is reused even
+  when a new browser request has a different idempotency key; expired or
+  terminal orders are never reused for a new checkout.
+- Durable creation limits allow at most five new orders per actor in 15 minutes
+  and ten new orders per organization in one hour. Idempotent retries and
+  pending-order reuse do not consume another order slot. A rejected request
+  returns HTTP `429` with a stable code and `Retry-After` value.
+- A reused merchant trade number keeps the persisted order creation time as its
+  ECPay `MerchantTradeDate`, so retries produce the same signed provider form.
 - ECPay CheckMacValue, MerchantID, merchant trade number, stored amount, and
   server-owned plan are verified before processing. A real successful
   notification must also be confirmed server-to-server through the official
@@ -94,6 +108,10 @@ reconciliation rollout.
   `046_saas_self_service_billing.sql`, and
   `047_saas_billing_table_privileges.sql` are already applied only to SaaS
   Supabase project `auyznbwtjvemyamujmgt`. Do not rerun them.
+- Migration `048_saas_checkout_order_hardening.sql` is a pending additive
+  hardening migration. Do not enable Production checkout until it has been
+  separately reviewed, authorized, applied only to the SaaS project, and
+  verified.
 - Successful Preview Stage acceptance does not authorize Production environment
   changes, provider activation, deployment, or a real charge.
 
@@ -112,18 +130,22 @@ Before accepting a real customer payment:
    merchant or administration pages.
 4. Run repository safety, lint, typecheck, complete tests, production build,
    and a no-charge Production readiness smoke.
-5. Complete the remaining provider matrix: Growth purchase, same-plan renewal,
+5. With explicit migration authorization, apply migration `048` only to the
+   SaaS project and verify pending-order reuse, expired-order replacement,
+   actor/organization rolling limits, and HTTP `429` behavior. Do not rerun
+   migrations `045`-`047`.
+6. Complete the remaining provider matrix: Growth purchase, same-plan renewal,
    immediate upgrade, expired renewal, stale-order downgrade, platform
    suspension, duplicate notification, Stage/Production isolation,
    feature-flag drain, provider failure, amount mismatch, simulated payment,
    browser-return/callback races, signed `QueryTradeInfo/V5` timeout/non-2xx,
    invalid query signature, and query-field mismatches.
-6. Verify the merchant billing page and platform billing events show the same
+7. Verify the merchant billing page and platform billing events show the same
    confirmed payment and service period, then restore any temporary Preview or
    deployment protection change used for acceptance.
-7. Complete legal invoice/receipt, refund, customer-support, and reconciliation
+8. Complete legal invoice/receipt, refund, customer-support, and reconciliation
    decisions.
-8. Only after all earlier steps pass, explicitly approve the Production deploy
+9. Only after all earlier steps pass, explicitly approve the Production deploy
    and set `ENABLE_BILLING=true` plus `ENABLE_SUBSCRIPTION_PLAN=true` together.
 
 ## External Values Required Later

@@ -41,7 +41,7 @@ describe('SaaS migration plan check', () => {
     expect(result.status).toBe(0);
     expect(result.output).toContain('SAAS_SUPABASE_PROJECT_ID - auyznbwtjvemyamujmgt');
     expect(result.output).toContain(
-      'Migration chain end - 047_saas_billing_table_privileges.sql'
+      'Migration chain end - 048_saas_checkout_order_hardening.sql'
     );
     expect(result.output).toContain('No migrations were applied by this check.');
   });

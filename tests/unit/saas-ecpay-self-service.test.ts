@@ -15,6 +15,7 @@ import {
 } from '@/lib/saas/billing';
 import {
   createECPayCheckoutRepository,
+  ECPayCheckoutRateLimitError,
   generateECPayMerchantTradeNo,
   type ECPayCheckoutQueryClient,
   type ECPayCheckoutRepository,
@@ -265,6 +266,76 @@ describe('self-service ECPay checkout', () => {
     }
   });
 
+  it('returns a stable 429 response and Retry-After for the durable checkout limit', async () => {
+    const checkoutRepository = repository();
+    vi.mocked(checkoutRepository.createOrder).mockRejectedValueOnce(
+      new ECPayCheckoutRateLimitError(73)
+    );
+
+    const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
+      env,
+      repository: checkoutRepository,
+      loadContext: async () => checkoutContext(),
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('73');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({
+      success: false,
+      code: 'checkout_rate_limited',
+      retryAfterSeconds: 73,
+    });
+  });
+
+  it('keeps the signed provider form stable when a pending order is reused later', async () => {
+    vi.useFakeTimers();
+    try {
+      const checkoutRepository = repository();
+      vi.setSystemTime(new Date('2026-07-19T04:00:00.000Z'));
+      const firstResponse = await handleCreateECPayCheckout(
+        checkoutRequest({ plan: 'basic' }),
+        {
+          env,
+          repository: checkoutRepository,
+          loadContext: async () => checkoutContext(),
+        }
+      );
+
+      vi.setSystemTime(new Date('2026-07-19T04:10:00.000Z'));
+      const reusedResponse = await handleCreateECPayCheckout(
+        checkoutRequest({ plan: 'basic' }),
+        {
+          env,
+          repository: checkoutRepository,
+          loadContext: async () => checkoutContext(),
+        }
+      );
+
+      const firstPayload = await firstResponse.json();
+      const reusedPayload = await reusedResponse.json();
+      expect(firstPayload.checkout.fields.MerchantTradeDate).toBe('2026/07/19 08:00:00');
+      expect(reusedPayload.checkout.fields).toEqual(firstPayload.checkout.fields);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never signs a reused order that is no longer pending', async () => {
+    const checkoutRepository = repository({ ...order, status: 'paid' });
+    const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
+      env,
+      repository: checkoutRepository,
+      loadContext: async () => checkoutContext(),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      success: false,
+      code: 'checkout_order_not_pending',
+    });
+  });
+
   it('generates ECPay-compatible trade numbers', () => {
     const value = generateECPayMerchantTradeNo(
       new Date('2026-07-19T04:00:00.000Z'),
@@ -276,6 +347,39 @@ describe('self-service ECPay checkout', () => {
 });
 
 describe('ECPay repository RPC boundary', () => {
+  it('turns the durable RPC limit result into a typed checkout error', async () => {
+    const from = vi.fn();
+    const client = {
+      rpc: vi.fn(async () => ({
+        data: {
+          status: 'rate_limited',
+          error_code: 'checkout_rate_limited',
+          retry_after_seconds: 91,
+          scope: 'actor_and_org',
+        },
+        error: null,
+      })),
+      from,
+    } as unknown as ECPayCheckoutQueryClient;
+    const adapter = createECPayCheckoutRepository(client);
+
+    await expect(adapter.createOrder({
+      orgId: order.orgId,
+      actorUserId: order.actorUserId!,
+      plan: 'basic',
+      amountTwd: 399,
+      merchantTradeNo: order.merchantTradeNo,
+      idempotencyKey: 'checkout-idempotency-rate-limit',
+      merchantId: env.ECPAY_MERCHANT_ID,
+      providerMode: 'test',
+    })).rejects.toMatchObject({
+      name: 'ECPayCheckoutRateLimitError',
+      code: 'checkout_rate_limited',
+      retryAfterSeconds: 91,
+    });
+    expect(from).not.toHaveBeenCalled();
+  });
+
   it('uses only locked service-role RPCs and queries the persisted order', async () => {
     const rpc = vi.fn(async (name: string) => {
       if (name === 'create_self_service_payment_order') {

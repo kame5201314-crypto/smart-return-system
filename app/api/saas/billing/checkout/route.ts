@@ -5,6 +5,7 @@ import {
   assertECPayCheckoutEnvironment,
   buildECPayAioCheckoutForm,
   createECPayCheckoutRepository,
+  ECPayCheckoutRateLimitError,
   generateECPayCheckoutIdempotencyKey,
   generateECPayMerchantTradeNo,
   normalizeECPayPrepaidPlan,
@@ -99,6 +100,25 @@ function resolveIdempotencyKey(
   return supplied;
 }
 
+function resolveCheckoutFormDate(
+  orderCreatedAt: string | null,
+  explicitlyInjectedNow: Date | undefined,
+  requestNow: Date
+): Date {
+  if (explicitlyInjectedNow) {
+    return explicitlyInjectedNow;
+  }
+
+  if (orderCreatedAt) {
+    const persistedCreatedAt = new Date(orderCreatedAt);
+    if (!Number.isNaN(persistedCreatedAt.getTime())) {
+      return persistedCreatedAt;
+    }
+  }
+
+  return requestNow;
+}
+
 async function loadCheckoutContext(
   deps: ECPayCheckoutRouteDependencies,
   env: Record<string, string | undefined>
@@ -174,8 +194,10 @@ export async function handleCreateECPayCheckout(
     }
 
     const amountTwd = resolveECPayPrepaidAmountTwd(plan);
-    const now = deps.now ?? new Date();
-    const merchantTradeNo = (deps.generateMerchantTradeNo ?? generateECPayMerchantTradeNo)(now);
+    const requestNow = deps.now ?? new Date();
+    const merchantTradeNo = (deps.generateMerchantTradeNo ?? generateECPayMerchantTradeNo)(
+      requestNow
+    );
     const idempotencyKey = resolveIdempotencyKey(request, deps);
     const repository = deps.repository ?? createECPayCheckoutRepository();
     const providerMode = resolveBillingWebhookState('ecpay', env).config.mode;
@@ -205,12 +227,42 @@ export async function handleCreateECPayCheckout(
       );
     }
 
-    const checkout = buildECPayAioCheckoutForm({ order, env, now });
+    if (order.status.toLowerCase() !== 'pending') {
+      throw new CheckoutRouteError(
+        'checkout_order_not_pending',
+        409,
+        'This checkout order is no longer pending. Start a new checkout.'
+      );
+    }
+
+    const checkout = buildECPayAioCheckoutForm({
+      order,
+      env,
+      now: resolveCheckoutFormDate(order.createdAt, deps.now, requestNow),
+    });
     return NextResponse.json(
       { success: true, checkout },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (error) {
+    if (error instanceof ECPayCheckoutRateLimitError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          code: error.code,
+          retryAfterSeconds: error.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            'Cache-Control': 'no-store',
+            'Retry-After': String(error.retryAfterSeconds),
+          },
+        }
+      );
+    }
+
     if (error instanceof SaaSOrgContextError || error instanceof CheckoutRouteError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },

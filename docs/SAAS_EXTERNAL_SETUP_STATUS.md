@@ -23,6 +23,11 @@
   authenticated owner/admin reads are still scoped by RLS, anonymous access and
   authenticated writes remain revoked, and `service_role` has the table access
   required by trusted server workflows.
+- Migration `048_saas_checkout_order_hardening.sql` is prepared locally but has
+  not been applied. It adds atomic pending-order reuse and durable checkout
+  creation limits using the existing payment ledger. Production checkout must
+  remain disabled until this migration receives separate authorization and is
+  verified only on the SaaS project.
 - The Preview ECPay Stage acceptance completed a Basic NT$399 checkout with 3D
   verification. The signed callback was independently verified, settlement
   completed through the verified webhook path, and the corresponding paid
@@ -345,8 +350,9 @@ for the controlled customer handoff and first-session walkthrough.
 - Platform tenant preview backend foundation now includes guarded start/get/clear preview routes, a signed one-hour cookie for future UI banners, and audit-log writes for preview start/clear events. It is not wired into tenant org context or write permissions.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
-- `npm run saas:migration-plan:strict` passes and the local migration chain now
-  ends at `047_saas_billing_table_privileges.sql`. Migrations `045`-`047` are
+- The local migration plan now ends at
+  `048_saas_checkout_order_hardening.sql`. Migration `048` is pending and must
+  not be applied without separate authorization. Migrations `045`-`047` are
   already applied only to SaaS project `auyznbwtjvemyamujmgt`; never rerun them
   or the already-applied migrations `040`-`044`.
 - `npm run saas:schema-gate:strict` passes after owner-authorized migrations
