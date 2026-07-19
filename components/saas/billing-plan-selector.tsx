@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SAAS_PLAN_DEFINITIONS, type SaaSPlanCode } from '@/lib/config/saas-plans';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
-export type BillingPaymentQueryState = 'success' | 'pending' | 'failed' | 'cancelled';
+export type BillingPaymentQueryState =
+  | 'success'
+  | 'pending'
+  | 'failed'
+  | 'cancelled'
+  | 'review'
+  | 'expired'
+  | 'refunded';
 
 interface ProviderSubmission {
   action: string;
@@ -19,8 +27,21 @@ interface ProviderSubmission {
 interface BillingPlanSelectorProps {
   data: BillingSettingsView;
   paymentState: BillingPaymentQueryState | null;
+  paymentTradeNo?: string | null;
   requestedPlan?: SaaSPlanCode | null;
 }
+
+type PolledPaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'manual_review'
+  | 'expired'
+  | 'cancelled'
+  | 'refunded';
+
+const PAYMENT_POLL_INTERVAL_MS = 2_000;
+const PAYMENT_POLL_MAX_ATTEMPTS = 15;
 
 const PLAN_ORDER: Array<Extract<SaaSPlanCode, 'basic' | 'growth'>> = ['basic', 'growth'];
 
@@ -51,6 +72,21 @@ const PAYMENT_STATE_COPY: Record<
   cancelled: {
     title: '已取消付款',
     message: '沒有產生扣款，方案與使用期限維持不變。',
+    tone: 'warning',
+  },
+  review: {
+    title: '付款正在確認',
+    message: '付款資料已收到，目前需要進一步確認；確認完成前不會啟用或延長方案。',
+    tone: 'warning',
+  },
+  expired: {
+    title: '付款已逾時',
+    message: '本次付款期限已過，沒有變更方案；請重新選擇方案付款。',
+    tone: 'error',
+  },
+  refunded: {
+    title: '款項已退款',
+    message: '本次款項已退款，請以目前方案與使用期限為準。',
     tone: 'warning',
   },
 };
@@ -103,6 +139,24 @@ function normalizeProviderSubmission(payload: unknown): ProviderSubmission | nul
   }
 }
 
+function normalizePolledPaymentStatus(payload: unknown): PolledPaymentStatus | null {
+  if (!isRecord(payload) || payload.success !== true || typeof payload.status !== 'string') {
+    return null;
+  }
+  const normalized = payload.status.trim().toLowerCase();
+  return [
+    'pending',
+    'paid',
+    'failed',
+    'manual_review',
+    'expired',
+    'cancelled',
+    'refunded',
+  ].includes(normalized)
+    ? (normalized as PolledPaymentStatus)
+    : null;
+}
+
 function formatDate(value: string | null): string {
   if (!value) return '尚未設定';
   const date = new Date(value);
@@ -153,8 +207,10 @@ function PaymentStateNotice({ state }: { state: BillingPaymentQueryState }) {
 export function BillingPlanSelector({
   data,
   paymentState,
+  paymentTradeNo,
   requestedPlan,
 }: BillingPlanSelectorProps) {
+  const router = useRouter();
   const [processingPlan, setProcessingPlan] = useState<SaaSPlanCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<ProviderSubmission | null>(null);
@@ -167,6 +223,82 @@ export function BillingPlanSelector({
       formRef.current.submit();
     }
   }, [submission]);
+
+  useEffect(() => {
+    if (paymentState !== 'pending' || !paymentTradeNo) return;
+
+    let stopped = false;
+    let attempts = 0;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let requestTimeout: ReturnType<typeof setTimeout> | null = null;
+    let activeController: AbortController | null = null;
+
+    const stopAndNavigate = (nextState: Exclude<BillingPaymentQueryState, 'pending'>) => {
+      stopped = true;
+      router.replace(`/settings/billing?payment=${nextState}`);
+      router.refresh();
+    };
+
+    const poll = async () => {
+      if (stopped || attempts >= PAYMENT_POLL_MAX_ATTEMPTS) return;
+      attempts += 1;
+      activeController = new AbortController();
+      requestTimeout = setTimeout(() => activeController?.abort(), 5_000);
+
+      try {
+        const response = await fetch(
+          `/api/saas/billing/payment-status?trade=${encodeURIComponent(paymentTradeNo)}`,
+          {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { accept: 'application/json' },
+            signal: activeController.signal,
+          }
+        );
+
+        if (!response.ok) {
+          if ([400, 401, 403, 404].includes(response.status)) stopped = true;
+          return;
+        }
+
+        const status = normalizePolledPaymentStatus(await response.json().catch(() => null));
+        if (status === 'paid') {
+          stopAndNavigate('success');
+        } else if (status === 'failed') {
+          stopAndNavigate('failed');
+        } else if (status === 'manual_review') {
+          stopAndNavigate('review');
+        } else if (status === 'expired') {
+          stopAndNavigate('expired');
+        } else if (status === 'cancelled') {
+          stopAndNavigate('cancelled');
+        } else if (status === 'refunded') {
+          stopAndNavigate('refunded');
+        }
+      } catch (pollError) {
+        if (pollError instanceof Error && pollError.name !== 'AbortError') {
+          // Transient network errors remain pending and are retried within the
+          // same strict attempt budget.
+        }
+      } finally {
+        if (requestTimeout) clearTimeout(requestTimeout);
+        requestTimeout = null;
+        activeController = null;
+        if (!stopped && attempts < PAYMENT_POLL_MAX_ATTEMPTS) {
+          pollTimer = setTimeout(() => void poll(), PAYMENT_POLL_INTERVAL_MS);
+        }
+      }
+    };
+
+    pollTimer = setTimeout(() => void poll(), PAYMENT_POLL_INTERVAL_MS);
+    return () => {
+      stopped = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      if (requestTimeout) clearTimeout(requestTimeout);
+      activeController?.abort();
+    };
+  }, [paymentState, paymentTradeNo, router]);
 
   async function startCheckout(plan: Extract<SaaSPlanCode, 'basic' | 'growth'>) {
     setProcessingPlan(plan);

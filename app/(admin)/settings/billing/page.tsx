@@ -12,6 +12,7 @@ interface BillingSettingsPageProps {
   searchParams?: Promise<{
     payment?: string | string[];
     plan?: string | string[];
+    trade?: string | string[];
   }>;
 }
 
@@ -25,9 +26,19 @@ function normalizePaymentState(value: string | string[] | undefined): BillingPay
   return normalized === 'success' ||
     normalized === 'pending' ||
     normalized === 'failed' ||
-    normalized === 'cancelled'
+    normalized === 'cancelled' ||
+    normalized === 'review' ||
+    normalized === 'expired' ||
+    normalized === 'refunded'
     ? normalized
     : null;
+}
+
+function normalizeMerchantTradeNo(value: string | string[] | undefined): string | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  if (typeof first !== 'string') return null;
+  const normalized = first.trim();
+  return /^[A-Za-z0-9]{1,20}$/.test(normalized) ? normalized : null;
 }
 
 function normalizeRequestedPlan(value: string | string[] | undefined): SaaSPlanCode | null {
@@ -42,7 +53,7 @@ export default async function BillingSettingsPage(
 ) {
   const [result, params] = await Promise.all([
     loadBillingSettingsView(),
-    searchParams ?? Promise.resolve({ payment: undefined, plan: undefined }),
+    searchParams ?? Promise.resolve({ payment: undefined, plan: undefined, trade: undefined }),
   ]);
 
   return (
@@ -58,6 +69,7 @@ export default async function BillingSettingsPage(
           <BillingPlanSelector
             data={result.data}
             paymentState={normalizePaymentState(params.payment)}
+            paymentTradeNo={normalizeMerchantTradeNo(params.trade)}
             requestedPlan={normalizeRequestedPlan(params.plan)}
           />
         </>

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
@@ -49,18 +49,33 @@ const billingMocks = vi.hoisted(() => ({
   },
 }));
 
+const navigationMocks = vi.hoisted(() => ({
+  replace: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => navigationMocks,
+}));
+
 vi.mock('@/lib/saas/settings-live-data', () => ({
   loadBillingSettingsView: () => billingMocks.result,
 }));
 
 import BillingSettingsPage from '@/app/(admin)/settings/billing/page';
 
-async function renderPage(searchParams?: Promise<{ payment?: string; plan?: string }>) {
-  render(await BillingSettingsPage({ searchParams }));
+async function renderPage(searchParams?: Promise<{
+  payment?: string;
+  plan?: string;
+  trade?: string;
+}>) {
+  return render(await BillingSettingsPage({ searchParams }));
 }
 
 describe('BillingSettingsPage', () => {
   beforeEach(() => {
+    navigationMocks.replace.mockReset();
+    navigationMocks.refresh.mockReset();
     billingMocks.result.data.org.status = 'trialing';
     billingMocks.result.data.org.plan = 'basic';
     billingMocks.result.data.org.suspensionSource = null;
@@ -73,6 +88,7 @@ describe('BillingSettingsPage', () => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('shows current plan, period dates, in-app plans, and payment history', async () => {
@@ -137,6 +153,103 @@ describe('BillingSettingsPage', () => {
 
     expect(screen.getByText('付款結果已送出')).toBeInTheDocument();
     expect(screen.getByText(/請以本頁的目前方案及付款紀錄為準/)).toBeInTheDocument();
+  });
+
+  it('polls the exact pending order and refreshes after server-confirmed payment', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ success: true, status: 'pending' }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      ))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ success: true, status: 'paid' }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await renderPage(Promise.resolve({ payment: 'pending', trade: 'SR20260720PAY01' }));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/saas/billing/payment-status?trade=SR20260720PAY01',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+      })
+    );
+    expect(navigationMocks.replace).toHaveBeenCalledWith(
+      '/settings/billing?payment=success'
+    );
+    expect(navigationMocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['failed', 'failed'],
+    ['manual_review', 'review'],
+    ['expired', 'expired'],
+    ['cancelled', 'cancelled'],
+    ['refunded', 'refunded'],
+  ] as const)('maps terminal payment status %s to %s', async (status, queryState) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ success: true, status }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    )));
+
+    await renderPage(Promise.resolve({ payment: 'pending', trade: 'SR20260720PAY01' }));
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+
+    expect(navigationMocks.replace).toHaveBeenCalledWith(
+      `/settings/billing?payment=${queryState}`
+    );
+    expect(navigationMocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops polling after fifteen attempts instead of polling forever', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ success: true, status: 'pending' }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await renderPage(Promise.resolve({ payment: 'pending', trade: 'SR20260720PAY01' }));
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    expect(fetchMock).toHaveBeenCalledTimes(15);
+
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    expect(fetchMock).toHaveBeenCalledTimes(15);
+    expect(navigationMocks.replace).not.toHaveBeenCalled();
+    expect(navigationMocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it('does not poll without a validated trade number and stops after unmount', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ success: true, status: 'pending' }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await renderPage(Promise.resolve({ payment: 'pending' }));
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    cleanup();
+    const view = await renderPage(
+      Promise.resolve({ payment: 'pending', trade: 'SR20260720PAY01' })
+    );
+    view.unmount();
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('posts the selected plan and submits the provider hidden form', async () => {

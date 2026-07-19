@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { resolveBillingProviderConfig, verifyECPayCheckMacValue } from '@/lib/saas/billing';
+import { normalizeECPayMerchantTradeNo } from '@/lib/saas/billing-ecpay';
 
 type ECPayResultPayload = Record<string, string>;
 
@@ -11,10 +12,14 @@ export interface ECPayResultRouteDependencies {
 
 function redirectToBilling(
   request: NextRequest,
-  payment: 'pending' | 'failed' | 'cancelled'
+  payment: 'pending' | 'failed',
+  merchantTradeNo?: string | null
 ): NextResponse {
   const target = new URL('/settings/billing', request.url);
   target.searchParams.set('payment', payment);
+  if (payment === 'pending' && merchantTradeNo) {
+    target.searchParams.set('trade', merchantTradeNo);
+  }
   return NextResponse.redirect(target, {
     status: 303,
     headers: { 'Cache-Control': 'no-store' },
@@ -71,9 +76,13 @@ export async function handleECPayBrowserResult(
     ) {
       return redirectToBilling(request, 'failed');
     }
+    const merchantTradeNo = normalizeECPayMerchantTradeNo(payload.MerchantTradeNo);
+    if (!merchantTradeNo) {
+      return redirectToBilling(request, 'failed');
+    }
     // Browser results are advisory only. The signed server ReturnURL notification
     // remains the sole path that can activate a subscription.
-    return redirectToBilling(request, 'pending');
+    return redirectToBilling(request, 'pending', merchantTradeNo);
   } catch {
     return redirectToBilling(request, 'failed');
   }
@@ -84,5 +93,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return redirectToBilling(request, 'cancelled');
+  const merchantTradeNo = normalizeECPayMerchantTradeNo(
+    request.nextUrl.searchParams.get('trade')
+  );
+  return request.nextUrl.searchParams.get('back') === '1' && merchantTradeNo
+    ? redirectToBilling(request, 'pending', merchantTradeNo)
+    : redirectToBilling(request, 'failed');
 }

@@ -128,6 +128,14 @@ const ECPAY_NOTIFICATION_STATUSES: readonly ECPayNotificationStatus[] = [
   'failed',
 ];
 
+const ECPAY_MERCHANT_TRADE_NO_PATTERN = /^[A-Za-z0-9]{1,20}$/;
+
+export function normalizeECPayMerchantTradeNo(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim();
+  return ECPAY_MERCHANT_TRADE_NO_PATTERN.test(normalized) ? normalized : null;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -291,7 +299,7 @@ export function generateECPayMerchantTradeNo(
     throw new Error('ECPay merchant trade number entropy is required.');
   }
   const merchantTradeNo = `SR${seconds}${suffix}`.slice(0, 20);
-  if (!/^[A-Za-z0-9]{1,20}$/.test(merchantTradeNo)) {
+  if (!normalizeECPayMerchantTradeNo(merchantTradeNo)) {
     throw new Error('ECPay merchant trade number must be 1-20 alphanumeric characters.');
   }
   return merchantTradeNo;
@@ -380,7 +388,7 @@ export function buildECPayAioCheckoutForm(input: {
   if (input.order.provider !== 'ecpay') {
     throw new Error('Payment order provider must be ecpay.');
   }
-  if (!/^[A-Za-z0-9]{1,20}$/.test(input.order.merchantTradeNo)) {
+  if (!normalizeECPayMerchantTradeNo(input.order.merchantTradeNo)) {
     throw new Error('ECPay merchant trade number must be 1-20 alphanumeric characters.');
   }
   const expectedAmount = resolveECPayPrepaidAmountTwd(input.order.plan);
@@ -408,7 +416,9 @@ export function buildECPayAioCheckoutForm(input: {
     ReturnURL: `${origin}/api/billing/ecpay/webhook`,
     ChoosePayment: 'Credit',
     EncryptType: '1',
-    ClientBackURL: `${origin}/api/billing/ecpay/result?back=1`,
+    ClientBackURL: `${origin}/api/billing/ecpay/result?back=1&trade=${encodeURIComponent(
+      input.order.merchantTradeNo
+    )}`,
     OrderResultURL: `${origin}/api/billing/ecpay/result`,
     NeedExtraPaidInfo: 'N',
     CustomField1: input.order.orgId.slice(0, 50),

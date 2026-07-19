@@ -158,6 +158,7 @@ describe('self-service ECPay checkout', () => {
           MerchantTradeNo: order.merchantTradeNo,
           TotalAmount: '399',
           ReturnURL: `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/webhook`,
+          ClientBackURL: `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result?back=1&trade=${order.merchantTradeNo}`,
           OrderResultURL: `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result`,
           EncryptType: '1',
         }),
@@ -585,7 +586,7 @@ describe('ECPay browser result', () => {
     );
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe(
-      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=pending`
+      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=pending&trade=${order.merchantTradeNo}`
     );
   });
 
@@ -603,7 +604,7 @@ describe('ECPay browser result', () => {
     );
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe(
-      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=pending`
+      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=pending&trade=${order.merchantTradeNo}`
     );
   });
 
@@ -616,13 +617,42 @@ describe('ECPay browser result', () => {
     expect(response.headers.get('location')).toContain('payment=failed');
   });
 
-  it('redirects the provider back link to cancelled', async () => {
-    const response = await handleECPayBrowserBack(
-      new NextRequest(`${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result?back=1`)
+  it('does not start status tracking for a malformed signed merchant trade number', async () => {
+    const response = await handleECPayBrowserResult(
+      formRequest(
+        '/api/billing/ecpay/result',
+        webhookPayload({ MerchantTradeNo: '../invalid' })
+      ),
+      { env, verifySignature: () => true }
     );
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe(
-      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=cancelled`
+      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=failed`
     );
+  });
+
+  it('redirects the provider back link to pending status tracking', async () => {
+    const response = await handleECPayBrowserBack(
+      new NextRequest(
+        `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result?back=1&trade=${order.merchantTradeNo}`
+      )
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe(
+      `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=pending&trade=${order.merchantTradeNo}`
+    );
+  });
+
+  it('fails closed for missing or malformed provider back-link trade numbers', async () => {
+    for (const target of [
+      `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result?back=1`,
+      `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result?back=1&trade=../invalid`,
+    ]) {
+      const response = await handleECPayBrowserBack(new NextRequest(target));
+      expect(response.status).toBe(303);
+      expect(response.headers.get('location')).toBe(
+        `${env.NEXT_PUBLIC_APP_URL}/settings/billing?payment=failed`
+      );
+    }
   });
 });
