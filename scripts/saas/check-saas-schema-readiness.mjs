@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { createClient } from '@supabase/supabase-js';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 function normalizeEnvValue(value) {
   if (!value) return '';
@@ -152,6 +154,85 @@ const requiredColumns = [
   ['scan_audit_logs', 'org_id'],
 ];
 
+const billingRequiredTables = [
+  'payment_orders',
+  'subscription_periods',
+];
+
+const billingRequiredColumns = [
+  ['organizations', 'suspension_source'],
+  ['subscriptions', 'plan'],
+  ['payment_orders', 'id'],
+  ['payment_orders', 'org_id'],
+  ['payment_orders', 'subscription_id'],
+  ['payment_orders', 'provider'],
+  ['payment_orders', 'provider_mode'],
+  ['payment_orders', 'merchant_trade_no'],
+  ['payment_orders', 'trade_no'],
+  ['payment_orders', 'merchant_id'],
+  ['payment_orders', 'provider_event_id'],
+  ['payment_orders', 'idempotency_key'],
+  ['payment_orders', 'plan'],
+  ['payment_orders', 'amount_twd'],
+  ['payment_orders', 'currency'],
+  ['payment_orders', 'status'],
+  ['payment_orders', 'simulate_paid'],
+  ['payment_orders', 'rtn_code'],
+  ['payment_orders', 'rtn_message'],
+  ['payment_orders', 'paid_at'],
+  ['payment_orders', 'expires_at'],
+  ['payment_orders', 'created_by'],
+  ['payment_orders', 'metadata'],
+  ['payment_orders', 'created_at'],
+  ['payment_orders', 'updated_at'],
+  ['subscription_periods', 'id'],
+  ['subscription_periods', 'org_id'],
+  ['subscription_periods', 'subscription_id'],
+  ['subscription_periods', 'payment_order_id'],
+  ['subscription_periods', 'plan'],
+  ['subscription_periods', 'provider'],
+  ['subscription_periods', 'provider_mode'],
+  ['subscription_periods', 'merchant_trade_no'],
+  ['subscription_periods', 'trade_no'],
+  ['subscription_periods', 'period_start'],
+  ['subscription_periods', 'period_end'],
+  ['subscription_periods', 'amount_twd'],
+  ['subscription_periods', 'currency'],
+  ['subscription_periods', 'status'],
+  ['subscription_periods', 'created_at'],
+];
+
+export function resolveConditionalSchemaRequirements(env = process.env) {
+  const verifiedSignupExpected =
+    parseBool(env.ENABLE_EMAIL_OTP_SIGNUP) ||
+    parseBool(env.ENABLE_PHONE_OTP_SIGNUP) ||
+    parseBool(env.SAAS_VERIFIED_SIGNUP_MIGRATION_READY);
+  const billingSchemaExpected =
+    parseBool(env.ENABLE_BILLING) || parseBool(env.ENABLE_SUBSCRIPTION_PLAN);
+
+  return {
+    verifiedSignupExpected,
+    billingSchemaExpected,
+    tablesToCheck: [
+      ...requiredTables,
+      ...(verifiedSignupExpected ? ['saas_self_service_trial_claims'] : []),
+      ...(billingSchemaExpected ? billingRequiredTables : []),
+    ],
+    columnsToCheck: [
+      ...requiredColumns,
+      ...(verifiedSignupExpected
+        ? [
+            ['organizations', 'owner_phone'],
+            ['organization_members', 'phone'],
+            ['saas_self_service_trial_claims', 'identity_provider'],
+            ['saas_self_service_trial_claims', 'normalized_phone'],
+          ]
+        : []),
+      ...(billingSchemaExpected ? billingRequiredColumns : []),
+    ],
+  };
+}
+
 async function checkTable(supabase, table) {
   const { error } = await supabase
     .from(table)
@@ -197,6 +278,60 @@ async function checkVerifiedTrialFunction(supabase) {
   return { ok: false, reason: 'missing_function', error: error.message };
 }
 
+const billingFunctionProbes = [
+  {
+    functionName: 'create_self_service_payment_order',
+    args: {
+      p_org_id: null,
+      p_actor_user_id: null,
+      p_provider: '',
+      p_provider_mode: '',
+      p_plan: '',
+      p_amount_twd: null,
+      p_merchant_trade_no: '',
+      p_idempotency_key: '',
+      p_metadata: {},
+    },
+  },
+  {
+    functionName: 'process_ecpay_payment_notification',
+    args: {
+      p_merchant_trade_no: '',
+      p_provider_event_id: '',
+      p_trade_no: null,
+      p_merchant_id: null,
+      p_provider_mode: '',
+      p_trade_amount_twd: null,
+      p_rtn_code: null,
+      p_rtn_message: '',
+      p_simulate_paid: true,
+      p_payment_date: null,
+      p_payload: {},
+    },
+  },
+];
+
+export async function checkBillingFunctions(supabase) {
+  const failures = [];
+
+  for (const probe of billingFunctionProbes) {
+    // These deliberately invalid arguments are rejected before either RPC can
+    // create or settle a payment. A business-validation error therefore proves
+    // the RPC is callable; only a missing schema/function response fails the
+    // readiness gate.
+    const { error } = await supabase.rpc(probe.functionName, probe.args);
+    if (error && isMissingSchemaError(error.message)) {
+      failures.push({
+        functionName: probe.functionName,
+        reason: 'missing_function',
+        error: error.message,
+      });
+    }
+  }
+
+  return failures;
+}
+
 async function main() {
   const strict = isStrictMode();
 
@@ -238,22 +373,12 @@ async function main() {
     },
   });
   const failures = [];
-  const verifiedSignupExpected =
-    parseBool(process.env.ENABLE_EMAIL_OTP_SIGNUP) ||
-    parseBool(process.env.ENABLE_PHONE_OTP_SIGNUP) ||
-    parseBool(process.env.SAAS_VERIFIED_SIGNUP_MIGRATION_READY);
-  const tablesToCheck = verifiedSignupExpected
-    ? [...requiredTables, 'saas_self_service_trial_claims']
-    : requiredTables;
-  const columnsToCheck = verifiedSignupExpected
-    ? [
-        ...requiredColumns,
-        ['organizations', 'owner_phone'],
-        ['organization_members', 'phone'],
-        ['saas_self_service_trial_claims', 'identity_provider'],
-        ['saas_self_service_trial_claims', 'normalized_phone'],
-      ]
-    : requiredColumns;
+  const {
+    verifiedSignupExpected,
+    billingSchemaExpected,
+    tablesToCheck,
+    columnsToCheck,
+  } = resolveConditionalSchemaRequirements(process.env);
 
   for (const table of tablesToCheck) {
     const result = await checkTable(supabase, table);
@@ -280,9 +405,18 @@ async function main() {
     }
   }
 
+  if (billingSchemaExpected) {
+    failures.push(
+      ...(await checkBillingFunctions(supabase)).map((result) => ({
+        kind: 'function',
+        ...result,
+      }))
+    );
+  }
+
   if (failures.length === 0) {
     console.log(
-      `[saas-schema-gate] PASS (${tablesToCheck.length} table(s), ${columnsToCheck.length} column(s) checked${verifiedSignupExpected ? ', verified signup RPC checked' : ''}).`
+      `[saas-schema-gate] PASS (${tablesToCheck.length} table(s), ${columnsToCheck.length} column(s) checked${verifiedSignupExpected ? ', verified signup RPC checked' : ''}${billingSchemaExpected ? ', billing RPCs checked' : ''}).`
     );
     return 0;
   }
@@ -302,13 +436,18 @@ async function main() {
   return strict ? 1 : 0;
 }
 
-main()
-  .then((exitCode) => {
-    if (exitCode && exitCode !== 0) {
-      process.exitCode = exitCode;
-    }
-  })
-  .catch((error) => {
-    console.error('[saas-schema-gate] Unexpected error:', error);
-    process.exitCode = 1;
-  });
+const isDirectExecution = process.argv[1]
+  && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (isDirectExecution) {
+  main()
+    .then((exitCode) => {
+      if (exitCode && exitCode !== 0) {
+        process.exitCode = exitCode;
+      }
+    })
+    .catch((error) => {
+      console.error('[saas-schema-gate] Unexpected error:', error);
+      process.exitCode = 1;
+    });
+}
