@@ -1,21 +1,27 @@
 # Active Work
 
-## 2026-07-20 Self-Service Prepaid Billing Stage Acceptance
+## 2026-07-20 Self-Service Prepaid Billing Schema And Production Readiness
 
-Status: Preview Stage E2E complete; Production merchant activation blocked
+Status: repository, Preview Stage, SaaS schema, and Production deployment ready;
+formal Production merchant credentials pending
 
 Scope: Validate the one-month prepaid ECPay flow and record the exact external
 boundary before Production activation.
 
-Notes: Migrations `045`, `046`, and `047` are applied only to SaaS project
+Notes: Migrations `045`, `046`, `047`, and `048` are applied only to SaaS project
 `auyznbwtjvemyamujmgt` and must not be rerun. Migration `047` restores the
 explicit SQL table privileges required for authenticated RLS-scoped billing
 history reads and trusted service-role workflows while retaining anonymous and
-tenant-write denial. Preview ECPay Stage Basic NT$399 passed hosted checkout,
+tenant-write denial. Migration `048` passed Migration Gate run `29696812039`,
+was applied on 2026-07-20, and passed the strict Billing schema gate (25 tables,
+126 columns, and Billing RPC checks). Preview ECPay Stage Basic NT$399 passed hosted checkout,
 3D verification, signed callback, verified webhook settlement, and paid
 subscription-period creation. Preview Vercel Authentication was temporarily
 disabled only for provider callback acceptance and has been restored.
-Production still lacks formal ECPay merchant credentials, so
+Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready with the
+latest prepaid Billing code. Production has `BILLING_PROVIDER=ecpay` and
+`ECPAY_MODE=production`, but still lacks formal MerchantID, HashKey, and HashIV,
+so
 `ENABLE_BILLING=false` and `ENABLE_SUBSCRIPTION_PLAN=false` must remain closed;
 no real payment is authorized yet.
 

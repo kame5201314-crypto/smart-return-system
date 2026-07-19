@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-## 2026-07-20 Self-Service Prepaid Billing Stage E2E Completed
+## 2026-07-20 Self-Service Prepaid Billing Stage E2E And Schema Rollout Completed
 
 - Repository code now supports an authenticated owner/admin selecting Basic or
   Growth inside `/settings/billing`, creating a server-priced one-month ECPay
@@ -12,7 +12,8 @@
   database settlement contract use the same server-controlled values.
 - Migrations `045_saas_suspended_org_write_guards.sql`,
   `046_saas_self_service_billing.sql`, and
-  `047_saas_billing_table_privileges.sql` were applied only to SaaS project
+  `047_saas_billing_table_privileges.sql`, plus
+  `048_saas_checkout_order_hardening.sql`, were applied only to SaaS project
   `auyznbwtjvemyamujmgt`. Do not apply them to another Supabase project or
   rerun them on this project.
 - Migration `046` adds immutable payment and subscription-period ledgers plus
@@ -23,11 +24,11 @@
   authenticated owner/admin reads are still scoped by RLS, anonymous access and
   authenticated writes remain revoked, and `service_role` has the table access
   required by trusted server workflows.
-- Migration `048_saas_checkout_order_hardening.sql` is prepared locally but has
-  not been applied. It adds atomic pending-order reuse and durable checkout
-  creation limits using the existing payment ledger. Production checkout must
-  remain disabled until this migration receives separate authorization and is
-  verified only on the SaaS project.
+- Migration `048_saas_checkout_order_hardening.sql` passed Migration Gate run
+  `29696812039`, was applied on 2026-07-20, and passed the strict Billing schema
+  gate (25 tables, 126 columns, and Billing RPC checks). It adds atomic
+  pending-order reuse and durable checkout creation limits using the existing
+  payment ledger.
 - The Preview ECPay Stage acceptance completed a Basic NT$399 checkout with 3D
   verification. The signed callback was independently verified, settlement
   completed through the verified webhook path, and the corresponding paid
@@ -36,7 +37,10 @@
 - Preview Vercel Authentication was disabled only during the bounded ECPay
   acceptance window so the provider callback could reach the deployment. It was
   restored immediately after the E2E verification.
-- Production still lacks formal ECPay merchant credentials.
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready on the
+  stable aliases with the current prepaid Billing code. `BILLING_PROVIDER` and
+  Production `ECPAY_MODE` are configured, but Production still lacks formal
+  ECPay merchant credentials.
   `ENABLE_BILLING=false` and `ENABLE_SUBSCRIPTION_PLAN=false` must remain closed
   until those credentials are supplied out of band and the separate Production
   rollout checklist is approved and completed.

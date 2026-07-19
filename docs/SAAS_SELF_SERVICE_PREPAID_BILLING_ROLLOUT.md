@@ -4,22 +4,26 @@ Last updated: 2026-07-20
 
 ## Current Verified Status
 
-- Migrations `045`, `046`, and `047` are applied only to SaaS Supabase project
+- Migrations `045`, `046`, `047`, and `048` are applied only to SaaS Supabase project
   `auyznbwtjvemyamujmgt`. They must not be rerun or applied to another project.
 - Migration `047` explicitly grants authenticated users RLS-scoped read access
   to `payment_orders` and `subscription_periods`, keeps anonymous access and
   authenticated writes revoked, and grants `service_role` the table privileges
   required by trusted billing workflows.
-- Migration `048_saas_checkout_order_hardening.sql` is prepared in the
-  repository but is **not applied**. It must pass the disposable database gate
-  and receive explicit SaaS migration authorization before self-service billing
-  is enabled.
+- Migration `048_saas_checkout_order_hardening.sql` passed Supabase Migration
+  Gate run `29696812039`, was applied to the SaaS project on 2026-07-20, and was
+  verified by the strict Billing schema gate (25 tables and 126 columns plus the
+  Billing RPCs). It adds atomic pending-order reuse and durable actor/tenant
+  checkout limits.
 - Preview ECPay Stage E2E passed for the Basic NT$399 plan, including the hosted
   checkout, 3D verification, signed callback, independent verified webhook
   settlement, and creation of the paid subscription period.
 - Preview Vercel Authentication was disabled only for the provider-callback
   acceptance window and was restored after verification.
-- Production has no formal ECPay merchant credentials. Keep
+- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready with the
+  latest prepaid Billing code and migration-compatible schema. Production has
+  `BILLING_PROVIDER=ecpay` and `ECPAY_MODE=production`, but no formal ECPay
+  merchant credentials. Keep
   `ENABLE_BILLING=false` and `ENABLE_SUBSCRIPTION_PLAN=false`; do not accept a
   real payment until the Production checklist below is completed.
 
@@ -108,10 +112,8 @@ reconciliation rollout.
   `046_saas_self_service_billing.sql`, and
   `047_saas_billing_table_privileges.sql` are already applied only to SaaS
   Supabase project `auyznbwtjvemyamujmgt`. Do not rerun them.
-- Migration `048_saas_checkout_order_hardening.sql` is a pending additive
-  hardening migration. Do not enable Production checkout until it has been
-  separately reviewed, authorized, applied only to the SaaS project, and
-  verified.
+- Migration `048_saas_checkout_order_hardening.sql` is already applied and
+  verified only on the SaaS project. Do not rerun it or apply it elsewhere.
 - Successful Preview Stage acceptance does not authorize Production environment
   changes, provider activation, deployment, or a real charge.
 
@@ -130,10 +132,9 @@ Before accepting a real customer payment:
    merchant or administration pages.
 4. Run repository safety, lint, typecheck, complete tests, production build,
    and a no-charge Production readiness smoke.
-5. With explicit migration authorization, apply migration `048` only to the
-   SaaS project and verify pending-order reuse, expired-order replacement,
-   actor/organization rolling limits, and HTTP `429` behavior. Do not rerun
-   migrations `045`-`047`.
+5. Confirm migration `048` remains recorded only on the SaaS project and that
+   the strict Billing schema gate remains green. Do not rerun migrations
+   `045`-`048`.
 6. Complete the remaining provider matrix: Growth purchase, same-plan renewal,
    immediate upgrade, expired renewal, stale-order downgrade, platform
    suspension, duplicate notification, Stage/Production isolation,
