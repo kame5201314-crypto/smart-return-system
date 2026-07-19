@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(9);
+SELECT extensions.plan(10);
 
 SELECT extensions.ok(
   to_regclass('public.idx_payment_orders_pending_checkout_reuse') IS NOT NULL,
