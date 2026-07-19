@@ -104,12 +104,12 @@ async function checkPricing() {
       return;
     }
 
-    const has499 = /499/.test(text);
+    const has399 = /399/.test(text);
     const has699 = /699/.test(text);
     const hasOld1490 = /1,490|1490/.test(text);
     const hasOld2990 = /2,990|2990/.test(text);
 
-    record(has499 ? 'pass' : 'fail', '/pricing has 499 marker');
+    record(has399 ? 'pass' : 'fail', '/pricing has 399 marker');
     record(has699 ? 'pass' : 'fail', '/pricing has 699 marker');
     record(hasOld1490 ? 'fail' : 'pass', '/pricing has no old 1490 marker');
     record(hasOld2990 ? 'fail' : 'pass', '/pricing has no old 2990 marker');

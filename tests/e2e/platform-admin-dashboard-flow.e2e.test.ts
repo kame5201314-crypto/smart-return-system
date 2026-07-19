@@ -194,8 +194,8 @@ describe('Platform admin dashboard e2e flow', () => {
     // --- MRR: only active orgs count (growth 699 + growth 699) ---
     expect(summary.estimatedActiveMrrTwd).toBe(699 * 2);
 
-    // --- Trial pipeline: only trialing orgs (growth 699 + basic 499) ---
-    expect(summary.trialPipelineMrrTwd).toBe(699 + 499);
+    // --- Trial pipeline: only trialing orgs (growth 699 + basic 399) ---
+    expect(summary.trialPipelineMrrTwd).toBe(699 + 399);
 
     // --- Active/trialing count: active(2) + trialing(2) = 4 of 5 ---
     expect(summary.activeOrTrialingOrganizations).toBe(4);

@@ -499,7 +499,7 @@ BEGIN
   END IF;
 
   expected_amount_twd := CASE normalized_plan
-    WHEN 'basic' THEN 499
+    WHEN 'basic' THEN 399
     WHEN 'growth' THEN 699
     ELSE NULL
   END;

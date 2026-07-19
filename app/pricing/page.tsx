@@ -16,7 +16,7 @@ import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 export const metadata: Metadata = {
   title: '價格方案｜固定月費、不需信用卡試用 | Smart Return',
   description:
-    '入門版 NT$499、成長版 NT$699，退貨量是軟提醒不擋作業、AI 額度有上限不怕成本失控。3 天免費試用，不需信用卡。',
+    '入門版 NT$399、成長版 NT$699，退貨量是軟提醒不擋作業、AI 額度有上限不怕成本失控。3 天免費試用，不需信用卡。',
 };
 
 const comparisonRows = [

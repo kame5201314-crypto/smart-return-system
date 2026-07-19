@@ -71,11 +71,11 @@ trackers.
 
 | Plan | Price | Use case | Limits to communicate |
 |---|---:|---|---|
-| Basic | NT$499/month | Small sellers that need return workflow and limited AI analysis. | 3 seats, 300 monthly returns, 10 AI analyses, no advanced analytics. |
+| Basic | NT$399/month | Small sellers that need return workflow and limited AI analysis. | 3 seats, 300 monthly returns, 10 AI analyses, no advanced analytics. |
 | Growth | NT$699/month | Recommended plan for weekly return handling and team usage. | 5 seats, 800 monthly returns, 25 AI analyses, advanced analytics. |
 | Enterprise | Quote-only | Multi-brand, agency, warehouse, API, custom SLA, or high support demand. | Contract-defined. |
 
-Sales note: 499/699 should stay low-touch. If a prospect needs repeated calls,
+Sales note: 399/699 should stay low-touch. If a prospect needs repeated calls,
 custom import, multi-warehouse process design, API, or SLA, route them to
 Enterprise instead of absorbing support cost inside a low-price plan.
 

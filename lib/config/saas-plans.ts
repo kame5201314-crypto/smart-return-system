@@ -16,7 +16,7 @@ export const SAAS_PLAN_DEFINITIONS: Record<SaaSPlanCode, SaaSPlanDefinition> = {
   basic: {
     code: 'basic',
     name: '入門版',
-    monthlyPriceTwd: 499,
+    monthlyPriceTwd: 399,
     seatLimit: 3,
     monthlyReturnSoftLimit: 300,
     aiMonthlyLimit: 10,

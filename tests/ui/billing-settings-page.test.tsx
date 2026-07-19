@@ -84,16 +84,18 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByText('試用中')).toBeInTheDocument();
     expect(screen.getByText('2026/07/18')).toBeInTheDocument();
     expect(screen.getByText('2026/07/21')).toBeInTheDocument();
-    expect(screen.getByText('選擇方案')).toBeInTheDocument();
+    expect(screen.getByText('升級方案')).toBeInTheDocument();
     expect(screen.getAllByText(/不會自動續扣/).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: '入門版' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '成長版' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '大量需求' })).not.toBeInTheDocument();
+    expect(screen.getByText('NT$399')).toBeInTheDocument();
     expect(screen.getAllByText('NT$499').length).toBeGreaterThan(0);
     expect(screen.getAllByText('綠界科技').length).toBeGreaterThan(0);
     expect(screen.getAllByText('已付款').length).toBeGreaterThan(0);
     expect(screen.getByText('NT$499', { selector: 'td' })).toBeInTheDocument();
     expect(screen.queryByText('聯絡客服')).not.toBeInTheDocument();
+    expect(document.querySelector('a[href="/pricing"]')).toBeNull();
   });
 
   it('shows an expired self-service trial as 試用版 without exposing the organization name', async () => {
@@ -146,7 +148,7 @@ describe('BillingSettingsPage', () => {
           success: true,
           checkout: {
             action: 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5',
-            fields: { MerchantTradeNo: 'trade-1', TradeAmt: '699' },
+            fields: { MerchantTradeNo: 'trade-1', TradeAmt: '399' },
           },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }
@@ -158,14 +160,14 @@ describe('BillingSettingsPage', () => {
       .mockImplementation(() => undefined);
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /選擇成長版並付款/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級至入門版 NT\$399/ }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/saas/billing/checkout',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ plan: 'growth' }),
+        body: JSON.stringify({ plan: 'basic' }),
       })
     );
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
@@ -174,6 +176,7 @@ describe('BillingSettingsPage', () => {
     );
     expect(form).not.toBeNull();
     expect(form?.querySelector('input[name="MerchantTradeNo"]')).toHaveValue('trade-1');
+    expect(form?.querySelector('input[name="TradeAmt"]')).toHaveValue('399');
   });
 
   it('allows an active customer to prepay one more month on the current plan', async () => {
@@ -236,7 +239,7 @@ describe('BillingSettingsPage', () => {
       .mockImplementation(() => undefined);
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /選擇成長版並付款/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級至成長版 NT\$699/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('付款服務回應不完整');
     expect(submit).not.toHaveBeenCalled();

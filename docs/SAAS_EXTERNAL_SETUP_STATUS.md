@@ -7,6 +7,10 @@
   prepaid checkout, and showing current period, expiry, payment history, and
   subscription-period history. It is intentionally non-recurring and never
   stores card data.
+- The repository price contract now sets Basic to NT$399 and Growth to NT$699.
+  The in-app selector, server-priced checkout, ECPay form validation, and the
+  unapplied migration `046` draft use the same values. This is not deployed or
+  enabled in Production by this repository change.
 - Draft migration `046_saas_self_service_billing.sql` adds immutable payment and
   period ledgers plus service-role-only checkout/settlement RPCs. Verified
   payment settlement is atomic and idempotent; simulated, mismatched, stale

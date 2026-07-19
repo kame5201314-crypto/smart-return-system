@@ -208,9 +208,9 @@ export function BillingPlanSelector({
 
       <Card id="plans" className="scroll-mt-24 rounded-2xl border-gray-200 shadow-sm">
         <CardHeader className="p-5 pb-0 sm:p-6 sm:pb-0">
-          <CardTitle>選擇方案</CardTitle>
+          <CardTitle>升級方案</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">
-            每次付款購買一個月使用期，採預付制，不會自動續扣；到期前可自行再次付款續用。
+            直接在 AI 退貨系統內選擇方案並付款。每次付款購買一個月使用期，不會自動續扣。
           </p>
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
@@ -222,6 +222,7 @@ export function BillingPlanSelector({
               const isDowngrade = !isTrial && data.org.plan === 'growth' && code === 'basic';
               const isOnlineChangeUnavailable = data.org.plan === 'enterprise';
               const isRequested = requestedPlan === code;
+              const isPrimaryPlan = isRequested || (isTrial && code === 'basic');
               const disabled =
                 !data.actions.canUpdateBilling ||
                 isDowngrade ||
@@ -229,15 +230,23 @@ export function BillingPlanSelector({
                 processingPlan !== null;
 
               return (
-                <div
+                <article
                   key={code}
+                  aria-labelledby={`billing-plan-${code}`}
                   className={`flex flex-col rounded-lg border p-5 ${
-                    isRequested ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500' : ''
+                    isPrimaryPlan
+                      ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500'
+                      : 'border-gray-200 bg-white'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-950">{plan.name}</h3>
+                      <h3
+                        id={`billing-plan-${code}`}
+                        className="text-lg font-semibold text-gray-950"
+                      >
+                        {plan.name}
+                      </h3>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
                         {PLAN_SUMMARY[code]}
                       </p>
@@ -245,15 +254,16 @@ export function BillingPlanSelector({
                     {isCurrentPlan ? <Badge variant="secondary">目前方案</Badge> : null}
                   </div>
                   <p className="mt-5 text-3xl font-semibold text-gray-950">
-                    NT$ {plan.monthlyPriceTwd?.toLocaleString('zh-TW')}
+                    NT${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">／月</span>
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">一次預付一個月・不自動續扣</p>
                   <Button
                     type="button"
-                    className="mt-5 w-full"
-                    variant={code === 'growth' ? 'default' : 'outline'}
+                    className="mt-5 h-11 w-full"
+                    variant={isPrimaryPlan ? 'default' : 'outline'}
                     disabled={disabled}
+                    aria-busy={processingPlan === code}
                     onClick={() => void startCheckout(code)}
                   >
                     {processingPlan === code
@@ -263,13 +273,13 @@ export function BillingPlanSelector({
                         : isDowngrade
                         ? '暫不支援線上降級'
                         : isCurrentActivePlan
-                          ? '續購 1 個月'
-                          : `選擇${plan.name}並付款`}
+                          ? `續購 1 個月・${plan.name} NT$${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}`
+                          : `升級至${plan.name} NT$${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}`}
                     {!isDowngrade && !isOnlineChangeUnavailable && processingPlan !== code ? (
                       <ArrowRight className="size-4" aria-hidden="true" />
                     ) : null}
                   </Button>
-                </div>
+                </article>
               );
             })}
           </div>

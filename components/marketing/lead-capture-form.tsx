@@ -34,7 +34,7 @@ const VOLUME_OPTIONS: ReadonlyArray<{
   { value: 'over_800', label: '800 筆以上' },
 ];
 const PLAN_OPTIONS: ReadonlyArray<{ value: SaaSPlanCode; label: string }> = [
-  { value: 'basic', label: '入門版 NT$499 / 月' },
+  { value: 'basic', label: '入門版 NT$399 / 月' },
   { value: 'growth', label: '成長版 NT$699 / 月' },
   { value: 'enterprise', label: '大量需求（專人洽談）' },
 ];

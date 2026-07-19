@@ -158,7 +158,7 @@ Result:
 
 | Stage | Decision | Reason |
 |---|---|---|
-| Closed free/manual Beta | Green with controlled scope | Core merchant workspace, platform admin privacy boundary, tenant isolation hardening, Sentry, security headers, and 499/699 plan contract are in place. |
+| Closed free/manual Beta | Green with controlled scope | Core merchant workspace, platform admin privacy boundary, tenant isolation hardening, Sentry, security headers, and 399/699 plan contract are in place. |
 | First paid manual customer | Yellow | Invoice/receipt workflow, legal wording, refund handling, and payment records must be operational before collecting money. |
 | Public self-serve paid launch | Red | ECPay recurring billing, email delivery, public signup/self-serve provisioning, lifecycle jobs, and provider-backed invoice flow are not enabled. |
 
@@ -183,7 +183,7 @@ merchant or platform backends.
 
 | ID | Item | Why it matters | Current repo state | Action |
 |---|---|---|---|---|
-| A1 | Team member visibility schema for team management | 499/699 plans include seats; owner/admin must be able to see same-org members for role changes and disable flows. | Migration `038` is applied to SaaS project `auyznbwtjvemyamujmgt`; same-org `organization_members` SELECT is helper-backed and non-recursive. | Run disposable-org `/settings/team` QA before inviting real multi-member merchants. |
+| A1 | Team member visibility schema for team management | 399/699 plans include seats; owner/admin must be able to see same-org members for role changes and disable flows. | Migration `038` is applied to SaaS project `auyznbwtjvemyamujmgt`; same-org `organization_members` SELECT is helper-backed and non-recursive. | Run disposable-org `/settings/team` QA before inviting real multi-member merchants. |
 | A2 | Confirm production `/internal` access for platform operators | Platform operations backend must be usable to follow tenant health and usage. | Read-only env/route verification is complete; `PLATFORM_ADMIN_ROLES` is not configured, while admin username/password env names exist. | If per-email operator roles are needed, set `PLATFORM_ADMIN_ROLES`; authenticated login still needs credentials-based QA. |
 | A3 | Run merchant-to-platform QA on a disposable org | Confirms merchant usage and AI analysis aggregate into `/internal` without exposing return detail/PII. | QA plan exists in `docs/SAAS_AI_RETURNS_PLATFORM_QA_PLAN.md`; automated privacy-boundary tests exist. | Use QA org only; do not use real customers. |
 | A4 | Use the closed Beta onboarding runbook for the first merchant session | Keeps customer handoff, scope promises, AI walkthrough, and operator follow-up consistent. | Runbook exists in `docs/SAAS_CLOSED_BETA_ONBOARDING_RUNBOOK.md`. | Use it for every first-session onboarding; do not store passwords in docs/chat/Git. |
@@ -232,11 +232,11 @@ merchant or platform backends.
 
 ### Pricing Risk
 
-499/699 is competitive, but support time is the real cost driver.
+399/699 is competitive, but support time is the real cost driver.
 
 Mitigation:
 
-- Keep 499 low-touch and self-serve.
+- Keep 399 low-touch and self-serve.
 - Use 699 as the recommended plan with advanced analytics and higher usage.
 - Treat repeated overage as a sales trigger, not a silent free upgrade.
 - Keep enterprise quote-only for high-volume, multi-brand, API, warehouse, or
@@ -246,7 +246,7 @@ Mitigation:
 
 The plan contract currently defines:
 
-- Basic: NT$499, 3 seats, 300 monthly returns, 10 AI analyses, no advanced
+- Basic: NT$399, 3 seats, 300 monthly returns, 10 AI analyses, no advanced
   analytics.
 - Growth: NT$699, 5 seats, 800 monthly returns, 25 AI analyses, advanced
   analytics.

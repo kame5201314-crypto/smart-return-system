@@ -21,7 +21,7 @@ Expected separation:
 
 | Area | Coverage |
 |---|---|
-| 499 / 699 / enterprise plan contract | `tests/unit/saas-commercial-config.test.ts`, `tests/unit/saas-ui-backend-contracts.test.ts` |
+| 399 / 699 / enterprise plan contract | `tests/unit/saas-commercial-config.test.ts`, `tests/unit/saas-ui-backend-contracts.test.ts` |
 | AI quota reads org plan limits | `tests/unit/saas-ai-quota.test.ts` |
 | AI analyze route requires org context and writes usage events | `tests/unit/saas-runtime-org-isolation.test.ts` |
 | Platform usage reads by org id from returns and AI usage tables | `tests/unit/saas-platform-admin-data.test.ts` |

@@ -186,6 +186,7 @@ Status values:
 | done | Settings team data repository foundation | This commit; added repository/input builder for organizations, organization_members, and organization_invites without exposing a live route |
 | done | Settings live data server loader | This commit; added server-side billing/usage/team DTO loaders with org-context gates and ready/empty/error/gated states for Claude UI handoff |
 | done | Team seat limit policy | This commit; team DTOs now reserve seats for active members and pending invites before enabling invites |
+| done | In-app NT$399 Basic upgrade contract | This commit; authenticated upgrade entry points remain inside `/settings/billing#plans`, Basic is the trial default at NT$399, and the application, ECPay checks, readiness scripts, tests, and unapplied migration `046` draft share the same server price. No migration, deploy, billing flag, provider, env, or real charge was performed |
 
 ## Current Split Queue
 

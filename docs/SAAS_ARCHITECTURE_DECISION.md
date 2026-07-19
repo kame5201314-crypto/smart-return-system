@@ -193,7 +193,7 @@ SaaS 新功能應以 feature flag 漸進開放：
 
 | Plan | Monthly price | AI monthly limit | Billing |
 |---|---:|---:|---|
-| 入門版 (`basic`) | NT$ 499 | 10 | required |
+| 入門版 (`basic`) | NT$ 399 | 10 | required |
 | 成長版 (`growth`) | NT$ 699 | 25 | required |
 | 大量需求 (`enterprise`) | quote | contract-based | optional |
 

@@ -319,7 +319,7 @@ function checkCommercialFoundation() {
   if (fs.existsSync(plansPath)) {
     const source = fs.readFileSync(plansPath, 'utf8');
     const expectedPlanSnippets = [
-      'monthlyPriceTwd: 499',
+      'monthlyPriceTwd: 399',
       'seatLimit: 3',
       'monthlyReturnSoftLimit: 300',
       'aiMonthlyLimit: 10',

@@ -73,7 +73,7 @@ const paymentOrder: ECPayPaymentOrder = {
   provider: 'ecpay',
   providerMode: 'test',
   plan: 'basic',
-  amountTwd: 499,
+  amountTwd: 399,
   merchantId: 'merchant-1',
   merchantTradeNo: 'SRPAYMENT1',
   status: 'pending',
@@ -327,7 +327,7 @@ describe('SaaS billing foundation', () => {
       expect.objectContaining({
         order: paymentOrder,
         providerEventId: 'test:merchant-1:SRPAYMENT1:gateway-trade-1:rtn1:sim0',
-        tradeAmountTwd: 499,
+        tradeAmountTwd: 399,
         simulatePaid: false,
         payload,
       })

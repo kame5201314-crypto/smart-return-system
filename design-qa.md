@@ -107,3 +107,65 @@ final result: passed
 ## Result
 
 Pass.
+
+---
+
+# In-app NT$399 Upgrade Design QA
+
+## Source of truth
+
+- Reference: the user-provided `/pricing` screenshot in the 2026-07-19 request.
+- Requested change: move the NT$399 subscription conversion path into the
+  authenticated AI return workspace instead of sending the merchant to the
+  marketing pricing page.
+- Desktop implementation screenshot:
+  `C:/Users/kawei/AppData/Local/Temp/smart-return-billing-399-qa/billing-399-desktop.png`
+- Mobile implementation screenshot:
+  `C:/Users/kawei/AppData/Local/Temp/smart-return-billing-399-qa/billing-399-mobile.png`
+
+## Full-view comparison evidence
+
+- The marketing reference's plan hierarchy is preserved inside the existing
+  account-and-billing design system: plan name, short fit statement, prominent
+  monthly price, prepaid disclosure, and one direct payment action.
+- Basic is the primary trial conversion card and displays `NT$399／月`; Growth
+  remains available as the secondary `NT$699／月` choice.
+- The in-app page intentionally omits the public marketing navigation,
+  recommendation strip, enterprise lead-capture card, and trial signup CTA.
+  Existing merchants remain inside the workspace and retain their account and
+  immutable payment history context.
+- Existing Smart Return spacing, emerald selection treatment, neutral borders,
+  typography, buttons, and responsive card patterns are reused without adding
+  a second design language.
+
+## Desktop and mobile QA
+
+- Desktop viewport: `1440 × 1000`; `documentWidth = viewportWidth = 1440`.
+- Mobile viewport: `390 × 844`; document/body width is `375`, with no horizontal
+  overflow.
+- Desktop uses a two-column plan comparison; mobile stacks plans into a single
+  scan path with the Basic price and CTA visible before Growth.
+- Payment history remains a desktop table and a mobile card list, preserving
+  the original amount paid for legacy records.
+
+## Behavior and accessibility
+
+- Basic CTA accessible name: `升級至入門版 NT$399`.
+- Trial/expired state promotes Basic; an explicitly requested plan can override
+  the highlighted card.
+- Plan containers are semantic `article` elements linked to their headings.
+- Checkout buttons expose processing state through `aria-busy`, keep a minimum
+  44 px target height, and retain existing focus styles.
+- No `/pricing` link is present in the rendered authenticated billing surface.
+- Browser console errors and warnings: none.
+
+## Findings and comparison history
+
+- Initial desktop comparison: passed; no P0/P1/P2 spacing, hierarchy, contrast,
+  copy, or interaction mismatch remained.
+- Initial mobile comparison: passed; no overlap, clipping, broken wrapping, or
+  horizontal overflow remained.
+- No custom raster artwork or replacement icons were needed for this billing
+  surface.
+
+final result: passed

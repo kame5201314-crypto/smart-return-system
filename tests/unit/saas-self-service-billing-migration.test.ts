@@ -56,7 +56,7 @@ describe('SaaS self-service billing migration', () => {
     expect(block).toContain('member.user_id = p_actor_user_id');
     expect(block).toContain("member.role IN ('owner', 'admin')");
     expect(block).toContain("COALESCE(member.status, 'active') = 'active'");
-    expect(block).toContain("WHEN 'basic' THEN 499");
+    expect(block).toContain("WHEN 'basic' THEN 399");
     expect(block).toContain("WHEN 'growth' THEN 699");
     expect(block).toContain('p_amount_twd <> expected_amount_twd');
     expect(block).toContain("normalized_provider <> 'ecpay'");

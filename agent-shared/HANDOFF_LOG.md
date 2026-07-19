@@ -6368,3 +6368,17 @@ The owner subsequently authorized completing the Production rollout:
   before commits are pushed. This handoff does not authorize or report a
   migration apply, ECPay credential setup, billing flag enablement, deployment,
   or real charge; those remain separate rollout actions.
+
+## 2026-07-19 In-App NT$399 Upgrade Handoff
+
+- Merchant upgrade CTAs stay in the AI return workspace and open
+  `/settings/billing#plans`; public `/pricing` remains a marketing-only route.
+- Basic is now NT$399 per prepaid month. The shared plan definition, in-app and
+  public displays, checkout amount, ECPay validation tests, readiness checks,
+  and unapplied migration `046` draft use the same server-controlled amount.
+- Trial and expired workspaces see Basic as the primary in-app choice, with a
+  price-specific payment action. Existing payment history remains immutable and
+  continues to display the amount originally charged.
+- This repository handoff does not deploy Vercel, apply migration `046`, enable
+  Billing/ECPay, edit env/secrets, or perform a real charge. Production remains
+  unchanged until those actions are separately authorized and completed.

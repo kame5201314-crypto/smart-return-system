@@ -21,7 +21,7 @@ describe('SaaS commercial configuration', () => {
           "code": "basic",
           "hasAdvancedAnalytics": false,
           "hasApiAccess": false,
-          "monthlyPriceTwd": 499,
+          "monthlyPriceTwd": 399,
           "monthlyReturnSoftLimit": 300,
           "name": "入門版",
           "seatLimit": 3,
