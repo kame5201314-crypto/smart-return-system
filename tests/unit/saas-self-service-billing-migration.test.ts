@@ -7,6 +7,10 @@ const source = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/046_saas_self_service_billing.sql'),
   'utf8'
 );
+const privilegesSource = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/047_saas_billing_table_privileges.sql'),
+  'utf8'
+);
 
 function functionBlock(name: string): string {
   const start = source.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
@@ -46,6 +50,14 @@ describe('SaaS self-service billing migration', () => {
     expect(source).not.toMatch(
       /CREATE POLICY[\s\S][^;]*FOR (INSERT|UPDATE|DELETE)[\s\S][^;]*TO authenticated/i
     );
+    expect(privilegesSource).toContain(
+      'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE'
+    );
+    expect(privilegesSource).toContain('GRANT SELECT ON TABLE');
+    expect(privilegesSource).toContain('TO authenticated;');
+    expect(privilegesSource).toContain('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE');
+    expect(privilegesSource).toContain('TO service_role;');
+    expect(privilegesSource).toContain('FROM anon;');
   });
 
   it('uses the API contract and creates orders only for an active owner/admin actor', () => {

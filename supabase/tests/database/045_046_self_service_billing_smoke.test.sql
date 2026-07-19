@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(25);
+SELECT extensions.plan(29);
 
 -- Migration 045 must keep every tenant write behind the centralized helper.
 SELECT extensions.ok(
@@ -93,6 +93,41 @@ SELECT extensions.ok(
     'public.process_ecpay_payment_notification(text,text,text,text,text,integer,integer,text,boolean,timestamp with time zone,jsonb)'
   ) IS NOT NULL,
   '046 creates the service-only settlement RPC'
+);
+
+-- Migration 047 grants table access without weakening the RLS write boundary.
+SELECT extensions.ok(
+  has_table_privilege('authenticated', 'public.payment_orders', 'SELECT')
+    AND has_table_privilege('authenticated', 'public.subscription_periods', 'SELECT'),
+  '047 grants authenticated users RLS-scoped billing history reads'
+);
+
+SELECT extensions.ok(
+  NOT has_table_privilege('authenticated', 'public.payment_orders', 'INSERT')
+    AND NOT has_table_privilege('authenticated', 'public.payment_orders', 'UPDATE')
+    AND NOT has_table_privilege('authenticated', 'public.payment_orders', 'DELETE')
+    AND NOT has_table_privilege('authenticated', 'public.subscription_periods', 'INSERT')
+    AND NOT has_table_privilege('authenticated', 'public.subscription_periods', 'UPDATE')
+    AND NOT has_table_privilege('authenticated', 'public.subscription_periods', 'DELETE'),
+  '047 keeps authenticated billing history writes revoked'
+);
+
+SELECT extensions.ok(
+  has_table_privilege('service_role', 'public.payment_orders', 'SELECT')
+    AND has_table_privilege('service_role', 'public.payment_orders', 'INSERT')
+    AND has_table_privilege('service_role', 'public.payment_orders', 'UPDATE')
+    AND has_table_privilege('service_role', 'public.payment_orders', 'DELETE')
+    AND has_table_privilege('service_role', 'public.subscription_periods', 'SELECT')
+    AND has_table_privilege('service_role', 'public.subscription_periods', 'INSERT')
+    AND has_table_privilege('service_role', 'public.subscription_periods', 'UPDATE')
+    AND has_table_privilege('service_role', 'public.subscription_periods', 'DELETE'),
+  '047 grants service role the billing ledger privileges required by server workflows'
+);
+
+SELECT extensions.ok(
+  NOT has_table_privilege('anon', 'public.payment_orders', 'SELECT')
+    AND NOT has_table_privilege('anon', 'public.subscription_periods', 'SELECT'),
+  '047 keeps anonymous billing history access revoked'
 );
 
 -- All fixtures are deterministic and are rolled back at the end of this test.
