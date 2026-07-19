@@ -1,6 +1,6 @@
 # SaaS External Setup Status
 
-## 2026-07-19 Self-Service Prepaid Billing Repository Readiness
+## 2026-07-20 Self-Service Prepaid Billing Stage E2E Completed
 
 - Repository code now supports an authenticated owner/admin selecting Basic or
   Growth inside `/settings/billing`, creating a server-priced one-month ECPay
@@ -8,22 +8,36 @@
   subscription-period history. It is intentionally non-recurring and never
   stores card data.
 - The repository price contract now sets Basic to NT$399 and Growth to NT$699.
-  The in-app selector, server-priced checkout, ECPay form validation, and the
-  unapplied migration `046` draft use the same values. This is not deployed or
-  enabled in Production by this repository change.
-- Draft migration `046_saas_self_service_billing.sql` adds immutable payment and
-  period ledgers plus service-role-only checkout/settlement RPCs. Verified
-  payment settlement is atomic and idempotent; simulated, mismatched, stale
-  downgrade, and platform-suspension cases do not activate or downgrade a
-  tenant. Stage/Production identifiers are merchant-namespaced.
-- `046` is not applied. Production still has `ENABLE_BILLING=false`,
-  `ENABLE_SUBSCRIPTION_PLAN=false`, and no ECPay credentials. No deployment,
-  migration, provider activation, env/secret edit, or real charge was performed
-  for this repository work.
-- Required external sequence is documented in
-  `docs/SAAS_SELF_SERVICE_PREPAID_BILLING_ROLLOUT.md`: disposable-project SQL
-  proof, ECPay Stage credentials, Stage-only flags, full callback/race matrix,
-  legal invoice/refund confirmation, and separate Production approval.
+  The in-app selector, server-priced checkout, ECPay form validation, and
+  database settlement contract use the same server-controlled values.
+- Migrations `045_saas_suspended_org_write_guards.sql`,
+  `046_saas_self_service_billing.sql`, and
+  `047_saas_billing_table_privileges.sql` were applied only to SaaS project
+  `auyznbwtjvemyamujmgt`. Do not apply them to another Supabase project or
+  rerun them on this project.
+- Migration `046` adds immutable payment and subscription-period ledgers plus
+  service-role-only checkout/settlement RPCs. Verified payment settlement is
+  atomic and idempotent; simulated, mismatched, stale-downgrade, and
+  platform-suspension cases do not activate or downgrade a tenant.
+- Migration `047` fixes the table-privilege gap for the migration `046` ledgers:
+  authenticated owner/admin reads are still scoped by RLS, anonymous access and
+  authenticated writes remain revoked, and `service_role` has the table access
+  required by trusted server workflows.
+- The Preview ECPay Stage acceptance completed a Basic NT$399 checkout with 3D
+  verification. The signed callback was independently verified, settlement
+  completed through the verified webhook path, and the corresponding paid
+  subscription period was created successfully. This was a Stage transaction,
+  not a real customer charge.
+- Preview Vercel Authentication was disabled only during the bounded ECPay
+  acceptance window so the provider callback could reach the deployment. It was
+  restored immediately after the E2E verification.
+- Production still lacks formal ECPay merchant credentials.
+  `ENABLE_BILLING=false` and `ENABLE_SUBSCRIPTION_PLAN=false` must remain closed
+  until those credentials are supplied out of band and the separate Production
+  rollout checklist is approved and completed.
+- The remaining Production sequence is documented in
+  `docs/SAAS_SELF_SERVICE_PREPAID_BILLING_ROLLOUT.md`; no Production billing
+  provider activation or real charge is authorized by the completed Stage E2E.
 
 ## 2026-07-18 Admin Entry Separation Production Baseline
 
@@ -301,6 +315,13 @@ for the controlled customer handoff and first-session walkthrough.
   to SaaS project `auyznbwtjvemyamujmgt` on 2026-07-17. Remote history, RPC,
   required columns, and service-role-only execution were verified. Do not rerun
   `040`-`044`; drafts `034` and `036` remain separate and unapplied.
+- Migrations `045_saas_suspended_org_write_guards.sql`,
+  `046_saas_self_service_billing.sql`, and
+  `047_saas_billing_table_privileges.sql` have been applied only to SaaS project
+  `auyznbwtjvemyamujmgt`. Migration `047` supplies the explicit table grants
+  required for authenticated RLS-scoped billing-history reads and trusted
+  service-role workflows without opening anonymous access or tenant writes.
+  Do not rerun `045`-`047` or apply them to another Supabase project.
 - Vercel Production project `smart-return-system-saas` has owner-authorized
   `ENABLE_PUBLIC_LEAD_CAPTURE=true`; the current Ready deployment is
   `dpl_DPcnpc7hqAMoGGTvM2WF8CfauJkh` at commit `3b14d2d`.
@@ -325,11 +346,9 @@ for the controlled customer handoff and first-session walkthrough.
 - Platform tenant preview UI is now wired for platform admins through the org-detail start button, tenant preview banner, and exit button. This remains read-only visual context only; it is not full impersonation and does not change tenant data scope or write permissions.
 - Latest Claude/Codex UI handoffs through 2026-06-12 are recorded in `agent-shared/**`: platform risk label localization, settings header consistency, billing trial/cancel banners, onboarding next-step focus card, marketing mobile navigation, login page SaaS branding, `/internal` loading skeleton, `/not-found` SaaS branding, customer/platform role separation UI, public marketing/legal mobile touch-target QA, platform operations simplification, merchant settings secondary-entry gating, and `/internal` alert-copy refinement.
 - `npm run saas:migration-plan:strict` passes and the local migration chain now
-  ends at the unapplied draft `045_saas_suspended_org_write_guards.sql`.
-  Migration `045` closes stale-session RLS writes for disabled members,
-  suspended organizations, and expired trials. It has not been applied and
-  requires a separate SaaS-project-only rollout authorization; never rerun
-  the already-applied migrations `040`–`044`.
+  ends at `047_saas_billing_table_privileges.sql`. Migrations `045`-`047` are
+  already applied only to SaaS project `auyznbwtjvemyamujmgt`; never rerun them
+  or the already-applied migrations `040`-`044`.
 - `npm run saas:schema-gate:strict` passes after owner-authorized migrations
   `033`, `037`-`044` apply; never rerun `040`-`044`.
 - `npm run saas:doctor:strict` passes with default rollout flags; if local platform admin preview is enabled, the check reports a warning that `ENABLE_MULTI_TENANT_ADMIN` is not at its closed default.

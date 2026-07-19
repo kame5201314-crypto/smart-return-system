@@ -1,6 +1,23 @@
 # SaaS Self-Service Prepaid Billing Goal And Rollout
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
+
+## Current Verified Status
+
+- Migrations `045`, `046`, and `047` are applied only to SaaS Supabase project
+  `auyznbwtjvemyamujmgt`. They must not be rerun or applied to another project.
+- Migration `047` explicitly grants authenticated users RLS-scoped read access
+  to `payment_orders` and `subscription_periods`, keeps anonymous access and
+  authenticated writes revoked, and grants `service_role` the table privileges
+  required by trusted billing workflows.
+- Preview ECPay Stage E2E passed for the Basic NT$399 plan, including the hosted
+  checkout, 3D verification, signed callback, independent verified webhook
+  settlement, and creation of the paid subscription period.
+- Preview Vercel Authentication was disabled only for the provider-callback
+  acceptance window and was restored after verification.
+- Production has no formal ECPay merchant credentials. Keep
+  `ENABLE_BILLING=false` and `ENABLE_SUBSCRIPTION_PLAN=false`; do not accept a
+  real payment until the Production checklist below is completed.
 
 ## Goal
 
@@ -73,38 +90,46 @@ reconciliation rollout.
   to the official ECPay Stage and Production HTTPS checkout hosts.
 - No secret, provider key, card data, or customer password is written to Git,
   logs, browser JavaScript, or documentation.
-- Migration `046_saas_self_service_billing.sql` is a repository draft until an
-  explicit, separate authorization applies it only to SaaS Supabase project
-  `auyznbwtjvemyamujmgt`.
-- Repository completion does not authorize a Vercel deployment, environment
-  change, provider activation, migration, or real charge.
+- Migrations `045_saas_suspended_org_write_guards.sql`,
+  `046_saas_self_service_billing.sql`, and
+  `047_saas_billing_table_privileges.sql` are already applied only to SaaS
+  Supabase project `auyznbwtjvemyamujmgt`. Do not rerun them.
+- Successful Preview Stage acceptance does not authorize Production environment
+  changes, provider activation, deployment, or a real charge.
 
-## Required Verification
+## Required Production Verification
 
-Before an external rollout:
+The Basic NT$399 Preview Stage happy path and database settlement are complete.
+Before accepting a real customer payment:
 
-1. Run repository safety, lint, typecheck, complete tests, and production
-   build.
-2. Review migration `046`, apply it to a disposable Supabase project, and prove
-   RLS plus RPC behavior before requesting production migration approval.
-3. Configure ECPay Stage credentials outside Git and keep `ECPAY_MODE=test`.
-4. Enable the billing flags only in a Stage deployment.
-5. Test Basic purchase, Growth purchase, active renewal, immediate upgrade,
-   expired renewal, stale-order downgrade, platform suspension, duplicate
-   notification, Stage/Production isolation, feature-flag drain, failure,
-   amount mismatch, simulated payment, browser-return-before-callback, and
-   callback-before-browser-return, signed `QueryTradeInfo/V5` confirmation,
-   query timeout/non-2xx behavior, invalid query signature, and query field
-   mismatches.
-6. Verify the billing page and platform billing events show the same confirmed
-   result and service period.
-7. Complete legal invoice/receipt and refund decisions before collecting a real
-   customer payment.
+1. Obtain formal Production MerchantID, HashKey, and HashIV directly from the
+   approved ECPay merchant account and store them only in the Production secret
+   manager. Never reuse Stage credentials.
+2. Configure `BILLING_PROVIDER=ecpay`, `ECPAY_MODE=production`, and the formal
+   credentials while both billing flags remain `false`.
+3. Confirm the stable Production HTTPS webhook/result URLs are registered with
+   ECPay and publicly reachable by the provider without weakening protection on
+   merchant or administration pages.
+4. Run repository safety, lint, typecheck, complete tests, production build,
+   and a no-charge Production readiness smoke.
+5. Complete the remaining provider matrix: Growth purchase, same-plan renewal,
+   immediate upgrade, expired renewal, stale-order downgrade, platform
+   suspension, duplicate notification, Stage/Production isolation,
+   feature-flag drain, provider failure, amount mismatch, simulated payment,
+   browser-return/callback races, signed `QueryTradeInfo/V5` timeout/non-2xx,
+   invalid query signature, and query-field mismatches.
+6. Verify the merchant billing page and platform billing events show the same
+   confirmed payment and service period, then restore any temporary Preview or
+   deployment protection change used for acceptance.
+7. Complete legal invoice/receipt, refund, customer-support, and reconciliation
+   decisions.
+8. Only after all earlier steps pass, explicitly approve the Production deploy
+   and set `ENABLE_BILLING=true` plus `ENABLE_SUBSCRIPTION_PLAN=true` together.
 
 ## External Values Required Later
 
 - `BILLING_PROVIDER=ecpay`
-- `ECPAY_MODE=test` for the first end-to-end verification
+- `ECPAY_MODE=production` for Production activation
 - `ECPAY_MERCHANT_ID`
 - `ECPAY_HASH_KEY`
 - `ECPAY_HASH_IV`
@@ -112,6 +137,6 @@ Before an external rollout:
 - `ENABLE_SUBSCRIPTION_PLAN=true`
 - A public HTTPS callback URL reachable by ECPay without Vercel protection
 
-The values and secrets are never copied into this document. Production mode
-must remain off until the Stage matrix passes and a separate production rollout
-is explicitly approved.
+The values and secrets are never copied into this document. Production billing
+must remain off until formal merchant credentials are available and the
+Production verification above is explicitly approved and completed.
