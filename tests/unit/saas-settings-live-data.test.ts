@@ -19,6 +19,7 @@ function buildContext(overrides: Partial<SaaSOrgContext> = {}): SaaSOrgContext {
     orgName: 'Demo Store',
     orgSlug: 'demo-store',
     orgStatus: 'active',
+    suspensionSource: null,
     role: 'owner',
     plan: 'growth',
     planDefinition: getSaaSPlanDefinition('growth'),
@@ -204,7 +205,7 @@ describe('SaaS settings live data loaders', () => {
     });
   });
 
-  it.each(['past_due', 'suspended', 'cancelled'] as const)(
+  it.each(['past_due', 'cancelled'] as const)(
     'allows an owner to pay from a %s workspace when checkout flags are ready',
     async (orgStatus) => {
       const context = buildContext({ orgStatus });
@@ -232,6 +233,72 @@ describe('SaaS settings live data loaders', () => {
           actions: {
             canUpdateBilling: true,
             canCancelRenewal: true,
+          },
+        },
+      });
+    }
+  );
+
+  it.each(['trial_expired', 'billing'] as const)(
+    'allows an owner to pay from a suspended workspace caused by %s',
+    async (suspensionSource) => {
+      const context = buildContext({ orgStatus: 'suspended', suspensionSource });
+      const billingRepository = {
+        getOrganizationBilling: vi.fn(async () => ({
+          id: 'org-1',
+          name: 'Restore Store',
+          plan: 'basic',
+          status: 'suspended',
+          suspensionSource,
+          billingEmail: 'owner@example.com',
+          taxId: null,
+        })),
+        getSubscription: vi.fn(async () => null),
+        getLatestInvoice: vi.fn(async () => null),
+      };
+
+      const result = await loadBillingSettingsView({
+        getContext: vi.fn(async () => context),
+        billingRepository,
+      });
+
+      expect(result).toMatchObject({
+        state: 'ready',
+        data: { actions: { canUpdateBilling: true } },
+      });
+    }
+  );
+
+  it.each([null, 'platform_admin'] as const)(
+    'disables checkout for a platform-suspended workspace (source: %s)',
+    async (suspensionSource) => {
+      const context = buildContext({ orgStatus: 'suspended', suspensionSource });
+      const billingRepository = {
+        getOrganizationBilling: vi.fn(async () => ({
+          id: 'org-1',
+          name: 'Suspended Store',
+          plan: 'basic',
+          status: 'suspended',
+          suspensionSource,
+          billingEmail: 'owner@example.com',
+          taxId: null,
+        })),
+        getSubscription: vi.fn(async () => null),
+        getLatestInvoice: vi.fn(async () => null),
+      };
+
+      const result = await loadBillingSettingsView({
+        getContext: vi.fn(async () => context),
+        billingRepository,
+      });
+
+      expect(result).toMatchObject({
+        state: 'ready',
+        data: {
+          actions: {
+            canUpdateBilling: false,
+            canCancelRenewal: false,
+            disabledReason: expect.stringContaining('平台管理員停權'),
           },
         },
       });

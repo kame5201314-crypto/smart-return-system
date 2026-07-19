@@ -56,12 +56,15 @@ const BILLING_EMPTY_MESSAGE =
   '目前找不到帳務資料，請重新整理後再試。';
 const BILLING_LOAD_ERROR_MESSAGE =
   '帳務資料暫時無法載入，請稍後再試。';
+const BILLING_PLATFORM_SUSPENSION_MESSAGE =
+  '此工作區已由平台管理員停權，暫時無法線上付款；請由平台管理員解除停權後再試。';
 
 export interface SettingsLiveDataContext {
   orgId: string;
   role: SaaSOrgContext['role'];
   plan: SaaSOrgContext['plan'];
   orgStatus: SaaSOrgContext['orgStatus'];
+  suspensionSource: SaaSOrgContext['suspensionSource'];
   featureFlags: SaaSOrgContext['featureFlags'];
 }
 
@@ -112,6 +115,7 @@ function toLiveDataContext(context: SaaSOrgContext): SettingsLiveDataContext {
     role: context.role,
     plan: context.plan,
     orgStatus: context.orgStatus,
+    suspensionSource: context.suspensionSource,
     featureFlags: context.featureFlags,
   };
 }
@@ -298,13 +302,24 @@ export async function loadBillingSettingsView(
     const billingAccess = getSaaSSubscriptionAccessPolicy(context.orgStatus);
     const selfServiceBillingEnabled =
       context.featureFlags.billing && context.featureFlags.subscription_plan;
+    const platformSuspensionBlocksCheckout =
+      context.orgStatus === 'suspended'
+      && context.suspensionSource !== 'trial_expired'
+      && context.suspensionSource !== 'billing';
+    const canManageBilling =
+      selfServiceBillingEnabled
+      && billingAccess.canManageBilling
+      && !platformSuspensionBlocksCheckout;
     const input = await buildBillingSettingsViewInput(repository, {
       orgId: context.orgId,
+      suspensionSource: context.suspensionSource,
       actions: {
-        canUpdateBilling: selfServiceBillingEnabled && billingAccess.canManageBilling,
-        canCancelRenewal: selfServiceBillingEnabled && billingAccess.canManageBilling,
+        canUpdateBilling: canManageBilling,
+        canCancelRenewal: canManageBilling,
         disabledReason: !selfServiceBillingEnabled
           ? BILLING_FEATURE_DISABLED_MESSAGE
+          : platformSuspensionBlocksCheckout
+            ? BILLING_PLATFORM_SUSPENSION_MESSAGE
           : !billingAccess.canManageBilling
             ? BILLING_REQUIRED_MESSAGE
             : undefined,

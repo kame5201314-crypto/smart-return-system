@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export type SaaSOrgRole = 'owner' | 'admin' | 'staff' | 'viewer';
 export type SaaSOrgStatus = SaaSSubscriptionStatus;
+export type SaaSOrgSuspensionSource = 'trial_expired' | 'billing' | 'platform_admin';
 
 export interface SaaSOrgRecord {
   id?: string | null;
@@ -27,6 +28,8 @@ export interface SaaSOrgRecord {
   status?: unknown;
   feature_flags?: unknown;
   featureFlags?: unknown;
+  suspension_source?: unknown;
+  suspensionSource?: unknown;
   subscriptions?: unknown;
   trialEnd?: unknown;
 }
@@ -43,6 +46,7 @@ export interface SaaSOrgContext {
   orgName: string;
   orgSlug: string | null;
   orgStatus: SaaSOrgStatus;
+  suspensionSource?: SaaSOrgSuspensionSource | null;
   role: SaaSOrgRole;
   plan: SaaSPlanCode;
   planDefinition: SaaSPlanDefinition;
@@ -122,6 +126,11 @@ const SAAS_FEATURE_FLAGS: SaaSFeatureFlag[] = [
 ];
 
 const VALID_ORG_ROLES: SaaSOrgRole[] = ['owner', 'admin', 'staff', 'viewer'];
+const VALID_SUSPENSION_SOURCES: SaaSOrgSuspensionSource[] = [
+  'trial_expired',
+  'billing',
+  'platform_admin',
+];
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -143,6 +152,15 @@ export function normalizeSaaSOrgRole(value: unknown): SaaSOrgRole {
 
 export function normalizeSaaSOrgStatus(value: unknown): SaaSOrgStatus {
   return normalizeSaaSSubscriptionStatus(value);
+}
+
+export function normalizeSaaSOrgSuspensionSource(
+  value: unknown
+): SaaSOrgSuspensionSource | null {
+  const normalized = stringOrNull(value)?.toLowerCase();
+  return VALID_SUSPENSION_SOURCES.includes(normalized as SaaSOrgSuspensionSource)
+    ? normalized as SaaSOrgSuspensionSource
+    : null;
 }
 
 function normalizeOrgFeatureFlags(value: unknown): Partial<Record<SaaSFeatureFlag, boolean>> | null {
@@ -180,6 +198,24 @@ function resolveMembershipOrgStatus(
     trialEnd: membership.organization.trialEnd as Date | string | number | null | undefined,
     now,
   }).nextStatus;
+}
+
+function resolveMembershipSuspensionSource(
+  membership: SaaSOrgMembershipRecord,
+  resolvedStatus: SaaSOrgStatus
+): SaaSOrgSuspensionSource | null {
+  if (resolvedStatus !== 'suspended') {
+    return null;
+  }
+
+  if (normalizeSaaSOrgStatus(membership.organization.status) === 'trialing') {
+    return 'trial_expired';
+  }
+
+  return normalizeSaaSOrgSuspensionSource(
+    membership.organization.suspension_source
+      ?? membership.organization.suspensionSource
+  );
 }
 
 export function selectPreferredSaaSOrgMembership(
@@ -234,13 +270,15 @@ export function buildSaaSOrgContext(params: {
   const orgFeatureFlags = normalizeOrgFeatureFlags(
     organization.feature_flags ?? organization.featureFlags
   );
+  const orgStatus = resolveMembershipOrgStatus(membership, params.now);
 
   return {
     userId,
     orgId: membership.orgId,
     orgName: stringOrNull(organization.name) ?? '',
     orgSlug: stringOrNull(organization.slug),
-    orgStatus: resolveMembershipOrgStatus(membership, params.now),
+    orgStatus,
+    suspensionSource: resolveMembershipSuspensionSource(membership, orgStatus),
     role: normalizeSaaSOrgRole(membership.role),
     plan,
     planDefinition: getSaaSPlanDefinition(plan),
@@ -311,7 +349,7 @@ export function createSupabaseOrgMembershipRepository(
         injectedClient ?? ((await createClient()) as unknown as SupabaseOrgQueryClient);
       let query = client
         .from('organization_members')
-        .select('org_id, role, status, organizations!inner(id, name, slug, plan, status, feature_flags, subscriptions(trial_end))')
+        .select('org_id, role, status, organizations!inner(id, name, slug, plan, status, suspension_source, feature_flags, subscriptions(trial_end))')
         .eq('user_id', input.userId)
         .eq('status', 'active');
 

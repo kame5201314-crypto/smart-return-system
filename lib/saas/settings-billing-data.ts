@@ -45,6 +45,7 @@ export interface SettingsBillingOrgData {
   status: string;
   billingEmail: string | null;
   taxId: string | null;
+  suspensionSource?: BillingSuspensionSource | null;
 }
 
 export interface SettingsBillingSubscriptionData {
@@ -126,7 +127,16 @@ function normalizeOrganization(row: unknown): SettingsBillingOrgData | null {
     status: stringOrFallback(row.status, 'suspended'),
     billingEmail: stringOrNull(row.billing_email),
     taxId: stringOrNull(row.tax_id),
+    ...(Object.prototype.hasOwnProperty.call(row, 'suspension_source')
+      ? { suspensionSource: normalizeSuspensionSourceValue(row.suspension_source) }
+      : {}),
   };
+}
+
+function normalizeSuspensionSourceValue(value: unknown): BillingSuspensionSource | null {
+  return value === 'trial_expired' || value === 'billing' || value === 'platform_admin'
+    ? value
+    : null;
 }
 
 function normalizeSubscription(row: unknown): SettingsBillingSubscriptionData | null {
@@ -228,7 +238,7 @@ export function createSettingsBillingDataRepository(
     async getOrganizationBilling(input) {
       const { data, error } = await client
         .from('organizations')
-        .select('id, name, plan, status, billing_email, tax_id')
+        .select('id, name, plan, status, suspension_source, billing_email, tax_id')
         .eq('id', input.orgId)
         .maybeSingle();
 
@@ -314,28 +324,30 @@ export async function buildBillingSettingsViewInput(
   repository: SettingsBillingDataRepository,
   input: {
     orgId: string;
+    suspensionSource?: BillingSuspensionSource | null;
     actions: BillingSettingsView['actions'];
   }
 ): Promise<BillingSettingsViewInput | null> {
-  const [
-    org,
-    subscription,
-    latestInvoice,
-    suspensionSource,
-    paymentOrders,
-    subscriptionPeriods,
-  ] = await Promise.all([
-    repository.getOrganizationBilling({ orgId: input.orgId }),
-    repository.getSubscription({ orgId: input.orgId }),
-    repository.getLatestInvoice({ orgId: input.orgId }),
-    repository.getSuspensionSource?.({ orgId: input.orgId }) ?? Promise.resolve(null),
-    repository.listPaymentOrders?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
-    repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
-  ]);
-
+  const org = await repository.getOrganizationBilling({ orgId: input.orgId });
   if (!org) {
     return null;
   }
+
+  const [
+    subscription,
+    latestInvoice,
+    legacySuspensionSource,
+    paymentOrders,
+    subscriptionPeriods,
+  ] = await Promise.all([
+    repository.getSubscription({ orgId: input.orgId }),
+    repository.getLatestInvoice({ orgId: input.orgId }),
+    org.suspensionSource === undefined
+      ? repository.getSuspensionSource?.({ orgId: input.orgId }) ?? Promise.resolve(null)
+      : Promise.resolve(null),
+    repository.listPaymentOrders?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
+    repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
+  ]);
 
   return {
     org: {
@@ -343,7 +355,11 @@ export async function buildBillingSettingsViewInput(
       name: org.name,
       plan: org.plan,
       status: org.status,
-      suspensionSource,
+      suspensionSource: input.suspensionSource !== undefined
+        ? input.suspensionSource
+        : org.suspensionSource !== undefined
+          ? org.suspensionSource
+          : legacySuspensionSource,
     },
     subscription,
     invoiceSummary: {

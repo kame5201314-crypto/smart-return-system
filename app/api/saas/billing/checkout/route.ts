@@ -27,6 +27,7 @@ interface CheckoutContext {
   userId: string;
   orgId: string;
   orgStatus: SaaSOrgContext['orgStatus'];
+  suspensionSource?: SaaSOrgContext['suspensionSource'];
   role: SaaSOrgRole;
   plan: SaaSOrgContext['plan'];
   featureFlags: Pick<SaaSOrgContext['featureFlags'], 'billing' | 'subscription_plan'>;
@@ -144,6 +145,18 @@ function assertCheckoutEnabled(
   context: CheckoutContext,
   env: Record<string, string | undefined>
 ): void {
+  if (
+    context.orgStatus === 'suspended'
+    && context.suspensionSource !== 'trial_expired'
+    && context.suspensionSource !== 'billing'
+  ) {
+    throw new CheckoutRouteError(
+      'platform_suspension_requires_review',
+      409,
+      'Platform-suspended workspaces cannot start self-service checkout.'
+    );
+  }
+
   const state = resolveBillingWebhookState('ecpay', env);
   if (
     !context.featureFlags.billing

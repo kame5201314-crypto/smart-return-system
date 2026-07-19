@@ -55,6 +55,7 @@ function checkoutContext(overrides: Record<string, unknown> = {}) {
     userId: order.actorUserId!,
     orgId: order.orgId,
     orgStatus: 'trialing' as const,
+    suspensionSource: null,
     role: 'owner' as const,
     plan: 'basic' as const,
     featureFlags: {
@@ -211,7 +212,10 @@ describe('self-service ECPay checkout', () => {
     const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'growth' }), {
       env,
       repository: checkoutRepository,
-      loadContext: async () => checkoutContext({ orgStatus: 'suspended' as const }),
+      loadContext: async () => checkoutContext({
+        orgStatus: 'suspended' as const,
+        suspensionSource: 'trial_expired' as const,
+      }),
       generateMerchantTradeNo: () => order.merchantTradeNo,
       generateIdempotencyKey: () => 'checkout-idempotency-0002',
     });
@@ -220,6 +224,27 @@ describe('self-service ECPay checkout', () => {
       expect.objectContaining({ plan: 'growth', amountTwd: 699 })
     );
   });
+
+  it.each([null, 'platform_admin'] as const)(
+    'blocks a platform-suspended workspace before order creation (source: %s)',
+    async (suspensionSource) => {
+      const checkoutRepository = repository();
+      const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
+        env,
+        repository: checkoutRepository,
+        loadContext: async () => checkoutContext({
+          orgStatus: 'suspended' as const,
+          suspensionSource,
+        }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        code: 'platform_suspension_requires_review',
+      });
+      expect(checkoutRepository.createOrder).not.toHaveBeenCalled();
+    }
+  );
 
   it('rejects client-supplied amount or organization fields', async () => {
     const checkoutRepository = repository();

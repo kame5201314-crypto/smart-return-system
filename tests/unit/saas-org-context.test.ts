@@ -75,6 +75,7 @@ describe('SaaS org context', () => {
       orgName: 'Growth Store',
       orgSlug: 'growth-store',
       orgStatus: 'active',
+      suspensionSource: null,
       role: 'admin',
       plan: 'growth',
       isPlatformAdmin: false,
@@ -149,11 +150,13 @@ describe('SaaS org context', () => {
       },
     };
 
-    expect(buildSaaSOrgContext({
+    const expiredTrialContext = buildSaaSOrgContext({
       userId: 'user-1',
       membership: trialMembership,
       now: new Date('2026-07-18T00:00:00.000Z'),
-    }).orgStatus).toBe('suspended');
+    });
+    expect(expiredTrialContext.orgStatus).toBe('suspended');
+    expect(expiredTrialContext.suspensionSource).toBe('trial_expired');
 
     expect(buildSaaSOrgContext({
       userId: 'user-1',
@@ -166,6 +169,37 @@ describe('SaaS org context', () => {
       },
       now: new Date('2026-07-18T00:00:00.000Z'),
     }).orgStatus).toBe('active');
+  });
+
+  it('preserves the formal suspension source only for suspended organizations', () => {
+    const suspendedContext = buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-1',
+        role: 'owner',
+        organization: {
+          id: 'org-1',
+          plan: 'basic',
+          status: 'suspended',
+          suspension_source: 'platform_admin',
+        },
+      },
+    });
+
+    expect(suspendedContext.suspensionSource).toBe('platform_admin');
+    expect(buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-1',
+        role: 'owner',
+        organization: {
+          id: 'org-1',
+          plan: 'basic',
+          status: 'active',
+          suspension_source: 'platform_admin',
+        },
+      },
+    }).suspensionSource).toBeNull();
   });
 
   it('uses the subscription access policy for export actions', () => {
@@ -468,7 +502,7 @@ describe('SaaS org context', () => {
     expect(membership?.orgId).toBe('org-1');
     expect(client.from).toHaveBeenCalledWith('organization_members');
     expect(query.select).toHaveBeenCalledWith(
-      'org_id, role, status, organizations!inner(id, name, slug, plan, status, feature_flags, subscriptions(trial_end))'
+      'org_id, role, status, organizations!inner(id, name, slug, plan, status, suspension_source, feature_flags, subscriptions(trial_end))'
     );
     expect(query.eq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(query.eq).toHaveBeenCalledWith('status', 'active');

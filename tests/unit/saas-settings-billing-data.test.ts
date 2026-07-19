@@ -45,7 +45,8 @@ describe('SaaS settings billing data repository', () => {
       id: 'org-1',
       name: 'Demo Store',
       plan: 'growth',
-      status: 'active',
+      status: 'suspended',
+      suspension_source: 'platform_admin',
       billing_email: 'billing@example.com',
       tax_id: '12345678',
     });
@@ -60,10 +61,6 @@ describe('SaaS settings billing data repository', () => {
       id: 'invoice-1',
       status: 'failed',
       created_at: '2026-05-20T00:00:00.000Z',
-    });
-    const suspensionAuditChain = createChain({
-      action: 'platform.billing.org_suspended',
-      created_at: '2026-05-21T00:00:00.000Z',
     });
     const paymentOrdersChain = createChain([
       {
@@ -89,7 +86,6 @@ describe('SaaS settings billing data repository', () => {
       .mockReturnValueOnce(organizationChain)
       .mockReturnValueOnce(subscriptionChain)
       .mockReturnValueOnce(invoiceChain)
-      .mockReturnValueOnce(suspensionAuditChain)
       .mockReturnValueOnce(paymentOrdersChain)
       .mockReturnValueOnce(subscriptionPeriodsChain);
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
@@ -106,7 +102,7 @@ describe('SaaS settings billing data repository', () => {
       org: {
         id: 'org-1',
         plan: 'growth',
-        status: 'active',
+        status: 'suspended',
         suspensionSource: 'platform_admin',
       },
       subscription: {
@@ -137,33 +133,23 @@ describe('SaaS settings billing data repository', () => {
     expect(from).toHaveBeenNthCalledWith(1, 'organizations');
     expect(from).toHaveBeenNthCalledWith(2, 'subscriptions');
     expect(from).toHaveBeenNthCalledWith(3, 'invoices');
-    expect(from).toHaveBeenNthCalledWith(4, 'audit_logs');
-    expect(from).toHaveBeenNthCalledWith(5, 'payment_orders');
-    expect(from).toHaveBeenNthCalledWith(6, 'subscription_periods');
+    expect(from).toHaveBeenNthCalledWith(4, 'payment_orders');
+    expect(from).toHaveBeenNthCalledWith(5, 'subscription_periods');
     expect(subscriptionChain.select).toHaveBeenCalledWith(
       'provider, current_period_start, current_period_end, trial_end, cancel_at_period_end'
     );
+    expect(organizationChain.select).toHaveBeenCalledWith(
+      'id, name, plan, status, suspension_source, billing_email, tax_id'
+    );
     expect(invoiceChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(invoiceChain.limit).toHaveBeenCalledWith(1);
-    expect(suspensionAuditChain.in).toHaveBeenCalledWith('action', [
-      'lifecycle.trial_expired_suspended',
-      'platform.billing.org_suspended',
-    ]);
-    expect(suspensionAuditChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
-    expect(suspensionAuditChain.limit).toHaveBeenCalledWith(1);
+    expect(from).not.toHaveBeenCalledWith('audit_logs');
     expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
     expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
   });
 
   it('returns null when organization billing data is missing', async () => {
-    const from = vi
-      .fn()
-      .mockReturnValueOnce(createChain(null))
-      .mockReturnValueOnce(createChain(null))
-      .mockReturnValueOnce(createChain(null))
-      .mockReturnValueOnce(createChain(null))
-      .mockReturnValueOnce(createChain([]))
-      .mockReturnValueOnce(createChain([]));
+    const from = vi.fn().mockReturnValueOnce(createChain(null));
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
 
     await expect(
@@ -175,6 +161,31 @@ describe('SaaS settings billing data repository', () => {
         },
       })
     ).resolves.toBeNull();
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the audit log only as a legacy suspension-source fallback', async () => {
+    const repository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Legacy Store',
+        plan: 'basic',
+        status: 'suspended',
+        billingEmail: null,
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+      getSuspensionSource: vi.fn(async () => 'trial_expired' as const),
+    };
+
+    await expect(buildBillingSettingsViewInput(repository, {
+      orgId: 'org-1',
+      actions: { canUpdateBilling: true, canCancelRenewal: false },
+    })).resolves.toMatchObject({
+      org: { suspensionSource: 'trial_expired' },
+    });
+    expect(repository.getSuspensionSource).toHaveBeenCalledWith({ orgId: 'org-1' });
   });
 
   it('maps the latest trial-expiry suspension audit without guessing from trial dates', async () => {

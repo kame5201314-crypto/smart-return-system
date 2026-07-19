@@ -130,11 +130,17 @@ describe('BillingSettingsPage', () => {
   it('does not mislabel a platform-suspended paid workspace as a trial', async () => {
     billingMocks.result.data.org.status = 'suspended';
     billingMocks.result.data.org.suspensionSource = 'platform_admin';
+    billingMocks.result.data.actions.canUpdateBilling = false;
+    billingMocks.result.data.actions.disabledReason =
+      '此工作區已由平台管理員停權，暫時無法線上付款；請由平台管理員解除停權後再試。';
 
     await renderPage();
 
     expect(screen.getByRole('heading', { name: '入門版', level: 2 })).toBeInTheDocument();
     expect(screen.getByText('已暫停')).toBeInTheDocument();
+    expect(screen.getByText(/平台管理員停權/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /升級至入門版/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /升級至成長版/ })).toBeDisabled();
     expect(screen.queryByText('試用已到期')).not.toBeInTheDocument();
   });
 
