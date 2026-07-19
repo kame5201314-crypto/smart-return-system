@@ -5,6 +5,7 @@ import { getSaaSPlanDefinition, type SaaSPlanCode } from '@/lib/config/saas-plan
 import {
   buildECPayCheckMacValue,
   resolveBillingWebhookState,
+  verifyECPayCheckMacValue,
   type BillingMode,
 } from '@/lib/saas/billing';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
@@ -69,6 +70,24 @@ export interface ECPayCheckoutForm {
   fields: Record<string, string>;
 }
 
+export interface ECPayVerifiedPaidTrade {
+  merchantId: string;
+  merchantTradeNo: string;
+  tradeNo: string;
+  tradeAmountTwd: number;
+  tradeStatus: '1';
+  paymentDate: string | null;
+}
+
+export interface QueryECPayPaidTradeInput {
+  order: ECPayPaymentOrder;
+  expectedTradeNo: string;
+  env?: Record<string, string | undefined>;
+  fetcher?: typeof fetch;
+  now?: Date;
+  timeoutMs?: number;
+}
+
 interface ECPayRepositoryError {
   code?: string;
   message?: string;
@@ -92,6 +111,14 @@ const ECPAY_CHECKOUT_ACTIONS = {
   test: 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5',
   production: 'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5',
 } as const;
+
+const ECPAY_QUERY_TRADE_INFO_ACTIONS = {
+  test: 'https://payment-stage.ecpay.com.tw/Cashier/QueryTradeInfo/V5',
+  production: 'https://payment.ecpay.com.tw/Cashier/QueryTradeInfo/V5',
+} as const;
+
+const ECPAY_QUERY_TIMEOUT_MS = 8_000;
+const ECPAY_QUERY_RESPONSE_MAX_LENGTH = 64_000;
 
 const ECPAY_PREPAID_PLANS: readonly ECPayPrepaidPlan[] = ['basic', 'growth'];
 const ECPAY_NOTIFICATION_STATUSES: readonly ECPayNotificationStatus[] = [
@@ -133,6 +160,23 @@ function requireString(value: unknown, field: string): string {
     throw new Error(`ECPay payment order is missing ${field}.`);
   }
   return normalized;
+}
+
+function parseUniqueECPayFormPayload(rawBody: string): Record<string, string> {
+  if (!rawBody.trim() || rawBody.length > ECPAY_QUERY_RESPONSE_MAX_LENGTH) {
+    throw new Error('ECPay trade query response is invalid.');
+  }
+
+  const params = new URLSearchParams(rawBody);
+  const payload: Record<string, string> = {};
+  for (const key of new Set(params.keys())) {
+    const values = params.getAll(key);
+    if (values.length !== 1) {
+      throw new Error('ECPay trade query response contains duplicate fields.');
+    }
+    payload[key] = values[0] ?? '';
+  }
+  return payload;
 }
 
 function normalizePaymentOrder(value: unknown): ECPayPaymentOrder {
@@ -383,6 +427,121 @@ export function buildECPayAioCheckoutForm(input: {
     method: 'POST',
     fields,
   };
+}
+
+/**
+ * Confirms a successful server notification against ECPay's signed order
+ * query before the subscription settlement RPC is allowed to run.
+ *
+ * This function is server-only. It intentionally returns only the minimal
+ * verified trade fields and never exposes provider credentials or the raw
+ * provider payload to callers or logs.
+ */
+export async function queryECPayVerifiedPaidTrade(
+  input: QueryECPayPaidTradeInput
+): Promise<ECPayVerifiedPaidTrade> {
+  const env = input.env ?? process.env;
+  const providerMode = normalizeECPayProviderMode(env.ECPAY_MODE);
+  const merchantId = requireString(env.ECPAY_MERCHANT_ID, 'MerchantID');
+  const hashKey = requireString(env.ECPAY_HASH_KEY, 'HashKey');
+  const hashIv = requireString(env.ECPAY_HASH_IV, 'HashIV');
+  if (!providerMode || input.order.providerMode !== providerMode) {
+    throw new Error('ECPay trade query mode does not match the payment order.');
+  }
+  if (
+    input.order.provider !== 'ecpay'
+    || input.order.merchantId !== merchantId
+    || !/^[A-Za-z0-9]{1,20}$/.test(input.order.merchantTradeNo)
+  ) {
+    throw new Error('ECPay trade query order identity is invalid.');
+  }
+  if (!/^[A-Za-z0-9]{1,20}$/.test(input.expectedTradeNo)) {
+    throw new Error('ECPay trade query expected trade number is invalid.');
+  }
+
+  const queryTime = input.now ?? new Date();
+  const queryTimestamp = Math.floor(queryTime.getTime() / 1000);
+  if (!Number.isSafeInteger(queryTimestamp) || queryTimestamp <= 0) {
+    throw new Error('ECPay trade query timestamp is invalid.');
+  }
+  const requestFields: Record<string, string> = {
+    MerchantID: merchantId,
+    MerchantTradeNo: input.order.merchantTradeNo,
+    TimeStamp: String(queryTimestamp),
+    PlatformID: '',
+  };
+  requestFields.CheckMacValue = buildECPayCheckMacValue({
+    payload: requestFields,
+    hashKey,
+    hashIv,
+  });
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Math.max(250, input.timeoutMs ?? ECPAY_QUERY_TIMEOUT_MS)
+  );
+
+  try {
+    const response = await (input.fetcher ?? fetch)(
+      ECPAY_QUERY_TRADE_INFO_ACTIONS[providerMode],
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'text/html',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(requestFields),
+        signal: controller.signal,
+        cache: 'no-store',
+        redirect: 'error',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('ECPay trade query provider request failed.');
+    }
+
+    const payload = parseUniqueECPayFormPayload(await response.text());
+    if (!verifyECPayCheckMacValue(payload, env)) {
+      throw new Error('ECPay trade query signature verification failed.');
+    }
+
+    const responseMerchantId = requireString(payload.MerchantID, 'MerchantID');
+    const responseMerchantTradeNo = requireString(
+      payload.MerchantTradeNo,
+      'MerchantTradeNo'
+    );
+    const responseTradeNo = requireString(payload.TradeNo, 'TradeNo');
+    const responseTradeAmountTwd = integerOrNull(payload.TradeAmt);
+    const tradeStatus = requireString(payload.TradeStatus, 'TradeStatus');
+    if (
+      responseMerchantId !== merchantId
+      || responseMerchantId !== input.order.merchantId
+      || responseMerchantTradeNo !== input.order.merchantTradeNo
+      || responseTradeNo !== input.expectedTradeNo
+      || responseTradeAmountTwd === null
+      || responseTradeAmountTwd !== input.order.amountTwd
+      || tradeStatus !== '1'
+    ) {
+      throw new Error('ECPay trade query does not match the paid payment order.');
+    }
+
+    return {
+      merchantId: responseMerchantId,
+      merchantTradeNo: responseMerchantTradeNo,
+      tradeNo: responseTradeNo,
+      tradeAmountTwd: responseTradeAmountTwd,
+      tradeStatus: '1',
+      paymentDate: parseECPayPaymentDate(payload.PaymentDate),
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('ECPay trade query')) {
+      throw error;
+    }
+    throw new Error('ECPay trade query could not be completed.');
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function createECPayCheckoutRepository(

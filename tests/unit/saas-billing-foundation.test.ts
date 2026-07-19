@@ -100,7 +100,7 @@ function buildSignedWebhookPayload(
     RtnCode: '1',
     RtnMsg: 'Succeeded',
     SimulatePaid: '0',
-    TradeNo: 'gateway-trade-1',
+    TradeNo: 'gatewaytrade1',
     PaymentDate: '2026/07/19 12:00:00',
     ...overrides,
   };
@@ -112,6 +112,26 @@ function buildSignedWebhookPayload(
       hashIv: completeECPayEnv.ECPAY_HASH_IV,
     }),
   };
+}
+
+function createSignedQueryTradeFetcher(): typeof fetch {
+  const payload: Record<string, string> = {
+    MerchantID: completeECPayEnv.ECPAY_MERCHANT_ID,
+    MerchantTradeNo: paymentOrder.merchantTradeNo,
+    TradeNo: 'gatewaytrade1',
+    TradeAmt: String(paymentOrder.amountTwd),
+    PaymentDate: '2026/07/19 12:00:00',
+    TradeStatus: '1',
+  };
+  payload.CheckMacValue = buildECPayCheckMacValue({
+    payload,
+    hashKey: completeECPayEnv.ECPAY_HASH_KEY,
+    hashIv: completeECPayEnv.ECPAY_HASH_IV,
+  });
+  return vi.fn(async () => new Response(new URLSearchParams(payload).toString(), {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  })) as unknown as typeof fetch;
 }
 
 describe('SaaS billing foundation', () => {
@@ -262,6 +282,7 @@ describe('SaaS billing foundation', () => {
       {
         env,
         repository,
+        queryTradeInfoFetcher: createSignedQueryTradeFetcher(),
       }
     );
 
@@ -317,6 +338,7 @@ describe('SaaS billing foundation', () => {
       {
         env: completeECPayEnv,
         repository,
+        queryTradeInfoFetcher: createSignedQueryTradeFetcher(),
       }
     );
 
@@ -326,7 +348,7 @@ describe('SaaS billing foundation', () => {
     expect(repository.processNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         order: paymentOrder,
-        providerEventId: 'test:merchant-1:SRPAYMENT1:gateway-trade-1:rtn1:sim0',
+        providerEventId: 'test:merchant-1:SRPAYMENT1:gatewaytrade1:rtn1:sim0',
         tradeAmountTwd: 399,
         simulatePaid: false,
         payload,
@@ -363,6 +385,7 @@ describe('SaaS billing foundation', () => {
         env: completeECPayEnv,
         repository,
         verifySignature: () => true,
+        queryTradeInfoFetcher: createSignedQueryTradeFetcher(),
       }
     );
 

@@ -4,7 +4,7 @@ import { resolveBillingProviderConfig, verifyECPayCheckMacValue } from '@/lib/sa
 import {
   createECPayCheckoutRepository,
   parseECPayPaymentDate,
-  resolveECPayPrepaidAmountTwd,
+  queryECPayVerifiedPaidTrade,
   type ECPayCheckoutRepository,
 } from '@/lib/saas/billing-ecpay';
 
@@ -14,6 +14,9 @@ export interface ECPayWebhookDependencies {
   env?: Record<string, string | undefined>;
   repository?: ECPayCheckoutRepository;
   verifySignature?: (payload: ECPayWebhookPayload) => boolean | Promise<boolean>;
+  queryTradeInfoFetcher?: typeof fetch;
+  queryTradeInfoNow?: Date;
+  queryTradeInfoTimeoutMs?: number;
 }
 
 class BillingWebhookError extends Error {
@@ -151,13 +154,34 @@ export async function handleECPayBillingWebhook(
     if (!order) {
       throw new BillingWebhookError('order_not_found', 404, 'Payment order was not found.');
     }
-    const serverAmount = resolveECPayPrepaidAmountTwd(order.plan);
-    if (order.amountTwd !== serverAmount || tradeAmountTwd !== serverAmount) {
+    // Callback settlement must use the immutable amount captured when the
+    // order was created. Re-reading today's catalogue price here would reject
+    // a valid pending order after a later price change.
+    if (tradeAmountTwd !== order.amountTwd) {
       throw new BillingWebhookError(
         'amount_mismatch',
         409,
         'ECPay amount does not match the server payment order.'
       );
+    }
+
+    if (rtnCode === 1 && !simulatePaid) {
+      try {
+        await queryECPayVerifiedPaidTrade({
+          order,
+          expectedTradeNo: tradeNo!,
+          env,
+          fetcher: deps.queryTradeInfoFetcher,
+          now: deps.queryTradeInfoNow,
+          timeoutMs: deps.queryTradeInfoTimeoutMs,
+        });
+      } catch {
+        throw new BillingWebhookError(
+          'payment_query_failed',
+          502,
+          'ECPay paid trade could not be independently verified.'
+        );
+      }
     }
 
     await repository.processNotification({

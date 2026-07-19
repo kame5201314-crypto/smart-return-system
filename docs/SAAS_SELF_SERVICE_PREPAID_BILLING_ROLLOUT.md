@@ -39,7 +39,13 @@ reconciliation rollout.
 - Every checkout has a unique, server-persisted merchant trade number and an
   idempotency key.
 - ECPay CheckMacValue, MerchantID, merchant trade number, stored amount, and
-  server-owned plan are verified before processing.
+  server-owned plan are verified before processing. A real successful
+  notification must also be confirmed server-to-server through the official
+  signed `QueryTradeInfo/V5` response with `TradeStatus=1` before settlement.
+- Callback and query amounts are compared with the immutable amount persisted
+  on the payment order. A later catalogue price change must not invalidate an
+  already-created pending order; new checkout creation still uses the current
+  server-owned plan price.
 - `SimulatePaid=1`, unknown orders, mismatched amounts, invalid signatures,
   and mismatched merchants never activate a subscription.
 - A verified success updates the order, organization, subscription, immutable
@@ -54,6 +60,10 @@ reconciliation rollout.
   after new checkout creation is disabled.
 - The ECPay server callback returns exact plain text `1|OK` only after the
   notification has been accepted and processed.
+- Query timeout, non-2xx response, malformed or duplicate response fields,
+  invalid query signature, `TradeStatus` other than `1`, or any merchant,
+  order, trade-number, or amount mismatch fails closed without settlement or
+  `1|OK` acknowledgement.
 
 ### Rollout safety
 
@@ -83,7 +93,9 @@ Before an external rollout:
    expired renewal, stale-order downgrade, platform suspension, duplicate
    notification, Stage/Production isolation, feature-flag drain, failure,
    amount mismatch, simulated payment, browser-return-before-callback, and
-   callback-before-browser-return.
+   callback-before-browser-return, signed `QueryTradeInfo/V5` confirmation,
+   query timeout/non-2xx behavior, invalid query signature, and query field
+   mismatches.
 6. Verify the billing page and platform billing events show the same confirmed
    result and service period.
 7. Complete legal invoice/receipt and refund decisions before collecting a real

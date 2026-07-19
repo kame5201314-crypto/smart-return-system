@@ -9,7 +9,10 @@ import {
 } from '@/app/api/billing/ecpay/result/route';
 import { handleECPayBillingWebhook } from '@/app/api/billing/ecpay/webhook/route';
 import { handleCreateECPayCheckout } from '@/app/api/saas/billing/checkout/route';
-import { verifyECPayCheckMacValue } from '@/lib/saas/billing';
+import {
+  buildECPayCheckMacValue,
+  verifyECPayCheckMacValue,
+} from '@/lib/saas/billing';
 import {
   createECPayCheckoutRepository,
   generateECPayMerchantTradeNo,
@@ -92,6 +95,35 @@ function webhookPayload(overrides: Record<string, string> = {}): Record<string, 
     PaymentDate: '2026/07/19 12:00:00',
     ...overrides,
   };
+}
+
+function queryTradePayload(overrides: Record<string, string> = {}): Record<string, string> {
+  const { CheckMacValue: overriddenCheckMacValue, ...fieldOverrides } = overrides;
+  const payload: Record<string, string> = {
+    MerchantID: env.ECPAY_MERCHANT_ID,
+    MerchantTradeNo: order.merchantTradeNo,
+    TradeNo: '260719000000001',
+    TradeAmt: '399',
+    PaymentDate: '2026/07/19 12:00:00',
+    TradeStatus: '1',
+    ...fieldOverrides,
+  };
+  payload.CheckMacValue = overriddenCheckMacValue ?? buildECPayCheckMacValue({
+    payload,
+    hashKey: env.ECPAY_HASH_KEY,
+    hashIv: env.ECPAY_HASH_IV,
+  });
+  return payload;
+}
+
+function queryTradeFetcher(
+  payload: Record<string, string> = queryTradePayload(),
+  status = 200
+): typeof fetch {
+  return vi.fn(async () => new Response(new URLSearchParams(payload).toString(), {
+    status,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  })) as unknown as typeof fetch;
 }
 
 function formRequest(path: string, payload: Record<string, string>): NextRequest {
@@ -356,11 +388,18 @@ describe('ECPay repository RPC boundary', () => {
 });
 
 describe('ECPay server notification', () => {
-  it('acknowledges only after the trusted order is processed', async () => {
+  it('queries ECPay and acknowledges only after the trusted paid order is processed', async () => {
     const checkoutRepository = repository();
+    const fetcher = queryTradeFetcher();
     const response = await handleECPayBillingWebhook(
       formRequest('/api/billing/ecpay/webhook', webhookPayload()),
-      { env, repository: checkoutRepository, verifySignature: () => true }
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: fetcher,
+        queryTradeInfoNow: new Date('2026-07-19T04:00:00.000Z'),
+      }
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/plain');
@@ -370,7 +409,44 @@ describe('ECPay server notification', () => {
       env.ECPAY_MERCHANT_ID,
       'test'
     );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://payment-stage.ecpay.com.tw/Cashier/QueryTradeInfo/V5',
+      expect.objectContaining({
+        method: 'POST',
+        cache: 'no-store',
+      })
+    );
+    const requestOptions = vi.mocked(fetcher).mock.calls[0]?.[1];
+    const requestPayload = Object.fromEntries(
+      new URLSearchParams(String(requestOptions?.body)).entries()
+    );
+    expect(requestPayload).toMatchObject({
+      MerchantID: env.ECPAY_MERCHANT_ID,
+      MerchantTradeNo: order.merchantTradeNo,
+      PlatformID: '',
+    });
+    expect(verifyECPayCheckMacValue(requestPayload, env)).toBe(true);
     expect(checkoutRepository.processNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles against the persisted order amount after a later catalogue price change', async () => {
+    const pendingLegacyPriceOrder = { ...order, amountTwd: 499 };
+    const checkoutRepository = repository(pendingLegacyPriceOrder);
+    const response = await handleECPayBillingWebhook(
+      formRequest('/api/billing/ecpay/webhook', webhookPayload({ TradeAmt: '499' })),
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: queryTradeFetcher(queryTradePayload({ TradeAmt: '499' })),
+      }
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('1|OK');
+    expect(checkoutRepository.processNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ tradeAmountTwd: 499 })
+    );
   });
 
   it('rejects merchant and amount mismatches without acknowledgement or activation', async () => {
@@ -391,14 +467,26 @@ describe('ECPay server notification', () => {
 
   it('keeps simulated and real success event ids separate so simulation cannot poison payment', async () => {
     const checkoutRepository = repository();
+    const fetcher = queryTradeFetcher();
     await handleECPayBillingWebhook(
       formRequest('/api/billing/ecpay/webhook', webhookPayload({ SimulatePaid: '1' })),
-      { env, repository: checkoutRepository, verifySignature: () => true }
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: fetcher,
+      }
     );
     await handleECPayBillingWebhook(
       formRequest('/api/billing/ecpay/webhook', webhookPayload({ SimulatePaid: '0' })),
-      { env, repository: checkoutRepository, verifySignature: () => true }
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: fetcher,
+      }
     );
+    expect(fetcher).toHaveBeenCalledTimes(1);
     expect(checkoutRepository.processNotification).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -418,7 +506,12 @@ describe('ECPay server notification', () => {
   it('returns the same exact acknowledgement for an idempotent duplicate', async () => {
     const response = await handleECPayBillingWebhook(
       formRequest('/api/billing/ecpay/webhook', webhookPayload()),
-      { env, repository: repository(order, 'duplicate'), verifySignature: () => true }
+      {
+        env,
+        repository: repository(order, 'duplicate'),
+        verifySignature: () => true,
+        queryTradeInfoFetcher: queryTradeFetcher(),
+      }
     );
     expect(response.status).toBe(200);
     expect(await response.text()).toBe('1|OK');
@@ -431,10 +524,56 @@ describe('ECPay server notification', () => {
     );
     const response = await handleECPayBillingWebhook(
       formRequest('/api/billing/ecpay/webhook', webhookPayload()),
-      { env, repository: checkoutRepository, verifySignature: () => true }
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: queryTradeFetcher(),
+      }
     );
     expect(response.status).toBe(500);
     expect(await response.text()).not.toBe('1|OK');
+  });
+
+  it('fails closed when the signed ECPay query does not confirm the exact paid trade', async () => {
+    for (const queryPayload of [
+      queryTradePayload({ CheckMacValue: 'BAD' }),
+      queryTradePayload({ MerchantID: 'wrong' }),
+      queryTradePayload({ MerchantTradeNo: 'WRONGORDER' }),
+      queryTradePayload({ TradeNo: 'WRONGTRADE' }),
+      queryTradePayload({ TradeAmt: '1' }),
+      queryTradePayload({ TradeStatus: '0' }),
+    ]) {
+      const checkoutRepository = repository();
+      const response = await handleECPayBillingWebhook(
+        formRequest('/api/billing/ecpay/webhook', webhookPayload()),
+        {
+          env,
+          repository: checkoutRepository,
+          verifySignature: () => true,
+          queryTradeInfoFetcher: queryTradeFetcher(queryPayload),
+        }
+      );
+      expect(response.status).toBe(502);
+      expect(await response.text()).not.toBe('1|OK');
+      expect(checkoutRepository.processNotification).not.toHaveBeenCalled();
+    }
+  });
+
+  it('fails closed when ECPay trade query is unavailable', async () => {
+    const checkoutRepository = repository();
+    const response = await handleECPayBillingWebhook(
+      formRequest('/api/billing/ecpay/webhook', webhookPayload()),
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: queryTradeFetcher({}, 503),
+      }
+    );
+    expect(response.status).toBe(502);
+    expect(await response.text()).not.toBe('1|OK');
+    expect(checkoutRepository.processNotification).not.toHaveBeenCalled();
   });
 });
 
