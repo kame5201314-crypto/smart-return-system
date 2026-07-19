@@ -8,7 +8,10 @@ import {
   handleECPayBrowserResult,
 } from '@/app/api/billing/ecpay/result/route';
 import { handleECPayBillingWebhook } from '@/app/api/billing/ecpay/webhook/route';
-import { handleCreateECPayCheckout } from '@/app/api/saas/billing/checkout/route';
+import {
+  POST as postECPayCheckout,
+  handleCreateECPayCheckout,
+} from '@/app/api/saas/billing/checkout/route';
 import {
   buildECPayCheckMacValue,
   verifyECPayCheckMacValue,
@@ -136,6 +139,30 @@ function formRequest(path: string, payload: Record<string, string>): NextRequest
 }
 
 describe('self-service ECPay checkout', () => {
+  it('rejects cross-site requests at the route boundary before parsing the body', async () => {
+    const request = new NextRequest(
+      'https://smart-return-system-saas.vercel.app/api/saas/billing/checkout',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'https://attacker.example.com',
+          'sec-fetch-site': 'cross-site',
+        },
+        body: '{not-json',
+      }
+    );
+
+    const response = await postECPayCheckout(request);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Cross-site requests are not allowed.',
+      code: 'cross_site_request',
+    });
+  });
+
   it('creates a server-priced basic order and returns an official signed POST form', async () => {
     const checkoutRepository = repository();
     const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
