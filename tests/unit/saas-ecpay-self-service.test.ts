@@ -584,7 +584,33 @@ describe('ECPay server notification', () => {
       PlatformID: '',
     });
     expect(verifyECPayCheckMacValue(requestPayload, env)).toBe(true);
-    expect(checkoutRepository.processNotification).toHaveBeenCalledTimes(1);
+    expect(checkoutRepository.processNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentDate: '2026-07-19T04:00:00.000Z',
+      })
+    );
+  });
+
+  it('uses the independently verified trade date for subscription settlement', async () => {
+    const checkoutRepository = repository();
+    const response = await handleECPayBillingWebhook(
+      formRequest('/api/billing/ecpay/webhook', webhookPayload()),
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: queryTradeFetcher(queryTradePayload({
+          PaymentDate: '2026/07/19 13:14:15',
+        })),
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(checkoutRepository.processNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentDate: '2026-07-19T05:14:15.000Z',
+      })
+    );
   });
 
   it('settles against the persisted order amount after a later catalogue price change', async () => {
@@ -649,6 +675,7 @@ describe('ECPay server notification', () => {
       expect.objectContaining({
         providerEventId: 'test:3002607:SR20260719PAY01:260719000000001:rtn1:sim1',
         simulatePaid: true,
+        paymentDate: '2026-07-19T04:00:00.000Z',
       })
     );
     expect(checkoutRepository.processNotification).toHaveBeenNthCalledWith(
@@ -700,6 +727,7 @@ describe('ECPay server notification', () => {
       queryTradePayload({ TradeNo: 'WRONGTRADE' }),
       queryTradePayload({ TradeAmt: '1' }),
       queryTradePayload({ TradeStatus: '0' }),
+      queryTradePayload({ PaymentDate: '2026/02/30 12:00:00' }),
     ]) {
       const checkoutRepository = repository();
       const response = await handleECPayBillingWebhook(

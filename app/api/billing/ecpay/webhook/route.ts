@@ -140,10 +140,11 @@ export async function handleECPayBillingWebhook(
     if (rtnCode === 1 && !tradeNo) {
       throw new BillingWebhookError('invalid_request', 400, 'TradeNo is required for payment success.');
     }
-    const paymentDate = parseECPayPaymentDate(payload.PaymentDate);
-    if (rtnCode === 1 && !paymentDate) {
+    const callbackPaymentDate = parseECPayPaymentDate(payload.PaymentDate);
+    if (rtnCode === 1 && !callbackPaymentDate) {
       throw new BillingWebhookError('invalid_request', 400, 'PaymentDate is invalid.');
     }
+    let settlementPaymentDate = callbackPaymentDate;
 
     const repository = deps.repository ?? createECPayCheckoutRepository();
     const order = await repository.findOrderByMerchantTradeNo(
@@ -167,7 +168,7 @@ export async function handleECPayBillingWebhook(
 
     if (rtnCode === 1 && !simulatePaid) {
       try {
-        await queryECPayVerifiedPaidTrade({
+        const verifiedTrade = await queryECPayVerifiedPaidTrade({
           order,
           expectedTradeNo: tradeNo!,
           env,
@@ -175,6 +176,7 @@ export async function handleECPayBillingWebhook(
           now: deps.queryTradeInfoNow,
           timeoutMs: deps.queryTradeInfoTimeoutMs,
         });
+        settlementPaymentDate = verifiedTrade.paymentDate;
       } catch {
         throw new BillingWebhookError(
           'payment_query_failed',
@@ -200,7 +202,7 @@ export async function handleECPayBillingWebhook(
       rtnCode,
       rtnMessage: payload.RtnMsg?.trim() || '',
       simulatePaid,
-      paymentDate,
+      paymentDate: settlementPaymentDate,
       payload,
     });
 

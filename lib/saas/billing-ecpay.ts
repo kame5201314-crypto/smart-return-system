@@ -85,7 +85,7 @@ export interface ECPayVerifiedPaidTrade {
   tradeNo: string;
   tradeAmountTwd: number;
   tradeStatus: '1';
-  paymentDate: string | null;
+  paymentDate: string;
 }
 
 export interface QueryECPayPaidTradeInput {
@@ -547,6 +547,7 @@ export async function queryECPayVerifiedPaidTrade(
     const responseTradeNo = requireString(payload.TradeNo, 'TradeNo');
     const responseTradeAmountTwd = integerOrNull(payload.TradeAmt);
     const tradeStatus = requireString(payload.TradeStatus, 'TradeStatus');
+    const paymentDate = parseECPayPaymentDate(payload.PaymentDate);
     if (
       responseMerchantId !== merchantId
       || responseMerchantId !== input.order.merchantId
@@ -555,6 +556,7 @@ export async function queryECPayVerifiedPaidTrade(
       || responseTradeAmountTwd === null
       || responseTradeAmountTwd !== input.order.amountTwd
       || tradeStatus !== '1'
+      || !paymentDate
     ) {
       throw new Error('ECPay trade query does not match the paid payment order.');
     }
@@ -565,7 +567,7 @@ export async function queryECPayVerifiedPaidTrade(
       tradeNo: responseTradeNo,
       tradeAmountTwd: responseTradeAmountTwd,
       tradeStatus: '1',
-      paymentDate: parseECPayPaymentDate(payload.PaymentDate),
+      paymentDate,
     };
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('ECPay trade query')) {
