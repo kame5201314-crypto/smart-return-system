@@ -202,6 +202,9 @@ const billingRequiredColumns = [
   ['subscription_periods', 'created_at'],
 ];
 
+/**
+ * @param {Record<string, string | undefined>} [env]
+ */
 export function resolveConditionalSchemaRequirements(env = process.env) {
   const verifiedSignupExpected =
     parseBool(env.ENABLE_EMAIL_OTP_SIGNUP) ||
