@@ -104,6 +104,7 @@ describe('SaaS UI/backend contracts', () => {
           name: 'Demo Org',
           plan: 'growth',
           status: 'trialing',
+          suspensionSource: null,
         },
         subscription: {
           provider: 'manual',
@@ -130,6 +131,7 @@ describe('SaaS UI/backend contracts', () => {
         name: 'Demo Org',
         plan: 'growth',
         status: 'trialing',
+        suspensionSource: null,
       },
       subscription: {
         provider: 'manual',
@@ -153,6 +155,61 @@ describe('SaaS UI/backend contracts', () => {
     });
   });
 
+  it.each([
+    ['trial_expired', 'trial_expired'],
+    ['billing', 'billing'],
+    ['platform_admin', 'platform_admin'],
+    [null, null],
+  ] as const)('preserves authoritative billing suspension source %s', (source, expected) => {
+    expect(
+      buildBillingSettingsView({
+        org: {
+          id: 'org-suspended',
+          name: 'Suspended Org',
+          plan: 'basic',
+          status: 'suspended',
+          suspensionSource: source,
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+        },
+      }).org.suspensionSource
+    ).toBe(expected);
+  });
+
+  it('rejects an unsupported billing suspension source at the UI contract boundary', () => {
+    expect(() =>
+      buildBillingSettingsView({
+        org: {
+          id: 'org-suspended',
+          name: 'Suspended Org',
+          plan: 'basic',
+          status: 'suspended',
+          suspensionSource: 'expired_trial_date' as never,
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+        },
+      })
+    ).toThrow('Invalid billing suspension source: expired_trial_date');
+  });
+
   it('accepts failed invoice status values from billing providers', () => {
     expect(
       buildBillingSettingsView({
@@ -161,6 +218,7 @@ describe('SaaS UI/backend contracts', () => {
           name: 'Demo Org',
           plan: 'growth',
           status: 'active',
+          suspensionSource: null,
         },
         subscription: null,
         invoiceSummary: {
@@ -185,6 +243,7 @@ describe('SaaS UI/backend contracts', () => {
           name: 'Demo Org',
           plan: 'basic',
           status: 'active',
+          suspensionSource: null,
         },
         subscription: null,
         invoiceSummary: {
@@ -236,6 +295,7 @@ describe('SaaS UI/backend contracts', () => {
             name: 'Demo Org',
             plan: 'basic',
             status: 'active',
+            suspensionSource: null,
           },
           subscription: null,
           invoiceSummary: {
@@ -274,6 +334,7 @@ describe('SaaS UI/backend contracts', () => {
           name: 'Demo Org',
           plan: 'basic',
           status: 'enabled',
+          suspensionSource: null,
         },
         subscription: null,
         invoiceSummary: {

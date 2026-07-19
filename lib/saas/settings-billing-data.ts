@@ -1,4 +1,8 @@
-import type { BillingSettingsView, BillingSettingsViewInput } from '@/lib/saas/ui-backend-contracts';
+import type {
+  BillingSettingsView,
+  BillingSettingsViewInput,
+  BillingSuspensionSource,
+} from '@/lib/saas/ui-backend-contracts';
 
 interface SupabaseQueryError {
   message?: string;
@@ -12,6 +16,7 @@ interface SupabaseQueryResult {
 export interface SettingsBillingQueryBuilder extends PromiseLike<SupabaseQueryResult> {
   select(columns: string): SettingsBillingQueryBuilder;
   eq(column: string, value: unknown): SettingsBillingQueryBuilder;
+  in(column: string, values: readonly unknown[]): SettingsBillingQueryBuilder;
   order(column: string, options: { ascending: boolean }): SettingsBillingQueryBuilder;
   limit(count: number): SettingsBillingQueryBuilder;
   maybeSingle(): Promise<SupabaseQueryResult>;
@@ -25,6 +30,7 @@ export interface SettingsBillingDataRepository {
   getOrganizationBilling(input: { orgId: string }): Promise<SettingsBillingOrgData | null>;
   getSubscription(input: { orgId: string }): Promise<SettingsBillingSubscriptionData | null>;
   getLatestInvoice(input: { orgId: string }): Promise<SettingsBillingInvoiceData | null>;
+  getSuspensionSource?(input: { orgId: string }): Promise<BillingSuspensionSource | null>;
   listPaymentOrders?(input: { orgId: string; limit?: number }): Promise<SettingsBillingPaymentOrderData[]>;
   listSubscriptionPeriods?(input: {
     orgId: string;
@@ -69,6 +75,13 @@ export interface SettingsBillingSubscriptionPeriodData {
   periodStart: string;
   periodEnd: string;
 }
+
+const SUSPENSION_ACTION_SOURCES = {
+  'lifecycle.trial_expired_suspended': 'trial_expired',
+  'platform.billing.org_suspended': 'platform_admin',
+} as const satisfies Record<string, BillingSuspensionSource>;
+
+const SUSPENSION_ACTIONS = Object.keys(SUSPENSION_ACTION_SOURCES);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -188,6 +201,17 @@ function normalizeSubscriptionPeriod(
   return { paymentOrderId, periodStart, periodEnd };
 }
 
+function normalizeSuspensionSource(row: unknown): BillingSuspensionSource | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const action = stringOrNull(row.action);
+  return action && action in SUSPENSION_ACTION_SOURCES
+    ? SUSPENSION_ACTION_SOURCES[action as keyof typeof SUSPENSION_ACTION_SOURCES]
+    : null;
+}
+
 function isHistoryTableUnavailable(error: SupabaseQueryError | null, table: string): boolean {
   const message = error?.message?.toLowerCase() ?? '';
   return message.includes(table) && (
@@ -236,6 +260,20 @@ export function createSettingsBillingDataRepository(
       return normalizeInvoice(data);
     },
 
+    async getSuspensionSource(input) {
+      const { data, error } = await client
+        .from('audit_logs')
+        .select('action, created_at')
+        .eq('org_id', input.orgId)
+        .in('action', SUSPENSION_ACTIONS)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      assertNoSupabaseError(error, 'Failed to load organization suspension source.');
+      return normalizeSuspensionSource(data);
+    },
+
     async listPaymentOrders(input) {
       const { data, error } = await client
         .from('payment_orders')
@@ -279,10 +317,18 @@ export async function buildBillingSettingsViewInput(
     actions: BillingSettingsView['actions'];
   }
 ): Promise<BillingSettingsViewInput | null> {
-  const [org, subscription, latestInvoice, paymentOrders, subscriptionPeriods] = await Promise.all([
+  const [
+    org,
+    subscription,
+    latestInvoice,
+    suspensionSource,
+    paymentOrders,
+    subscriptionPeriods,
+  ] = await Promise.all([
     repository.getOrganizationBilling({ orgId: input.orgId }),
     repository.getSubscription({ orgId: input.orgId }),
     repository.getLatestInvoice({ orgId: input.orgId }),
+    repository.getSuspensionSource?.({ orgId: input.orgId }) ?? Promise.resolve(null),
     repository.listPaymentOrders?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
     repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
   ]);
@@ -297,6 +343,7 @@ export async function buildBillingSettingsViewInput(
       name: org.name,
       plan: org.plan,
       status: org.status,
+      suspensionSource,
     },
     subscription,
     invoiceSummary: {

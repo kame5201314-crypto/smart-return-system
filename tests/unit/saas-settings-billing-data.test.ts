@@ -16,6 +16,7 @@ interface QueryResult {
 interface TestQueryBuilder extends SettingsBillingQueryBuilder {
   select: Mock<(columns: string) => SettingsBillingQueryBuilder>;
   eq: Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
+  in: Mock<(column: string, values: readonly unknown[]) => SettingsBillingQueryBuilder>;
   order: Mock<(column: string, options: { ascending: boolean }) => SettingsBillingQueryBuilder>;
   limit: Mock<(count: number) => SettingsBillingQueryBuilder>;
   maybeSingle: Mock<() => Promise<QueryResult>>;
@@ -26,6 +27,9 @@ function createChain(data: unknown, error: { message?: string } | null = null): 
 
   chain.select = vi.fn(() => chain) as Mock<(columns: string) => SettingsBillingQueryBuilder>;
   chain.eq = vi.fn(() => chain) as Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
+  chain.in = vi.fn(() => chain) as Mock<
+    (column: string, values: readonly unknown[]) => SettingsBillingQueryBuilder
+  >;
   chain.order = vi.fn(() => chain) as Mock<(column: string, options: { ascending: boolean }) => SettingsBillingQueryBuilder>;
   chain.limit = vi.fn(() => chain) as Mock<(count: number) => SettingsBillingQueryBuilder>;
   chain.maybeSingle = vi.fn(async () => ({ data, error }));
@@ -57,6 +61,10 @@ describe('SaaS settings billing data repository', () => {
       status: 'failed',
       created_at: '2026-05-20T00:00:00.000Z',
     });
+    const suspensionAuditChain = createChain({
+      action: 'platform.billing.org_suspended',
+      created_at: '2026-05-21T00:00:00.000Z',
+    });
     const paymentOrdersChain = createChain([
       {
         id: 'payment-order-1',
@@ -81,6 +89,7 @@ describe('SaaS settings billing data repository', () => {
       .mockReturnValueOnce(organizationChain)
       .mockReturnValueOnce(subscriptionChain)
       .mockReturnValueOnce(invoiceChain)
+      .mockReturnValueOnce(suspensionAuditChain)
       .mockReturnValueOnce(paymentOrdersChain)
       .mockReturnValueOnce(subscriptionPeriodsChain);
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
@@ -98,6 +107,7 @@ describe('SaaS settings billing data repository', () => {
         id: 'org-1',
         plan: 'growth',
         status: 'active',
+        suspensionSource: 'platform_admin',
       },
       subscription: {
         provider: 'manual',
@@ -127,13 +137,20 @@ describe('SaaS settings billing data repository', () => {
     expect(from).toHaveBeenNthCalledWith(1, 'organizations');
     expect(from).toHaveBeenNthCalledWith(2, 'subscriptions');
     expect(from).toHaveBeenNthCalledWith(3, 'invoices');
-    expect(from).toHaveBeenNthCalledWith(4, 'payment_orders');
-    expect(from).toHaveBeenNthCalledWith(5, 'subscription_periods');
+    expect(from).toHaveBeenNthCalledWith(4, 'audit_logs');
+    expect(from).toHaveBeenNthCalledWith(5, 'payment_orders');
+    expect(from).toHaveBeenNthCalledWith(6, 'subscription_periods');
     expect(subscriptionChain.select).toHaveBeenCalledWith(
       'provider, current_period_start, current_period_end, trial_end, cancel_at_period_end'
     );
     expect(invoiceChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(invoiceChain.limit).toHaveBeenCalledWith(1);
+    expect(suspensionAuditChain.in).toHaveBeenCalledWith('action', [
+      'lifecycle.trial_expired_suspended',
+      'platform.billing.org_suspended',
+    ]);
+    expect(suspensionAuditChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(suspensionAuditChain.limit).toHaveBeenCalledWith(1);
     expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
     expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
   });
@@ -141,6 +158,7 @@ describe('SaaS settings billing data repository', () => {
   it('returns null when organization billing data is missing', async () => {
     const from = vi
       .fn()
+      .mockReturnValueOnce(createChain(null))
       .mockReturnValueOnce(createChain(null))
       .mockReturnValueOnce(createChain(null))
       .mockReturnValueOnce(createChain(null))
@@ -157,6 +175,28 @@ describe('SaaS settings billing data repository', () => {
         },
       })
     ).resolves.toBeNull();
+  });
+
+  it('maps the latest trial-expiry suspension audit without guessing from trial dates', async () => {
+    const auditChain = createChain({
+      action: 'lifecycle.trial_expired_suspended',
+      created_at: '2026-07-19T00:00:00.000Z',
+    });
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(() => auditChain),
+    } as SettingsBillingQueryClient);
+
+    await expect(repository.getSuspensionSource?.({ orgId: 'org-1' })).resolves.toBe(
+      'trial_expired'
+    );
+  });
+
+  it('keeps the suspension source null when no matching audit exists', async () => {
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(() => createChain(null)),
+    } as SettingsBillingQueryClient);
+
+    await expect(repository.getSuspensionSource?.({ orgId: 'org-1' })).resolves.toBeNull();
   });
 
   it('surfaces repository query errors instead of serving partial billing data', async () => {

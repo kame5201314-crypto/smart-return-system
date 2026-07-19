@@ -32,22 +32,29 @@ describe('expired workspace action UI', () => {
     }
   });
 
-  it('disables the real AI analysis CTA while retaining upgrade and support links', () => {
+  it('disables the real AI analysis CTA while retaining the in-app upgrade link', () => {
     const source = readProjectFile('app/(admin)/analytics/ai-report/page.tsx');
 
     expect(source).toContain('const { canUseAI } = useWorkspaceAccess()');
     expect(source).toContain('trialAnalysisBlocked || !canUseAI');
     expect(source).toContain('升級方案');
-    expect(source).toContain('聯絡客服');
+    expect(source).toContain('/settings/billing#plans');
+    expect(source).not.toContain('聯絡客服');
+    expect(source).not.toContain('href="/contact"');
   });
 
   it('explains that expired workspaces remain readable and names every paused action', () => {
     const notice = readProjectFile('lib/saas/workspace-access-notice.ts');
     const banner = readProjectFile('components/saas/workspace-access-banner.tsx');
+    const bannerContent = readProjectFile('components/saas/workspace-access-banner-content.tsx');
 
     expect(notice).toContain('目前仍可查看歷史資料');
     expect(notice).toContain('新增退貨、資料匯入／匯出與 AI 分析已停用');
-    expect(banner).toContain('升級方案');
-    expect(banner).toContain('聯絡客服');
+    expect(notice).not.toContain('聯絡客服');
+    expect(banner).toContain('WorkspaceAccessBannerContent');
+    expect(bannerContent).toContain('/settings/billing#plans');
+    expect(bannerContent).toContain('升級方案');
+    expect(bannerContent).not.toContain('/contact');
+    expect(bannerContent).not.toContain('聯絡客服');
   });
 });

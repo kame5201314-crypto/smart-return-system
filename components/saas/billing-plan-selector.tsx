@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -160,6 +159,8 @@ export function BillingPlanSelector({
   const [error, setError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<ProviderSubmission | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const isTrial = data.org.status === 'trialing' ||
+    (data.org.status === 'suspended' && data.org.suspensionSource === 'trial_expired');
 
   useEffect(() => {
     if (submission && formRef.current) {
@@ -202,29 +203,29 @@ export function BillingPlanSelector({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {paymentState ? <PaymentStateNotice state={paymentState} /> : null}
 
-      <Card id="plans" className="scroll-mt-24 rounded-xl">
-        <CardHeader>
-          <CardTitle>選擇升級方案</CardTitle>
+      <Card id="plans" className="scroll-mt-24 rounded-2xl border-gray-200 shadow-sm">
+        <CardHeader className="p-5 pb-0 sm:p-6 sm:pb-0">
+          <CardTitle>選擇方案</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">
             每次付款購買一個月使用期，採預付制，不會自動續扣；到期前可自行再次付款續用。
           </p>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 lg:grid-cols-3">
+        <CardContent className="p-5 sm:p-6">
+          <div className="grid gap-4 md:grid-cols-2">
             {PLAN_ORDER.map((code) => {
               const plan = SAAS_PLAN_DEFINITIONS[code];
-              const isCurrentPlan = data.org.plan === code;
+              const isCurrentPlan = !isTrial && data.org.plan === code;
               const isCurrentActivePlan = isCurrentPlan && data.org.status === 'active';
-              const isDowngrade = data.org.plan === 'growth' && code === 'basic';
-              const requiresAssistedChange = data.org.plan === 'enterprise';
+              const isDowngrade = !isTrial && data.org.plan === 'growth' && code === 'basic';
+              const isOnlineChangeUnavailable = data.org.plan === 'enterprise';
               const isRequested = requestedPlan === code;
               const disabled =
                 !data.actions.canUpdateBilling ||
                 isDowngrade ||
-                requiresAssistedChange ||
+                isOnlineChangeUnavailable ||
                 processingPlan !== null;
 
               return (
@@ -257,42 +258,20 @@ export function BillingPlanSelector({
                   >
                     {processingPlan === code
                       ? '正在前往付款…'
-                      : requiresAssistedChange
-                        ? '請聯絡客服變更方案'
+                      : isOnlineChangeUnavailable
+                        ? '目前方案不支援線上變更'
                         : isDowngrade
                         ? '暫不支援線上降級'
                         : isCurrentActivePlan
                           ? '續購 1 個月'
                           : `選擇${plan.name}並付款`}
-                    {!isDowngrade && !requiresAssistedChange && processingPlan !== code ? (
+                    {!isDowngrade && !isOnlineChangeUnavailable && processingPlan !== code ? (
                       <ArrowRight className="size-4" aria-hidden="true" />
                     ) : null}
                   </Button>
                 </div>
               );
             })}
-
-            <div className="flex flex-col rounded-lg border p-5">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-lg font-semibold text-gray-950">
-                  {SAAS_PLAN_DEFINITIONS.enterprise.name}
-                </h3>
-                {data.org.plan === 'enterprise' ? (
-                  <Badge variant="secondary">目前方案</Badge>
-                ) : null}
-              </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                適合多品牌、API 串接、客製權限或需要 SLA 的團隊。
-              </p>
-              <p className="mt-5 text-3xl font-semibold text-gray-950">客製報價</p>
-              <p className="mt-2 text-xs text-muted-foreground">由專人確認需求與服務範圍</p>
-              <Button asChild variant="outline" className="mt-5 w-full">
-                <Link href="/contact?plan=enterprise">
-                  聯絡客服
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </div>
           </div>
 
           {!data.actions.canUpdateBilling && data.actions.disabledReason ? (
@@ -308,57 +287,105 @@ export function BillingPlanSelector({
         </CardContent>
       </Card>
 
-      <Card className="rounded-xl">
-        <CardHeader>
+      <Card className="rounded-2xl border-gray-200 shadow-sm">
+        <CardHeader className="p-5 pb-0 sm:p-6 sm:pb-0">
           <CardTitle>付款與訂閱紀錄</CardTitle>
           <p className="text-sm text-muted-foreground">顯示最近 24 筆付款狀態與對應使用期間。</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 sm:p-6">
           {data.history.length === 0 ? (
             <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
               目前沒有付款紀錄。完成第一筆付款後，訂閱期間會顯示在這裡。
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-[680px] text-left text-sm">
-                <thead className="border-b bg-muted/50 text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">訂閱期間</th>
-                    <th className="px-4 py-3 font-medium">方案</th>
-                    <th className="px-4 py-3 font-medium">金額</th>
-                    <th className="px-4 py-3 font-medium">付款方式</th>
-                    <th className="px-4 py-3 font-medium">狀態</th>
-                    <th className="px-4 py-3 font-medium">紀錄日期</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {data.history.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 text-gray-950">
-                        {item.periodStart && item.periodEnd
-                          ? `${formatDate(item.periodStart)}－${formatDate(item.periodEnd)}`
-                          : '尚未產生使用期間'}
-                      </td>
-                      <td className="px-4 py-3">{SAAS_PLAN_DEFINITIONS[item.plan].name}</td>
-                      <td className="px-4 py-3">{formatAmount(item.amountTwd)}</td>
-                      <td className="px-4 py-3">{PROVIDER_LABEL[item.provider]}</td>
-                      <td className="px-4 py-3">
-                        <Badge
-                          variant={
-                            item.status === 'failed' || item.status === 'expired'
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                        >
-                          {PAYMENT_STATUS_LABEL[item.status]}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDate(item.createdAt)}</td>
+            <>
+              <div className="space-y-3 lg:hidden">
+                {data.history.map((item) => (
+                  <article key={item.id} className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-950">
+                          {SAAS_PLAN_DEFINITIONS[item.plan].name}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {item.periodStart && item.periodEnd
+                            ? `${formatDate(item.periodStart)}－${formatDate(item.periodEnd)}`
+                            : '尚未產生使用期間'}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          item.status === 'failed' || item.status === 'expired'
+                            ? 'destructive'
+                            : 'secondary'
+                        }
+                      >
+                        {PAYMENT_STATUS_LABEL[item.status]}
+                      </Badge>
+                    </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <div>
+                        <dt className="text-muted-foreground">付款金額</dt>
+                        <dd className="mt-1 font-medium text-gray-950">
+                          {formatAmount(item.amountTwd)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">付款方式</dt>
+                        <dd className="mt-1 text-gray-950">{PROVIDER_LABEL[item.provider]}</dd>
+                      </div>
+                      <div className="col-span-2">
+                        <dt className="text-muted-foreground">紀錄日期</dt>
+                        <dd className="mt-1 text-gray-950">{formatDate(item.createdAt)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-hidden rounded-xl border lg:block">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b bg-muted/50 text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">訂閱期間</th>
+                      <th className="px-4 py-3 font-medium">方案</th>
+                      <th className="px-4 py-3 font-medium">金額</th>
+                      <th className="px-4 py-3 font-medium">付款方式</th>
+                      <th className="px-4 py-3 font-medium">狀態</th>
+                      <th className="px-4 py-3 font-medium">紀錄日期</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y">
+                    {data.history.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3 text-gray-950">
+                          {item.periodStart && item.periodEnd
+                            ? `${formatDate(item.periodStart)}－${formatDate(item.periodEnd)}`
+                            : '尚未產生使用期間'}
+                        </td>
+                        <td className="px-4 py-3">{SAAS_PLAN_DEFINITIONS[item.plan].name}</td>
+                        <td className="px-4 py-3">{formatAmount(item.amountTwd)}</td>
+                        <td className="px-4 py-3">{PROVIDER_LABEL[item.provider]}</td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant={
+                              item.status === 'failed' || item.status === 'expired'
+                                ? 'destructive'
+                                : 'secondary'
+                            }
+                          >
+                            {PAYMENT_STATUS_LABEL[item.status]}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {formatDate(item.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

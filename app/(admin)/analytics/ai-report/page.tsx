@@ -410,7 +410,7 @@ export default function AIReportPage() {
               </Button>
               {trialQuota.remaining <= 0 && (
                 <Button asChild>
-                  <Link href="/contact">聯絡客服升級</Link>
+                  <Link href="/settings/billing#plans">升級方案</Link>
                 </Button>
               )}
             </div>
@@ -464,18 +464,14 @@ export default function AIReportPage() {
 
             {!canUseAI && (
               <p className="text-sm text-amber-800" role="status">
-                工作區目前為唯讀，AI 分析已停用。請
+                工作區目前為唯讀，AI 分析已停用。請前往
                 <Link
                   className="mx-1 font-medium underline underline-offset-2"
                   href="/settings/billing#plans"
                 >
-                  升級方案
+                  帳務與訂閱
                 </Link>
-                或
-                <Link className="ml-1 font-medium underline underline-offset-2" href="/contact">
-                  聯絡客服
-                </Link>
-                。
+                選擇升級方案。
               </p>
             )}
 

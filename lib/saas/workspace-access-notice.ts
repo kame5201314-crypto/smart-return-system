@@ -1,4 +1,5 @@
 import type { SaaSSubscriptionStatus } from '@/lib/saas/subscription-access';
+import type { BillingSuspensionSource } from '@/lib/saas/ui-backend-contracts';
 
 export interface WorkspaceAccessNotice {
   kind: 'trial_expired' | 'past_due' | 'suspended' | 'cancelled';
@@ -6,22 +7,15 @@ export interface WorkspaceAccessNotice {
   message: string;
 }
 
-function isReached(value: string | null | undefined, now: Date): boolean {
-  if (!value) return false;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) && time <= now.getTime();
-}
-
 export function buildWorkspaceAccessNotice(input: {
   status: SaaSSubscriptionStatus;
-  trialEnd?: string | null;
-  now?: Date;
+  suspensionSource?: BillingSuspensionSource | null;
 }): WorkspaceAccessNotice | null {
   if (input.status === 'past_due') {
     return {
       kind: 'past_due',
       title: '帳務狀態待確認，工作區暫時唯讀',
-      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請聯絡客服確認付款或續用方式。',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請前往帳務與訂閱確認付款狀態或重新付款。',
     };
   }
 
@@ -29,21 +23,21 @@ export function buildWorkspaceAccessNotice(input: {
     return {
       kind: 'cancelled',
       title: '訂閱已結束，工作區目前為唯讀',
-      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請重新啟用方案或聯絡客服恢復使用。',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請前往帳務與訂閱重新選擇方案。',
     };
   }
 
   if (input.status !== 'suspended') return null;
-  if (isReached(input.trialEnd, input.now ?? new Date())) {
+  if (input.suspensionSource === 'trial_expired') {
     return {
       kind: 'trial_expired',
       title: '3 天免費試用已結束',
-      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請升級方案或聯絡客服恢復使用。',
+      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請前往帳務與訂閱升級方案以恢復使用。',
     };
   }
   return {
     kind: 'suspended',
     title: '工作區目前為唯讀',
-    message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請升級方案或聯絡客服恢復使用。',
+    message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請前往帳務與訂閱確認方案狀態。',
   };
 }

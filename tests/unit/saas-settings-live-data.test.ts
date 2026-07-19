@@ -259,8 +259,7 @@ describe('SaaS settings live data loaders', () => {
       data: null,
       gated: {
         reason: 'feature_disabled',
-        message:
-          '線上帳務與自助付款目前尚未開放。如需升級方案、調整付款資訊或取消續訂，請聯絡客服，由專人協助處理。',
+        message: '線上帳務與自助付款目前尚未開放，請稍後再試。',
       },
     });
   });
@@ -278,7 +277,7 @@ describe('SaaS settings live data loaders', () => {
     expect(result).toMatchObject({
       state: 'empty',
       data: null,
-      message: '目前找不到帳務資料，請稍後再試；如需協助，請聯絡客服確認方案狀態。',
+      message: '目前找不到帳務資料，請重新整理後再試。',
       context: {
         orgId: 'org-1',
       },
@@ -300,7 +299,7 @@ describe('SaaS settings live data loaders', () => {
     expect(result).toEqual({
       state: 'error',
       data: null,
-      message: '帳務資料暫時無法載入，請稍後再試；如持續發生，請聯絡客服。',
+      message: '帳務資料暫時無法載入，請稍後再試。',
     });
     expect(JSON.stringify(result)).not.toContain('subscriptions');
   });

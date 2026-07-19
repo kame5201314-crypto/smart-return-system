@@ -12,6 +12,7 @@ const billingMocks = vi.hoisted(() => ({
         name: '測試商店',
         plan: 'basic' as const,
         status: 'trialing' as const,
+        suspensionSource: null,
       },
       subscription: {
         provider: 'manual' as const,
@@ -62,6 +63,7 @@ describe('BillingSettingsPage', () => {
   beforeEach(() => {
     billingMocks.result.data.org.status = 'trialing';
     billingMocks.result.data.org.plan = 'basic';
+    billingMocks.result.data.org.suspensionSource = null;
     billingMocks.result.data.subscription!.cancelAtPeriodEnd = false;
     billingMocks.result.data.actions.canUpdateBilling = false;
     billingMocks.result.data.actions.disabledReason = '線上付款目前尚未開放。';
@@ -77,20 +79,45 @@ describe('BillingSettingsPage', () => {
     await renderPage();
 
     expect(screen.getByRole('heading', { name: '帳務與訂閱' })).toBeInTheDocument();
-    expect(screen.getByText('測試商店')).toBeInTheDocument();
+    expect(screen.queryByText('測試商店')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
     expect(screen.getByText('試用中')).toBeInTheDocument();
     expect(screen.getByText('2026/07/18')).toBeInTheDocument();
     expect(screen.getByText('2026/07/21')).toBeInTheDocument();
-    expect(screen.getByText('選擇升級方案')).toBeInTheDocument();
+    expect(screen.getByText('選擇方案')).toBeInTheDocument();
     expect(screen.getAllByText(/不會自動續扣/).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: '入門版' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '成長版' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '大量需求' })).toBeInTheDocument();
-    expect(screen.getByText('NT$499')).toBeInTheDocument();
-    expect(screen.getByText('綠界科技')).toBeInTheDocument();
-    expect(screen.getByText('已付款')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '大量需求' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('NT$499').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('綠界科技').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('已付款').length).toBeGreaterThan(0);
     expect(screen.getByText('NT$499', { selector: 'td' })).toBeInTheDocument();
+    expect(screen.queryByText('聯絡客服')).not.toBeInTheDocument();
+  });
+
+  it('shows an expired self-service trial as 試用版 without exposing the organization name', async () => {
+    billingMocks.result.data.org.status = 'suspended';
+    billingMocks.result.data.org.suspensionSource = 'trial_expired';
+
+    await renderPage();
+
+    expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
+    expect(screen.getByText('試用已到期')).toBeInTheDocument();
+    expect(screen.getByText('試用到期日')).toBeInTheDocument();
+    expect(screen.queryByText('測試商店')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '入門版', level: 2 })).not.toBeInTheDocument();
+  });
+
+  it('does not mislabel a platform-suspended paid workspace as a trial', async () => {
+    billingMocks.result.data.org.status = 'suspended';
+    billingMocks.result.data.org.suspensionSource = 'platform_admin';
+
+    await renderPage();
+
+    expect(screen.getByRole('heading', { name: '入門版', level: 2 })).toBeInTheDocument();
+    expect(screen.getByText('已暫停')).toBeInTheDocument();
+    expect(screen.queryByText('試用已到期')).not.toBeInTheDocument();
   });
 
   it('shows scheduled expiry without implying automatic renewal', async () => {
@@ -171,7 +198,7 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByRole('button', { name: /續購 1 個月/ })).toBeEnabled();
   });
 
-  it('requires assisted plan changes for an enterprise customer', async () => {
+  it('keeps enterprise plan changes unavailable without exposing a support link', async () => {
     billingMocks.result.data.org.status = 'active';
     billingMocks.result.data.org.plan = 'enterprise';
     billingMocks.result.data.actions.canUpdateBilling = true;
@@ -179,11 +206,13 @@ describe('BillingSettingsPage', () => {
 
     await renderPage();
 
-    const assistedChangeButtons = screen.getAllByRole('button', {
-      name: '請聯絡客服變更方案',
+    const unavailableButtons = screen.getAllByRole('button', {
+      name: '目前方案不支援線上變更',
     });
-    expect(assistedChangeButtons).toHaveLength(2);
-    assistedChangeButtons.forEach((button) => expect(button).toBeDisabled());
+    expect(unavailableButtons).toHaveLength(2);
+    unavailableButtons.forEach((button) => expect(button).toBeDisabled());
+    expect(screen.queryByText('聯絡客服')).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="/contact"]')).toBeNull();
   });
 
   it('rejects checkout forms that point outside the ECPay allowlist', async () => {

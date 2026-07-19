@@ -62,7 +62,7 @@ async function getWritableReturnOrgContext(): Promise<SaaSOrgContext> {
 
 function getTrialReturnLimitErrorMessage(error: SelfServiceTrialReturnLimitError): string {
   if (error.code === 'trial_return_limit_reached') {
-    return '試用工作區最多可建立 50 筆退貨；如需繼續使用，請聯絡客服升級。';
+    return '試用工作區最多可建立 50 筆退貨；如需繼續使用，請前往帳務與訂閱選擇方案。';
   }
   if (error.code === 'trial_import_row_limit_exceeded') {
     return '試用工作區每次最多匯入 30 列資料，請分次整理後再試。';

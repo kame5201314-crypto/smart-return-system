@@ -34,6 +34,11 @@ export type OrgSubscriptionStatus =
   | 'suspended'
   | 'cancelled';
 
+export type BillingSuspensionSource =
+  | 'trial_expired'
+  | 'billing'
+  | 'platform_admin';
+
 export type BillingProvider = 'manual' | 'ecpay' | 'stripe' | 'tappay';
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'failed' | 'void';
 export type BillingPaymentStatus =
@@ -61,6 +66,7 @@ export interface BillingSettingsView {
     name: string;
     plan: SaaSPlanCode;
     status: OrgSubscriptionStatus;
+    suspensionSource: BillingSuspensionSource | null;
   };
   subscription: {
     provider: BillingProvider | null;
@@ -99,6 +105,7 @@ export interface BillingSettingsViewInput {
     name: string;
     plan: unknown;
     status: string;
+    suspensionSource: BillingSuspensionSource | null;
   };
   subscription: {
     provider: string | null;
@@ -428,6 +435,11 @@ const ORG_STATUSES: readonly OrgSubscriptionStatus[] = [
   'suspended',
   'cancelled',
 ];
+const BILLING_SUSPENSION_SOURCES: readonly BillingSuspensionSource[] = [
+  'trial_expired',
+  'billing',
+  'platform_admin',
+];
 
 const BILLING_PROVIDERS: readonly BillingProvider[] = ['manual', 'ecpay', 'stripe', 'tappay'];
 const INVOICE_STATUSES: readonly InvoiceStatus[] = ['draft', 'issued', 'paid', 'failed', 'void'];
@@ -492,6 +504,14 @@ function normalizeAllowed<T extends string>(
 
 function normalizeOrgStatus(value: string): OrgSubscriptionStatus {
   return normalizeAllowed(value, ORG_STATUSES, 'organization status');
+}
+
+function normalizeBillingSuspensionSource(
+  value: BillingSuspensionSource | null
+): BillingSuspensionSource | null {
+  return value === null
+    ? null
+    : normalizeAllowed(value, BILLING_SUSPENSION_SOURCES, 'billing suspension source');
 }
 
 function normalizeBillingProvider(value: string): BillingProvider {
@@ -703,6 +723,7 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
       name: requireString(input.org.name, 'billing.org.name'),
       plan: normalizeSaaSPlanCode(input.org.plan),
       status: normalizeOrgStatus(input.org.status),
+      suspensionSource: normalizeBillingSuspensionSource(input.org.suspensionSource),
     },
     subscription: input.subscription
       ? {

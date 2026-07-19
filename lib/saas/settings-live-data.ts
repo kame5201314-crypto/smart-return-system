@@ -47,15 +47,15 @@ type SettingsQueryClient = SettingsBillingQueryClient &
   SettingsTeamQueryClient;
 
 const BILLING_FEATURE_DISABLED_MESSAGE =
-  '線上帳務與自助付款目前尚未開放。如需升級方案、調整付款資訊或取消續訂，請聯絡客服，由專人協助處理。';
+  '線上帳務與自助付款目前尚未開放，請稍後再試。';
 const BILLING_ROLE_REQUIRED_MESSAGE =
   '需要商家擁有者或管理員權限才能查看帳務設定。';
 const BILLING_REQUIRED_MESSAGE =
-  '目前訂閱狀態無法使用帳務設定，請聯絡客服協助確認。';
+  '目前訂閱狀態無法使用帳務設定，請重新整理並確認目前方案狀態。';
 const BILLING_EMPTY_MESSAGE =
-  '目前找不到帳務資料，請稍後再試；如需協助，請聯絡客服確認方案狀態。';
+  '目前找不到帳務資料，請重新整理後再試。';
 const BILLING_LOAD_ERROR_MESSAGE =
-  '帳務資料暫時無法載入，請稍後再試；如持續發生，請聯絡客服。';
+  '帳務資料暫時無法載入，請稍後再試。';
 
 export interface SettingsLiveDataContext {
   orgId: string;

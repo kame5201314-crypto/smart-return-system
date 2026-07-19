@@ -22,7 +22,7 @@ export const UNRESTRICTED_WORKSPACE_ACTION_ACCESS: WorkspaceActionAccess = {
 };
 
 export const WORKSPACE_RESTRICTED_ACTION_TITLE =
-  '工作區目前為唯讀；請結束租戶預覽，或確認訂閱狀態並聯絡客服。';
+  '工作區目前為唯讀；請結束租戶預覽，或前往帳務與訂閱確認方案狀態。';
 
 export function buildWorkspaceActionAccess(
   status: SaaSSubscriptionStatus
