@@ -65,7 +65,7 @@ describe('LoginPageContent', () => {
     const retryLink = screen.getByRole('link', { name: '重新使用 Google 登入' });
     expect(retryLink).toHaveAttribute(
       'href',
-      '/auth/google?next=%2Fanalytics&plan=growth'
+      '/auth/google?next=%2Fanalytics&plan=basic'
     );
     expect(within(retryLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
     expect(toastMocks.error).toHaveBeenCalledWith(
@@ -229,7 +229,7 @@ describe('LoginPageContent', () => {
       .not.toBeInTheDocument();
   });
 
-  it('shows a clear account registration action and preserves the selected plan', () => {
+  it('shows a clear account registration action and normalizes legacy Growth links', () => {
     navigationMocks.search = 'plan=growth';
     render(
       <LoginPageContent
@@ -240,7 +240,7 @@ describe('LoginPageContent', () => {
     );
 
     expect(screen.getByRole('link', { name: '建立帳號' }))
-      .toHaveAttribute('href', '/signup?plan=growth');
+      .toHaveAttribute('href', '/signup?plan=basic');
     expect(screen.getByText('第一次使用 Google？驗證後會先完成商家資料。'))
       .toBeInTheDocument();
   });
@@ -272,14 +272,14 @@ describe('LoginPageContent', () => {
     expect(screen.getByText('密碼會區分英文字母大小寫。')).toBeInTheDocument();
   });
 
-  it('does not forward an unsupported plan or expose merchant signup to platform admins', () => {
+  it('normalizes legacy plans and does not expose merchant signup to platform admins', () => {
     navigationMocks.search = 'plan=enterprise';
     const { rerender } = render(
       <LoginPageContent googleAuthEnabled accountRegistrationEnabled />
     );
 
     expect(screen.getByRole('link', { name: '建立帳號' }))
-      .toHaveAttribute('href', '/signup');
+      .toHaveAttribute('href', '/signup?plan=basic');
 
     navigationMocks.search = 'next=%2Finternal&plan=growth';
     rerender(

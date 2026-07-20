@@ -1,7 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
-import { getSaaSPlanDefinition, type SaaSPlanCode } from '@/lib/config/saas-plans';
+import {
+  getSaaSPlanDefinition,
+  normalizeSelfServiceSaaSPlanCode,
+  type SaaSPlanCode,
+  type SelfServiceSaaSPlanCode,
+} from '@/lib/config/saas-plans';
 import {
   buildECPayCheckMacValue,
   resolveBillingWebhookState,
@@ -10,7 +15,11 @@ import {
 } from '@/lib/saas/billing';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 
+// Existing Growth payment orders remain valid so an in-flight, already-signed
+// transaction can still be verified and settled after the public catalogue is
+// reduced to one plan. Only new checkout creation is narrowed to Basic.
 export type ECPayPrepaidPlan = Extract<SaaSPlanCode, 'basic' | 'growth'>;
+export type ECPaySelfServiceCheckoutPlan = SelfServiceSaaSPlanCode;
 export type ECPayProviderMode = BillingMode;
 export type ECPayNotificationStatus = 'processed' | 'duplicate' | 'ignored' | 'failed';
 
@@ -40,7 +49,7 @@ export interface ECPayPaymentOrder {
 export interface CreateECPayPaymentOrderInput {
   orgId: string;
   actorUserId: string;
-  plan: ECPayPrepaidPlan;
+  plan: ECPaySelfServiceCheckoutPlan;
   amountTwd: number;
   merchantTradeNo: string;
   idempotencyKey: string;
@@ -129,7 +138,6 @@ const ECPAY_QUERY_TRADE_INFO_ACTIONS = {
 const ECPAY_QUERY_TIMEOUT_MS = 8_000;
 const ECPAY_QUERY_RESPONSE_MAX_LENGTH = 64_000;
 
-const ECPAY_PREPAID_PLANS: readonly ECPayPrepaidPlan[] = ['basic', 'growth'];
 const ECPAY_NOTIFICATION_STATUSES: readonly ECPayNotificationStatus[] = [
   'processed',
   'duplicate',
@@ -286,9 +294,13 @@ export function normalizeECPayPrepaidPlan(value: unknown): ECPayPrepaidPlan | nu
     return null;
   }
   const normalized = value.trim().toLowerCase();
-  return ECPAY_PREPAID_PLANS.includes(normalized as ECPayPrepaidPlan)
-    ? (normalized as ECPayPrepaidPlan)
-    : null;
+  return normalized === 'basic' || normalized === 'growth' ? normalized : null;
+}
+
+export function normalizeECPaySelfServiceCheckoutPlan(
+  value: unknown
+): ECPaySelfServiceCheckoutPlan | null {
+  return normalizeSelfServiceSaaSPlanCode(value);
 }
 
 export function normalizeECPayProviderMode(value: unknown): ECPayProviderMode | null {
@@ -302,7 +314,7 @@ export function normalizeECPayProviderMode(value: unknown): ECPayProviderMode | 
 export function resolveECPayPrepaidAmountTwd(plan: ECPayPrepaidPlan): number {
   const definition = getSaaSPlanDefinition(plan);
   if (
-    !ECPAY_PREPAID_PLANS.includes(definition.code as ECPayPrepaidPlan)
+    normalizeECPayPrepaidPlan(definition.code) !== plan
     || definition.billingRequired !== true
     || !Number.isSafeInteger(definition.monthlyPriceTwd)
     || (definition.monthlyPriceTwd ?? 0) <= 0

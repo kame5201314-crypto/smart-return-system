@@ -207,9 +207,8 @@ describe('self-service ECPay checkout', () => {
   });
 
   it('allows suspended owners to renew and never requires writable subscription access', async () => {
-    const growthOrder = { ...order, plan: 'growth' as const, amountTwd: 699 };
-    const checkoutRepository = repository(growthOrder);
-    const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'growth' }), {
+    const checkoutRepository = repository(order);
+    const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
       env,
       repository: checkoutRepository,
       loadContext: async () => checkoutContext({
@@ -221,7 +220,7 @@ describe('self-service ECPay checkout', () => {
     });
     expect(response.status).toBe(200);
     expect(checkoutRepository.createOrder).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'growth', amountTwd: 699 })
+      expect.objectContaining({ plan: 'basic', amountTwd: 399 })
     );
   });
 
@@ -261,7 +260,7 @@ describe('self-service ECPay checkout', () => {
     expect(checkoutRepository.createOrder).not.toHaveBeenCalled();
   });
 
-  it('blocks staff checkout plus growth and enterprise self-service downgrades', async () => {
+  it('blocks staff checkout, rejects non-public plans, and protects legacy plans', async () => {
     const checkoutRepository = repository();
     const staffResponse = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
       env,
@@ -270,7 +269,7 @@ describe('self-service ECPay checkout', () => {
     });
     expect(staffResponse.status).toBe(403);
 
-    const downgradeResponse = await handleCreateECPayCheckout(
+    const legacyPlanResponse = await handleCreateECPayCheckout(
       checkoutRequest({ plan: 'basic' }),
       {
         env,
@@ -278,22 +277,32 @@ describe('self-service ECPay checkout', () => {
         loadContext: async () => checkoutContext({ plan: 'growth' as const }),
       }
     );
-    expect(downgradeResponse.status).toBe(409);
-    expect(await downgradeResponse.json()).toMatchObject({
+    expect(legacyPlanResponse.status).toBe(409);
+    expect(await legacyPlanResponse.json()).toMatchObject({
       code: 'plan_downgrade_not_supported',
     });
-    const enterpriseResponse = await handleCreateECPayCheckout(
+
+    const growthResponse = await handleCreateECPayCheckout(
       checkoutRequest({ plan: 'growth' }),
       {
         env,
         repository: checkoutRepository,
-        loadContext: async () => checkoutContext({ plan: 'enterprise' as const }),
+        loadContext: async () => checkoutContext(),
       }
     );
-    expect(enterpriseResponse.status).toBe(409);
-    expect(await enterpriseResponse.json()).toMatchObject({
-      code: 'plan_downgrade_not_supported',
-    });
+    expect(growthResponse.status).toBe(400);
+    expect(await growthResponse.json()).toMatchObject({ code: 'invalid_plan' });
+
+    const enterpriseResponse = await handleCreateECPayCheckout(
+      checkoutRequest({ plan: 'enterprise' }),
+      {
+        env,
+        repository: checkoutRepository,
+        loadContext: async () => checkoutContext(),
+      }
+    );
+    expect(enterpriseResponse.status).toBe(400);
+    expect(await enterpriseResponse.json()).toMatchObject({ code: 'invalid_plan' });
     expect(checkoutRepository.createOrder).not.toHaveBeenCalled();
   });
 
@@ -629,6 +638,33 @@ describe('ECPay server notification', () => {
     expect(await response.text()).toBe('1|OK');
     expect(checkoutRepository.processNotification).toHaveBeenCalledWith(
       expect.objectContaining({ tradeAmountTwd: 499 })
+    );
+  });
+
+  it('continues settling a persisted legacy Growth order after Growth checkout is closed', async () => {
+    const pendingLegacyGrowthOrder = {
+      ...order,
+      plan: 'growth' as const,
+      amountTwd: 699,
+    };
+    const checkoutRepository = repository(pendingLegacyGrowthOrder);
+    const response = await handleECPayBillingWebhook(
+      formRequest('/api/billing/ecpay/webhook', webhookPayload({ TradeAmt: '699' })),
+      {
+        env,
+        repository: checkoutRepository,
+        verifySignature: () => true,
+        queryTradeInfoFetcher: queryTradeFetcher(queryTradePayload({ TradeAmt: '699' })),
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('1|OK');
+    expect(checkoutRepository.processNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: expect.objectContaining({ plan: 'growth', amountTwd: 699 }),
+        tradeAmountTwd: 699,
+      })
     );
   });
 

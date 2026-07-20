@@ -35,8 +35,7 @@ const VOLUME_OPTIONS: ReadonlyArray<{
 ];
 const PLAN_OPTIONS: ReadonlyArray<{ value: SaaSPlanCode; label: string }> = [
   { value: 'basic', label: '入門版 NT$399 / 月' },
-  { value: 'growth', label: '成長版 NT$699 / 月' },
-  { value: 'enterprise', label: '大量需求（專人洽談）' },
+  { value: 'enterprise', label: '大量需求（非公開方案，專人評估）' },
 ];
 
 export interface LeadCaptureFormProps {
@@ -72,7 +71,7 @@ function createInitialValues(initialPlan: SaaSPlanCode): LeadFormValues {
     lineId: '',
     phone: '',
     preferredContactChannel: 'email',
-    requestedPlan: initialPlan,
+    requestedPlan: initialPlan === 'enterprise' ? 'enterprise' : 'basic',
     platform: PLATFORM_OPTIONS[0],
     monthlyVolume: '30_100',
     painPoint: '',

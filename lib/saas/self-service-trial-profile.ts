@@ -3,6 +3,7 @@ import type {
   SaaSLeadContactChannel,
   SaaSMonthlyReturnBand,
 } from '@/lib/saas/lead-capture';
+import type { SelfServiceSaaSPlanCode } from '@/lib/config/saas-plans';
 
 export const SELF_SERVICE_TRIAL_PROFILE_CONTEXT = 'authenticated_trial_onboarding';
 export const SELF_SERVICE_TRIAL_PROFILE_VERSION = '2026-07-16-v1';
@@ -20,7 +21,7 @@ export interface SelfServiceTrialProfilePersistenceInput {
   platform: string;
   monthlyReturnBand: SaaSMonthlyReturnBand;
   referralCode: string | null;
-  plan: 'basic' | 'growth';
+  plan: SelfServiceSaaSPlanCode;
   termsVersion: string;
   termsAcceptedAt: string;
   idempotencyKey: string;

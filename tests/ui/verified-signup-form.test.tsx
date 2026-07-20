@@ -443,7 +443,7 @@ describe('VerifiedSignupForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '註冊' }));
 
     await waitFor(() => {
-      expect(navigationMocks.replace).toHaveBeenCalledWith('/signup/complete?plan=growth');
+      expect(navigationMocks.replace).toHaveBeenCalledWith('/signup/complete?plan=basic');
       expect(navigationMocks.refresh).toHaveBeenCalled();
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -596,7 +596,7 @@ describe('VerifiedSignupForm', () => {
         token: '123456',
         type: 'signup',
       });
-      expect(navigationMocks.replace).toHaveBeenCalledWith('/signup/complete?plan=growth');
+      expect(navigationMocks.replace).toHaveBeenCalledWith('/signup/complete?plan=basic');
     });
   });
 

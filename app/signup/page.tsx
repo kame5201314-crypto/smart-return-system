@@ -17,7 +17,11 @@ import {
   resolveVerifiedSignupAvailability,
   type VerifiedSignupChannel,
 } from '@/lib/auth/verified-signup';
-import type { SaaSPlanCode } from '@/lib/config/saas-plans';
+import {
+  normalizeSelfServiceSaaSPlanCode,
+  SAAS_SELF_SERVICE_PLAN_CODE,
+  type SelfServiceSaaSPlanCode,
+} from '@/lib/config/saas-plans';
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 
 export const metadata: Metadata = {
@@ -39,9 +43,11 @@ interface InitialVerification {
   identifier: string;
 }
 
-function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode {
+function resolveInitialPlan(
+  value: string | string[] | undefined
+): SelfServiceSaaSPlanCode {
   const plan = Array.isArray(value) ? value[0] : value;
-  return plan === 'growth' || plan === 'enterprise' ? plan : 'basic';
+  return normalizeSelfServiceSaaSPlanCode(plan) ?? SAAS_SELF_SERVICE_PLAN_CODE;
 }
 
 function resolveInitialVerification(

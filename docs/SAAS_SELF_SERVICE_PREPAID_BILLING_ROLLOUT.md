@@ -29,11 +29,16 @@ Last updated: 2026-07-20
 
 ## Goal
 
-Allow an authenticated merchant owner or administrator to choose Basic or
-Growth from `/settings/billing`, complete a one-month prepaid ECPay checkout,
-and receive the paid plan only after a verified server-to-server payment
-notification. The same page must show the current subscription period, expiry
-date, and past payment periods.
+Allow an authenticated merchant owner or administrator to choose the single
+public Basic plan at NT$399 from `/settings/billing`, complete a one-month
+prepaid ECPay checkout, and receive the paid plan only after a verified
+server-to-server payment notification. The same page must show the current
+subscription period, expiry date, and past payment periods.
+
+Growth and Enterprise remain in the internal data contract only for existing
+tenants, historical payment records, administrative reporting, and safe
+callback compatibility. New public signup and self-service checkout must never
+offer or create either legacy plan.
 
 This first release is deliberately **prepaid and non-recurring**. It must not
 store card data or silently charge the customer again. Automatic recurring
@@ -46,8 +51,10 @@ reconciliation rollout.
 
 - Every in-product upgrade action opens `/settings/billing#plans`; it does not
   send an authenticated merchant back to the marketing pricing page.
-- Basic and Growth show the server-owned price and one-month service period.
-- Enterprise remains a contact-assisted plan.
+- The page shows one public paid plan only: Basic at the server-owned NT$399
+  price with a one-month service period.
+- Existing Growth or Enterprise tenants keep their stored plan and history,
+  but cannot start a new public self-service plan change.
 - Trial-expired, past-due, cancelled, or billing-suspended owners and
   administrators can start checkout while the workspace remains read-only for
   business data. A platform-admin suspension cannot be cleared by payment.
@@ -87,9 +94,10 @@ reconciliation rollout.
   paid period, billing event, and audit log atomically.
 - Repeated notifications return an idempotent success and never add another
   month.
-- Same-plan renewal appends one month after the current period. A higher-plan
-  upgrade starts immediately; a stale lower-plan order is retained for manual
-  review and never downgrades the workspace.
+- Basic same-plan renewal appends one month after the current period. New
+  Growth or Enterprise checkout requests fail closed; previously persisted
+  provider callbacks may still drain through the verified idempotent settlement
+  path and must never downgrade a workspace.
 - Stage and Production event/trade identifiers are isolated by mode and
   merchant. Verified callbacks for already-created orders continue to drain
   after new checkout creation is disabled.
@@ -135,10 +143,11 @@ Before accepting a real customer payment:
 5. Confirm migration `048` remains recorded only on the SaaS project and that
    the strict Billing schema gate remains green. Do not rerun migrations
    `045`-`048`.
-6. Complete the remaining provider matrix: Growth purchase, same-plan renewal,
-   immediate upgrade, expired renewal, stale-order downgrade, platform
-   suspension, duplicate notification, Stage/Production isolation,
-   feature-flag drain, provider failure, amount mismatch, simulated payment,
+6. Complete the remaining provider matrix: Basic first purchase and same-plan
+   renewal, expired renewal, rejection of new legacy-plan checkout, verified
+   callback drain for previously persisted orders, platform suspension,
+   duplicate notification, Stage/Production isolation, feature-flag drain,
+   provider failure, amount mismatch, simulated payment,
    browser-return/callback races, signed `QueryTradeInfo/V5` timeout/non-2xx,
    invalid query signature, and query-field mismatches.
 7. Verify the merchant billing page and platform billing events show the same

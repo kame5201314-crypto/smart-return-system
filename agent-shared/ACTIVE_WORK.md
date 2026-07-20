@@ -1,5 +1,24 @@
 # Active Work
 
+## 2026-07-20 Single Public NT$399 Prepaid Plan
+
+Status: repository-complete; Production collection remains externally blocked
+
+Scope: Reduce new public signup, marketing, and self-service checkout to one
+paid plan: Basic at NT$399 for one month.
+
+Notes: New public plan selection and new checkout creation accept Basic only.
+Growth and Enterprise stay in the internal plan/history contract so existing
+tenants, immutable payment records, administrative reports, and legacy callback
+handling are not deleted or rewritten. The payment model remains one-time
+prepaid for one month, not automatic recurring billing. No deployment,
+migration, environment/secret edit, provider activation, DNS, Billing, or
+Supabase setting change was performed. Production real collection remains
+closed until formal ECPay MerchantID, HashKey, and HashIV are supplied out of
+band, both `ENABLE_BILLING` and `ENABLE_SUBSCRIPTION_PLAN` are deliberately
+enabled together, and a bounded real-charge/refund/invoice/reconciliation smoke
+passes.
+
 ## 2026-07-20 Self-Service Prepaid Billing Schema And Production Readiness
 
 Status: repository, Preview Stage, SaaS schema, and Production deployment ready;

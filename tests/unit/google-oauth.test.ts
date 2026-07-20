@@ -40,7 +40,7 @@ describe('Google OAuth routing policy', () => {
       user,
       memberships: [],
       trialPlan: 'growth',
-    })).toBe('/signup/complete?plan=growth');
+    })).toBe('/signup/complete?plan=basic');
   });
 
   it('does not let disabled members silently create another workspace', () => {
@@ -72,9 +72,9 @@ describe('Google OAuth routing policy', () => {
   });
 
   it('normalizes public trial plans and completion paths', () => {
-    expect(normalizeGoogleTrialPlan('growth')).toBe('growth');
+    expect(normalizeGoogleTrialPlan('growth')).toBe('basic');
     expect(normalizeGoogleTrialPlan('enterprise')).toBe('basic');
-    expect(buildSignupCompletePath({ plan: 'growth' })).toBe('/signup/complete?plan=growth');
+    expect(buildSignupCompletePath({ plan: 'growth' })).toBe('/signup/complete?plan=basic');
     expect(normalizeGoogleOAuthNext('/returns')).toBe('/returns');
     expect(normalizeGoogleOAuthNext('https://evil.test')).toBeNull();
     expect(resolveGoogleOAuthRequestedPath('/returns')).toBe('/analytics');

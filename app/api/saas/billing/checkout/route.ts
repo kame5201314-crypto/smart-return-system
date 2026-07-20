@@ -8,10 +8,10 @@ import {
   ECPayCheckoutRateLimitError,
   generateECPayCheckoutIdempotencyKey,
   generateECPayMerchantTradeNo,
-  normalizeECPayPrepaidPlan,
+  normalizeECPaySelfServiceCheckoutPlan,
   resolveECPayPrepaidAmountTwd,
   type ECPayCheckoutRepository,
-  type ECPayPrepaidPlan,
+  type ECPaySelfServiceCheckoutPlan,
 } from '@/lib/saas/billing-ecpay';
 import { resolveBillingWebhookState } from '@/lib/saas/billing';
 import {
@@ -57,7 +57,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-async function readCheckoutPlan(request: NextRequest): Promise<ECPayPrepaidPlan> {
+async function readCheckoutPlan(
+  request: NextRequest
+): Promise<ECPaySelfServiceCheckoutPlan> {
   let payload: unknown;
   try {
     payload = await request.json();
@@ -72,12 +74,12 @@ async function readCheckoutPlan(request: NextRequest): Promise<ECPayPrepaidPlan>
       'Checkout request only accepts a plan.'
     );
   }
-  const plan = normalizeECPayPrepaidPlan(payload.plan);
+  const plan = normalizeECPaySelfServiceCheckoutPlan(payload.plan);
   if (!plan) {
     throw new CheckoutRouteError(
       'invalid_plan',
       400,
-      'Checkout plan must be basic or growth.'
+      'Checkout plan must be basic.'
     );
   }
   return plan;
@@ -197,12 +199,11 @@ export async function handleCreateECPayCheckout(
     const plan = await readCheckoutPlan(request);
     const context = await loadCheckoutContext(deps, env);
     assertCheckoutEnabled(context, env);
-    const planRank = { basic: 1, growth: 2, enterprise: 3 } as const;
-    if (planRank[plan] < planRank[context.plan]) {
+    if (context.plan !== 'basic') {
       throw new CheckoutRouteError(
         'plan_downgrade_not_supported',
         409,
-        'Plans cannot be downgraded through self-service checkout.'
+        'Legacy plans cannot be changed through self-service checkout.'
       );
     }
 

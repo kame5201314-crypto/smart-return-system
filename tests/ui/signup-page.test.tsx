@@ -78,12 +78,12 @@ describe('SignupPage', () => {
 
   afterEach(() => cleanup());
 
-  it('renders only the requested account-registration form and preserves the selected plan', async () => {
+  it('normalizes legacy Growth signup links to the single Basic plan', async () => {
     await renderSignup({ plan: 'growth' });
 
     expect(screen.getByRole('heading', { name: '建立帳號' })).toBeInTheDocument();
     expect(screen.getByTestId('verified-signup-form'))
-      .toHaveAttribute('data-plan', 'growth');
+      .toHaveAttribute('data-plan', 'basic');
     expect(screen.getByTestId('verified-signup-form'))
       .toHaveAttribute('data-show-email-when-unavailable', 'true');
     expect(screen.queryByText(/Beta/)).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('SignupPage', () => {
     expect(screen.queryByTestId('lead-capture-form')).not.toBeInTheDocument();
     expect(screen.queryByTestId('signup-support-details')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /使用 Google 快速註冊/ }))
-      .toHaveAttribute('href', '/auth/google?next=%2Fanalytics&plan=growth');
+      .toHaveAttribute('href', '/auth/google?next=%2Fanalytics&plan=basic');
     expect(screen.getByText('或使用手機／信箱與密碼註冊')).toBeInTheDocument();
   });
 

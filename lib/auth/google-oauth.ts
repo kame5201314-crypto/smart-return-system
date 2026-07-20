@@ -3,7 +3,11 @@ import {
   normalizeLocalRedirectPath,
 } from '@/lib/auth/post-login-redirect';
 import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-identity';
-import { normalizeSaaSPlanCode, type SaaSPlanCode } from '@/lib/config/saas-plans';
+import {
+  normalizeSelfServiceSaaSPlanCode,
+  SAAS_SELF_SERVICE_PLAN_CODE,
+  type SelfServiceSaaSPlanCode,
+} from '@/lib/config/saas-plans';
 
 export interface GoogleOAuthUser {
   id: string;
@@ -75,9 +79,8 @@ export function createGoogleOAuthMembershipRepository(
   };
 }
 
-export function normalizeGoogleTrialPlan(value: unknown): Extract<SaaSPlanCode, 'basic' | 'growth'> {
-  const plan = normalizeSaaSPlanCode(value);
-  return plan === 'growth' ? 'growth' : 'basic';
+export function normalizeGoogleTrialPlan(value: unknown): SelfServiceSaaSPlanCode {
+  return normalizeSelfServiceSaaSPlanCode(value) ?? SAAS_SELF_SERVICE_PLAN_CODE;
 }
 
 export function normalizeGoogleOAuthNext(value: unknown): string | null {

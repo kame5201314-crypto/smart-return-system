@@ -26,7 +26,10 @@ import {
   VERIFIED_SIGNUP_EXISTING_ACCOUNT_MESSAGE,
   VerifiedSignupValidationError,
 } from '@/lib/auth/verified-signup';
-import type { SaaSPlanCode } from '@/lib/config/saas-plans';
+import {
+  SAAS_SELF_SERVICE_PLAN_CODE,
+  type SaaSPlanCode,
+} from '@/lib/config/saas-plans';
 
 interface VerifiedSignupFormProps {
   emailEnabled: boolean;
@@ -145,7 +148,6 @@ export function VerifiedSignupForm({
   phoneEnabled,
   showEmailWhenUnavailable = false,
   initialVerification,
-  initialPlan,
   turnstileSiteKey,
 }: VerifiedSignupFormProps) {
   const router = useRouter();
@@ -345,8 +347,7 @@ export function VerifiedSignupForm({
           loginResponse.data.session &&
           loginResponse.data.user
         ) {
-          const plan = initialPlan === 'growth' ? 'growth' : 'basic';
-          router.replace(`/signup/complete?plan=${plan}`);
+          router.replace(`/signup/complete?plan=${SAAS_SELF_SERVICE_PLAN_CODE}`);
           router.refresh();
           return;
         }
@@ -477,8 +478,7 @@ export function VerifiedSignupForm({
         throw new Error('Verified identity mismatch');
       }
 
-      const plan = initialPlan === 'growth' ? 'growth' : 'basic';
-      router.replace(`/signup/complete?plan=${plan}`);
+      router.replace(`/signup/complete?plan=${SAAS_SELF_SERVICE_PLAN_CODE}`);
       router.refresh();
     } catch (caughtError) {
       let safeError = caughtError;

@@ -16,10 +16,14 @@ import {
   type SelfServiceTrialProfileRepository,
 } from '@/lib/saas/self-service-trial-profile';
 import { isBetaInviteEmailAllowed } from '@/lib/saas/beta-invite-allowlist';
+import {
+  normalizeSelfServiceSaaSPlanCode,
+  type SelfServiceSaaSPlanCode,
+} from '@/lib/config/saas-plans';
 
 export const CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION = '2026-07-15-v2';
 
-export type SelfServiceTrialPlan = 'basic' | 'growth';
+export type SelfServiceTrialPlan = SelfServiceSaaSPlanCode;
 export type SelfServiceTrialIdentityProvider = 'google' | 'email_otp' | 'phone_otp';
 
 export type SelfServiceTrialErrorCode =
@@ -187,11 +191,12 @@ function normalizeMonthlyReturnBand(value: unknown): SaaSMonthlyReturnBand {
 }
 
 function normalizePlan(value: unknown): SelfServiceTrialPlan {
-  if (value === 'basic' || value === 'growth') return value;
+  const plan = normalizeSelfServiceSaaSPlanCode(value);
+  if (plan) return plan;
   throw new SelfServiceTrialError(
     'invalid_request',
     400,
-    'plan must be basic or growth.'
+    'plan must be basic.'
   );
 }
 

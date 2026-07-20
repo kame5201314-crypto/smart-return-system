@@ -74,9 +74,8 @@ describe('SelfServiceTrialForm', () => {
     fireEvent.change(screen.getByLabelText(/偏好聯絡方式/), {
       target: { value: 'phone' },
     });
-    fireEvent.change(screen.getByLabelText(/試用方案/), {
-      target: { value: 'growth' },
-    });
+    expect(screen.getByLabelText(/試用方案/)).toHaveValue('basic');
+    expect(screen.queryByRole('option', { name: /699/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: '完成資料並開始 3 天免費試用' }));
 
@@ -97,7 +96,7 @@ describe('SelfServiceTrialForm', () => {
       platform: 'official_site',
       monthlyReturnBand: '101_300',
       referralCode: 'FRIEND-88',
-      plan: 'growth',
+      plan: 'basic',
       termsAccepted: true,
       termsVersion: expect.any(String),
       idempotencyKey: 'trial-idempotency-key',

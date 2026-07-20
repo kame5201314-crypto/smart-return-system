@@ -7,7 +7,11 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SAAS_PLAN_DEFINITIONS, type SaaSPlanCode } from '@/lib/config/saas-plans';
+import {
+  SAAS_PLAN_DEFINITIONS,
+  SAAS_SELF_SERVICE_PLAN_CODE,
+  type SelfServiceSaaSPlanCode,
+} from '@/lib/config/saas-plans';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
 export type BillingPaymentQueryState =
@@ -28,7 +32,7 @@ interface BillingPlanSelectorProps {
   data: BillingSettingsView;
   paymentState: BillingPaymentQueryState | null;
   paymentTradeNo?: string | null;
-  requestedPlan?: SaaSPlanCode | null;
+  requestedPlan?: SelfServiceSaaSPlanCode | null;
 }
 
 type PolledPaymentStatus =
@@ -45,12 +49,7 @@ const PAYMENT_POLL_MAX_ATTEMPTS = 15;
 const CHECKOUT_REQUEST_TIMEOUT_MS = 10_000;
 const CHECKOUT_GENERIC_ERROR_MESSAGE = '目前無法建立付款流程，請稍後再試。';
 
-const PLAN_ORDER: Array<Extract<SaaSPlanCode, 'basic' | 'growth'>> = ['basic', 'growth'];
-
-const PLAN_SUMMARY: Record<Extract<SaaSPlanCode, 'basic' | 'growth'>, string> = {
-  basic: '適合剛開始整理退貨流程的小型品牌。',
-  growth: '適合需要更多 AI 分析額度與多人協作的成長品牌。',
-};
+const PLAN_SUMMARY = '包含退貨管理、蝦皮匯入、基本報表與每月 10 次 AI 分析。';
 
 const PAYMENT_STATE_COPY: Record<
   BillingPaymentQueryState,
@@ -251,7 +250,7 @@ export function BillingPlanSelector({
   requestedPlan,
 }: BillingPlanSelectorProps) {
   const router = useRouter();
-  const [processingPlan, setProcessingPlan] = useState<SaaSPlanCode | null>(null);
+  const [processingPlan, setProcessingPlan] = useState<SelfServiceSaaSPlanCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<ProviderSubmission | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -340,7 +339,7 @@ export function BillingPlanSelector({
     };
   }, [paymentState, paymentTradeNo, router]);
 
-  async function startCheckout(plan: Extract<SaaSPlanCode, 'basic' | 'growth'>) {
+  async function startCheckout(plan: SelfServiceSaaSPlanCode) {
     setProcessingPlan(plan);
     setError(null);
     const controller = new AbortController();
@@ -392,75 +391,66 @@ export function BillingPlanSelector({
           </p>
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            {PLAN_ORDER.map((code) => {
-              const plan = SAAS_PLAN_DEFINITIONS[code];
-              const isCurrentPlan = !isTrial && data.org.plan === code;
-              const isCurrentActivePlan = isCurrentPlan && data.org.status === 'active';
-              const isDowngrade = !isTrial && data.org.plan === 'growth' && code === 'basic';
-              const isOnlineChangeUnavailable = data.org.plan === 'enterprise';
-              const isRequested = requestedPlan === code;
-              const isPrimaryPlan = isRequested || (isTrial && code === 'basic');
-              const disabled =
-                !data.actions.canUpdateBilling ||
-                isDowngrade ||
-                isOnlineChangeUnavailable ||
-                processingPlan !== null;
+          {(() => {
+            const code = SAAS_SELF_SERVICE_PLAN_CODE;
+            const plan = SAAS_PLAN_DEFINITIONS[code];
+            const isCurrentPlan = !isTrial && data.org.plan === code;
+            const isCurrentActivePlan = isCurrentPlan && data.org.status === 'active';
+            const hasLegacyPlan = !isTrial && data.org.plan !== code;
+            const isPrimaryPlan = requestedPlan === code || isTrial || isCurrentPlan;
+            const disabled =
+              !data.actions.canUpdateBilling || hasLegacyPlan || processingPlan !== null;
 
-              return (
-                <article
-                  key={code}
-                  aria-labelledby={`billing-plan-${code}`}
-                  className={`flex flex-col rounded-lg border p-5 ${
-                    isPrimaryPlan
-                      ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3
-                        id={`billing-plan-${code}`}
-                        className="text-lg font-semibold text-gray-950"
-                      >
-                        {plan.name}
-                      </h3>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {PLAN_SUMMARY[code]}
-                      </p>
-                    </div>
-                    {isCurrentPlan ? <Badge variant="secondary">目前方案</Badge> : null}
+            return (
+              <article
+                aria-labelledby={`billing-plan-${code}`}
+                className={`max-w-2xl rounded-xl border p-5 ${
+                  isPrimaryPlan
+                    ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500'
+                    : 'border-gray-200 bg-white'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3
+                      id={`billing-plan-${code}`}
+                      className="text-lg font-semibold text-gray-950"
+                    >
+                      {plan.name}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {PLAN_SUMMARY}
+                    </p>
                   </div>
-                  <p className="mt-5 text-3xl font-semibold text-gray-950">
-                    NT${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">／月</span>
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">一次預付一個月・不自動續扣</p>
-                  <Button
-                    type="button"
-                    className="mt-5 h-11 w-full"
-                    variant={isPrimaryPlan ? 'default' : 'outline'}
-                    disabled={disabled}
-                    aria-busy={processingPlan === code}
-                    onClick={() => void startCheckout(code)}
-                  >
-                    {processingPlan === code
-                      ? '正在前往付款…'
-                      : isOnlineChangeUnavailable
-                        ? '目前方案不支援線上變更'
-                        : isDowngrade
-                        ? '暫不支援線上降級'
-                        : isCurrentActivePlan
-                          ? `續購 1 個月・${plan.name} NT$${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}`
-                          : `升級至${plan.name} NT$${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}`}
-                    {!isDowngrade && !isOnlineChangeUnavailable && processingPlan !== code ? (
-                      <ArrowRight className="size-4" aria-hidden="true" />
-                    ) : null}
-                  </Button>
-                </article>
-              );
-            })}
-          </div>
+                  {isCurrentPlan ? <Badge variant="secondary">目前方案</Badge> : null}
+                </div>
+                <p className="mt-5 text-3xl font-semibold text-gray-950">
+                  NT${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}
+                  <span className="ml-1 text-sm font-normal text-muted-foreground">／月</span>
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">一次預付一個月・不自動續扣</p>
+                <Button
+                  type="button"
+                  className="mt-5 h-11 w-full"
+                  variant={isPrimaryPlan ? 'default' : 'outline'}
+                  disabled={disabled}
+                  aria-busy={processingPlan === code}
+                  onClick={() => void startCheckout(code)}
+                >
+                  {processingPlan === code
+                    ? '正在前往付款…'
+                    : hasLegacyPlan
+                      ? '舊版方案暫不支援線上變更'
+                      : isCurrentActivePlan
+                        ? `續購 1 個月・NT$${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}`
+                        : `升級方案・NT$${plan.monthlyPriceTwd?.toLocaleString('zh-TW')}`}
+                  {!hasLegacyPlan && processingPlan !== code ? (
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  ) : null}
+                </Button>
+              </article>
+            );
+          })()}
 
           {!data.actions.canUpdateBilling && data.actions.disabledReason ? (
             <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">

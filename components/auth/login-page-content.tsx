@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { signIn } from '@/lib/actions/auth';
+import { SAAS_SELF_SERVICE_PLAN_CODE } from '@/lib/config/saas-plans';
 
 const loginSchema = z.object({
   email: z.string().min(1, '請輸入帳號'),
@@ -83,22 +84,25 @@ export function LoginPageContent({
   const passwordSetupSucceeded = searchParams.get('password_setup') === 'success';
   const authCaptchaRequired = captchaRequired;
   const authCaptchaReady = !authCaptchaRequired || captchaReady;
+  const requestedSelfServicePlan = (
+    planParam === 'basic' || planParam === 'growth' || planParam === 'enterprise'
+  ) ? SAAS_SELF_SERVICE_PLAN_CODE : null;
 
   const googleHref = useMemo(() => {
     const params = new URLSearchParams();
     params.set('next', nextParam === '/account/set-password' ? nextParam : '/analytics');
-    if (planParam === 'basic' || planParam === 'growth') {
-      params.set('plan', planParam);
+    if (requestedSelfServicePlan) {
+      params.set('plan', requestedSelfServicePlan);
     }
     return `/auth/google?${params.toString()}`;
-  }, [nextParam, planParam]);
+  }, [nextParam, requestedSelfServicePlan]);
 
   const signupHref = useMemo(() => {
-    if (planParam === 'basic' || planParam === 'growth') {
-      return `/signup?plan=${planParam}`;
+    if (requestedSelfServicePlan) {
+      return `/signup?plan=${requestedSelfServicePlan}`;
     }
     return '/signup';
-  }, [planParam]);
+  }, [requestedSelfServicePlan]);
 
   useEffect(() => {
     if (googleError) toast.error(googleError);

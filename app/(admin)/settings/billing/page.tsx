@@ -5,7 +5,7 @@ import {
 import { BillingSummary } from '@/components/saas/billing-summary';
 import { PageHeader } from '@/components/saas/page-header';
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
-import type { SaaSPlanCode } from '@/lib/config/saas-plans';
+import type { SelfServiceSaaSPlanCode } from '@/lib/config/saas-plans';
 import { loadBillingSettingsView } from '@/lib/saas/settings-live-data';
 
 interface BillingSettingsPageProps {
@@ -41,11 +41,11 @@ function normalizeMerchantTradeNo(value: string | string[] | undefined): string 
   return /^[A-Za-z0-9]{1,20}$/.test(normalized) ? normalized : null;
 }
 
-function normalizeRequestedPlan(value: string | string[] | undefined): SaaSPlanCode | null {
+function normalizeRequestedPlan(
+  value: string | string[] | undefined
+): SelfServiceSaaSPlanCode | null {
   const normalized = firstQueryValue(value);
-  return normalized === 'basic' || normalized === 'growth' || normalized === 'enterprise'
-    ? normalized
-    : null;
+  return normalized === 'basic' ? normalized : null;
 }
 
 export default async function BillingSettingsPage(

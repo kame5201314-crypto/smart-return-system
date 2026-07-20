@@ -47,7 +47,7 @@ interface ContactPageProps {
 
 function resolveInitialPlan(value: string | string[] | undefined): SaaSPlanCode {
   const plan = Array.isArray(value) ? value[0] : value;
-  return plan === 'basic' || plan === 'growth' ? plan : 'enterprise';
+  return plan === 'enterprise' ? 'enterprise' : 'basic';
 }
 
 export default async function ContactPage({ searchParams }: ContactPageProps) {

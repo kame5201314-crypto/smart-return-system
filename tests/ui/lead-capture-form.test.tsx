@@ -27,7 +27,8 @@ describe('LeadCaptureForm', () => {
     expect(screen.queryByRole('button', { name: '送出申請' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '複製申請內容' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '用 Email 寄出' })).toBeInTheDocument();
-    expect(screen.getByLabelText('希望方案')).toHaveValue('growth');
+    expect(screen.getByLabelText('希望方案')).toHaveValue('basic');
+    expect(screen.queryByText('成長版 NT$699 / 月')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('LINE ID'), {
       target: { value: 'demo-store' },
@@ -74,7 +75,7 @@ describe('LeadCaptureForm', () => {
       companyName: 'Demo Store',
       contactName: 'Owner',
       email: 'owner@example.com',
-      requestedPlan: 'growth',
+      requestedPlan: 'basic',
       monthlyReturnBand: '30_100',
       privacyConsent: true,
       attribution: {

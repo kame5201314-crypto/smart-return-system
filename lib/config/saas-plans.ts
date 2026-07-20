@@ -1,4 +1,18 @@
 export type SaaSPlanCode = 'basic' | 'growth' | 'enterprise';
+export type SelfServiceSaaSPlanCode = Extract<SaaSPlanCode, 'basic'>;
+
+// Growth and enterprise remain valid legacy/internal plan codes so existing
+// tenants and historical billing records can still be rendered. New public
+// signup and self-service checkout are intentionally sold as one NT$399 plan.
+export const SAAS_SELF_SERVICE_PLAN_CODE: SelfServiceSaaSPlanCode = 'basic';
+
+export function normalizeSelfServiceSaaSPlanCode(
+  value: unknown
+): SelfServiceSaaSPlanCode | null {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'basic'
+    ? SAAS_SELF_SERVICE_PLAN_CODE
+    : null;
+}
 
 export interface SaaSPlanDefinition {
   code: SaaSPlanCode;

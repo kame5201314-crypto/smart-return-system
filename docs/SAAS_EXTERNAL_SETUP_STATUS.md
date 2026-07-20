@@ -1,15 +1,35 @@
 # SaaS External Setup Status
 
+## 2026-07-20 Single Public NT$399 Plan Repository Update
+
+- New public signup, marketing, and self-service checkout now offer one paid
+  plan only: Basic at NT$399 for one month.
+- Growth and Enterprise remain in the internal plan contract only so existing
+  tenant state, immutable payment history, administrative reports, and legacy
+  callback handling stay compatible. They are not available for a new public
+  purchase or self-service plan change.
+- The payment model remains one-time prepaid for one month and is not an
+  automatic recurring subscription. A customer must deliberately purchase the
+  next month; the application never stores card data or silently charges again.
+- This repository update does not activate real Production collection.
+  Production still requires formal ECPay MerchantID, HashKey, and HashIV,
+  paired activation of `ENABLE_BILLING=true` and
+  `ENABLE_SUBSCRIPTION_PLAN=true`, and the bounded real-charge, refund, invoice,
+  and reconciliation checks documented below.
+- No deployment, migration, environment/secret edit, provider activation,
+  DNS, Billing, or Supabase setting change is included in this update.
+
 ## 2026-07-20 Self-Service Prepaid Billing Stage E2E And Schema Rollout Completed
 
-- Repository code now supports an authenticated owner/admin selecting Basic or
-  Growth inside `/settings/billing`, creating a server-priced one-month ECPay
+- Repository code now supports an authenticated owner/admin selecting the
+  public Basic plan inside `/settings/billing`, creating a server-priced one-month ECPay
   prepaid checkout, and showing current period, expiry, payment history, and
   subscription-period history. It is intentionally non-recurring and never
   stores card data.
-- The repository price contract now sets Basic to NT$399 and Growth to NT$699.
-  The in-app selector, server-priced checkout, ECPay form validation, and
-  database settlement contract use the same server-controlled values.
+- The public repository price contract sets Basic to NT$399. The in-app
+  selector, server-priced checkout, ECPay form validation, and database
+  settlement contract use the same server-controlled value. Legacy Growth and
+  Enterprise identifiers remain internal for historical compatibility only.
 - Migrations `045_saas_suspended_org_write_guards.sql`,
   `046_saas_self_service_billing.sql`, and
   `047_saas_billing_table_privileges.sql`, plus

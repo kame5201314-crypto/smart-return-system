@@ -110,8 +110,8 @@ const faqItems = [
     a: '不需要。3 天免費試用完全不綁卡，試用結束不會自動扣款。要不要付費由你決定。',
   },
   {
-    q: '我每月退貨 200 筆 / 800 筆 / 3000 筆夠用嗎？',
-    a: '入門版含每月 300 筆、成長版含每月 800 筆。若長期超過 800 筆，建議直接洽談大量需求方案，避免月中頻繁觸發提醒。',
+    q: '我每月退貨 200 筆 / 500 筆 / 3000 筆夠用嗎？',
+    a: '唯一公開收費方案為入門版，每月可處理 300 筆退貨。若長期超過 300 筆，可先聯絡我們評估大量需求，不會在不知情的情況下產生額外費用。',
   },
   {
     q: '退貨量臨時爆量會被擋嗎？',
@@ -130,8 +130,8 @@ const faqItems = [
     a: '每個品牌的資料完全獨立隔離，不同客戶之間互不相通；我們也不會把你的客戶資料用於任何其他用途。',
   },
   {
-    q: '可以隨時取消嗎？',
-    a: '可以。試用期間隨時可以停用；付費後也可隨時取消，當期結束不再續扣。',
+    q: '付款後會自動續扣嗎？',
+    a: '不會。目前是一次預付一個月 NT$399，付款完成後取得一個月使用期；到期後由你自行決定是否續購，系統不會自動扣款。',
   },
   {
     q: '需要技術人員才能用嗎？',
@@ -394,19 +394,19 @@ export default function HomePage() {
                 固定月費，沒有隱藏費用。
               </h2>
               <p className="mt-3 text-sm text-neutral-600">
-                AI 額度有上限不怕成本爆掉、退貨量是軟提醒不擋作業。入門版每天不到
-                NT$17，少花一小時對帳就回本。
+                AI 額度有上限不怕成本爆掉、退貨量是軟提醒不擋作業。唯一方案每天不到
+                NT$14，少花一小時對帳就回本。
               </p>
             </div>
             <Button asChild variant="outline">
               <Link href="/pricing">
-                看完整比較表
+                查看 NT$399 方案
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="mt-8 grid max-w-2xl gap-4">
             {planOrder.map((code) => (
               <div
                 key={code}
@@ -421,15 +421,13 @@ export default function HomePage() {
                     {SAAS_PLAN_DEFINITIONS[code].name}
                   </h3>
                   {planCopy[code].featured ? (
-                    <Badge className="bg-emerald-700">最多人選</Badge>
+                    <Badge className="bg-emerald-700">唯一方案</Badge>
                   ) : null}
                 </div>
                 <div className="mt-4 text-3xl font-semibold text-neutral-950">
                   {getPlanPriceLabel(code)}
                 </div>
-                <div className="mt-1 text-sm text-neutral-500">
-                  {code === 'enterprise' ? '依需求' : '每月'}
-                </div>
+                <div className="mt-1 text-sm text-neutral-500">每月</div>
                 <p className="mt-4 min-h-12 text-sm leading-6 text-neutral-600">
                   {planCopy[code].summary}
                 </p>

@@ -27,7 +27,7 @@ const payload = {
   platform: '蝦皮',
   monthlyReturnBand: '30_100',
   referralCode: 'PARTNER88',
-  plan: 'growth',
+  plan: 'basic',
   termsAccepted: true,
   termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
   idempotencyKey: '22222222-2222-4222-8222-222222222222',
@@ -66,11 +66,13 @@ describe('SaaS Google self-service trial contract', () => {
       platform: '蝦皮',
       monthlyReturnBand: '30_100',
       referralCode: 'PARTNER88',
-      plan: 'growth',
+      plan: 'basic',
       termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
     });
 
+    expect(() => normalizeSelfServiceTrialInput({ ...payload, plan: 'growth' }))
+      .toThrow(SelfServiceTrialError);
     expect(() => normalizeSelfServiceTrialInput({ ...payload, plan: 'enterprise' }))
       .toThrow(SelfServiceTrialError);
     expect(() => normalizeSelfServiceTrialInput({ ...payload, termsAccepted: false }))
@@ -150,7 +152,7 @@ describe('SaaS Google self-service trial contract', () => {
       platform: '蝦皮',
       monthlyReturnBand: '30_100',
       referralCode: 'PARTNER88',
-      plan: 'growth',
+      plan: 'basic',
       termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
       ownerUserId: identity.userId,
@@ -168,7 +170,7 @@ describe('SaaS Google self-service trial contract', () => {
       platform: '蝦皮',
       monthlyReturnBand: '30_100',
       referralCode: 'PARTNER88',
-      plan: 'growth',
+      plan: 'basic',
       termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
       ownerUserId: identity.userId,

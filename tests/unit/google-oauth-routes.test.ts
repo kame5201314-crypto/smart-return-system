@@ -35,7 +35,7 @@ describe('Google OAuth routes', () => {
     expect(signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'https://app.example.test/auth/callback?next=%2Fanalytics&plan=growth',
+        redirectTo: 'https://app.example.test/auth/callback?next=%2Fanalytics&plan=basic',
         scopes: 'openid email profile',
       },
     });
@@ -174,7 +174,7 @@ describe('Google OAuth routes', () => {
     );
 
     expect(response.headers.get('location')).toBe(
-      'https://app.example.test/signup/complete?plan=growth'
+      'https://app.example.test/signup/complete?plan=basic'
     );
   });
 
@@ -229,7 +229,7 @@ describe('Google OAuth routes', () => {
     );
 
     expect(response.headers.get('location')).toBe(
-      'https://app.example.test/signup/complete?plan=growth&state=membership_disabled'
+      'https://app.example.test/signup/complete?plan=basic&state=membership_disabled'
     );
   });
 
@@ -290,7 +290,7 @@ describe('Google OAuth routes', () => {
       { env: { ENABLE_GOOGLE_AUTH: 'true' } }
     );
     expect(missingCode.headers.get('location')).toBe(
-      'https://app.example.test/login?error=google_auth_expired&next=%2Freturns&plan=growth'
+      'https://app.example.test/login?error=google_auth_expired&next=%2Freturns&plan=basic'
     );
 
     const consumedCode = await handleGoogleOAuthCallback(

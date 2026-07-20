@@ -106,11 +106,13 @@ async function checkPricing() {
 
     const has399 = /399/.test(text);
     const has699 = /699/.test(text);
+    const hasGrowthPlan = text.includes('成長版');
     const hasOld1490 = /1,490|1490/.test(text);
     const hasOld2990 = /2,990|2990/.test(text);
 
     record(has399 ? 'pass' : 'fail', '/pricing has 399 marker');
-    record(has699 ? 'pass' : 'fail', '/pricing has 699 marker');
+    record(has699 ? 'fail' : 'pass', '/pricing has no 699 marker');
+    record(hasGrowthPlan ? 'fail' : 'pass', '/pricing has no Growth plan offer');
     record(hasOld1490 ? 'fail' : 'pass', '/pricing has no old 1490 marker');
     record(hasOld2990 ? 'fail' : 'pass', '/pricing has no old 2990 marker');
   } catch (error) {
@@ -121,7 +123,7 @@ async function checkPricing() {
 async function checkAccountRegistration() {
   let signupText = '';
   try {
-    const { response, text } = await get('/login?plan=growth', { text: true });
+    const { response, text } = await get('/login?plan=basic', { text: true });
     if (response.status !== 200) {
       record('fail', '/login account registration content', `expected 200, got ${response.status}`);
     } else {
@@ -130,8 +132,8 @@ async function checkAccountRegistration() {
         '/login has account registration action'
       );
       record(
-        text.includes('/signup?plan=growth') ? 'pass' : 'fail',
-        '/login preserves growth signup plan'
+        text.includes('/signup?plan=basic') ? 'pass' : 'fail',
+        '/login preserves the NT$399 signup plan'
       );
     }
   } catch (error) {
@@ -139,7 +141,7 @@ async function checkAccountRegistration() {
   }
 
   try {
-    const { response, text } = await get('/signup?plan=growth', { text: true });
+    const { response, text } = await get('/signup?plan=basic', { text: true });
     if (response.status !== 200) {
       record('fail', '/signup account registration content', `expected 200, got ${response.status}`);
       return;

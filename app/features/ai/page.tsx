@@ -38,7 +38,7 @@ const insights = [
 ] as const;
 
 const costControls = [
-  ['AI 額度依方案設定', '入門版 10 次 / 成長版 25 次每月，到期自動重置；大量需求可洽談專屬額度。'],
+  ['AI 額度依方案設定', '唯一公開收費方案為入門版 NT$399，每月包含 10 次 AI 分析；大量需求可另行評估。'],
   ['相同資料重複分析不扣額度', '同一筆退貨重複分析、退貨內容相同時系統會用快取結果，不會重複扣 AI 額度。'],
   ['80% / 100% 提醒', '額度用到 80% 與 100% 會通知 Owner，不會在你不知道的情況下產生意外費用。'],
   ['不會自動加購', '額度用完只是當月停用 AI 分析，退貨日常作業完全不受影響。'],
@@ -83,8 +83,8 @@ export default function AiFeaturePage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-neutral-400">本月 AI 使用量</div>
-                <div className="mt-1 text-3xl font-semibold">18 / 25</div>
-                <div className="mt-1 text-xs text-emerald-300">成長版</div>
+                <div className="mt-1 text-3xl font-semibold">7 / 10</div>
+                <div className="mt-1 text-xs text-emerald-300">入門版 NT$399／月</div>
               </div>
               <BarChart3 className="size-7 text-emerald-300" />
             </div>

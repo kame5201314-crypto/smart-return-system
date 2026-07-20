@@ -30,10 +30,10 @@ describe('SaaS production smoke contract', () => {
   it('offers an explicit post-deploy account-registration smoke without changing the default probe', () => {
     expect(source).toContain("args.includes('--expect-account-registration')");
     expect(source).toContain('SAAS_PRODUCTION_SMOKE_EXPECT_ACCOUNT_REGISTRATION');
-    expect(source).toContain("get('/login?plan=growth', { text: true })");
+    expect(source).toContain("get('/login?plan=basic', { text: true })");
     expect(source).toContain("text.includes('註冊新帳號')");
-    expect(source).toContain("text.includes('/signup?plan=growth')");
-    expect(source).toContain("get('/signup?plan=growth', { text: true })");
+    expect(source).toContain("text.includes('/signup?plan=basic')");
+    expect(source).toContain("get('/signup?plan=basic', { text: true })");
     expect(source).toContain("text.includes('id=\"signup-identifier\"')");
     expect(source).toContain("text.includes('手機／信箱')");
     expect(source).toContain("!text.includes('使用 Google 繼續')");
@@ -44,6 +44,12 @@ describe('SaaS production smoke contract', () => {
     expect(source).toContain('signupText.includes(');
     expect(source).toContain('\'email-signup-unavailable-notice\'');
     expect(source).toMatch(/if \(expectAccountRegistration\) \{\s+await checkAccountRegistration\(\);/);
+  });
+
+  it('requires the public pricing page to expose only the NT$399 plan', () => {
+    expect(source).toContain("record(has399 ? 'pass' : 'fail', '/pricing has 399 marker')");
+    expect(source).toContain("record(has699 ? 'fail' : 'pass', '/pricing has no 699 marker')");
+    expect(source).toContain("record(hasGrowthPlan ? 'fail' : 'pass', '/pricing has no Growth plan offer')");
   });
 
   it('locks the dedicated platform-admin entry and internal next-path contract', () => {

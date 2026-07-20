@@ -6,9 +6,11 @@ import {
   getOrgMonthlyReturnSoftLimit,
   getOrgSeatLimit,
   getSaaSPlanDefinition,
+  normalizeSelfServiceSaaSPlanCode,
   orgHasAdvancedAnalytics,
   orgHasApiAccess,
   SAAS_PLAN_DEFINITIONS,
+  SAAS_SELF_SERVICE_PLAN_CODE,
 } from '@/lib/config/saas-plans';
 
 describe('SaaS commercial configuration', () => {
@@ -69,6 +71,14 @@ describe('SaaS commercial configuration', () => {
 
   it('falls back to the Basic plan for unknown plan values', () => {
     expect(getSaaSPlanDefinition('unknown')).toBe(SAAS_PLAN_DEFINITIONS.basic);
+  });
+
+  it('offers only the NT$399 Basic plan for new self-service checkout', () => {
+    expect(SAAS_SELF_SERVICE_PLAN_CODE).toBe('basic');
+    expect(normalizeSelfServiceSaaSPlanCode('basic')).toBe('basic');
+    expect(normalizeSelfServiceSaaSPlanCode(' BASIC ')).toBe('basic');
+    expect(normalizeSelfServiceSaaSPlanCode('growth')).toBeNull();
+    expect(normalizeSelfServiceSaaSPlanCode('enterprise')).toBeNull();
   });
 
   it('keeps risky SaaS feature flags closed by default', () => {

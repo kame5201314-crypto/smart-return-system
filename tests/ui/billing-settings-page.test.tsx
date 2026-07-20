@@ -103,9 +103,10 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByText('升級方案')).toBeInTheDocument();
     expect(screen.getAllByText(/不會自動續扣/).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: '入門版' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '成長版' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '成長版' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '大量需求' })).not.toBeInTheDocument();
     expect(screen.getByText('NT$399')).toBeInTheDocument();
+    expect(screen.queryByText('NT$699')).not.toBeInTheDocument();
     expect(screen.getAllByText('NT$499').length).toBeGreaterThan(0);
     expect(screen.getAllByText('綠界科技').length).toBeGreaterThan(0);
     expect(screen.getAllByText('已付款').length).toBeGreaterThan(0);
@@ -139,8 +140,7 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByRole('heading', { name: '入門版', level: 2 })).toBeInTheDocument();
     expect(screen.getByText('已暫停')).toBeInTheDocument();
     expect(screen.getByText(/平台管理員停權/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /升級至入門版/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /升級至成長版/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /升級方案・NT\$399/ })).toBeDisabled();
     expect(screen.queryByText('試用已到期')).not.toBeInTheDocument();
   });
 
@@ -155,7 +155,7 @@ describe('BillingSettingsPage', () => {
   });
 
   it('treats payment query parameters as a pending confirmation, not proof of payment', async () => {
-    await renderPage(Promise.resolve({ payment: 'success', plan: 'growth' }));
+    await renderPage(Promise.resolve({ payment: 'success', plan: 'basic' }));
 
     expect(screen.getByText('付款結果已送出')).toBeInTheDocument();
     expect(screen.getByText(/請以本頁的目前方案及付款紀錄為準/)).toBeInTheDocument();
@@ -279,7 +279,7 @@ describe('BillingSettingsPage', () => {
       .mockImplementation(() => undefined);
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /升級至入門版 NT\$399/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級方案・NT\$399/ }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledWith(
@@ -316,14 +316,14 @@ describe('BillingSettingsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /升級至入門版 NT\$399/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級方案・NT\$399/ }));
     await act(async () => vi.advanceTimersByTimeAsync(10_000));
 
     const checkoutSignal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal | undefined;
     expect(checkoutSignal?.aborted).toBe(true);
     expect(screen.getByRole('alert')).toHaveTextContent('等待付款服務回應逾時，請稍後再試。');
     expect(screen.queryByText('internal timeout detail')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /升級至入門版 NT\$399/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /升級方案・NT\$399/ })).toBeEnabled();
   });
 
   it('shows a friendly Traditional Chinese checkout rate-limit message', async () => {
@@ -340,7 +340,7 @@ describe('BillingSettingsPage', () => {
     })));
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /升級至入門版 NT\$399/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級方案・NT\$399/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       '付款操作過於頻繁，請在 73 秒後再試。'
@@ -361,7 +361,7 @@ describe('BillingSettingsPage', () => {
     })));
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /升級至成長版 NT\$699/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級方案・NT\$399/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       '目前無法建立付款流程，請稍後再試。'
@@ -379,7 +379,7 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByRole('button', { name: /續購 1 個月/ })).toBeEnabled();
   });
 
-  it('keeps growth-to-basic downgrade disabled while allowing growth renewal', async () => {
+  it('keeps a legacy growth plan unavailable for self-service changes', async () => {
     billingMocks.result.data.org.status = 'active';
     billingMocks.result.data.org.plan = 'growth';
     billingMocks.result.data.actions.canUpdateBilling = true;
@@ -387,8 +387,10 @@ describe('BillingSettingsPage', () => {
 
     await renderPage();
 
-    expect(screen.getByRole('button', { name: '暫不支援線上降級' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /續購 1 個月/ })).toBeEnabled();
+    expect(screen.getByRole('button', {
+      name: '舊版方案暫不支援線上變更',
+    })).toBeDisabled();
+    expect(screen.queryByText('NT$699')).not.toBeInTheDocument();
   });
 
   it('keeps enterprise plan changes unavailable without exposing a support link', async () => {
@@ -399,11 +401,10 @@ describe('BillingSettingsPage', () => {
 
     await renderPage();
 
-    const unavailableButtons = screen.getAllByRole('button', {
-      name: '目前方案不支援線上變更',
-    });
-    expect(unavailableButtons).toHaveLength(2);
-    unavailableButtons.forEach((button) => expect(button).toBeDisabled());
+    expect(screen.getByRole('button', {
+      name: '舊版方案暫不支援線上變更',
+    })).toBeDisabled();
+    expect(screen.queryByText('NT$699')).not.toBeInTheDocument();
     expect(screen.queryByText('聯絡客服')).not.toBeInTheDocument();
     expect(document.querySelector('a[href^="/contact"]')).toBeNull();
   });
@@ -429,7 +430,7 @@ describe('BillingSettingsPage', () => {
       .mockImplementation(() => undefined);
 
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /升級至成長版 NT\$699/ }));
+    fireEvent.click(screen.getByRole('button', { name: /升級方案・NT\$399/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('付款服務回應不完整');
     expect(submit).not.toHaveBeenCalled();

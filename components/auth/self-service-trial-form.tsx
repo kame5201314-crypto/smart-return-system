@@ -331,7 +331,6 @@ export function SelfServiceTrialForm({
             required
           >
             <option value="basic">入門版 NT$399／月</option>
-            <option value="growth">成長版 NT$699／月</option>
           </select>
           <p className="mt-1.5 text-xs leading-5 text-neutral-500">前 3 天免費，不需信用卡且不會自動扣款。</p>
         </div>

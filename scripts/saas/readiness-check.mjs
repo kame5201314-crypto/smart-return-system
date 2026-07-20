@@ -336,10 +336,15 @@ function checkCommercialFoundation() {
       'hasApiAccess: false',
       'hasApiAccess: true',
       'enterprise',
+      "SAAS_SELF_SERVICE_PLAN_CODE: SelfServiceSaaSPlanCode = 'basic'",
     ];
     const missing = expectedPlanSnippets.filter((snippet) => !source.includes(snippet));
     if (missing.length === 0) {
-      record('pass', 'SaaS plans', 'approved Basic/Growth/Enterprise matrix found');
+      record(
+        'pass',
+        'SaaS plans',
+        'Basic-only public checkout plus legacy Growth/Enterprise compatibility found'
+      );
     } else {
       record('fail', 'SaaS plans', `missing baseline snippets: ${missing.join(', ')}`);
     }
@@ -945,8 +950,9 @@ function checkCommercialFoundation() {
       formSource.includes('leadCaptureEnabled') &&
       formSource.includes('captureSaaSLeadAttribution') &&
       formSource.includes('privacyConsent') &&
-      pricingSource.includes('/signup?plan=') &&
-      pricingSource.includes('/contact?plan=enterprise') &&
+      formSource.includes('mailto:') &&
+      formSource.includes('lineHref') &&
+      pricingSource.includes('/signup?plan=basic') &&
       contactPageSource.includes('public_lead_capture')
     ) {
       record('pass', 'SaaS public lead form', 'pricing/contact consent, channels, and attribution remain wired behind the lead-only flag');
