@@ -132,8 +132,12 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
 
   const trialExpired =
     org.status === 'trialing' && org.daysUntilTrialEnd !== null && org.daysUntilTrialEnd <= 0;
-  // 與租戶清單同一套「需關注」定義：帳務/額度風險或試用已到期。
-  const needsAttention = org.health.riskLevel === 'at_risk' || trialExpired;
+  const trialEndingSoon =
+    org.status === 'trialing' &&
+    org.daysUntilTrialEnd !== null &&
+    org.daysUntilTrialEnd > 0 &&
+    org.daysUntilTrialEnd <= 3;
+  const needsAttention = org.requiresAttention;
 
   const summaryCards = [
     ['預估月營收', formatTwd(org.health.estimatedMrrTwd)],
@@ -151,6 +155,8 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
 
   const suggestedActions = trialExpired
     ? ['聯絡客戶確認續約或延長試用', ...formatSuggestedActions(org.health.riskReasons)]
+    : trialEndingSoon
+      ? [`試用將在 ${org.daysUntilTrialEnd} 天後到期，請確認轉付費安排`, ...formatSuggestedActions(org.health.riskReasons)]
     : formatSuggestedActions(org.health.riskReasons);
 
   return (
@@ -160,11 +166,16 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
           <div className="flex-1">
             <p className="font-medium">此租戶目前需關注，建議優先跟進。</p>
-            {(trialExpired || org.health.riskReasons.length > 0) ? (
+            {(trialExpired || trialEndingSoon || org.health.riskReasons.length > 0) ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {trialExpired ? (
                   <Badge variant="destructive" className="text-xs">
                     試用已到期
+                  </Badge>
+                ) : null}
+                {trialEndingSoon ? (
+                  <Badge variant="outline" className="border-amber-300 bg-white text-xs text-amber-900">
+                    試用將在 {org.daysUntilTrialEnd} 天後到期
                   </Badge>
                 ) : null}
                 {org.health.riskReasons.map((reason) => (
@@ -368,7 +379,7 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             </Link>
           </Button>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold">{title}</h2>
+            <h1 className="text-2xl font-bold text-gray-950">{title}</h1>
             {readyOrg ? (
               <Badge variant="outline" className={statusBadgeClass(readyOrg.status)}>
                 {formatOrganizationStatus(readyOrg)}

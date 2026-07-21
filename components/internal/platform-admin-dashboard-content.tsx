@@ -153,7 +153,6 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
                   <li key={alert.id}>
                     <Link
                       href={`/internal/orgs/${alert.orgId}`}
-                      aria-label={`${actionLabel}：${alert.orgName}`}
                       className="group flex flex-col items-start justify-between gap-4 rounded-md border border-amber-200 bg-white p-4 transition-colors hover:bg-amber-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 sm:flex-row sm:items-center"
                     >
                       <div className="min-w-0 flex-1">

@@ -97,7 +97,7 @@ describe('PlatformOrganizationsExplorer', () => {
 
     fireEvent.change(screen.getByLabelText('搜尋租戶'), { target: { value: '健康品牌' } });
 
-    expect(screen.getByText('符合 1 / 2 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('共 2 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
     expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
     expect(screen.getAllByText('健康品牌').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Google 註冊').length).toBeGreaterThan(0);
@@ -109,7 +109,7 @@ describe('PlatformOrganizationsExplorer', () => {
 
     fireEvent.change(screen.getByLabelText('租戶狀態'), { target: { value: 'attention' } });
 
-    expect(screen.getByText('符合 1 / 2 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('共 2 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
     expect(screen.getAllByText('待補款品牌').length).toBeGreaterThan(0);
     expect(screen.queryByText('健康品牌')).not.toBeInTheDocument();
   });
@@ -119,7 +119,7 @@ describe('PlatformOrganizationsExplorer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '已停權 1' }));
 
-    expect(screen.getByText('符合 1 / 3 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('共 3 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
     expect(screen.getAllByText('已停權品牌').length).toBeGreaterThan(0);
     expect(screen.getAllByText('已停權（唯讀）').length).toBeGreaterThan(0);
     expect(screen.getAllByText('信箱註冊').length).toBeGreaterThan(0);
@@ -160,7 +160,7 @@ describe('PlatformOrganizationsExplorer', () => {
     const attentionChip = screen.getByRole('button', { name: '需關注 1' });
     expect(attentionChip).toHaveAttribute('aria-pressed', 'true');
     expect(attentionChip).toHaveClass('ring-2');
-    expect(screen.getByText('符合 1 / 1 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('共 1 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
     expect(screen.getAllByText('即將到期品牌').length).toBeGreaterThan(0);
   });
 
@@ -190,7 +190,7 @@ describe('PlatformOrganizationsExplorer', () => {
 
     render(<PlatformOrganizationsExplorer data={largeData} />);
 
-    expect(screen.getByText('符合 21 / 21 個租戶，目前顯示前 20 個')).toBeInTheDocument();
+    expect(screen.getByText('共 21 個租戶；符合 21 筆，目前顯示 20 筆')).toBeInTheDocument();
     expect(screen.queryByText('品牌 21')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '顯示其餘 1 筆' }));
@@ -200,5 +200,34 @@ describe('PlatformOrganizationsExplorer', () => {
       'aria-expanded',
       'true'
     );
+  });
+
+  it('searches all matches before applying the 20-row display limit', () => {
+    const healthyOrg = data.organizations[1];
+    const organizations = Array.from({ length: 21 }, (_, index) => ({
+      ...healthyOrg,
+      id: `org-${index + 1}`,
+      name: index === 20 ? '唯一第 21 筆' : `一般品牌 ${index + 1}`,
+      slug: `brand-${index + 1}`,
+    }));
+    const largeData: PlatformOrganizationListView = {
+      summary: {
+        ...data.summary,
+        totalOrganizations: organizations.length,
+        activeOrTrialingOrganizations: organizations.length,
+        pausedOrPastDueOrganizations: 0,
+        attentionOrganizations: 0,
+        atRiskOrganizations: 0,
+      },
+      organizations,
+    };
+
+    render(<PlatformOrganizationsExplorer data={largeData} />);
+    fireEvent.change(screen.getByLabelText('搜尋租戶'), {
+      target: { value: '唯一第 21 筆' },
+    });
+
+    expect(screen.getByText('共 21 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
+    expect(screen.getAllByText('唯一第 21 筆').length).toBeGreaterThan(0);
   });
 });

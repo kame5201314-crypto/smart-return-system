@@ -45,7 +45,7 @@ export default async function InternalLeadsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="text-2xl font-semibold">試用申請</h2>
+        <h1 className="text-2xl font-bold text-gray-950">試用申請</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           依新申請、已聯絡與人工開通進度管理名單；不會自動建立帳號或租戶。
         </p>

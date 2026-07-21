@@ -375,8 +375,7 @@ export function PlatformOrganizationsExplorer({
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground" role="status">
-            符合 {visibleOrganizations.length} / {data.organizations.length} 個租戶
-            {hiddenOrganizationCount > 0 ? `，目前顯示前 ${displayedOrganizations.length} 個` : ''}
+            共 {data.organizations.length} 個租戶；符合 {visibleOrganizations.length} 筆，目前顯示 {displayedOrganizations.length} 筆
           </p>
         </CardContent>
       </Card>

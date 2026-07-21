@@ -80,9 +80,9 @@ describe('PlatformAdminDashboardContent', () => {
     expect(screen.getByText('優先待辦（1）')).toBeInTheDocument();
     expect(screen.getByText('已逾期 2 天')).toBeInTheDocument();
     expect(screen.getByText('帳號：owner@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '提醒補款：測試租戶' }))
+    expect(screen.getByRole('link', { name: /測試租戶.*提醒補款/ }))
       .toHaveAttribute('href', '/internal/orgs/org-1');
-    expect(screen.getAllByRole('link', { name: '提醒補款：測試租戶' })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: /測試租戶.*提醒補款/ })).toHaveLength(1);
     expect(screen.getByRole('link', { name: '查看全部租戶：5 個' }))
       .toHaveAttribute('href', '/internal/orgs');
     expect(screen.getByRole('link', { name: '查看試用中租戶：2 個' }))

@@ -136,7 +136,7 @@ export default async function InternalBillingEventsPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-semibold">金流紀錄</h2>
+          <h1 className="text-2xl font-bold text-gray-950">金流紀錄</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             金流 webhook 與電子發票事件的接收、處理與失敗紀錄。
           </p>

@@ -13,7 +13,7 @@ describe('InternalLayout', () => {
   it('uses a compact horizontal operations navigation with one active tab', () => {
     render(
       <InternalLayout>
-        <div>營運內容</div>
+        <h1>營運內容</h1>
       </InternalLayout>
     );
 
@@ -24,5 +24,7 @@ describe('InternalLayout', () => {
     expect(screen.queryByRole('link', { name: /試用申請/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '商業營運後台' })).not.toBeInTheDocument();
     expect(screen.getByText('商業營運後台')).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: '營運內容' })).toBeInTheDocument();
   });
 });
