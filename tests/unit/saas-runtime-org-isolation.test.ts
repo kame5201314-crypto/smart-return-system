@@ -16,6 +16,8 @@ describe('SaaS runtime org isolation', () => {
     expect(source).toContain("from '@/lib/saas/org-context'");
     expect(source).toContain('await getReturnOrgContext()');
     expect(source).toContain('await getWritableReturnOrgContext()');
+    expect(source).toContain('await getExportableReturnOrgContext()');
+    expect(source).toContain('exportable: true');
     expect(source).toContain(".eq('org_id', orgContext.orgId)");
     expect(source).toContain('org_id: orgContext.orgId');
     expect(source).toContain(".eq('org_id', orgId)");

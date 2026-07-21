@@ -9,7 +9,7 @@ import {
 const now = '2026-05-21T00:00:00.000Z';
 
 describe('SaaS subscription lifecycle timing', () => {
-  it('keeps indefinite Beta trials open when trialEnd is missing', () => {
+  it('fails closed when a trial expiry is missing', () => {
     expect(
       resolveSaaSSubscriptionTimedStatus({
         status: 'trialing',
@@ -18,9 +18,9 @@ describe('SaaS subscription lifecycle timing', () => {
       })
     ).toMatchObject({
       currentStatus: 'trialing',
-      nextStatus: 'trialing',
-      reason: 'unchanged',
-      changed: false,
+      nextStatus: 'suspended',
+      reason: 'trial_expiry_unavailable',
+      changed: true,
     });
   });
 
@@ -39,7 +39,7 @@ describe('SaaS subscription lifecycle timing', () => {
     });
   });
 
-  it('cancels active subscriptions at period end only when cancelAtPeriodEnd is true', () => {
+  it('cancels recurring subscriptions at period end when cancelAtPeriodEnd is true', () => {
     expect(
       resolveSaaSSubscriptionTimedStatus({
         status: 'active',
@@ -51,7 +51,9 @@ describe('SaaS subscription lifecycle timing', () => {
       nextStatus: 'cancelled',
       reason: 'cancelled_at_period_end',
     });
+  });
 
+  it('suspends prepaid subscriptions as soon as their paid period ends', () => {
     expect(
       resolveSaaSSubscriptionTimedStatus({
         status: 'active',
@@ -60,8 +62,72 @@ describe('SaaS subscription lifecycle timing', () => {
         cancelAtPeriodEnd: false,
       })
     ).toMatchObject({
-      nextStatus: 'active',
-      reason: 'unchanged',
+      currentStatus: 'active',
+      nextStatus: 'suspended',
+      reason: 'prepaid_period_expired',
+      changed: true,
+    });
+  });
+
+  it('keeps active subscriptions open before the period end or without a legacy period', () => {
+    expect(
+      resolveSaaSSubscriptionTimedStatus({
+        status: 'active',
+        now,
+        currentPeriodEnd: '2026-05-21T00:00:00.001Z',
+        cancelAtPeriodEnd: false,
+      })
+    ).toMatchObject({ nextStatus: 'active', reason: 'unchanged', changed: false });
+
+    expect(
+      resolveSaaSSubscriptionTimedStatus({
+        status: 'active',
+        now,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+      })
+    ).toMatchObject({ nextStatus: 'active', reason: 'unchanged', changed: false });
+  });
+
+  it('fails closed when an active subscription has a non-empty invalid period end', () => {
+    expect(
+      resolveSaaSSubscriptionTimedStatus({
+        status: 'active',
+        now,
+        currentPeriodEnd: 'not-a-date',
+        cancelAtPeriodEnd: false,
+      })
+    ).toMatchObject({
+      nextStatus: 'suspended',
+      reason: 'prepaid_period_expiry_unavailable',
+      changed: true,
+    });
+  });
+
+  it('requires a period end for fixed-term providers and suspends them consistently', () => {
+    expect(
+      resolveSaaSSubscriptionTimedStatus({
+        status: 'active',
+        now,
+        currentPeriodEnd: null,
+        requiresCurrentPeriodEnd: true,
+      })
+    ).toMatchObject({
+      nextStatus: 'suspended',
+      reason: 'prepaid_period_expiry_unavailable',
+    });
+
+    expect(
+      resolveSaaSSubscriptionTimedStatus({
+        status: 'active',
+        now,
+        currentPeriodEnd: now,
+        cancelAtPeriodEnd: true,
+        requiresCurrentPeriodEnd: true,
+      })
+    ).toMatchObject({
+      nextStatus: 'suspended',
+      reason: 'prepaid_period_expired',
     });
   });
 

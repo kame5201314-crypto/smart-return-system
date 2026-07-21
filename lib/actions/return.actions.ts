@@ -60,6 +60,15 @@ async function getWritableReturnOrgContext(): Promise<SaaSOrgContext> {
   });
 }
 
+async function getExportableReturnOrgContext(): Promise<SaaSOrgContext> {
+  return getOrgContext({
+    requirements: {
+      exportable: true,
+      roles: ['owner', 'admin', 'staff'],
+    },
+  });
+}
+
 function getTrialReturnLimitErrorMessage(error: SelfServiceTrialReturnLimitError): string {
   if (error.code === 'trial_return_limit_reached') {
     return '試用工作區最多可建立 50 筆退貨；如需繼續使用，請前往帳務與訂閱選擇方案。';
@@ -1669,7 +1678,7 @@ export async function getReturnsForExport(filters?: {
   dateTo?: string;
 }) {
   try {
-    const orgContext = await getReturnOrgContext();
+    const orgContext = await getExportableReturnOrgContext();
     const adminClient = createAdminClient();
 
     const buildQuery = (includeResolutionType: boolean) => {

@@ -21,6 +21,9 @@ export interface ResolveCustomerReturnWorkspaceAccessInput {
   orgStatus: unknown;
   subscriptionStatus: unknown;
   trialEnd: unknown;
+  currentPeriodEnd?: unknown;
+  cancelAtPeriodEnd?: unknown;
+  subscriptionProvider?: unknown;
   now?: Date | string | number;
 }
 
@@ -33,6 +36,12 @@ function normalizeDate(value: unknown): Date | null {
   }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function requiresFixedTerm(provider: unknown): boolean {
+  if (typeof provider !== 'string') return false;
+  const normalizedProvider = provider.trim().toLowerCase();
+  return normalizedProvider === 'ecpay';
 }
 
 export function resolveCustomerReturnWorkspaceAccess(
@@ -64,6 +73,10 @@ export function resolveCustomerReturnWorkspaceAccess(
   const effectiveStatus = resolveSaaSSubscriptionTimedStatus({
     status: orgStatus,
     trialEnd,
+    currentPeriodEnd:
+      input.currentPeriodEnd as Date | string | number | null | undefined,
+    cancelAtPeriodEnd: input.cancelAtPeriodEnd === true,
+    requiresCurrentPeriodEnd: requiresFixedTerm(input.subscriptionProvider),
     now: input.now,
   }).nextStatus;
   const canCreate = canCreateSaaSData(effectiveStatus);

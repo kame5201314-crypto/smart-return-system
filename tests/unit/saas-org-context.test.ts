@@ -32,6 +32,8 @@ function createRepository(
       slug: 'demo',
       plan: 'growth',
       status: 'active',
+      subscriptionStatus: 'active',
+      currentPeriodEnd: '2099-01-01T00:00:00.000Z',
       feature_flags: {
         advanced_analytics: true,
         billing: true,
@@ -57,6 +59,8 @@ describe('SaaS org context', () => {
           slug: 'growth-store',
           plan: 'growth',
           status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd: '2099-01-01T00:00:00.000Z',
           feature_flags: {
             advanced_analytics: true,
             billing: true,
@@ -98,6 +102,8 @@ describe('SaaS org context', () => {
           id: 'org-1',
           plan: 'basic',
           status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd: '2099-01-01T00:00:00.000Z',
           feature_flags: {
             advanced_analytics: true,
           },
@@ -127,6 +133,8 @@ describe('SaaS org context', () => {
           id: 'org-1',
           plan: 'growth',
           status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd: '2099-01-01T00:00:00.000Z',
         },
       },
     });
@@ -146,6 +154,7 @@ describe('SaaS org context', () => {
         id: 'org-trial',
         plan: 'basic',
         status: 'trialing',
+        subscriptionStatus: 'trialing',
         trialEnd: '2026-06-09T00:00:00.000Z',
       },
     };
@@ -165,10 +174,95 @@ describe('SaaS org context', () => {
         organization: {
           ...trialMembership.organization,
           status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd: '2099-01-01T00:00:00.000Z',
         },
       },
       now: new Date('2026-07-18T00:00:00.000Z'),
     }).orgStatus).toBe('active');
+  });
+
+  it('fails closed when a trial expiry is unavailable', () => {
+    const context = buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-trial',
+        role: 'owner',
+        organization: {
+          id: 'org-trial',
+          plan: 'basic',
+          status: 'trialing',
+          subscriptionStatus: 'trialing',
+          trialEnd: null,
+        },
+      },
+      now: '2026-07-18T00:00:00.000Z',
+    });
+
+    expect(context).toMatchObject({
+      orgStatus: 'suspended',
+      suspensionSource: null,
+    });
+    expect(canWriteSaaSOrgData(context)).toBe(false);
+    expect(canExportSaaSOrgData(context)).toBe(false);
+  });
+
+  it('suspends an expired, invalid, or missing prepaid period while preserving legacy access', () => {
+    const buildActive = (currentPeriodEnd: unknown, provider: unknown = 'ecpay') => buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-paid',
+        role: 'owner',
+        organization: {
+          id: 'org-paid',
+          plan: 'growth',
+          status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd,
+          cancelAtPeriodEnd: false,
+          subscriptionProvider: provider,
+        },
+      },
+      now: '2026-07-21T00:00:00.000Z',
+    });
+
+    expect(buildActive('2026-07-21T00:00:00.000Z')).toMatchObject({
+      orgStatus: 'suspended',
+      suspensionSource: 'billing',
+    });
+    expect(buildActive('not-a-date')).toMatchObject({
+      orgStatus: 'suspended',
+      suspensionSource: 'billing',
+    });
+    expect(buildActive('2026-07-21T00:00:00.001Z').orgStatus).toBe('active');
+    expect(buildActive(null)).toMatchObject({
+      orgStatus: 'suspended',
+      suspensionSource: 'billing',
+    });
+    expect(buildActive(null, 'manual').orgStatus).toBe('active');
+    expect(buildActive(null, null).orgStatus).toBe('active');
+  });
+
+  it('fails closed when organization and subscription statuses drift', () => {
+    const context = buildSaaSOrgContext({
+      userId: 'user-1',
+      membership: {
+        orgId: 'org-drift',
+        role: 'owner',
+        organization: {
+          id: 'org-drift',
+          plan: 'growth',
+          status: 'active',
+          subscriptionStatus: 'trialing',
+          trialEnd: '2026-08-01T00:00:00.000Z',
+        },
+      },
+      now: '2026-07-21T00:00:00.000Z',
+    });
+
+    expect(context.orgStatus).toBe('suspended');
+    expect(context.suspensionSource).toBeNull();
+    expect(canWriteSaaSOrgData(context)).toBe(false);
   });
 
   it('preserves the formal suspension source only for suspended organizations', () => {
@@ -181,6 +275,7 @@ describe('SaaS org context', () => {
           id: 'org-1',
           plan: 'basic',
           status: 'suspended',
+          subscriptionStatus: 'suspended',
           suspension_source: 'platform_admin',
         },
       },
@@ -196,6 +291,8 @@ describe('SaaS org context', () => {
           id: 'org-1',
           plan: 'basic',
           status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd: '2099-01-01T00:00:00.000Z',
           suspension_source: 'platform_admin',
         },
       },
@@ -212,6 +309,8 @@ describe('SaaS org context', () => {
           id: 'org-1',
           plan: 'growth',
           status: 'active',
+          subscriptionStatus: 'active',
+          currentPeriodEnd: '2099-01-01T00:00:00.000Z',
         },
       },
     });
@@ -243,6 +342,34 @@ describe('SaaS org context', () => {
       userId: 'user-1',
       orgId: 'org-1',
     });
+  });
+
+  it('rejects request-time writes and exports at the prepaid period boundary', async () => {
+    const repository = createRepository({
+      orgId: 'org-1',
+      role: 'owner',
+      organization: {
+        id: 'org-1',
+        plan: 'growth',
+        status: 'active',
+        subscriptionStatus: 'active',
+        subscriptionProvider: 'ecpay',
+        currentPeriodEnd: '2026-07-21T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+    });
+
+    for (const requirements of [{ writable: true }, { exportable: true }]) {
+      await expect(getOrgContext({
+        auth: authOk,
+        repository,
+        requirements,
+        now: '2026-07-21T00:00:00.000Z',
+      })).rejects.toMatchObject({
+        code: 'subscription_inactive',
+        status: 402,
+      });
+    }
   });
 
   it('rejects unauthenticated requests before querying membership', async () => {
@@ -306,6 +433,8 @@ describe('SaaS org context', () => {
             id: 'org-1',
             plan: 'growth',
             status: 'active',
+            subscriptionStatus: 'active',
+            currentPeriodEnd: '2099-01-01T00:00:00.000Z',
             feature_flags: {},
           },
         }),
@@ -329,6 +458,8 @@ describe('SaaS org context', () => {
             id: 'org-1',
             plan: 'basic',
             status: 'active',
+            subscriptionStatus: 'active',
+            currentPeriodEnd: '2099-01-01T00:00:00.000Z',
             feature_flags: {
               advanced_analytics: true,
             },
@@ -354,6 +485,7 @@ describe('SaaS org context', () => {
             id: 'org-1',
             plan: 'growth',
             status: 'suspended',
+            subscriptionStatus: 'suspended',
             feature_flags: {
               advanced_analytics: true,
             },
@@ -379,6 +511,7 @@ describe('SaaS org context', () => {
             id: 'org-1',
             plan: 'growth',
             status: 'past_due',
+            subscriptionStatus: 'past_due',
             feature_flags: {},
           },
         }),
@@ -402,6 +535,7 @@ describe('SaaS org context', () => {
             id: 'org-1',
             plan: 'growth',
             status: 'past_due',
+            subscriptionStatus: 'past_due',
             feature_flags: {},
           },
         }),
@@ -440,6 +574,29 @@ describe('SaaS org context', () => {
     });
 
     expect(normalizeMembershipRow({ org_id: 'org-1', role: 'staff' })).toBeNull();
+
+    expect(normalizeMembershipRow({
+      org_id: 'org-paid',
+      role: 'owner',
+      organizations: {
+        id: 'org-paid',
+        plan: 'growth',
+        status: 'active',
+        subscriptions: [{
+          status: 'active',
+          provider: 'ecpay',
+          trial_end: null,
+          current_period_end: '2026-08-21T00:00:00.000Z',
+          cancel_at_period_end: false,
+        }],
+      },
+    })?.organization).toMatchObject({
+      subscriptionStatus: 'active',
+      subscriptionProvider: 'ecpay',
+      trialEnd: null,
+      currentPeriodEnd: '2026-08-21T00:00:00.000Z',
+      cancelAtPeriodEnd: false,
+    });
   });
 
   it('prefers a usable workspace over an older expired workspace', () => {
@@ -452,7 +609,13 @@ describe('SaaS org context', () => {
           id: 'org-old-trial',
           plan: 'growth',
           status: 'trialing',
-          subscriptions: [{ trial_end: '2026-06-09T00:00:00.000Z' }],
+          subscriptions: [{
+            status: 'trialing',
+            provider: null,
+            trial_end: '2026-06-09T00:00:00.000Z',
+            current_period_end: '2026-06-09T00:00:00.000Z',
+            cancel_at_period_end: false,
+          }],
         },
       },
       {
@@ -463,7 +626,13 @@ describe('SaaS org context', () => {
           id: 'org-active',
           plan: 'basic',
           status: 'active',
-          subscriptions: [{ trial_end: '2026-01-01T00:00:00.000Z' }],
+          subscriptions: [{
+            status: 'active',
+            provider: 'ecpay',
+            trial_end: '2026-01-01T00:00:00.000Z',
+            current_period_end: '2026-08-01T00:00:00.000Z',
+            cancel_at_period_end: false,
+          }],
         },
       },
     ], new Date('2026-07-18T00:00:00.000Z'))?.orgId).toBe('org-active');
@@ -479,7 +648,13 @@ describe('SaaS org context', () => {
           id: 'org-1',
           plan: 'enterprise',
           status: 'active',
-          subscriptions: [{ trial_end: null }],
+          subscriptions: [{
+            status: 'active',
+            provider: 'ecpay',
+            trial_end: null,
+            current_period_end: '2026-08-21T00:00:00.000Z',
+            cancel_at_period_end: false,
+          }],
         },
       }],
       error: null,
@@ -502,7 +677,7 @@ describe('SaaS org context', () => {
     expect(membership?.orgId).toBe('org-1');
     expect(client.from).toHaveBeenCalledWith('organization_members');
     expect(query.select).toHaveBeenCalledWith(
-      'org_id, role, status, organizations!inner(id, name, slug, plan, status, suspension_source, feature_flags, subscriptions(trial_end))'
+      'org_id, role, status, organizations!inner(id, name, slug, plan, status, suspension_source, feature_flags, subscriptions(status, provider, trial_end, current_period_end, cancel_at_period_end))'
     );
     expect(query.eq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(query.eq).toHaveBeenCalledWith('status', 'active');

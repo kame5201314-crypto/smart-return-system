@@ -31,7 +31,11 @@ export interface SaaSOrgRecord {
   suspension_source?: unknown;
   suspensionSource?: unknown;
   subscriptions?: unknown;
+  subscriptionStatus?: unknown;
+  subscriptionProvider?: unknown;
   trialEnd?: unknown;
+  currentPeriodEnd?: unknown;
+  cancelAtPeriodEnd?: unknown;
 }
 
 export interface SaaSOrgMembershipRecord {
@@ -76,6 +80,7 @@ export interface GetOrgContextOptions {
   repository?: SaaSOrgMembershipRepository;
   requirements?: SaaSOrgContextRequirements;
   env?: Record<string, string | undefined>;
+  now?: Date | string | number;
 }
 
 export type SaaSOrgContextErrorCode =
@@ -183,39 +188,116 @@ function normalizeJoinedOrganization(value: unknown): SaaSOrgRecord | null {
   return isRecord(value) ? (value as SaaSOrgRecord) : null;
 }
 
-function normalizeJoinedTrialEnd(value: unknown): string | null {
+interface SaaSSubscriptionSnapshot {
+  status: unknown;
+  provider: string | null;
+  trialEnd: unknown;
+  currentPeriodEnd: unknown;
+  cancelAtPeriodEnd: boolean;
+}
+
+function normalizeJoinedSubscription(value: unknown): SaaSSubscriptionSnapshot | null {
   const subscription = Array.isArray(value) ? value[0] : value;
   if (!isRecord(subscription)) return null;
-  return stringOrNull(subscription.trial_end ?? subscription.trialEnd);
+  return {
+    status: subscription.status ?? null,
+    provider: stringOrNull(subscription.provider),
+    trialEnd: subscription.trial_end ?? subscription.trialEnd ?? null,
+    currentPeriodEnd:
+      subscription.current_period_end ?? subscription.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd:
+      subscription.cancel_at_period_end === true || subscription.cancelAtPeriodEnd === true,
+  };
 }
 
-function resolveMembershipOrgStatus(
+function readMembershipSubscription(
+  membership: SaaSOrgMembershipRecord
+): SaaSSubscriptionSnapshot {
+  const organization = membership.organization;
+  const joined = normalizeJoinedSubscription(organization.subscriptions);
+  return {
+    status: organization.subscriptionStatus ?? joined?.status ?? null,
+    provider: stringOrNull(organization.subscriptionProvider) ?? joined?.provider ?? null,
+    trialEnd: organization.trialEnd ?? joined?.trialEnd ?? null,
+    currentPeriodEnd: organization.currentPeriodEnd ?? joined?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd:
+      organization.cancelAtPeriodEnd === true || joined?.cancelAtPeriodEnd === true,
+  };
+}
+
+function requiresFixedTerm(provider: string | null): boolean {
+  const normalizedProvider = provider?.trim().toLowerCase() ?? '';
+  // ECPay access is always backed by a dated prepaid period. Historical
+  // manually-managed organizations may intentionally have no period end, so
+  // preserve those legacy workspaces until the database can distinguish them
+  // from newer finite manual grants using billing evidence.
+  return normalizedProvider === 'ecpay';
+}
+
+interface ResolvedMembershipAccess {
+  status: SaaSOrgStatus;
+  suspensionSource: SaaSOrgSuspensionSource | null;
+}
+
+function resolveMembershipAccess(
   membership: SaaSOrgMembershipRecord,
   now?: Date | string | number
-): SaaSOrgStatus {
-  return resolveSaaSSubscriptionTimedStatus({
-    status: membership.organization.status,
-    trialEnd: membership.organization.trialEnd as Date | string | number | null | undefined,
+): ResolvedMembershipAccess {
+  const organization = membership.organization;
+  const orgStatus = normalizeSaaSOrgStatus(organization.status);
+  const subscription = readMembershipSubscription(membership);
+  const subscriptionStatus = normalizeSaaSSubscriptionStatus(subscription.status);
+
+  if (orgStatus !== subscriptionStatus) {
+    return {
+      status: 'suspended',
+      suspensionSource:
+        orgStatus === 'suspended'
+          ? normalizeSaaSOrgSuspensionSource(
+              organization.suspension_source ?? organization.suspensionSource
+            )
+          : null,
+    };
+  }
+
+  const lifecycle = resolveSaaSSubscriptionTimedStatus({
+    status: subscriptionStatus,
+    trialEnd: subscription.trialEnd as Date | string | number | null | undefined,
+    currentPeriodEnd:
+      subscription.currentPeriodEnd as Date | string | number | null | undefined,
+    cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+    requiresCurrentPeriodEnd: requiresFixedTerm(subscription.provider),
     now,
-  }).nextStatus;
-}
+  });
 
-function resolveMembershipSuspensionSource(
-  membership: SaaSOrgMembershipRecord,
-  resolvedStatus: SaaSOrgStatus
-): SaaSOrgSuspensionSource | null {
-  if (resolvedStatus !== 'suspended') {
-    return null;
+  if (lifecycle.nextStatus !== 'suspended') {
+    return { status: lifecycle.nextStatus, suspensionSource: null };
   }
 
-  if (normalizeSaaSOrgStatus(membership.organization.status) === 'trialing') {
-    return 'trial_expired';
+  if (
+    lifecycle.reason === 'trial_expired'
+  ) {
+    return { status: 'suspended', suspensionSource: 'trial_expired' };
   }
 
-  return normalizeSaaSOrgSuspensionSource(
-    membership.organization.suspension_source
-      ?? membership.organization.suspensionSource
-  );
+  if (lifecycle.reason === 'trial_expiry_unavailable') {
+    return { status: 'suspended', suspensionSource: null };
+  }
+
+  if (
+    lifecycle.reason === 'prepaid_period_expired'
+    || lifecycle.reason === 'prepaid_period_expiry_unavailable'
+    || lifecycle.reason === 'past_due_grace_expired'
+  ) {
+    return { status: 'suspended', suspensionSource: 'billing' };
+  }
+
+  return {
+    status: 'suspended',
+    suspensionSource: normalizeSaaSOrgSuspensionSource(
+      organization.suspension_source ?? organization.suspensionSource
+    ),
+  };
 }
 
 export function selectPreferredSaaSOrgMembership(
@@ -229,7 +311,7 @@ export function selectPreferredSaaSOrgMembership(
     .filter((membership): membership is SaaSOrgMembershipRecord => membership !== null);
 
   return memberships.find((membership) => (
-    canCreateSaaSData(resolveMembershipOrgStatus(membership, now))
+    canCreateSaaSData(resolveMembershipAccess(membership, now).status)
   )) ?? memberships[0] ?? null;
 }
 
@@ -244,7 +326,7 @@ export function normalizeMembershipRow(row: unknown): SaaSOrgMembershipRecord | 
   if (!organization || !orgId) {
     return null;
   }
-  const trialEnd = normalizeJoinedTrialEnd(organization.subscriptions);
+  const subscription = normalizeJoinedSubscription(organization.subscriptions);
 
   return {
     orgId,
@@ -252,7 +334,15 @@ export function normalizeMembershipRow(row: unknown): SaaSOrgMembershipRecord | 
     organization: {
       ...organization,
       id: stringOrNull(organization.id) ?? orgId,
-      ...(trialEnd !== null ? { trialEnd } : {}),
+      ...(subscription
+        ? {
+            subscriptionStatus: subscription.status,
+            subscriptionProvider: subscription.provider,
+            trialEnd: subscription.trialEnd,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          }
+        : {}),
     },
   };
 }
@@ -270,15 +360,15 @@ export function buildSaaSOrgContext(params: {
   const orgFeatureFlags = normalizeOrgFeatureFlags(
     organization.feature_flags ?? organization.featureFlags
   );
-  const orgStatus = resolveMembershipOrgStatus(membership, params.now);
+  const access = resolveMembershipAccess(membership, params.now);
 
   return {
     userId,
     orgId: membership.orgId,
     orgName: stringOrNull(organization.name) ?? '',
     orgSlug: stringOrNull(organization.slug),
-    orgStatus,
-    suspensionSource: resolveMembershipSuspensionSource(membership, orgStatus),
+    orgStatus: access.status,
+    suspensionSource: access.suspensionSource,
     role: normalizeSaaSOrgRole(membership.role),
     plan,
     planDefinition: getSaaSPlanDefinition(plan),
@@ -349,7 +439,7 @@ export function createSupabaseOrgMembershipRepository(
         injectedClient ?? ((await createClient()) as unknown as SupabaseOrgQueryClient);
       let query = client
         .from('organization_members')
-        .select('org_id, role, status, organizations!inner(id, name, slug, plan, status, suspension_source, feature_flags, subscriptions(trial_end))')
+        .select('org_id, role, status, organizations!inner(id, name, slug, plan, status, suspension_source, feature_flags, subscriptions(status, provider, trial_end, current_period_end, cancel_at_period_end))')
         .eq('user_id', input.userId)
         .eq('status', 'active');
 
@@ -405,6 +495,7 @@ export async function getOrgContext(options: GetOrgContextOptions = {}): Promise
     membership,
     isPlatformAdmin: auth.isAdmin === true,
     env: options.env,
+    now: options.now,
   });
 
   assertSaaSOrgContext(context, options.requirements);

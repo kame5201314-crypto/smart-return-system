@@ -64,7 +64,10 @@ function toRecord(value: unknown): Record<string, unknown> {
 
 function readJoinedSubscriptionAccess(value: unknown): {
   status: unknown;
+  provider: unknown;
   trialEnd: unknown;
+  currentPeriodEnd: unknown;
+  cancelAtPeriodEnd: unknown;
 } | null {
   const subscription = Array.isArray(value) ? value[0] : value;
   if (!subscription || typeof subscription !== 'object') {
@@ -72,7 +75,12 @@ function readJoinedSubscriptionAccess(value: unknown): {
   }
   return {
     status: 'status' in subscription ? subscription.status : null,
+    provider: 'provider' in subscription ? subscription.provider : null,
     trialEnd: 'trial_end' in subscription ? subscription.trial_end : null,
+    currentPeriodEnd:
+      'current_period_end' in subscription ? subscription.current_period_end : null,
+    cancelAtPeriodEnd:
+      'cancel_at_period_end' in subscription ? subscription.cancel_at_period_end : null,
   };
 }
 
@@ -308,7 +316,7 @@ export async function submitCustomerReturn(
 
     const { data: organization, error: organizationError } = await adminClient
       .from('organizations')
-      .select('status, subscriptions(status, trial_end)')
+      .select('status, subscriptions(status, provider, trial_end, current_period_end, cancel_at_period_end)')
       .eq('id', orgId)
       .single() as {
         data: { status: string; subscriptions?: unknown } | null;
@@ -323,6 +331,9 @@ export async function submitCustomerReturn(
       orgStatus: organization.status,
       subscriptionStatus: subscriptionAccess?.status,
       trialEnd: subscriptionAccess?.trialEnd,
+      currentPeriodEnd: subscriptionAccess?.currentPeriodEnd,
+      cancelAtPeriodEnd: subscriptionAccess?.cancelAtPeriodEnd,
+      subscriptionProvider: subscriptionAccess?.provider,
     });
     if (!workspaceAccess.canCreate) {
       if (

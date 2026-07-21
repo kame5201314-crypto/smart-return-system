@@ -75,6 +75,24 @@ describe('SaaS subscription access policy', () => {
     expect(canExportSaaSData(expiry.nextStatus)).toBe(false);
   });
 
+  it('keeps an expired prepaid period readable while blocking create, AI, and export operations', () => {
+    const expiry = resolveSaaSSubscriptionTimedStatus({
+      status: 'active',
+      currentPeriodEnd: '2026-07-15T00:00:00.000Z',
+      cancelAtPeriodEnd: false,
+      now: '2026-07-15T00:00:00.000Z',
+    });
+
+    expect(expiry).toMatchObject({
+      changed: true,
+      nextStatus: 'suspended',
+      reason: 'prepaid_period_expired',
+    });
+    expect(canCreateSaaSData(expiry.nextStatus)).toBe(false);
+    expect(canUseSaaSAI(expiry.nextStatus)).toBe(false);
+    expect(canExportSaaSData(expiry.nextStatus)).toBe(false);
+  });
+
   it('normalizes unknown statuses to suspended', () => {
     expect(normalizeSaaSSubscriptionStatus(' ACTIVE ')).toBe('active');
     expect(normalizeSaaSSubscriptionStatus('unexpected')).toBe('suspended');
