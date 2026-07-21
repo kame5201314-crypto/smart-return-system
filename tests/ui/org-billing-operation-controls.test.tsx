@@ -17,6 +17,8 @@ vi.mock('next/navigation', () => ({
 describe('OrgBillingOperationControls', () => {
   afterEach(() => {
     cleanup();
+    window.sessionStorage.clear();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     refresh.mockReset();
   });
@@ -187,6 +189,8 @@ describe('OrgBillingOperationControls', () => {
   });
 
   it('reuses the manual payment idempotency key when the same dialog retries', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-07-21T04:00:00.000Z'));
     let attempt = 0;
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       void _input;
@@ -213,6 +217,7 @@ describe('OrgBillingOperationControls', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: '記錄人工付款' }));
+    vi.setSystemTime(new Date('2026-07-21T05:00:00.000Z'));
     fireEvent.change(screen.getByLabelText('服務到期日'), {
       target: { value: '2099-08-01' },
     });
@@ -222,13 +227,110 @@ describe('OrgBillingOperationControls', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(confirmButton).toBeEnabled());
 
+    expect(screen.getByLabelText('付款金額（NT$）')).toBeDisabled();
+    expect(screen.getByLabelText('服務到期日')).toBeDisabled();
+    expect(screen.getByLabelText('備註（選填）')).toBeDisabled();
+
+    vi.setSystemTime(new Date('2026-07-21T06:00:00.000Z'));
     fireEvent.click(confirmButton);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
     expect(firstBody.idempotencyKey).toMatch(/^internal-manual-payment-/);
-    expect(secondBody.idempotencyKey).toBe(firstBody.idempotencyKey);
-    expect(secondBody.paidAt).toBe(firstBody.paidAt);
+    expect(firstBody.paidAt).toBe('2026-07-21T05:00:00.000Z');
+    expect(secondBody).toEqual(firstBody);
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(fetchMock.mock.calls[0]?.[1]?.body);
+  });
+
+  it('restores an ambiguous manual payment after remount and retries the exact body', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-07-21T05:00:00.000Z'));
+    let attempt = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+      attempt += 1;
+      if (attempt === 1) throw new TypeError('network response lost');
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const props = {
+      orgId: '33333333-3333-4333-8333-333333333333',
+      orgName: 'persistent-retry-org',
+      status: 'trialing' as const,
+      suggestedAmountTwd: 699,
+      canManageBillingOperations: true,
+    };
+    const firstRender = render(<OrgBillingOperationControls {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '記錄人工付款' }));
+    fireEvent.change(screen.getByLabelText('服務到期日'), {
+      target: { value: '2099-08-01' },
+    });
+    fireEvent.change(screen.getByLabelText('備註（選填）'), {
+      target: { value: 'bank transfer 123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '確認已收款' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const originalBody = String(fetchMock.mock.calls[0]?.[1]?.body);
+
+    firstRender.unmount();
+    vi.setSystemTime(new Date('2026-07-21T06:00:00.000Z'));
+    render(<OrgBillingOperationControls {...props} suggestedAmountTwd={399} />);
+    fireEvent.click(screen.getByRole('button', { name: '記錄人工付款' }));
+
+    expect(screen.getByLabelText('付款金額（NT$）')).toHaveValue(699);
+    expect(screen.getByLabelText('服務到期日')).toHaveValue('2099-08-01');
+    expect(screen.getByLabelText('備註（選填）')).toHaveValue('bank transfer 123');
+    expect(screen.getByLabelText('付款金額（NT$）')).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: '確認已收款' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(originalBody);
+    await waitFor(() => expect(window.sessionStorage.length).toBe(0));
+  });
+
+  it('never reuses one organization pending payment after switching organizations', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError('network response lost');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const firstOrgProps = {
+      orgId: '44444444-4444-4444-8444-444444444444',
+      orgName: 'first-org',
+      status: 'trialing' as const,
+      suggestedAmountTwd: 699,
+      canManageBillingOperations: true,
+    };
+    const view = render(<OrgBillingOperationControls {...firstOrgProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '記錄人工付款' }));
+    fireEvent.change(screen.getByLabelText('服務到期日'), {
+      target: { value: '2099-08-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '確認已收款' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+
+    view.rerender(
+      <OrgBillingOperationControls
+        {...firstOrgProps}
+        orgId="55555555-5555-4555-8555-555555555555"
+        orgName="second-org"
+        suggestedAmountTwd={399}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: '記錄人工付款' }));
+
+    expect(screen.getByLabelText('付款金額（NT$）')).toHaveValue(399);
+    expect(screen.getByLabelText('付款金額（NT$）')).toBeEnabled();
+    expect(screen.getByLabelText('服務到期日')).toHaveValue('');
+    expect(window.sessionStorage.length).toBe(1);
   });
 });

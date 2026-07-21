@@ -154,6 +154,7 @@ describe('SaaS platform admin billing operations', () => {
         orgId,
         amountTwd: 699,
         periodEnd: '2026-06-01T00:00:00.000Z',
+        idempotencyKey: 'legacy-admin-manual-payment-202605',
         metadata: {
           source: 'internal_org_detail',
           actorSubject: 'untrusted-client-value',
@@ -231,6 +232,19 @@ describe('SaaS platform admin billing operations', () => {
     });
   });
 
+  it('requires a durable idempotency key for manual payments', () => {
+    expect(() => normalizePlatformBillingOperationRequest(
+      {
+        operation: 'mark_manual_payment',
+        orgId,
+        amountTwd: 699,
+        periodEnd: '2026-06-01T00:00:00.000Z',
+      },
+      actorUserId,
+      new Date('2026-05-25T00:00:00.000Z')
+    )).toThrow('idempotencyKey is required.');
+  });
+
   it('rejects invalid billing operation payloads before repository writes', () => {
     expect(() =>
       normalizePlatformBillingOperationRequest(
@@ -305,6 +319,7 @@ describe('SaaS platform admin billing operations', () => {
         amountTwd: 699,
         effectiveAt: '2026-05-25T00:00:00.000Z',
         periodEnd: '2026-06-01T00:00:00.000Z',
+        idempotencyKey: 'guarded-route-manual-payment-202605',
       }),
       {
         requireAccess: async () => {
@@ -335,6 +350,7 @@ describe('SaaS platform admin billing operations', () => {
         amountTwd: 699,
         effectiveAt: '2026-05-25T00:00:00.000Z',
         periodEnd: '2026-06-01T00:00:00.000Z',
+        idempotencyKey: 'successful-route-manual-payment-202605',
       }),
       {
         requireAccess: async () => platformAdminContext,
@@ -403,7 +419,7 @@ describe('SaaS platform admin billing operations', () => {
       invoiceId,
       nextStatus: 'active',
     });
-    expect(rpc).toHaveBeenCalledWith('perform_platform_billing_operation', {
+    expect(rpc).toHaveBeenCalledWith('perform_platform_billing_operation_v2', {
       p_operation: 'request_refund',
       p_org_id: orgId,
       p_actor_user_id: actorUserId,

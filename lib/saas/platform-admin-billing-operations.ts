@@ -110,6 +110,14 @@ function optionalString(value: unknown, field: string, maxLength: number): strin
   return normalized;
 }
 
+function requireIdempotencyKey(value: unknown): string {
+  const normalized = requireString(value, 'idempotencyKey', 160);
+  if (normalized.length < 16) {
+    failInvalid('idempotencyKey must be at least 16 characters.');
+  }
+  return normalized;
+}
+
 function requireUuid(value: unknown, field: string): string {
   const normalized = requireString(value, field, 64);
   if (!UUID_PATTERN.test(normalized)) {
@@ -281,7 +289,7 @@ export function normalizePlatformBillingOperationRequest(
       periodStart,
       periodEnd,
       effectiveAt,
-      idempotencyKey: optionalString(value.idempotencyKey, 'idempotencyKey', 160),
+      idempotencyKey: requireIdempotencyKey(value.idempotencyKey),
       invoiceId: optionalUuid(value.invoiceId, 'invoiceId'),
       metadata,
     };
@@ -353,7 +361,7 @@ export function createPlatformBillingOperationsRepository(
   return {
     async performBillingOperation(input) {
       const { data, error } = await client.rpc(
-        'perform_platform_billing_operation',
+        'perform_platform_billing_operation_v2',
         buildPlatformBillingOperationRpcArgs(input)
       );
 

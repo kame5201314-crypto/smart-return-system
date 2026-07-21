@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const EXPECTED_BRANCH = 'develop-saas';
-const EXPECTED_LAST_MIGRATION = '054_saas_authoritative_payment_history.sql';
+const EXPECTED_LAST_MIGRATION = '055_saas_manual_payment_exact_retry.sql';
 const REQUIRED_BASE_MIGRATIONS = [
   '001_return_system_schema.sql',
   '002_rls_and_init_data.sql',
@@ -45,6 +45,7 @@ const REQUIRED_SAAS_MIGRATIONS = [
   '052_saas_billing_timestamp_integrity.sql',
   '053_saas_manual_payment_history.sql',
   '054_saas_authoritative_payment_history.sql',
+  '055_saas_manual_payment_exact_retry.sql',
 ];
 const DEFAULT_FORBIDDEN_SUPABASE_REFS = [
   'fdzfnenizyppxglypden',

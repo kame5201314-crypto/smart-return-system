@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banknote, Loader2, PauseCircle, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,6 +33,66 @@ interface OperationResponse {
   success?: boolean;
   error?: string;
   code?: string;
+}
+
+interface ManualPaymentRequest {
+  operation: 'mark_manual_payment';
+  orgId: string;
+  amountTwd: number;
+  paidAt: string;
+  periodStart: string | null;
+  periodEnd: string;
+  reason: string | null;
+  idempotencyKey: string;
+  metadata: {
+    source: 'internal_org_detail';
+    orgName: string;
+    paymentMethod: 'manual';
+  };
+}
+
+const MANUAL_PAYMENT_SESSION_PREFIX = 'smart-return:pending-manual-payment:v1:';
+
+function manualPaymentSessionKey(orgId: string): string {
+  return `${MANUAL_PAYMENT_SESSION_PREFIX}${orgId}`;
+}
+
+function readPendingManualPayment(orgId: string): string | null {
+  try {
+    const requestBody = window.sessionStorage.getItem(manualPaymentSessionKey(orgId));
+    if (!requestBody) return null;
+    const payload = JSON.parse(requestBody) as Partial<ManualPaymentRequest>;
+    if (
+      payload.operation !== 'mark_manual_payment'
+      || payload.orgId !== orgId
+      || typeof payload.idempotencyKey !== 'string'
+      || typeof payload.paidAt !== 'string'
+      || typeof payload.amountTwd !== 'number'
+      || typeof payload.periodEnd !== 'string'
+    ) {
+      window.sessionStorage.removeItem(manualPaymentSessionKey(orgId));
+      return null;
+    }
+    return requestBody;
+  } catch {
+    return null;
+  }
+}
+
+function persistPendingManualPayment(orgId: string, requestBody: string): void {
+  try {
+    window.sessionStorage.setItem(manualPaymentSessionKey(orgId), requestBody);
+  } catch {
+    // The in-memory snapshot still protects retries while this page remains open.
+  }
+}
+
+function clearPendingManualPayment(orgId: string): void {
+  try {
+    window.sessionStorage.removeItem(manualPaymentSessionKey(orgId));
+  } catch {
+    // A completed request must not fail only because browser storage is unavailable.
+  }
 }
 
 const OPERATION_COPY: Record<BillingOperation, {
@@ -99,8 +159,9 @@ export function OrgBillingOperationControls({
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
-  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState<string | null>(null);
-  const [paymentEffectiveAt, setPaymentEffectiveAt] = useState<string | null>(null);
+  const paymentDraftOrgRef = useRef(orgId);
+  const paymentSubmissionBodyRef = useRef<{ orgId: string; body: string } | null>(null);
+  const [paymentSubmissionLocked, setPaymentSubmissionLocked] = useState(false);
 
   if (!canManageBillingOperations) {
     return null;
@@ -111,15 +172,31 @@ export function OrgBillingOperationControls({
   const copy = operation ? OPERATION_COPY[operation] : null;
 
   function openManualPaymentDialog() {
-    setPaymentIdempotencyKey(`internal-manual-payment-${orgId}-${crypto.randomUUID()}`);
-    setPaymentEffectiveAt(new Date().toISOString());
+    const draftBelongsToCurrentOrg = paymentDraftOrgRef.current === orgId;
+    paymentDraftOrgRef.current = orgId;
+    const inMemoryRequestBody = paymentSubmissionBodyRef.current?.orgId === orgId
+      ? paymentSubmissionBodyRef.current.body
+      : null;
+    const pendingRequestBody = inMemoryRequestBody ?? readPendingManualPayment(orgId);
+    paymentSubmissionBodyRef.current = pendingRequestBody ? { orgId, body: pendingRequestBody } : null;
+    setPaymentSubmissionLocked(Boolean(pendingRequestBody));
+    if (pendingRequestBody) {
+      const pendingPayment = JSON.parse(pendingRequestBody) as ManualPaymentRequest;
+      setAmountTwd(String(pendingPayment.amountTwd));
+      setPeriodStart(pendingPayment.periodStart?.slice(0, 10) ?? '');
+      setPeriodEnd(pendingPayment.periodEnd.slice(0, 10));
+      setPaymentNote(pendingPayment.reason ?? '');
+    } else if (!draftBelongsToCurrentOrg) {
+      setAmountTwd(suggestedAmountTwd ? String(suggestedAmountTwd) : '');
+      setPeriodStart('');
+      setPeriodEnd('');
+      setPaymentNote('');
+    }
     setPaymentOpen(true);
   }
 
   function closeManualPaymentDialog() {
     setPaymentOpen(false);
-    setPaymentIdempotencyKey(null);
-    setPaymentEffectiveAt(null);
   }
 
   async function submitOperation() {
@@ -180,35 +257,36 @@ export function OrgBillingOperationControls({
       return;
     }
 
+    const inMemoryRequestBody = paymentSubmissionBodyRef.current?.orgId === orgId
+      ? paymentSubmissionBodyRef.current.body
+      : null;
+    const requestBody = inMemoryRequestBody ?? JSON.stringify({
+      operation: 'mark_manual_payment',
+      orgId,
+      amountTwd: amount,
+      paidAt: new Date().toISOString(),
+      periodStart: periodStart ? toTaipeiBillingBoundary(periodStart) : null,
+      periodEnd: toTaipeiBillingBoundary(periodEnd),
+      reason: paymentNote.trim() || null,
+      idempotencyKey: `internal-manual-payment-${orgId}-${crypto.randomUUID()}`,
+      metadata: {
+        source: 'internal_org_detail',
+        orgName,
+        paymentMethod: 'manual',
+      },
+    });
+    if (!inMemoryRequestBody) {
+      paymentSubmissionBodyRef.current = { orgId, body: requestBody };
+      persistPendingManualPayment(orgId, requestBody);
+      setPaymentSubmissionLocked(true);
+    }
+
     setSubmitting(true);
     try {
-      const idempotencyKey = paymentIdempotencyKey ??
-        `internal-manual-payment-${orgId}-${crypto.randomUUID()}`;
-      const effectiveAt = paymentEffectiveAt ?? new Date().toISOString();
-      if (!paymentIdempotencyKey) {
-        setPaymentIdempotencyKey(idempotencyKey);
-      }
-      if (!paymentEffectiveAt) {
-        setPaymentEffectiveAt(effectiveAt);
-      }
       const response = await fetch('/api/internal/saas/billing/operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          operation: 'mark_manual_payment',
-          orgId,
-          amountTwd: amount,
-          paidAt: effectiveAt,
-          periodStart: periodStart ? toTaipeiBillingBoundary(periodStart) : null,
-          periodEnd: toTaipeiBillingBoundary(periodEnd),
-          reason: paymentNote.trim() || null,
-          idempotencyKey,
-          metadata: {
-            source: 'internal_org_detail',
-            orgName,
-            paymentMethod: 'manual',
-          },
-        }),
+        body: requestBody,
       });
       const payload = (await response.json().catch(() => null)) as OperationResponse | null;
       if (!response.ok || payload?.success !== true) {
@@ -217,6 +295,9 @@ export function OrgBillingOperationControls({
       }
 
       toast.success('已記錄人工付款並更新服務期間。');
+      clearPendingManualPayment(orgId);
+      paymentSubmissionBodyRef.current = null;
+      setPaymentSubmissionLocked(false);
       closeManualPaymentDialog();
       setPeriodStart('');
       setPeriodEnd('');
@@ -387,7 +468,7 @@ export function OrgBillingOperationControls({
                 step={1}
                 value={amountTwd}
                 onChange={(event) => setAmountTwd(event.target.value)}
-                disabled={submitting}
+                disabled={submitting || paymentSubmissionLocked}
               />
             </div>
             <div className="space-y-2">
@@ -397,7 +478,7 @@ export function OrgBillingOperationControls({
                 type="date"
                 value={periodStart}
                 onChange={(event) => setPeriodStart(event.target.value)}
-                disabled={submitting}
+                disabled={submitting || paymentSubmissionLocked}
               />
             </div>
             <div className="space-y-2">
@@ -408,7 +489,7 @@ export function OrgBillingOperationControls({
                 value={periodEnd}
                 onChange={(event) => setPeriodEnd(event.target.value)}
                 min={resolveMinimumManualPaymentEndDate()}
-                disabled={submitting}
+                disabled={submitting || paymentSubmissionLocked}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
@@ -418,7 +499,7 @@ export function OrgBillingOperationControls({
                 value={paymentNote}
                 onChange={(event) => setPaymentNote(event.target.value)}
                 placeholder="例：2026 年 7 月銀行轉帳，已人工核對。"
-                disabled={submitting}
+                disabled={submitting || paymentSubmissionLocked}
                 rows={3}
               />
             </div>
