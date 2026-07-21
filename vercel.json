@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/saas/trial-expiry",
-      "schedule": "20 20 * * *"
+      "schedule": "20 * * * *"
     }
   ]
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import {
   createDefaultTrialExpiryRepository,
+  isPaidPeriodExpiryCronEnabled,
   isTrialExpiryCronEnabled,
   runScopedTrialExpiry,
   type TrialExpiryRepository,
@@ -39,13 +40,15 @@ export async function handleTrialExpiryCron(
   if (!isAuthorized(request, env)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
-  if (!isTrialExpiryCronEnabled(env)) {
+  const trialExpiryEnabled = isTrialExpiryCronEnabled(env);
+  const paidPeriodExpiryEnabled = isPaidPeriodExpiryCronEnabled(env);
+  if (!trialExpiryEnabled && !paidPeriodExpiryEnabled) {
     return NextResponse.json(
       {
         success: true,
         skipped: true,
         code: 'trial_expiry_cron_disabled',
-        reason: 'ENABLE_TRIAL_EXPIRY_CRON is not enabled.',
+        reason: 'Trial and paid period expiry cron flags are not enabled.',
       },
       { status: 200 }
     );
@@ -57,6 +60,9 @@ export async function handleTrialExpiryCron(
       {
         now: deps.now,
         limit: parseLimit(env.SAAS_TRIAL_EXPIRY_BATCH_LIMIT),
+        includeTrials: trialExpiryEnabled,
+        includePaidPeriods: paidPeriodExpiryEnabled,
+        paidPeriodLimit: parseLimit(env.SAAS_PAID_PERIOD_EXPIRY_BATCH_LIMIT),
       }
     );
     const failed = result.summary.failed > 0;

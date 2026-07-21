@@ -46,6 +46,7 @@ function runRolloutCheck(env: Record<string, string> = {}, args: string[] = ['--
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: '',
       TURNSTILE_SECRET_KEY: '',
       ENABLE_TRIAL_EXPIRY_CRON: 'false',
+      ENABLE_PAID_PERIOD_EXPIRY_CRON: 'false',
       ENABLE_BILLING: 'false',
       ENABLE_SUBSCRIPTION_PLAN: 'false',
       ENABLE_ADVANCED_ANALYTICS: 'false',
@@ -200,6 +201,7 @@ describe('SaaS rollout readiness check', () => {
     const result = runRolloutCheck({
       ENABLE_BILLING: 'true',
       ENABLE_SUBSCRIPTION_PLAN: 'true',
+      ENABLE_PAID_PERIOD_EXPIRY_CRON: 'true',
       BILLING_PROVIDER: 'ecpay',
       ECPAY_MERCHANT_ID: 'merchant-1',
       ECPAY_HASH_KEY: 'hash-key',
@@ -239,6 +241,7 @@ describe('SaaS rollout readiness check', () => {
     const result = runRolloutCheck({
       ENABLE_BILLING: 'true',
       ENABLE_SUBSCRIPTION_PLAN: 'true',
+      ENABLE_PAID_PERIOD_EXPIRY_CRON: 'true',
       BILLING_PROVIDER: 'ecpay',
       ECPAY_MERCHANT_ID: 'merchant-1',
       ECPAY_HASH_KEY: 'hash-key',
@@ -252,6 +255,26 @@ describe('SaaS rollout readiness check', () => {
     expect(result.status).toBe(0);
     expect(result.output).toContain('billing:ECPAY_MODE - set');
     expect(result.output).not.toContain('must be production for a Production SaaS billing rollout');
+  });
+
+  it('rejects ECPay billing without the fixed-term paid expiry lifecycle', () => {
+    const result = runRolloutCheck({
+      ENABLE_BILLING: 'true',
+      ENABLE_SUBSCRIPTION_PLAN: 'true',
+      ENABLE_PAID_PERIOD_EXPIRY_CRON: 'false',
+      BILLING_PROVIDER: 'ecpay',
+      ECPAY_MERCHANT_ID: 'merchant-1',
+      ECPAY_HASH_KEY: 'hash-key',
+      ECPAY_HASH_IV: 'hash-iv',
+      ECPAY_MODE: 'production',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('ECPay paid-period lifecycle');
+    expect(result.output).toContain(
+      'ENABLE_BILLING=true with ECPay requires ENABLE_PAID_PERIOD_EXPIRY_CRON=true'
+    );
   });
 
   it('requires logging when public signup is enabled', () => {

@@ -305,6 +305,9 @@ function checkControlledRolloutFlags() {
   const emailPasswordRecovery = normalizeEnvValue(process.env.ENABLE_EMAIL_PASSWORD_RECOVERY).toLowerCase();
   const phonePasswordRecovery = normalizeEnvValue(process.env.ENABLE_PHONE_PASSWORD_RECOVERY).toLowerCase();
   const trialExpiryCron = normalizeEnvValue(process.env.ENABLE_TRIAL_EXPIRY_CRON).toLowerCase();
+  const paidPeriodExpiryCron = normalizeEnvValue(
+    process.env.ENABLE_PAID_PERIOD_EXPIRY_CRON
+  ).toLowerCase();
   const multiTenantAdmin = normalizeEnvValue(process.env.ENABLE_MULTI_TENANT_ADMIN).toLowerCase();
   const subscriptionPlan = normalizeEnvValue(process.env.ENABLE_SUBSCRIPTION_PLAN).toLowerCase();
   const advancedAnalytics = normalizeEnvValue(process.env.ENABLE_ADVANCED_ANALYTICS).toLowerCase();
@@ -318,6 +321,7 @@ function checkControlledRolloutFlags() {
   record('pass', 'ENABLE_EMAIL_PASSWORD_RECOVERY', emailPasswordRecovery === 'true' ? 'enabled intentionally' : 'closed until verified recovery rollout');
   record('pass', 'ENABLE_PHONE_PASSWORD_RECOVERY', phonePasswordRecovery === 'true' ? 'enabled intentionally' : 'closed until verified recovery rollout');
   record('pass', 'ENABLE_TRIAL_EXPIRY_CRON', trialExpiryCron === 'true' ? 'enabled intentionally' : 'closed until scoped lifecycle rollout');
+  record('pass', 'ENABLE_PAID_PERIOD_EXPIRY_CRON', paidPeriodExpiryCron === 'true' ? 'enabled intentionally' : 'closed until fixed-term billing lifecycle rollout');
   record('pass', 'ENABLE_MULTI_TENANT_ADMIN', multiTenantAdmin === 'true' ? 'enabled intentionally' : 'closed until platform admin rollout');
   record('pass', 'ENABLE_SUBSCRIPTION_PLAN', subscriptionPlan === 'true' ? 'enabled intentionally' : 'closed until billing rollout');
   record('pass', 'ENABLE_ADVANCED_ANALYTICS', advancedAnalytics === 'true' ? 'enabled intentionally' : 'closed unless plan rollout approves it');
@@ -528,6 +532,21 @@ function checkBillingReadiness() {
   }
 
   record('pass', 'BILLING_PROVIDER', provider);
+
+  if (provider === 'ecpay' && !parseBool(process.env.ENABLE_PAID_PERIOD_EXPIRY_CRON)) {
+    record(
+      'fail',
+      'ECPay paid-period lifecycle',
+      'ENABLE_BILLING=true with ECPay requires ENABLE_PAID_PERIOD_EXPIRY_CRON=true'
+    );
+  } else if (provider === 'ecpay') {
+    record(
+      'pass',
+      'ECPay paid-period lifecycle',
+      'fixed-term expiry cron is enabled'
+    );
+  }
+
   for (const key of BILLING_PROVIDER_KEYS[provider]) {
     if (isPlaceholder(process.env[key])) {
       record('fail', `billing:${key}`, 'missing or placeholder');

@@ -127,6 +127,7 @@ export interface SettingsBillingCustomPlanOfferData {
 
 const SUSPENSION_ACTION_SOURCES = {
   'lifecycle.trial_expired_suspended': 'trial_expired',
+  'lifecycle.prepaid_period_expired_suspended': 'billing',
   'platform.billing.org_suspended': 'platform_admin',
 } as const satisfies Record<string, BillingSuspensionSource>;
 

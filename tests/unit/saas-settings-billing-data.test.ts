@@ -359,6 +359,23 @@ describe('SaaS settings billing data repository', () => {
     );
   });
 
+  it('maps prepaid-period expiry suspension audits to billing', async () => {
+    const auditChain = createChain({
+      action: 'lifecycle.prepaid_period_expired_suspended',
+      created_at: '2026-09-19T16:14:07.000Z',
+    });
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(() => auditChain),
+    } as SettingsBillingQueryClient);
+
+    await expect(repository.getSuspensionSource?.({ orgId: 'org-1' })).resolves.toBe(
+      'billing'
+    );
+    expect(auditChain.in).toHaveBeenCalledWith('action', expect.arrayContaining([
+      'lifecycle.prepaid_period_expired_suspended',
+    ]));
+  });
+
   it('keeps the suspension source null when no matching audit exists', async () => {
     const repository = createSettingsBillingDataRepository({
       from: vi.fn(() => createChain(null)),

@@ -59,14 +59,21 @@ async function main() {
     throw new Error('Missing CRON_SECRET');
   }
 
-  const targets = [
+  const safeDefaultTargets = [
     '/api/cron/backup',
     '/api/cron/reconcile-ai-reports',
     '/api/cron/shopee-scan-daily-report',
     '/api/cron/shopee-scan-smoke',
     '/api/cron/scan-retention',
     '/api/cron/saas/email-queue?dryRun=true',
-  ].filter((path) => !only || path.includes(only));
+  ];
+  const explicitMutationTargets = [
+    '/api/cron/saas/trial-expiry',
+  ];
+  const targets = (only
+    ? [...safeDefaultTargets, ...explicitMutationTargets]
+    : safeDefaultTargets
+  ).filter((path) => !only || path.includes(only));
 
   if (targets.length === 0) {
     throw new Error(`No cron endpoint matched --only=${only}`);

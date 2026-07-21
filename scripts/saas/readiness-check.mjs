@@ -300,6 +300,10 @@ function checkCommercialFoundation() {
     'supabase/migrations/046_saas_self_service_billing.sql',
     'supabase/migrations/047_saas_billing_table_privileges.sql',
     'supabase/migrations/048_saas_checkout_order_hardening.sql',
+    'supabase/migrations/049_saas_custom_plan_offers.sql',
+    'supabase/migrations/050_saas_subscription_timeline_consistency.sql',
+    'supabase/migrations/051_saas_fixed_term_expiry_enforcement.sql',
+    'supabase/migrations/052_saas_billing_timestamp_integrity.sql',
     'lib/auth/verified-signup.ts',
     'components/auth/verified-signup-form.tsx',
     'lib/saas/lead-capture-service.ts',
@@ -315,6 +319,31 @@ function checkCommercialFoundation() {
       record('pass', `commercial:${file}`, 'present');
     } else {
       record('fail', `commercial:${file}`, 'missing');
+    }
+  }
+
+  const vercelConfigPath = path.resolve(process.cwd(), 'vercel.json');
+  const expiryCronDrillPath = path.resolve(process.cwd(), 'scripts/maintenance/cron-drill.mjs');
+  if (fs.existsSync(vercelConfigPath) && fs.existsSync(expiryCronDrillPath)) {
+    const vercelSource = fs.readFileSync(vercelConfigPath, 'utf8');
+    const expiryCronDrillSource = fs.readFileSync(expiryCronDrillPath, 'utf8');
+    if (
+      vercelSource.includes('"path": "/api/cron/saas/trial-expiry"') &&
+      vercelSource.includes('"schedule": "20 * * * *"') &&
+      expiryCronDrillSource.includes("'/api/cron/saas/trial-expiry'") &&
+      expiryCronDrillSource.includes('explicitMutationTargets')
+    ) {
+      record(
+        'pass',
+        'SaaS subscription expiry schedule',
+        'hourly cron is configured and its mutating drill remains explicit-only'
+      );
+    } else {
+      record(
+        'fail',
+        'SaaS subscription expiry schedule',
+        'hourly expiry cron and explicit-only drill must stay configured'
+      );
     }
   }
 

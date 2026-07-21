@@ -89,4 +89,120 @@ describe('SaaS trial expiry cron route', () => {
       data: { summary: { failed: 1 } },
     });
   });
+
+  it('can run paid fixed-term expiry independently without scanning trials', async () => {
+    const repository = {
+      listExpiredTrials: vi.fn(async () => []),
+      suspendExpiredTrial: vi.fn(),
+      listExpiredPaidSubscriptions: vi.fn(async () => [{
+        subscriptionId: '22222222-2222-4222-8222-222222222222',
+        orgId: '11111111-1111-4111-8111-111111111111',
+        status: 'active' as const,
+        provider: 'ecpay' as const,
+        currentPeriodEnd: '2026-07-13T00:00:00.000Z',
+      }]),
+      suspendExpiredPaidSubscription: vi.fn(async () => ({
+        changed: true,
+        orgId: '11111111-1111-4111-8111-111111111111',
+        subscriptionId: '22222222-2222-4222-8222-222222222222',
+        auditLogId: null,
+        reason: 'prepaid_period_expired',
+      })),
+    };
+    const response = await handleTrialExpiryCron(request(), {
+      env: {
+        CRON_SECRET: 'cron-secret',
+        ENABLE_TRIAL_EXPIRY_CRON: 'false',
+        ENABLE_PAID_PERIOD_EXPIRY_CRON: 'true',
+        SAAS_PAID_PERIOD_EXPIRY_BATCH_LIMIT: '15',
+      },
+      now: new Date('2026-07-14T00:00:00.000Z'),
+      repository,
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      data: {
+        summary: { scanned: 1, suspended: 1, skipped: 0, failed: 0 },
+        scopeSummary: {
+          trials: { scanned: 0, suspended: 0, skipped: 0, failed: 0 },
+          paidPeriods: { scanned: 1, suspended: 1, skipped: 0, failed: 0 },
+        },
+      },
+    });
+    expect(repository.listExpiredTrials).not.toHaveBeenCalled();
+    expect(repository.listExpiredPaidSubscriptions).toHaveBeenCalledWith({
+      now: '2026-07-14T00:00:00.000Z',
+      limit: 15,
+    });
+  });
+
+  it('fails closed when the paid-period flag is enabled without paid repository methods', async () => {
+    const repository = {
+      listExpiredTrials: vi.fn(async () => []),
+      suspendExpiredTrial: vi.fn(),
+    };
+    const response = await handleTrialExpiryCron(request(), {
+      env: {
+        CRON_SECRET: 'cron-secret',
+        ENABLE_TRIAL_EXPIRY_CRON: 'false',
+        ENABLE_PAID_PERIOD_EXPIRY_CRON: 'true',
+      },
+      repository,
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: 'Paid period expiry repository methods are not configured.',
+    });
+    expect(repository.listExpiredTrials).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 after completing paid expiry when the trial list query fails', async () => {
+    const repository = {
+      listExpiredTrials: vi.fn(async () => {
+        throw new Error('trial query unavailable');
+      }),
+      suspendExpiredTrial: vi.fn(),
+      listExpiredPaidSubscriptions: vi.fn(async () => [{
+        subscriptionId: '22222222-2222-4222-8222-222222222222',
+        orgId: '11111111-1111-4111-8111-111111111111',
+        status: 'active' as const,
+        provider: 'ecpay' as const,
+        currentPeriodEnd: '2026-07-13T00:00:00.000Z',
+      }]),
+      suspendExpiredPaidSubscription: vi.fn(async () => ({
+        changed: true,
+        orgId: '11111111-1111-4111-8111-111111111111',
+        subscriptionId: '22222222-2222-4222-8222-222222222222',
+        auditLogId: null,
+        reason: 'prepaid_period_expired',
+      })),
+    };
+    const response = await handleTrialExpiryCron(request(), {
+      env: {
+        CRON_SECRET: 'cron-secret',
+        ENABLE_TRIAL_EXPIRY_CRON: 'true',
+        ENABLE_PAID_PERIOD_EXPIRY_CRON: 'true',
+      },
+      now: new Date('2026-07-14T00:00:00.000Z'),
+      repository,
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      success: false,
+      data: {
+        summary: { scanned: 1, suspended: 1, skipped: 0, failed: 1 },
+        scopeSummary: {
+          trials: { scanned: 0, suspended: 0, skipped: 0, failed: 1 },
+          paidPeriods: { scanned: 1, suspended: 1, skipped: 0, failed: 0 },
+        },
+        scopeErrors: { trials: 'trial query unavailable' },
+      },
+    });
+    expect(repository.suspendExpiredPaidSubscription).toHaveBeenCalledTimes(1);
+  });
 });
