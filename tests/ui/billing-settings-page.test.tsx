@@ -135,6 +135,29 @@ describe('BillingSettingsPage', () => {
     expect(document.querySelector('a[href="/pricing"]')).toBeNull();
   });
 
+  it('labels scrubbed manual payments without inventing a paid plan', async () => {
+    billingMocks.result.data.history = [
+      {
+        id: 'manual:event-1',
+        plan: null,
+        provider: 'manual',
+        periodStart: '2026-07-21T00:00:00+08:00',
+        periodEnd: '2026-08-21T00:00:00+08:00',
+        amountTwd: 399,
+        status: 'paid',
+        paidAt: '2026-07-21T04:30:00.000Z',
+        createdAt: '2026-07-21T04:30:01.000Z',
+      },
+    ];
+
+    await renderPage();
+
+    expect(screen.getAllByText('人工入帳').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('方案未記錄').length).toBeGreaterThan(0);
+    expect(screen.getByText('入帳時間')).toBeInTheDocument();
+    expect(screen.getAllByText('2026/07/21 12:30').length).toBeGreaterThan(0);
+  });
+
   it('shows an expired self-service trial as 試用版 without exposing the organization name', async () => {
     billingMocks.result.data.org.status = 'suspended';
     billingMocks.result.data.org.suspensionSource = 'trial_expired';

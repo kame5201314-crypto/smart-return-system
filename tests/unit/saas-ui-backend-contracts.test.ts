@@ -286,6 +286,85 @@ describe('SaaS UI/backend contracts', () => {
     ]);
   });
 
+  it('keeps a scrubbed manual payment without inventing a plan', () => {
+    expect(
+      buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'basic',
+          status: 'active',
+          suspensionSource: null,
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        history: [
+          {
+            id: 'manual:event-1',
+            plan: null,
+            provider: 'manual',
+            amountTwd: 399,
+            status: 'paid',
+            paidAt: '2026-07-21T04:30:00.000Z',
+            periodStart: '2026-07-21T00:00:00+08:00',
+            periodEnd: '2026-08-21T00:00:00+08:00',
+            createdAt: '2026-07-21T04:30:01.000Z',
+          },
+        ],
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+        },
+      }).history
+    ).toEqual([
+      expect.objectContaining({
+        id: 'manual:event-1',
+        plan: null,
+        provider: 'manual',
+        status: 'paid',
+      }),
+    ]);
+  });
+
+  it('rejects a missing plan for non-manual payment history', () => {
+    expect(() => buildBillingSettingsView({
+      org: {
+        id: 'org-1',
+        name: 'Demo Org',
+        plan: 'basic',
+        status: 'active',
+        suspensionSource: null,
+      },
+      subscription: null,
+      invoiceSummary: {
+        latestInvoiceId: null,
+        latestInvoiceStatus: null,
+        billingEmail: null,
+        taxId: null,
+      },
+      history: [{
+        id: 'ecpay-missing-plan',
+        plan: null,
+        provider: 'ecpay',
+        amountTwd: 399,
+        status: 'paid',
+        paidAt: '2026-07-21T04:30:00.000Z',
+        periodStart: '2026-07-21T00:00:00+08:00',
+        periodEnd: '2026-08-21T00:00:00+08:00',
+        createdAt: '2026-07-21T04:30:01.000Z',
+      }],
+      actions: {
+        canUpdateBilling: true,
+        canCancelRenewal: false,
+      },
+    })).toThrow('Missing billing history plan for non-manual payment.');
+  });
+
   it('normalizes private custom offers without changing public plan contracts', () => {
     expect(
       buildBillingSettingsView({

@@ -107,7 +107,7 @@ const PAYMENT_STATUS_LABEL: Record<BillingSettingsView['history'][number]['statu
 };
 
 const PROVIDER_LABEL: Record<BillingSettingsView['history'][number]['provider'], string> = {
-  manual: '人工處理',
+  manual: '人工入帳',
   ecpay: '綠界科技',
   stripe: 'Stripe',
   tappay: 'TapPay',
@@ -575,7 +575,7 @@ export function BillingPlanSelector({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-medium text-gray-950">
-                          {SAAS_PLAN_DEFINITIONS[item.plan].name}
+                          {item.plan ? SAAS_PLAN_DEFINITIONS[item.plan].name : '方案未記錄'}
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {item.periodStart && item.periodEnd
@@ -606,7 +606,11 @@ export function BillingPlanSelector({
                       </div>
                       <div className="col-span-2">
                         <dt className="text-muted-foreground">
-                          {item.status === 'paid' && item.paidAt ? '付款時間' : '訂單建立時間'}
+                          {item.provider === 'manual'
+                            ? '入帳時間'
+                            : item.status === 'paid' && item.paidAt
+                              ? '付款時間'
+                              : '訂單建立時間'}
                         </dt>
                         <dd className="mt-1 text-gray-950">
                           {formatSaaSBillingDateTime(
@@ -639,7 +643,9 @@ export function BillingPlanSelector({
                             ? `${formatSaaSBillingDate(item.periodStart)}－${formatSaaSBillingDate(item.periodEnd)}`
                             : '尚未產生使用期間'}
                         </td>
-                        <td className="px-4 py-3">{SAAS_PLAN_DEFINITIONS[item.plan].name}</td>
+                        <td className="px-4 py-3">
+                          {item.plan ? SAAS_PLAN_DEFINITIONS[item.plan].name : '方案未記錄'}
+                        </td>
                         <td className="px-4 py-3">{formatAmount(item.amountTwd)}</td>
                         <td className="px-4 py-3">{PROVIDER_LABEL[item.provider]}</td>
                         <td className="px-4 py-3">

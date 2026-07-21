@@ -62,9 +62,17 @@ const OPERATION_COPY: Record<BillingOperation, {
 };
 
 export function resolveMinimumManualPaymentEndDate(now = new Date()): string {
-  const tomorrow = new Date(now);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const taipeiNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const tomorrow = new Date(Date.UTC(
+    taipeiNow.getUTCFullYear(),
+    taipeiNow.getUTCMonth(),
+    taipeiNow.getUTCDate() + 1
+  ));
   return tomorrow.toISOString().slice(0, 10);
+}
+
+export function toTaipeiBillingBoundary(date: string): string {
+  return `${date}T00:00:00+08:00`;
 }
 
 function resolveErrorMessage(payload: OperationResponse | null): string {
@@ -92,6 +100,7 @@ export function OrgBillingOperationControls({
   const [periodEnd, setPeriodEnd] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState<string | null>(null);
+  const [paymentEffectiveAt, setPaymentEffectiveAt] = useState<string | null>(null);
 
   if (!canManageBillingOperations) {
     return null;
@@ -103,12 +112,14 @@ export function OrgBillingOperationControls({
 
   function openManualPaymentDialog() {
     setPaymentIdempotencyKey(`internal-manual-payment-${orgId}-${crypto.randomUUID()}`);
+    setPaymentEffectiveAt(new Date().toISOString());
     setPaymentOpen(true);
   }
 
   function closeManualPaymentDialog() {
     setPaymentOpen(false);
     setPaymentIdempotencyKey(null);
+    setPaymentEffectiveAt(null);
   }
 
   async function submitOperation() {
@@ -173,8 +184,12 @@ export function OrgBillingOperationControls({
     try {
       const idempotencyKey = paymentIdempotencyKey ??
         `internal-manual-payment-${orgId}-${crypto.randomUUID()}`;
+      const effectiveAt = paymentEffectiveAt ?? new Date().toISOString();
       if (!paymentIdempotencyKey) {
         setPaymentIdempotencyKey(idempotencyKey);
+      }
+      if (!paymentEffectiveAt) {
+        setPaymentEffectiveAt(effectiveAt);
       }
       const response = await fetch('/api/internal/saas/billing/operations', {
         method: 'POST',
@@ -183,8 +198,9 @@ export function OrgBillingOperationControls({
           operation: 'mark_manual_payment',
           orgId,
           amountTwd: amount,
-          periodStart: periodStart ? `${periodStart}T00:00:00.000Z` : null,
-          periodEnd: `${periodEnd}T00:00:00.000Z`,
+          paidAt: effectiveAt,
+          periodStart: periodStart ? toTaipeiBillingBoundary(periodStart) : null,
+          periodEnd: toTaipeiBillingBoundary(periodEnd),
           reason: paymentNote.trim() || null,
           idempotencyKey,
           metadata: {

@@ -200,12 +200,195 @@ describe('SaaS settings billing data repository', () => {
     expect(invoiceChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(invoiceChain.limit).toHaveBeenCalledWith(1);
     expect(from).not.toHaveBeenCalledWith('audit_logs');
+    expect(paymentOrdersChain.order).toHaveBeenCalledWith('updated_at', { ascending: false });
     expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
     expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
     expect(customOffersChain.eq).toHaveBeenCalledWith('org_id', 'org-1');
     expect(customOffersChain.eq).toHaveBeenCalledWith('status', 'active');
     expect(customOffersChain.gt).toHaveBeenCalledWith('expires_at', expect.any(String));
     expect(customOffersChain.limit).toHaveBeenCalledWith(12);
+  });
+
+  it('normalizes the scrubbed manual payment RPC and drops malformed rows', async () => {
+    const rpc = vi.fn(async () => ({
+      data: [
+        {
+          id: 'manual:event-1',
+          plan: null,
+          provider: 'manual',
+          amount_twd: 399,
+          status: 'paid',
+          paid_at: '2026-07-21T04:30:00.000Z',
+          period_start: '2026-07-21T00:00:00+08:00',
+          period_end: '2026-08-21T00:00:00+08:00',
+          created_at: '2026-07-21T04:30:01.000Z',
+        },
+        {
+          id: 'manual:zero-amount',
+          provider: 'manual',
+          amount_twd: 0,
+          status: 'paid',
+          paid_at: '2026-07-21T04:30:00.000Z',
+          period_start: '2026-07-21T00:00:00+08:00',
+          period_end: '2026-08-21T00:00:00+08:00',
+          created_at: '2026-07-21T04:30:01.000Z',
+        },
+        {
+          id: 'manual:invalid-period',
+          provider: 'manual',
+          amount_twd: 399,
+          status: 'paid',
+          paid_at: '2026-07-21T04:30:00.000Z',
+          period_start: '2026-08-21T00:00:00+08:00',
+          period_end: '2026-07-21T00:00:00+08:00',
+          created_at: '2026-07-21T04:30:01.000Z',
+        },
+      ],
+      error: null,
+    }));
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(),
+      rpc,
+    } as unknown as SettingsBillingQueryClient);
+
+    await expect(repository.listManualPaymentHistory?.({
+      orgId: 'org-1',
+      limit: 50,
+    })).resolves.toEqual([
+      {
+        id: 'manual:event-1',
+        plan: null,
+        provider: 'manual',
+        amountTwd: 399,
+        status: 'paid',
+        paidAt: '2026-07-21T04:30:00.000Z',
+        periodStart: '2026-07-21T00:00:00+08:00',
+        periodEnd: '2026-08-21T00:00:00+08:00',
+        createdAt: '2026-07-21T04:30:01.000Z',
+      },
+    ]);
+    expect(rpc).toHaveBeenCalledWith('list_customer_manual_payment_history', {
+      p_org_id: 'org-1',
+      p_limit: 50,
+    });
+  });
+
+  it.each([
+    ['PGRST202', 'function is not available'],
+    ['42883', 'function public.list_customer_manual_payment_history(uuid, integer) does not exist'],
+  ])(
+    'treats only a missing manual history RPC (%s) as an empty rollout result',
+    async (code, message) => {
+      const repository = createSettingsBillingDataRepository({
+        from: vi.fn(),
+        rpc: vi.fn(async () => ({
+          data: null,
+          error: { code, message },
+        })),
+      } as unknown as SettingsBillingQueryClient);
+
+      await expect(repository.listManualPaymentHistory?.({ orgId: 'org-1' }))
+        .resolves.toEqual([]);
+    }
+  );
+
+  it('does not hide an undefined-function error raised inside the manual history RPC', async () => {
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(),
+      rpc: vi.fn(async () => ({
+        data: null,
+        error: { code: '42883', message: 'operator does not exist: jsonb = text' },
+      })),
+    } as unknown as SettingsBillingQueryClient);
+
+    await expect(repository.listManualPaymentHistory?.({ orgId: 'org-1' }))
+      .rejects.toThrow('operator does not exist: jsonb = text');
+  });
+
+  it('surfaces manual history authorization and operational errors', async () => {
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(),
+      rpc: vi.fn(async () => ({
+        data: null,
+        error: { code: '42501', message: 'active owner or admin membership is required' },
+      })),
+    } as unknown as SettingsBillingQueryClient);
+
+    await expect(repository.listManualPaymentHistory?.({ orgId: 'org-1' }))
+      .rejects.toThrow('active owner or admin membership is required');
+  });
+
+  it('fetches candidates by updated time and merges history by paid or created time', async () => {
+    const paymentOrdersChain = createChain([
+      {
+        id: 'delayed-paid-order',
+        plan: 'basic',
+        provider: 'ecpay',
+        amount_twd: 399,
+        status: 'paid',
+        paid_at: '2026-07-21T14:00:00.000Z',
+        created_at: '2026-07-01T00:00:00.000Z',
+      },
+      {
+        id: 'newer-pending-order',
+        plan: 'basic',
+        provider: 'ecpay',
+        amount_twd: 399,
+        status: 'pending',
+        paid_at: null,
+        created_at: '2026-07-21T13:00:00.000Z',
+      },
+    ]);
+    const paymentRepository = createSettingsBillingDataRepository({
+      from: vi.fn(() => paymentOrdersChain),
+    } as SettingsBillingQueryClient);
+    const paymentOrders = await paymentRepository.listPaymentOrders?.({
+      orgId: 'org-1',
+      limit: 24,
+    });
+    expect(paymentOrdersChain.order).toHaveBeenCalledWith('updated_at', { ascending: false });
+
+    const repository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'History Store',
+        plan: 'basic',
+        status: 'active',
+        suspensionSource: null,
+        billingEmail: null,
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+      listPaymentOrders: vi.fn(async () => paymentOrders ?? []),
+      listManualPaymentHistory: vi.fn(async () => [{
+        id: 'manual:event-1',
+        plan: null,
+        provider: 'manual' as const,
+        amountTwd: 399,
+        status: 'paid' as const,
+        paidAt: '2026-07-21T12:00:00.000Z',
+        periodStart: '2026-07-21T00:00:00+08:00',
+        periodEnd: '2026-08-21T00:00:00+08:00',
+        createdAt: '2026-07-21T12:00:01.000Z',
+      }]),
+    };
+
+    const input = await buildBillingSettingsViewInput(repository, {
+      orgId: 'org-1',
+      actions: { canUpdateBilling: true, canCancelRenewal: false },
+    });
+
+    expect(input?.history?.map((item) => item.id)).toEqual([
+      'delayed-paid-order',
+      'newer-pending-order',
+      'manual:event-1',
+    ]);
+    expect(input?.history?.[2]).toMatchObject({ plan: null, provider: 'manual' });
+    expect(repository.listManualPaymentHistory).toHaveBeenCalledWith({
+      orgId: 'org-1',
+      limit: 24,
+    });
   });
 
   it('keeps only active unexpired offers for the current organization', async () => {

@@ -83,7 +83,7 @@ export interface BillingSettingsView {
   };
   history: Array<{
     id: string;
-    plan: SaaSPlanCode;
+    plan: SaaSPlanCode | null;
     provider: BillingProvider;
     amountTwd: number;
     status: BillingPaymentStatus;
@@ -573,6 +573,20 @@ function normalizeBillingPaidPlan(value: unknown): Exclude<SaaSPlanCode, 'enterp
   throw new Error(`Invalid self-service billing plan: ${String(value)}`);
 }
 
+function normalizeBillingHistoryPlan(
+  value: unknown,
+  provider: BillingProvider
+): Exclude<SaaSPlanCode, 'enterprise'> | null {
+  if (value === null) {
+    if (provider !== 'manual') {
+      throw new Error('Missing billing history plan for non-manual payment.');
+    }
+    return null;
+  }
+
+  return normalizeBillingPaidPlan(value);
+}
+
 function normalizeTeamMemberRole(value: string): TeamMemberRole {
   return normalizeAllowed(value, TEAM_MEMBER_ROLES, 'team member role');
 }
@@ -786,17 +800,20 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
       billingEmail: input.invoiceSummary.billingEmail,
       taxId: input.invoiceSummary.taxId,
     },
-    history: (input.history ?? []).map((item) => ({
-      id: requireString(item.id, 'billing.history.id'),
-      plan: normalizeBillingPaidPlan(item.plan),
-      provider: normalizeBillingProvider(item.provider),
-      amountTwd: nonNegativeNumber(item.amountTwd, 'billing.history.amountTwd'),
-      status: normalizeBillingPaymentStatus(item.status),
-      paidAt: item.paidAt,
-      periodStart: item.periodStart,
-      periodEnd: item.periodEnd,
-      createdAt: requireString(item.createdAt, 'billing.history.createdAt'),
-    })),
+    history: (input.history ?? []).map((item) => {
+      const provider = normalizeBillingProvider(item.provider);
+      return {
+        id: requireString(item.id, 'billing.history.id'),
+        plan: normalizeBillingHistoryPlan(item.plan, provider),
+        provider,
+        amountTwd: nonNegativeNumber(item.amountTwd, 'billing.history.amountTwd'),
+        status: normalizeBillingPaymentStatus(item.status),
+        paidAt: item.paidAt,
+        periodStart: item.periodStart,
+        periodEnd: item.periodEnd,
+        createdAt: requireString(item.createdAt, 'billing.history.createdAt'),
+      };
+    }),
     customOffers: (input.customOffers ?? []).map((offer) => ({
       id: requireString(offer.id, 'billing.customOffers.id'),
       title: requireString(offer.title, 'billing.customOffers.title'),

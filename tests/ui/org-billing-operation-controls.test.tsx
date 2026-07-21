@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   OrgBillingOperationControls,
   resolveMinimumManualPaymentEndDate,
+  toTaipeiBillingBoundary,
 } from '@/components/internal/org-billing-operation-controls';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -20,9 +21,15 @@ describe('OrgBillingOperationControls', () => {
     refresh.mockReset();
   });
 
-  it('uses tomorrow as the earliest manual payment end date', () => {
+  it('uses tomorrow in Taipei as the earliest manual payment end date', () => {
     expect(resolveMinimumManualPaymentEndDate(new Date('2026-12-31T23:30:00.000Z')))
-      .toBe('2027-01-01');
+      .toBe('2027-01-02');
+    expect(resolveMinimumManualPaymentEndDate(new Date('2026-07-20T16:30:00.000Z')))
+      .toBe('2026-07-22');
+  });
+
+  it('treats manual billing dates as Taipei midnight instead of UTC midnight', () => {
+    expect(toTaipeiBillingBoundary('2026-07-21')).toBe('2026-07-21T00:00:00+08:00');
   });
 
   it('does not render billing controls without the billing operations permission', () => {
@@ -165,8 +172,8 @@ describe('OrgBillingOperationControls', () => {
       operation: 'mark_manual_payment',
       orgId: '11111111-1111-4111-8111-111111111111',
       amountTwd: 699,
-      periodStart: '2026-07-01T00:00:00.000Z',
-      periodEnd: '2026-08-01T00:00:00.000Z',
+      periodStart: '2026-07-01T00:00:00+08:00',
+      periodEnd: '2026-08-01T00:00:00+08:00',
       reason: '銀行轉帳已核對',
       metadata: {
         source: 'internal_org_detail',
@@ -175,6 +182,7 @@ describe('OrgBillingOperationControls', () => {
       },
     });
     expect(body.idempotencyKey).toMatch(/^internal-manual-payment-/);
+    expect(body.paidAt).toEqual(expect.any(String));
     await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
   });
 
@@ -221,5 +229,6 @@ describe('OrgBillingOperationControls', () => {
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
     expect(firstBody.idempotencyKey).toMatch(/^internal-manual-payment-/);
     expect(secondBody.idempotencyKey).toBe(firstBody.idempotencyKey);
+    expect(secondBody.paidAt).toBe(firstBody.paidAt);
   });
 });

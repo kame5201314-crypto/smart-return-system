@@ -304,6 +304,7 @@ function checkCommercialFoundation() {
     'supabase/migrations/050_saas_subscription_timeline_consistency.sql',
     'supabase/migrations/051_saas_fixed_term_expiry_enforcement.sql',
     'supabase/migrations/052_saas_billing_timestamp_integrity.sql',
+    'supabase/migrations/053_saas_manual_payment_history.sql',
     'lib/auth/verified-signup.ts',
     'components/auth/verified-signup-form.tsx',
     'lib/saas/lead-capture-service.ts',

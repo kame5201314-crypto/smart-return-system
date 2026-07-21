@@ -26,6 +26,10 @@ export interface SettingsBillingQueryBuilder extends PromiseLike<SupabaseQueryRe
 
 export interface SettingsBillingQueryClient {
   from(table: string): SettingsBillingQueryBuilder;
+  rpc?(
+    functionName: string,
+    args?: Record<string, unknown>
+  ): PromiseLike<SupabaseQueryResult>;
 }
 
 export interface SettingsBillingDataRepository {
@@ -34,6 +38,10 @@ export interface SettingsBillingDataRepository {
   getLatestInvoice(input: { orgId: string }): Promise<SettingsBillingInvoiceData | null>;
   getSuspensionSource?(input: { orgId: string }): Promise<BillingSuspensionSource | null>;
   listPaymentOrders?(input: { orgId: string; limit?: number }): Promise<SettingsBillingPaymentOrderData[]>;
+  listManualPaymentHistory?(input: {
+    orgId: string;
+    limit?: number;
+  }): Promise<SettingsBillingManualPaymentData[]>;
   listSubscriptionPeriods?(input: {
     orgId: string;
     limit?: number;
@@ -74,6 +82,18 @@ export interface SettingsBillingPaymentOrderData {
   amountTwd: number;
   status: string;
   paidAt: string | null;
+  createdAt: string;
+}
+
+export interface SettingsBillingManualPaymentData {
+  id: string;
+  plan: null;
+  provider: 'manual';
+  amountTwd: number;
+  status: 'paid';
+  paidAt: string;
+  periodStart: string;
+  periodEnd: string;
   createdAt: string;
 }
 
@@ -243,6 +263,57 @@ function normalizePaymentOrder(row: unknown): SettingsBillingPaymentOrderData | 
   };
 }
 
+function normalizeManualPayment(row: unknown): SettingsBillingManualPaymentData | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const id = stringOrNull(row.id);
+  const provider = stringOrNull(row.provider);
+  const status = stringOrNull(row.status);
+  const amountTwd = nonNegativeNumberOrNull(row.amount_twd);
+  const paidAt = stringOrNull(row.paid_at);
+  const periodStart = stringOrNull(row.period_start);
+  const periodEnd = stringOrNull(row.period_end);
+  const createdAt = stringOrNull(row.created_at);
+  const paidAtTimestamp = paidAt ? timestampOrNull(paidAt) : null;
+  const periodStartTimestamp = periodStart ? timestampOrNull(periodStart) : null;
+  const periodEndTimestamp = periodEnd ? timestampOrNull(periodEnd) : null;
+  const createdAtTimestamp = createdAt ? timestampOrNull(createdAt) : null;
+
+  if (
+    !id ||
+    provider !== 'manual' ||
+    status !== 'paid' ||
+    amountTwd === null ||
+    !Number.isInteger(amountTwd) ||
+    amountTwd <= 0 ||
+    !paidAt ||
+    paidAtTimestamp === null ||
+    !periodStart ||
+    periodStartTimestamp === null ||
+    !periodEnd ||
+    periodEndTimestamp === null ||
+    periodEndTimestamp <= periodStartTimestamp ||
+    !createdAt ||
+    createdAtTimestamp === null
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    plan: null,
+    provider: 'manual',
+    amountTwd,
+    status: 'paid',
+    paidAt,
+    periodStart,
+    periodEnd,
+    createdAt,
+  };
+}
+
 function normalizeSubscriptionPeriod(
   row: unknown
 ): SettingsBillingSubscriptionPeriodData | null {
@@ -323,6 +394,19 @@ function isHistoryTableUnavailable(error: SupabaseQueryError | null, table: stri
   );
 }
 
+function isManualPaymentHistoryRpcUnavailable(error: SupabaseQueryError | null): boolean {
+  const code = error?.code?.toUpperCase() ?? '';
+  const message = error?.message?.toLowerCase() ?? '';
+  return code === 'PGRST202' || (
+    message.includes('list_customer_manual_payment_history') && (
+      code === '42883' ||
+      message.includes('does not exist') ||
+      message.includes('schema cache') ||
+      message.includes('could not find')
+    )
+  );
+}
+
 export function createSettingsBillingDataRepository(
   client: SettingsBillingQueryClient
 ): SettingsBillingDataRepository {
@@ -381,7 +465,10 @@ export function createSettingsBillingDataRepository(
         .from('payment_orders')
         .select('id, plan, provider, amount_twd, status, paid_at, created_at')
         .eq('org_id', input.orgId)
-        .order('created_at', { ascending: false })
+        // A delayed callback updates an older order after newer pending/failed
+        // orders were created. Fetch candidates by last update, then sort the
+        // merged customer DTO by the actual payment/creation timestamp below.
+        .order('updated_at', { ascending: false })
         .limit(input.limit ?? 24);
 
       if (isHistoryTableUnavailable(error, 'payment_orders')) return [];
@@ -390,6 +477,28 @@ export function createSettingsBillingDataRepository(
         ? data
             .map(normalizePaymentOrder)
             .filter((row): row is SettingsBillingPaymentOrderData => row !== null)
+        : [];
+    },
+
+    async listManualPaymentHistory(input) {
+      if (!client.rpc) {
+        return [];
+      }
+
+      const { data, error } = await client.rpc('list_customer_manual_payment_history', {
+        p_org_id: input.orgId,
+        p_limit: input.limit ?? 24,
+      });
+
+      // The customer history remains usable while migration 053 propagates to
+      // PostgREST. Authentication, authorization and other RPC errors remain
+      // observable instead of being misreported as an empty history.
+      if (isManualPaymentHistoryRpcUnavailable(error)) return [];
+      assertNoSupabaseError(error, 'Failed to load manual payment history.');
+      return Array.isArray(data)
+        ? data
+            .map(normalizeManualPayment)
+            .filter((row): row is SettingsBillingManualPaymentData => row !== null)
         : [];
     },
 
@@ -449,12 +558,14 @@ export async function buildBillingSettingsViewInput(
     return null;
   }
 
+  const historyLimit = 24;
   let customOffersUnavailable = false;
   const [
     subscription,
     latestInvoice,
     legacySuspensionSource,
     paymentOrders,
+    manualPaymentHistory,
     subscriptionPeriods,
     customPlanOffers,
   ] = await Promise.all([
@@ -463,8 +574,11 @@ export async function buildBillingSettingsViewInput(
     org.suspensionSource === undefined
       ? repository.getSuspensionSource?.({ orgId: input.orgId }) ?? Promise.resolve(null)
       : Promise.resolve(null),
-    repository.listPaymentOrders?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
-    repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
+    repository.listPaymentOrders?.({ orgId: input.orgId, limit: historyLimit }) ?? Promise.resolve([]),
+    repository.listManualPaymentHistory?.({ orgId: input.orgId, limit: historyLimit })
+      ?? Promise.resolve([]),
+    repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: historyLimit })
+      ?? Promise.resolve([]),
     (async () => {
       try {
         return await (
@@ -494,6 +608,27 @@ export async function buildBillingSettingsViewInput(
         }),
       }
     : null;
+  const paymentHistory = paymentOrders.map((order) => {
+    const period = subscriptionPeriods.find((item) => item.paymentOrderId === order.id);
+    return {
+      ...order,
+      periodStart: period?.periodStart ?? null,
+      periodEnd: period?.periodEnd ?? null,
+    };
+  });
+  const history = [...paymentHistory, ...manualPaymentHistory]
+    .sort((left, right) => {
+      const rightPaidAt = timestampOrNull(right.paidAt) ?? timestampOrNull(right.createdAt) ?? 0;
+      const leftPaidAt = timestampOrNull(left.paidAt) ?? timestampOrNull(left.createdAt) ?? 0;
+      if (rightPaidAt !== leftPaidAt) return rightPaidAt - leftPaidAt;
+
+      const rightCreatedAt = timestampOrNull(right.createdAt) ?? 0;
+      const leftCreatedAt = timestampOrNull(left.createdAt) ?? 0;
+      if (rightCreatedAt !== leftCreatedAt) return rightCreatedAt - leftCreatedAt;
+
+      return left.id.localeCompare(right.id);
+    })
+    .slice(0, historyLimit);
 
   return {
     org: {
@@ -514,14 +649,7 @@ export async function buildBillingSettingsViewInput(
       billingEmail: org.billingEmail,
       taxId: org.taxId,
     },
-    history: paymentOrders.map((order) => {
-      const period = subscriptionPeriods.find((item) => item.paymentOrderId === order.id);
-      return {
-        ...order,
-        periodStart: period?.periodStart ?? null,
-        periodEnd: period?.periodEnd ?? null,
-      };
-    }),
+    history,
     customOffers: availableCustomOffers.map((offer) => ({
       id: offer.id,
       title: offer.title,
