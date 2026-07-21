@@ -41,6 +41,7 @@ describe('migration 044 verified identity self-service trial', () => {
   });
 
   it('atomically creates the same trial resources used by quota and expiry protection', () => {
+    expect(source).toContain('effective_at TIMESTAMPTZ := NOW()');
     expect(source).toContain("NOW() + INTERVAL '3 days'");
     expect(source).toContain("trial_end_at TIMESTAMPTZ := NOW() + INTERVAL '3 days'");
     expect(source).toContain('INSERT INTO public.organizations');
@@ -53,5 +54,20 @@ describe('migration 044 verified identity self-service trial', () => {
     expect(source).toContain('org.phone_otp_self_service_trial_created');
     expect(source).toContain('IF NOT auth_email_confirmed THEN');
     expect(source).not.toMatch(/otp[^\n]*(audit|metadata|INSERT)/i);
+  });
+
+  it('anchors every new subscription boundary to the same database trial clock', () => {
+    expect(source).toContain(
+      `VALUES (
+    created_org_id,
+    p_plan,
+    'trialing',
+    'manual',
+    effective_at,
+    trial_end_at,
+    trial_end_at,
+    false
+  )`
+    );
   });
 });
