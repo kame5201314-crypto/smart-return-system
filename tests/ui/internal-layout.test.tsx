@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import InternalLayout from '@/app/internal/layout';
@@ -10,15 +10,19 @@ vi.mock('@/lib/actions/auth', () => ({ leavePlatformAdmin: vi.fn() }));
 describe('InternalLayout', () => {
   afterEach(cleanup);
 
-  it('keeps trial applications out of the primary operations navigation', () => {
+  it('uses a compact horizontal operations navigation with one active tab', () => {
     render(
       <InternalLayout>
         <div>營運內容</div>
       </InternalLayout>
     );
 
-    expect(screen.getAllByRole('link', { name: /總覽/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /租戶管理/ }).length).toBeGreaterThan(0);
+    const navigation = screen.getByRole('navigation', { name: '商業營運後台選單' });
+    expect(within(navigation).getAllByRole('link')).toHaveLength(2);
+    expect(within(navigation).getByRole('link', { name: '總覽' })).toHaveAttribute('aria-current', 'page');
+    expect(within(navigation).getByRole('link', { name: '租戶管理' })).not.toHaveAttribute('aria-current');
     expect(screen.queryByRole('link', { name: /試用申請/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '商業營運後台' })).not.toBeInTheDocument();
+    expect(screen.getByText('商業營運後台')).toBeInTheDocument();
   });
 });

@@ -692,6 +692,7 @@ describe('SaaS UI/backend contracts', () => {
         activeOrTrialingOrganizations: 1,
         pausedOrPastDueOrganizations: 0,
         trialingOrganizations: 0,
+        attentionOrganizations: 1,
         estimatedActiveMrrTwd: 699,
         trialPipelineMrrTwd: 0,
         atRiskOrganizations: 1,
@@ -709,6 +710,7 @@ describe('SaaS UI/backend contracts', () => {
           createdAt: '2026-05-20T00:00:00.000Z',
           trialEnd: null,
           daysUntilTrialEnd: null,
+          requiresAttention: true,
           provisioningSource: 'manual',
           selfServiceTrialAI: null,
           usage: {
@@ -769,7 +771,76 @@ describe('SaaS UI/backend contracts', () => {
       status: 'trialing',
       trialEnd: '2026-05-28T00:00:00.000Z',
       daysUntilTrialEnd: 3,
+      requiresAttention: true,
     });
+  });
+
+  it('keeps attention counts aligned with alerts for watch risks and trial deadlines', () => {
+    const watchOrg: PlatformOrgSummary = {
+      ...orgSummary,
+      id: 'org-watch',
+      name: 'Watch Store',
+      slug: 'watch-store',
+      plan: 'basic',
+      memberCount: 1,
+    };
+    const trialEndingOrg: PlatformOrgSummary = {
+      ...watchOrg,
+      id: 'org-trial-ending',
+      name: 'Trial Ending Store',
+      slug: 'trial-ending-store',
+      status: 'trialing',
+    };
+    const safeTrialOrg: PlatformOrgSummary = {
+      ...trialEndingOrg,
+      id: 'org-safe-trial',
+      name: 'Safe Trial Store',
+      slug: 'safe-trial-store',
+    };
+    const organizations = [watchOrg, trialEndingOrg, safeTrialOrg];
+    const usageByOrgId = {
+      'org-watch': { returnsThisMonth: 250, aiUsedThisMonth: 0 },
+      'org-trial-ending': { returnsThisMonth: 0, aiUsedThisMonth: 0 },
+      'org-safe-trial': { returnsThisMonth: 0, aiUsedThisMonth: 0 },
+    };
+    const subscriptionsByOrgId = {
+      'org-trial-ending': {
+        status: 'trialing',
+        currentPeriodEnd: '2026-05-28T00:00:00.000Z',
+        trialEnd: '2026-05-28T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+      'org-safe-trial': {
+        status: 'trialing',
+        currentPeriodEnd: '2026-05-29T00:00:00.000Z',
+        trialEnd: '2026-05-29T00:00:00.000Z',
+        cancelAtPeriodEnd: false,
+      },
+    } as const;
+    const now = new Date('2026-05-25T00:00:00.000Z');
+
+    const organizationView = buildPlatformOrganizationListView(
+      organizations,
+      usageByOrgId,
+      { subscriptionsByOrgId, now }
+    );
+    const alertView = buildPlatformAtRiskAlertsView(
+      organizations,
+      usageByOrgId,
+      subscriptionsByOrgId,
+      { now }
+    );
+
+    expect(organizationView.summary.atRiskOrganizations).toBe(0);
+    expect(organizationView.summary.attentionOrganizations).toBe(2);
+    expect(organizationView.summary.attentionOrganizations).toBe(
+      alertView.summary.affectedOrganizations
+    );
+    expect(organizationView.organizations).toEqual([
+      expect.objectContaining({ id: 'org-watch', requiresAttention: true }),
+      expect.objectContaining({ id: 'org-trial-ending', requiresAttention: true }),
+      expect.objectContaining({ id: 'org-safe-trial', requiresAttention: false }),
+    ]);
   });
 
   it('exposes self-service trial source and single-use AI progress', () => {

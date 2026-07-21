@@ -16,6 +16,7 @@ const baseOrg: PlatformOrganizationListView['organizations'][number] = {
   createdAt: '2026-07-01T00:00:00.000Z',
   trialEnd: null,
   daysUntilTrialEnd: null,
+  requiresAttention: true,
   provisioningSource: 'manual',
   selfServiceTrialAI: null,
   usage: { returnsThisMonth: 20, aiUsedThisMonth: 1 },
@@ -34,6 +35,7 @@ const data: PlatformOrganizationListView = {
     activeOrTrialingOrganizations: 1,
     pausedOrPastDueOrganizations: 1,
     trialingOrganizations: 0,
+    attentionOrganizations: 1,
     estimatedActiveMrrTwd: 699,
     trialPipelineMrrTwd: 0,
     atRiskOrganizations: 1,
@@ -50,6 +52,7 @@ const data: PlatformOrganizationListView = {
       status: 'active',
       ownerEmail: 'healthy@example.com',
       provisioningSource: 'google_self_service',
+      requiresAttention: false,
       health: {
         ...baseOrg.health,
         riskLevel: 'healthy',
@@ -66,6 +69,7 @@ const dataWithSuspended: PlatformOrganizationListView = {
     totalOrganizations: 3,
     pausedOrPastDueOrganizations: 2,
     atRiskOrganizations: 2,
+    attentionOrganizations: 2,
   },
   organizations: [
     ...data.organizations,
@@ -93,7 +97,7 @@ describe('PlatformOrganizationsExplorer', () => {
 
     fireEvent.change(screen.getByLabelText('搜尋租戶'), { target: { value: '健康品牌' } });
 
-    expect(screen.getByText('顯示 1 / 2 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('符合 1 / 2 個租戶')).toBeInTheDocument();
     expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
     expect(screen.getAllByText('健康品牌').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Google 註冊').length).toBeGreaterThan(0);
@@ -105,7 +109,7 @@ describe('PlatformOrganizationsExplorer', () => {
 
     fireEvent.change(screen.getByLabelText('租戶狀態'), { target: { value: 'attention' } });
 
-    expect(screen.getByText('顯示 1 / 2 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('符合 1 / 2 個租戶')).toBeInTheDocument();
     expect(screen.getAllByText('待補款品牌').length).toBeGreaterThan(0);
     expect(screen.queryByText('健康品牌')).not.toBeInTheDocument();
   });
@@ -115,10 +119,86 @@ describe('PlatformOrganizationsExplorer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '已停權 1' }));
 
-    expect(screen.getByText('顯示 1 / 3 個租戶')).toBeInTheDocument();
+    expect(screen.getByText('符合 1 / 3 個租戶')).toBeInTheDocument();
     expect(screen.getAllByText('已停權品牌').length).toBeGreaterThan(0);
     expect(screen.getAllByText('已停權（唯讀）').length).toBeGreaterThan(0);
     expect(screen.getAllByText('信箱註冊').length).toBeGreaterThan(0);
     expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
+  });
+
+  it('uses the backend attention flag for the initial filter and visibly presses the chip', () => {
+    const trialEndingData: PlatformOrganizationListView = {
+      summary: {
+        ...data.summary,
+        totalOrganizations: 1,
+        pausedOrPastDueOrganizations: 0,
+        trialingOrganizations: 1,
+        attentionOrganizations: 1,
+        atRiskOrganizations: 0,
+      },
+      organizations: [
+        {
+          ...baseOrg,
+          id: 'org-trial-ending',
+          name: '即將到期品牌',
+          slug: 'trial-ending-brand',
+          status: 'trialing',
+          trialEnd: '2026-07-24T00:00:00.000Z',
+          daysUntilTrialEnd: 3,
+          requiresAttention: true,
+          health: {
+            ...baseOrg.health,
+            riskLevel: 'healthy',
+            riskReasons: [],
+          },
+        },
+      ],
+    };
+
+    render(<PlatformOrganizationsExplorer data={trialEndingData} initialFilter="attention" />);
+
+    const attentionChip = screen.getByRole('button', { name: '需關注 1' });
+    expect(attentionChip).toHaveAttribute('aria-pressed', 'true');
+    expect(attentionChip).toHaveClass('ring-2');
+    expect(screen.getByText('符合 1 / 1 個租戶')).toBeInTheDocument();
+    expect(screen.getAllByText('即將到期品牌').length).toBeGreaterThan(0);
+  });
+
+  it('renders the first 20 tenants before expanding the remaining rows', () => {
+    const healthyOrg = data.organizations[1];
+    const organizations = Array.from({ length: 21 }, (_, index) => {
+      const sequence = String(index + 1).padStart(2, '0');
+      return {
+        ...healthyOrg,
+        id: `org-${sequence}`,
+        name: `品牌 ${sequence}`,
+        slug: `brand-${sequence}`,
+        ownerEmail: `owner-${sequence}@example.com`,
+      };
+    });
+    const largeData: PlatformOrganizationListView = {
+      summary: {
+        ...data.summary,
+        totalOrganizations: organizations.length,
+        activeOrTrialingOrganizations: organizations.length,
+        pausedOrPastDueOrganizations: 0,
+        attentionOrganizations: 0,
+        atRiskOrganizations: 0,
+      },
+      organizations,
+    };
+
+    render(<PlatformOrganizationsExplorer data={largeData} />);
+
+    expect(screen.getByText('符合 21 / 21 個租戶，目前顯示前 20 個')).toBeInTheDocument();
+    expect(screen.queryByText('品牌 21')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '顯示其餘 1 筆' }));
+
+    expect(screen.getAllByText('品牌 21').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '收合至前 20 筆' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 });

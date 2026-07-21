@@ -372,7 +372,7 @@ describe('SaaS platform admin API routes', () => {
       plan: 'growth',
       billingEmail: 'billing@example.com',
       taxId: '12345678',
-      trialEnd: '2026-06-04T00:00:00.000Z',
+      trialEnd: '2026-06-04T15:59:59.999Z',
       actorUserId: 'admin-1',
     });
   });
@@ -423,9 +423,35 @@ describe('SaaS platform admin API routes', () => {
       p_owner_user_id: '11111111-1111-4111-8111-111111111111',
       p_billing_email: 'billing@example.com',
       p_tax_id: '12345678',
-      p_trial_end: '2026-06-04T00:00:00.000Z',
+      p_trial_end: '2026-06-04T15:59:59.999Z',
       p_actor_user_id: 'admin-1',
     });
+  });
+
+  it('preserves the instant of full ISO trial end values', () => {
+    const input = normalizeManualBetaOrganizationInput(
+      {
+        orgName: 'Demo Store',
+        slug: 'demo-store',
+        ownerEmail: 'owner@example.com',
+        trialEnd: '2026-06-04T23:59:59.999+08:00',
+      },
+      'admin-1'
+    );
+
+    expect(input.trialEnd).toBe('2026-06-04T15:59:59.999Z');
+  });
+
+  it('rejects invalid calendar dates for manual trial end values', () => {
+    expect(() => normalizeManualBetaOrganizationInput(
+      {
+        orgName: 'Demo Store',
+        slug: 'demo-store',
+        ownerEmail: 'owner@example.com',
+        trialEnd: '2026-02-30',
+      },
+      'admin-1'
+    )).toThrow('trialEnd must be an ISO date string.');
   });
 
   it('calls the manual Beta provisioning RPC through the repository', async () => {

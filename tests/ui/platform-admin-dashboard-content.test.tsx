@@ -12,6 +12,7 @@ const dashboard: PlatformAdminDashboardView = {
     activeOrTrialingOrganizations: 4,
     pausedOrPastDueOrganizations: 1,
     trialingOrganizations: 2,
+    attentionOrganizations: 1,
     estimatedActiveMrrTwd: 1398,
     trialPipelineMrrTwd: 1198,
     atRiskOrganizations: 1,
@@ -76,13 +77,37 @@ describe('PlatformAdminDashboardContent', () => {
   it('turns risk data into specific operational actions', () => {
     render(<PlatformAdminDashboardContent data={dashboard} />);
 
-    expect(screen.getByText('營運快照')).toBeInTheDocument();
     expect(screen.getByText('優先待辦（1）')).toBeInTheDocument();
     expect(screen.getByText('已逾期 2 天')).toBeInTheDocument();
     expect(screen.getByText('帳號：owner@example.com')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '提醒補款：測試租戶' }))
       .toHaveAttribute('href', '/internal/orgs/org-1');
+    expect(screen.getAllByRole('link', { name: '提醒補款：測試租戶' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '查看全部租戶：5 個' }))
+      .toHaveAttribute('href', '/internal/orgs');
+    expect(screen.getByRole('link', { name: '查看試用中租戶：2 個' }))
+      .toHaveAttribute('href', '/internal/orgs?filter=trialing');
+    expect(screen.getByRole('link', { name: '查看需關注租戶：1 個' }))
+      .toHaveAttribute('href', '/internal/orgs?filter=attention');
     expect(screen.getByText('試用轉換')).toBeInTheDocument();
     expect(screen.getByText('帳務處理')).toBeInTheDocument();
+  });
+
+  it('explains when the priority list is truncated and links to affected tenants', () => {
+    render(
+      <PlatformAdminDashboardContent
+        data={{
+          ...dashboard,
+          atRisk: {
+            ...dashboard.atRisk,
+            summary: { ...dashboard.atRisk.summary, totalAlerts: 3 },
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText('另有 2 項警示未列出。')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '查看全部受影響租戶' }))
+      .toHaveAttribute('href', '/internal/orgs?filter=attention');
   });
 });

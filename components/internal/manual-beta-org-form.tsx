@@ -41,17 +41,13 @@ function slugify(value: string): string {
     .slice(0, 64);
 }
 
-function dateToIsoEndOfDay(value: string): string | undefined {
-  if (!value) return undefined;
-  return new Date(`${value}T23:59:59.000Z`).toISOString();
-}
-
 export function ManualBetaOrgForm() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orgName, setOrgName] = useState('');
   const [slug, setSlug] = useState('');
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState('');
   const [plan, setPlan] = useState<SaaSPlanCode>('basic');
   const [billingEmail, setBillingEmail] = useState('');
@@ -66,6 +62,7 @@ export function ManualBetaOrgForm() {
   function resetForm() {
     setOrgName('');
     setSlug('');
+    setSlugManuallyEdited(false);
     setOwnerEmail('');
     setPlan('basic');
     setBillingEmail('');
@@ -89,7 +86,7 @@ export function ManualBetaOrgForm() {
           plan,
           billingEmail: billingEmail.trim() || undefined,
           taxId: taxId.trim() || undefined,
-          trialEnd: dateToIsoEndOfDay(trialEnd),
+          trialEnd: trialEnd || undefined,
         }),
       });
 
@@ -98,10 +95,17 @@ export function ManualBetaOrgForm() {
         throw new Error(payload?.error || '建立租戶失敗');
       }
 
+      const orgId = typeof payload?.data?.orgId === 'string'
+        ? payload.data.orgId.trim()
+        : '';
+      if (!orgId) {
+        throw new Error('租戶已建立，但回傳資料不完整，請重新整理後再試。');
+      }
+
       toast.success('已建立租戶');
       resetForm();
       setOpen(false);
-      router.refresh();
+      router.push(`/internal/orgs/${encodeURIComponent(orgId)}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '建立租戶失敗');
     } finally {
@@ -135,7 +139,7 @@ export function ManualBetaOrgForm() {
                 onChange={(event) => {
                   const nextName = event.target.value;
                   setOrgName(nextName);
-                  if (!slug) setSlug(slugify(nextName));
+                  if (!slugManuallyEdited) setSlug(slugify(nextName));
                 }}
                 placeholder="例如：Smart Return Beta"
                 required
@@ -147,7 +151,10 @@ export function ManualBetaOrgForm() {
               <Input
                 id="manual-beta-slug"
                 value={slug}
-                onChange={(event) => setSlug(slugify(event.target.value))}
+                onChange={(event) => {
+                  setSlugManuallyEdited(true);
+                  setSlug(slugify(event.target.value));
+                }}
                 placeholder="smart-return-beta"
                 required
               />

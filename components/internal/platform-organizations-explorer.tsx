@@ -17,7 +17,7 @@ import {
 } from '@/components/internal/platform-labels';
 
 type PlatformOrg = PlatformOrganizationListView['organizations'][number];
-type OrgFilter =
+export type PlatformOrganizationFilter =
   | 'all'
   | 'attention'
   | 'trialing'
@@ -26,8 +26,9 @@ type OrgFilter =
   | 'suspended'
   | 'healthy';
 type OrgSort = 'priority' | 'trial_end' | 'usage' | 'name';
+const INITIAL_VISIBLE_ORGANIZATIONS = 20;
 
-const FILTER_LABEL: Record<OrgFilter, string> = {
+const FILTER_LABEL: Record<PlatformOrganizationFilter, string> = {
   all: '全部租戶',
   attention: '需關注',
   trialing: '試用中',
@@ -55,12 +56,8 @@ function isTrialExpired(org: PlatformOrg): boolean {
   return org.status === 'trialing' && org.daysUntilTrialEnd !== null && org.daysUntilTrialEnd <= 0;
 }
 
-function needsAttention(org: PlatformOrg): boolean {
-  return org.health.riskLevel === 'at_risk' || isTrialExpired(org);
-}
-
 function followUpTier(org: PlatformOrg): number {
-  if (needsAttention(org)) return 0;
+  if (org.requiresAttention) return 0;
   if (org.health.riskLevel === 'watch') return 1;
   return 2;
 }
@@ -82,10 +79,10 @@ function buildSuggestions(org: PlatformOrg): string[] {
   return actions;
 }
 
-function matchesFilter(org: PlatformOrg, filter: OrgFilter): boolean {
+function matchesFilter(org: PlatformOrg, filter: PlatformOrganizationFilter): boolean {
   if (filter === 'all') return true;
-  if (filter === 'attention') return needsAttention(org);
-  if (filter === 'healthy') return org.health.riskLevel === 'healthy' && !isTrialExpired(org);
+  if (filter === 'attention') return org.requiresAttention;
+  if (filter === 'healthy') return org.health.riskLevel === 'healthy' && !org.requiresAttention;
   return org.status === filter;
 }
 
@@ -145,7 +142,7 @@ function UsageLine({ org }: { org: PlatformOrg }) {
 }
 
 function HealthBadge({ org }: { org: PlatformOrg }) {
-  const attention = needsAttention(org);
+  const attention = org.requiresAttention;
   const label = attention ? '需關注' : PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel];
   const className = attention
     ? 'border-red-200 bg-red-50 text-red-800 hover:bg-red-50'
@@ -181,33 +178,32 @@ function ProvisioningSourceBadge({ org }: { org: PlatformOrg }) {
 
 function SummaryChips({
   summary,
-  attentionCount,
   pastDueCount,
   suspendedCount,
   filter,
   onFilterChange,
 }: {
   summary: PlatformOrganizationListView['summary'];
-  attentionCount: number;
   pastDueCount: number;
   suspendedCount: number;
-  filter: OrgFilter;
-  onFilterChange: (filter: OrgFilter) => void;
+  filter: PlatformOrganizationFilter;
+  onFilterChange: (filter: PlatformOrganizationFilter) => void;
 }) {
   const chipClass = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition';
+  const pressedClass = 'font-semibold ring-2 ring-neutral-950 ring-offset-2';
   return (
     <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
-        className={`${chipClass} border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100`}
+        className={`${chipClass} border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 ${filter === 'attention' ? pressedClass : ''}`}
         aria-pressed={filter === 'attention'}
         onClick={() => onFilterChange(filter === 'attention' ? 'all' : 'attention')}
       >
-        需關注 <span className="font-semibold">{attentionCount}</span>
+        需關注 <span className="font-semibold">{summary.attentionOrganizations}</span>
       </button>
       <button
         type="button"
-        className={`${chipClass} border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100`}
+        className={`${chipClass} border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 ${filter === 'trialing' ? pressedClass : ''}`}
         aria-pressed={filter === 'trialing'}
         onClick={() => onFilterChange(filter === 'trialing' ? 'all' : 'trialing')}
       >
@@ -215,7 +211,7 @@ function SummaryChips({
       </button>
       <button
         type="button"
-        className={`${chipClass} border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100`}
+        className={`${chipClass} border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 ${filter === 'past_due' ? pressedClass : ''}`}
         aria-pressed={filter === 'past_due'}
         onClick={() => onFilterChange(filter === 'past_due' ? 'all' : 'past_due')}
       >
@@ -223,7 +219,7 @@ function SummaryChips({
       </button>
       <button
         type="button"
-        className={`${chipClass} border-red-200 bg-red-50 text-red-800 hover:bg-red-100`}
+        className={`${chipClass} border-red-200 bg-red-50 text-red-800 hover:bg-red-100 ${filter === 'suspended' ? pressedClass : ''}`}
         aria-pressed={filter === 'suspended'}
         onClick={() => onFilterChange(filter === 'suspended' ? 'all' : 'suspended')}
       >
@@ -270,11 +266,17 @@ function TenantMobileCard({ org }: { org: PlatformOrg }) {
   );
 }
 
-export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganizationListView }) {
+export function PlatformOrganizationsExplorer({
+  data,
+  initialFilter = 'all',
+}: {
+  data: PlatformOrganizationListView;
+  initialFilter?: PlatformOrganizationFilter;
+}) {
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<OrgFilter>('all');
+  const [filter, setFilter] = useState<PlatformOrganizationFilter>(initialFilter);
   const [sort, setSort] = useState<OrgSort>('priority');
-  const attentionCount = data.organizations.filter(needsAttention).length;
+  const [expanded, setExpanded] = useState(false);
   const pastDueCount = data.organizations.filter((org) => org.status === 'past_due').length;
   const suspendedCount = data.organizations.filter((org) => org.status === 'suspended').length;
 
@@ -291,21 +293,31 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
       .sort((a, b) => compareOrganizations(a, b, sort));
   }, [data.organizations, filter, query, sort]);
 
+  const displayedOrganizations = expanded
+    ? visibleOrganizations
+    : visibleOrganizations.slice(0, INITIAL_VISIBLE_ORGANIZATIONS);
+  const hiddenOrganizationCount = visibleOrganizations.length - displayedOrganizations.length;
+
+  function changeFilter(nextFilter: PlatformOrganizationFilter) {
+    setFilter(nextFilter);
+    setExpanded(false);
+  }
+
   function resetControls() {
     setQuery('');
     setFilter('all');
     setSort('priority');
+    setExpanded(false);
   }
 
   return (
     <div className="space-y-4">
       <SummaryChips
         summary={data.summary}
-        attentionCount={attentionCount}
         pastDueCount={pastDueCount}
         suspendedCount={suspendedCount}
         filter={filter}
-        onFilterChange={setFilter}
+        onFilterChange={changeFilter}
       />
 
       <Card className="rounded-lg">
@@ -318,7 +330,10 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
                 <Input
                   id="tenant-search"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setExpanded(false);
+                  }}
                   placeholder="品牌、信箱、代碼或方案"
                   className="pl-9"
                 />
@@ -329,7 +344,7 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
               <select
                 id="tenant-filter"
                 value={filter}
-                onChange={(event) => setFilter(event.target.value as OrgFilter)}
+                onChange={(event) => changeFilter(event.target.value as PlatformOrganizationFilter)}
                 className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 {Object.entries(FILTER_LABEL).map(([value, label]) => (
@@ -342,7 +357,10 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
               <select
                 id="tenant-sort"
                 value={sort}
-                onChange={(event) => setSort(event.target.value as OrgSort)}
+                onChange={(event) => {
+                  setSort(event.target.value as OrgSort);
+                  setExpanded(false);
+                }}
                 className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <option value="priority">處理優先級</option>
@@ -357,7 +375,8 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground" role="status">
-            顯示 {visibleOrganizations.length} / {data.organizations.length} 個租戶
+            符合 {visibleOrganizations.length} / {data.organizations.length} 個租戶
+            {hiddenOrganizationCount > 0 ? `，目前顯示前 ${displayedOrganizations.length} 個` : ''}
           </p>
         </CardContent>
       </Card>
@@ -365,7 +384,7 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
       {visibleOrganizations.length > 0 ? (
         <>
           <ul className="space-y-3 md:hidden">
-            {visibleOrganizations.map((org) => <TenantMobileCard key={org.id} org={org} />)}
+            {displayedOrganizations.map((org) => <TenantMobileCard key={org.id} org={org} />)}
           </ul>
 
           <div className="hidden overflow-x-auto rounded-lg border bg-white md:block">
@@ -381,7 +400,7 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {visibleOrganizations.map((org) => {
+                {displayedOrganizations.map((org) => {
                   const suggestions = buildSuggestions(org);
                   return (
                     <tr key={org.id} className="align-top hover:bg-neutral-50/70">
@@ -422,6 +441,21 @@ export function PlatformOrganizationsExplorer({ data }: { data: PlatformOrganiza
               </tbody>
             </table>
           </div>
+
+          {visibleOrganizations.length > INITIAL_VISIBLE_ORGANIZATIONS ? (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setExpanded((current) => !current)}
+                aria-expanded={expanded}
+              >
+                {expanded
+                  ? `收合至前 ${INITIAL_VISIBLE_ORGANIZATIONS} 筆`
+                  : `顯示其餘 ${hiddenOrganizationCount} 筆`}
+              </Button>
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="rounded-lg border border-dashed bg-white px-5 py-10 text-center" role="status">

@@ -187,6 +187,28 @@ function normalizeTrialEnd(value: unknown): string | undefined {
     return undefined;
   }
 
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+  if (dateOnlyMatch) {
+    const year = Number.parseInt(dateOnlyMatch[1], 10);
+    const month = Number.parseInt(dateOnlyMatch[2], 10);
+    const day = Number.parseInt(dateOnlyMatch[3], 10);
+    const daysInMonth = month >= 1 && month <= 12
+      ? new Date(Date.UTC(year, month, 0)).getUTCDate()
+      : 0;
+
+    if (day < 1 || day > daysInMonth) {
+      throw new PlatformOrgProvisioningError(
+        'invalid_request',
+        400,
+        'trialEnd must be an ISO date string.'
+      );
+    }
+
+    // Asia/Taipei is UTC+08:00 year-round. Store the selected local date's
+    // final millisecond so the trial remains active through that Taiwan day.
+    return new Date(Date.UTC(year, month - 1, day, 15, 59, 59, 999)).toISOString();
+  }
+
   const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) {
     throw new PlatformOrgProvisioningError(

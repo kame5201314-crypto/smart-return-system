@@ -715,6 +715,7 @@ interface PlatformOrganizationListView {
     activeOrTrialingOrganizations: number;
     pausedOrPastDueOrganizations: number;
     trialingOrganizations: number;
+    attentionOrganizations: number;
     estimatedActiveMrrTwd: number;
     trialPipelineMrrTwd: number;
     atRiskOrganizations: number;
@@ -731,6 +732,7 @@ interface PlatformOrganizationListView {
     createdAt: string;
     trialEnd: string | null;
     daysUntilTrialEnd: number | null;
+    requiresAttention: boolean;
     usage: {
       returnsThisMonth: number;
       aiUsedThisMonth: number;
@@ -758,6 +760,13 @@ interface PlatformOrganizationListView {
   }>;
 }
 ```
+
+`requiresAttention` is the canonical operations-list definition shared with
+platform alerts: it is `true` when the organization has any health risk reason,
+or when a trialing organization has three or fewer days remaining.
+`attentionOrganizations` counts that field. `atRiskOrganizations` remains the
+stricter subscription/quota risk KPI and intentionally keeps its existing
+meaning.
 
 ## Platform At-Risk Alerts
 

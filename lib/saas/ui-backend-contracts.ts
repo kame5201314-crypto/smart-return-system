@@ -251,6 +251,7 @@ export interface PlatformOrganizationSummary {
   activeOrTrialingOrganizations: number;
   pausedOrPastDueOrganizations: number;
   trialingOrganizations: number;
+  attentionOrganizations: number;
   estimatedActiveMrrTwd: number;
   trialPipelineMrrTwd: number;
   atRiskOrganizations: number;
@@ -290,6 +291,7 @@ export interface PlatformOrganizationListItem {
   createdAt: string;
   trialEnd: string | null;
   daysUntilTrialEnd: number | null;
+  requiresAttention: boolean;
   provisioningSource:
     | 'manual'
     | 'google_self_service'
@@ -1125,6 +1127,18 @@ function buildPlatformOrganizationListItem(
   const memberCount = nonNegativeNumber(org.memberCount, 'organization.memberCount');
   const usage = requireUsage(usageByOrgId, id);
   const trialEnd = status === 'trialing' ? subscription?.trialEnd ?? null : null;
+  const daysUntilTrialEnd = daysUntil(now, trialEnd);
+  const health = buildPlatformOrganizationHealth({
+    plan,
+    status,
+    memberCount,
+    usage,
+  });
+  const requiresAttention =
+    health.riskReasons.length > 0 ||
+    (status === 'trialing' &&
+      daysUntilTrialEnd !== null &&
+      daysUntilTrialEnd <= 3);
   const selfServiceTrialAI = selfServiceTrialClaim
     ? {
         limit: 1 as const,
@@ -1148,7 +1162,8 @@ function buildPlatformOrganizationListItem(
     memberCount,
     createdAt: requireString(org.createdAt, 'organization.createdAt'),
     trialEnd,
-    daysUntilTrialEnd: daysUntil(now, trialEnd),
+    daysUntilTrialEnd,
+    requiresAttention,
     provisioningSource: selfServiceTrialClaim
       ? selfServiceTrialClaim.identityProvider === 'email_otp'
         ? 'email_otp_self_service'
@@ -1158,12 +1173,7 @@ function buildPlatformOrganizationListItem(
       : 'manual',
     selfServiceTrialAI,
     usage,
-    health: buildPlatformOrganizationHealth({
-      plan,
-      status,
-      memberCount,
-      usage,
-    }),
+    health,
   };
 }
 
@@ -1668,6 +1678,7 @@ function buildPlatformOrganizationSummary(
       org.status === 'suspended' || org.status === 'past_due'
     ).length,
     trialingOrganizations: organizations.filter((org) => org.status === 'trialing').length,
+    attentionOrganizations: organizations.filter((org) => org.requiresAttention).length,
     estimatedActiveMrrTwd: organizations.reduce(
       (sum, org) => sum + org.health.estimatedMrrTwd,
       0

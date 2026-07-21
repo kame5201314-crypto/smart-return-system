@@ -72,17 +72,18 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
   const atRisk = data.atRisk;
   const trial = data.trialConversion.summary;
   const billing = data.billingEvents.summary;
+  const remainingAlerts = Math.max(0, atRisk.summary.totalAlerts - atRisk.topAlerts.length);
 
   return (
     <>
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>營運快照</CardTitle>
-          <CardDescription>先掌握租戶、試用、風險與收入，再依下方待辦逐項處理。</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="rounded-lg py-0">
+        <CardContent className="p-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-md border bg-neutral-50 p-4">
+            <Link
+              href="/internal/orgs"
+              aria-label={`查看全部租戶：${summary.totalOrganizations} 個`}
+              className="block rounded-md border bg-neutral-50 p-4 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+            >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">全部租戶</p>
                 <Users className="size-4 text-neutral-500" aria-hidden="true" />
@@ -90,8 +91,12 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
               <p className="mt-1 text-3xl font-semibold text-gray-950">
                 {summary.totalOrganizations.toLocaleString('zh-TW')}
               </p>
-            </div>
-            <div className="rounded-md border bg-neutral-50 p-4">
+            </Link>
+            <Link
+              href="/internal/orgs?filter=trialing"
+              aria-label={`查看試用中租戶：${summary.trialingOrganizations} 個`}
+              className="block rounded-md border bg-neutral-50 p-4 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+            >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">試用中</p>
                 <CalendarClock className="size-4 text-neutral-500" aria-hidden="true" />
@@ -99,18 +104,22 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
               <p className="mt-1 text-3xl font-semibold text-gray-950">
                 {summary.trialingOrganizations.toLocaleString('zh-TW')}
               </p>
-            </div>
-            <div className={`rounded-md border p-4 ${atRisk.summary.affectedOrganizations > 0 ? 'border-amber-300 bg-amber-50' : 'bg-neutral-50'}`}>
+            </Link>
+            <Link
+              href="/internal/orgs?filter=attention"
+              aria-label={`查看需關注租戶：${summary.attentionOrganizations} 個`}
+              className={`block rounded-md border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${summary.attentionOrganizations > 0 ? 'border-amber-300 bg-amber-50 hover:bg-amber-100' : 'bg-neutral-50 hover:bg-neutral-100'}`}
+            >
               <div className="flex items-center justify-between gap-3">
-                <p className={atRisk.summary.affectedOrganizations > 0 ? 'text-sm text-amber-800' : 'text-sm text-muted-foreground'}>
+                <p className={summary.attentionOrganizations > 0 ? 'text-sm text-amber-800' : 'text-sm text-muted-foreground'}>
                   需關注租戶
                 </p>
-                <AlertTriangle className={atRisk.summary.affectedOrganizations > 0 ? 'size-4 text-amber-700' : 'size-4 text-neutral-500'} aria-hidden="true" />
+                <AlertTriangle className={summary.attentionOrganizations > 0 ? 'size-4 text-amber-700' : 'size-4 text-neutral-500'} aria-hidden="true" />
               </div>
-              <p className={`mt-1 text-3xl font-semibold ${atRisk.summary.affectedOrganizations > 0 ? 'text-amber-950' : 'text-gray-950'}`}>
-                {atRisk.summary.affectedOrganizations.toLocaleString('zh-TW')}
+              <p className={`mt-1 text-3xl font-semibold ${summary.attentionOrganizations > 0 ? 'text-amber-950' : 'text-gray-950'}`}>
+                {summary.attentionOrganizations.toLocaleString('zh-TW')}
               </p>
-            </div>
+            </Link>
             <div className="rounded-md border bg-neutral-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">預估月營收</p>
@@ -141,55 +150,61 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
                 const dueLabel = formatDueLabel(alert);
                 const actionLabel = ALERT_ACTION_LABEL[alert.type];
                 return (
-                  <li
-                    key={alert.id}
-                    className="flex flex-col items-start justify-between gap-4 rounded-md border border-amber-200 bg-white p-4 sm:flex-row sm:items-center"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/internal/orgs/${alert.orgId}`}
-                          className="font-medium text-emerald-700 underline-offset-4 hover:underline focus-visible:underline"
-                        >
-                          {alert.orgName}
-                        </Link>
-                        <Badge variant={severityVariant(alert.severity)} className="text-xs">
-                          {PLATFORM_ALERT_SEVERITY_LABEL[alert.severity]}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {ALERT_CATEGORY_LABEL[alert.category]}
-                        </Badge>
-                        {dueLabel ? (
-                          <Badge variant="outline" className="border-amber-300 bg-amber-50 text-xs text-amber-900">
-                            {dueLabel}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-sm text-amber-950">
-                        {PLATFORM_ALERT_TYPE_MESSAGE[alert.type] ?? alert.message}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        {alert.ownerEmail ? <span>帳號：{alert.ownerEmail}</span> : null}
-                        {alert.metric ? (
-                          <span>
-                            用量 {alert.metric.used.toLocaleString('zh-TW')} / {alert.metric.limit.toLocaleString('zh-TW')}（{alert.metric.percent}%）
+                  <li key={alert.id}>
+                    <Link
+                      href={`/internal/orgs/${alert.orgId}`}
+                      aria-label={`${actionLabel}：${alert.orgName}`}
+                      className="group flex flex-col items-start justify-between gap-4 rounded-md border border-amber-200 bg-white p-4 transition-colors hover:bg-amber-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 sm:flex-row sm:items-center"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-emerald-700 group-hover:underline">
+                            {alert.orgName}
                           </span>
-                        ) : null}
+                          <Badge variant={severityVariant(alert.severity)} className="text-xs">
+                            {PLATFORM_ALERT_SEVERITY_LABEL[alert.severity]}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {ALERT_CATEGORY_LABEL[alert.category]}
+                          </Badge>
+                          {dueLabel ? (
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-xs text-amber-900">
+                              {dueLabel}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <p className="mt-2 text-sm text-amber-950">
+                          {PLATFORM_ALERT_TYPE_MESSAGE[alert.type] ?? alert.message}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          {alert.ownerEmail ? <span>帳號：{alert.ownerEmail}</span> : null}
+                          {alert.metric ? (
+                            <span>
+                              用量 {alert.metric.used.toLocaleString('zh-TW')} / {alert.metric.limit.toLocaleString('zh-TW')}（{alert.metric.percent}%）
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    <Button asChild variant="outline" size="sm" className="shrink-0 bg-white">
-                      <Link
-                        href={`/internal/orgs/${alert.orgId}`}
-                        aria-label={`${actionLabel}：${alert.orgName}`}
-                      >
+                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-800">
                         {actionLabel}
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                      </Link>
-                    </Button>
+                        <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                      </span>
+                    </Link>
                   </li>
                 );
               })}
             </ul>
+            {remainingAlerts > 0 ? (
+              <div className="mt-4 flex flex-col gap-3 border-t border-amber-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-amber-950">另有 {remainingAlerts} 項警示未列出。</p>
+                <Button asChild variant="outline" size="sm" className="bg-white">
+                  <Link href="/internal/orgs?filter=attention">
+                    查看全部受影響租戶
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : (

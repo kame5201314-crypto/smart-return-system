@@ -206,6 +206,10 @@ describe('Platform admin dashboard e2e flow', () => {
     // by the trial conversion funnel below. ---
     expect(summary.atRiskOrganizations).toBe(2);
 
+    // --- Attention KPI uses the same rule as the complete alert set:
+    // any health reason, or a trial ending within 3 days. ---
+    expect(summary.attentionOrganizations).toBe(4);
+
     // --- AI limit reached: only org-aifull ---
     expect(summary.aiLimitReachedOrganizations).toBe(1);
 
@@ -217,6 +221,9 @@ describe('Platform admin dashboard e2e flow', () => {
     // past_due, ai-full, expired-trial, trial-ending = 4. ---
     expect(data.atRisk.summary.totalAlerts).toBeGreaterThanOrEqual(4);
     expect(data.atRisk.summary.affectedOrganizations).toBe(4);
+    expect(summary.attentionOrganizations).toBe(
+      data.atRisk.summary.affectedOrganizations
+    );
 
     // A critical alert (past_due / expired trial) should sort to the top.
     expect(data.atRisk.topAlerts.length).toBeGreaterThan(0);
