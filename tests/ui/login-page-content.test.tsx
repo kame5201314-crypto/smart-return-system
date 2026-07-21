@@ -54,13 +54,13 @@ describe('LoginPageContent', () => {
     cleanup();
   });
 
-  it('shows a persistent expired-flow message and retries into the AI workspace', () => {
+  it('keeps one Google retry action beside the expired-flow message', () => {
     navigationMocks.search = 'error=google_auth_expired&next=%2Freturns&plan=growth';
 
     render(<LoginPageContent googleAuthEnabled />);
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      '登入流程已失效，請重新使用 Google 登入'
+      'Google 登入未完成，請再試一次。'
     );
     const retryLink = screen.getByRole('link', { name: '重新使用 Google 登入' });
     expect(retryLink).toHaveAttribute(
@@ -68,9 +68,14 @@ describe('LoginPageContent', () => {
       '/auth/google?next=%2Fanalytics&plan=basic'
     );
     expect(within(retryLink).getByTestId('google-sign-in-icon')).toBeInTheDocument();
-    expect(toastMocks.error).toHaveBeenCalledWith(
-      '登入流程已失效，請重新使用 Google 登入'
-    );
+    expect(screen.getAllByRole('link', { name: /Google 登入/ })).toHaveLength(1);
+    expect(toastMocks.error).not.toHaveBeenCalled();
+
+    const passwordLoginButton = screen.getByRole('button', { name: '登入' });
+    expect(
+      passwordLoginButton.compareDocumentPosition(retryLink)
+      & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('passes a fresh CAPTCHA token to merchant password login when Auth CAPTCHA is enabled', async () => {
