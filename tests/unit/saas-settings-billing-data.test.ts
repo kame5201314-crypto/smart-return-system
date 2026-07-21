@@ -18,6 +18,7 @@ interface TestQueryBuilder extends SettingsBillingQueryBuilder {
   select: Mock<(columns: string) => SettingsBillingQueryBuilder>;
   eq: Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
   gt: Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
+  lte: Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
   in: Mock<(column: string, values: readonly unknown[]) => SettingsBillingQueryBuilder>;
   order: Mock<(column: string, options: { ascending: boolean }) => SettingsBillingQueryBuilder>;
   limit: Mock<(count: number) => SettingsBillingQueryBuilder>;
@@ -33,6 +34,7 @@ function createChain(
   chain.select = vi.fn(() => chain) as Mock<(columns: string) => SettingsBillingQueryBuilder>;
   chain.eq = vi.fn(() => chain) as Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
   chain.gt = vi.fn(() => chain) as Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
+  chain.lte = vi.fn(() => chain) as Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
   chain.in = vi.fn(() => chain) as Mock<
     (column: string, values: readonly unknown[]) => SettingsBillingQueryBuilder
   >;
@@ -111,6 +113,7 @@ describe('SaaS settings billing data repository', () => {
         payment_order_id: 'payment-order-1',
         period_start: '2026-05-20T00:00:00.000Z',
         period_end: '2026-06-20T00:00:00.000Z',
+        status: 'expired',
         created_at: '2026-05-20T00:00:00.000Z',
       },
     ]);
@@ -126,14 +129,16 @@ describe('SaaS settings billing data repository', () => {
         created_at: '2026-07-20T00:00:00.000Z',
       },
     ]);
+    const currentSubscriptionPeriodChain = createChain(null);
     const from = vi
       .fn()
       .mockReturnValueOnce(organizationChain)
       .mockReturnValueOnce(subscriptionChain)
       .mockReturnValueOnce(invoiceChain)
+      .mockReturnValueOnce(customOffersChain)
       .mockReturnValueOnce(paymentOrdersChain)
       .mockReturnValueOnce(subscriptionPeriodsChain)
-      .mockReturnValueOnce(customOffersChain);
+      .mockReturnValueOnce(currentSubscriptionPeriodChain);
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
 
     const input = await buildBillingSettingsViewInput(repository, {
@@ -188,9 +193,10 @@ describe('SaaS settings billing data repository', () => {
     expect(from).toHaveBeenNthCalledWith(1, 'organizations');
     expect(from).toHaveBeenNthCalledWith(2, 'subscriptions');
     expect(from).toHaveBeenNthCalledWith(3, 'invoices');
-    expect(from).toHaveBeenNthCalledWith(4, 'payment_orders');
-    expect(from).toHaveBeenNthCalledWith(5, 'subscription_periods');
-    expect(from).toHaveBeenNthCalledWith(6, 'custom_plan_offers');
+    expect(from).toHaveBeenNthCalledWith(4, 'custom_plan_offers');
+    expect(from).toHaveBeenNthCalledWith(5, 'payment_orders');
+    expect(from).toHaveBeenNthCalledWith(6, 'subscription_periods');
+    expect(from).toHaveBeenNthCalledWith(7, 'subscription_periods');
     expect(subscriptionChain.select).toHaveBeenCalledWith(
       'provider, current_period_start, current_period_end, trial_end, cancel_at_period_end'
     );
@@ -203,6 +209,18 @@ describe('SaaS settings billing data repository', () => {
     expect(paymentOrdersChain.order).toHaveBeenCalledWith('updated_at', { ascending: false });
     expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
     expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
+    expect(subscriptionPeriodsChain.select).toHaveBeenCalledWith(
+      'payment_order_id, period_start, period_end, status, created_at'
+    );
+    expect(currentSubscriptionPeriodChain.eq).toHaveBeenCalledWith('status', 'active');
+    expect(currentSubscriptionPeriodChain.lte).toHaveBeenCalledWith(
+      'period_start',
+      expect.any(String)
+    );
+    expect(currentSubscriptionPeriodChain.gt).toHaveBeenCalledWith(
+      'period_end',
+      expect.any(String)
+    );
     expect(customOffersChain.eq).toHaveBeenCalledWith('org_id', 'org-1');
     expect(customOffersChain.eq).toHaveBeenCalledWith('status', 'active');
     expect(customOffersChain.gt).toHaveBeenCalledWith('expires_at', expect.any(String));
@@ -316,6 +334,233 @@ describe('SaaS settings billing data repository', () => {
 
     await expect(repository.listManualPaymentHistory?.({ orgId: 'org-1' }))
       .rejects.toThrow('active owner or admin membership is required');
+  });
+
+  it('normalizes one authoritative provider and manual payment history RPC', async () => {
+    const rpc = vi.fn(async () => ({
+      data: {
+        history: [
+          {
+            id: 'payment-order-1',
+            plan: 'basic',
+            provider: 'ecpay',
+            amount_twd: 399,
+            status: 'refunded',
+            paid_at: '2026-07-21T04:30:00.000Z',
+            period_start: '2026-07-21T04:30:00.000Z',
+            period_end: '2026-08-21T04:30:00.000Z',
+            created_at: '2026-07-21T04:29:00.000Z',
+          },
+          {
+            id: 'manual:event-1',
+            plan: null,
+            provider: 'manual',
+            amount_twd: 399,
+            status: 'paid',
+            paid_at: '2026-07-20T04:30:00.000Z',
+            period_start: '2026-07-20T00:00:00+08:00',
+            period_end: '2026-08-20T00:00:00+08:00',
+            created_at: '2026-07-20T04:30:01.000Z',
+          },
+          {
+            id: 'payment-order-invalid-period',
+            plan: 'basic',
+            provider: 'ecpay',
+            amount_twd: 399,
+            status: 'paid',
+            paid_at: '2026-07-19T04:30:00.000Z',
+            period_start: '2026-08-19T04:30:00.000Z',
+            period_end: null,
+            created_at: '2026-07-19T04:29:00.000Z',
+          },
+        ],
+        current_entitlement_period: {
+          payment_order_id: 'manual:event-1',
+          period_start: '2026-07-20T00:00:00+08:00',
+          period_end: '2026-08-20T00:00:00+08:00',
+        },
+      },
+      error: null,
+    }));
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(),
+      rpc,
+    } as unknown as SettingsBillingQueryClient);
+
+    await expect(repository.listPaymentHistory?.({ orgId: 'org-1', limit: 30 }))
+      .resolves.toEqual({
+        history: [
+          {
+            id: 'payment-order-1',
+            plan: 'basic',
+            provider: 'ecpay',
+            amountTwd: 399,
+            status: 'refunded',
+            paidAt: '2026-07-21T04:30:00.000Z',
+            periodStart: '2026-07-21T04:30:00.000Z',
+            periodEnd: '2026-08-21T04:30:00.000Z',
+            createdAt: '2026-07-21T04:29:00.000Z',
+          },
+          {
+            id: 'manual:event-1',
+            plan: null,
+            provider: 'manual',
+            amountTwd: 399,
+            status: 'paid',
+            paidAt: '2026-07-20T04:30:00.000Z',
+            periodStart: '2026-07-20T00:00:00+08:00',
+            periodEnd: '2026-08-20T00:00:00+08:00',
+            createdAt: '2026-07-20T04:30:01.000Z',
+          },
+        ],
+        currentEntitlementPeriod: {
+          paymentOrderId: 'manual:event-1',
+          periodStart: '2026-07-20T00:00:00+08:00',
+          periodEnd: '2026-08-20T00:00:00+08:00',
+        },
+      });
+    expect(rpc).toHaveBeenCalledWith('list_customer_payment_history', {
+      p_org_id: 'org-1',
+      p_limit: 30,
+    });
+  });
+
+  it.each([
+    ['PGRST202', 'function is not available'],
+    ['42883', 'function public.list_customer_payment_history(uuid, integer) does not exist'],
+  ])(
+    'uses the split-query fallback only while authoritative history RPC %s is unavailable',
+    async (code, message) => {
+      const repository = createSettingsBillingDataRepository({
+        from: vi.fn(),
+        rpc: vi.fn(async () => ({ data: null, error: { code, message } })),
+      } as unknown as SettingsBillingQueryClient);
+
+      await expect(repository.listPaymentHistory?.({ orgId: 'org-1' })).resolves.toBeNull();
+    }
+  );
+
+  it('surfaces authoritative history authorization errors', async () => {
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(),
+      rpc: vi.fn(async () => ({
+        data: null,
+        error: { code: '42501', message: 'active owner or admin membership is required' },
+      })),
+    } as unknown as SettingsBillingQueryClient);
+
+    await expect(repository.listPaymentHistory?.({ orgId: 'org-1' }))
+      .rejects.toThrow('active owner or admin membership is required');
+  });
+
+  it('keeps the newest 24 authoritative entries with deterministic ties and no fallback queries', async () => {
+    const history = Array.from({ length: 26 }, (_, index) => ({
+      id: `payment-${String(index).padStart(2, '0')}`,
+      plan: 'basic',
+      provider: 'ecpay',
+      amountTwd: 399,
+      status: 'paid',
+      paidAt: index < 2
+        ? '2026-07-21T12:00:00.000Z'
+        : new Date(Date.UTC(2026, 6, 21, 11, 59, 59 - index)).toISOString(),
+      periodStart: '2026-07-21T00:00:00.000Z',
+      periodEnd: '2026-08-21T00:00:00.000Z',
+      createdAt: index < 2
+        ? '2026-07-21T11:00:00.000Z'
+        : new Date(Date.UTC(2026, 6, 21, 10, 59, 59 - index)).toISOString(),
+    }));
+    const repository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'History Store',
+        plan: 'basic',
+        status: 'active',
+        suspensionSource: null,
+        billingEmail: null,
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+      listPaymentHistory: vi.fn(async () => ({
+        history: [...history].reverse(),
+        currentEntitlementPeriod: null,
+      })),
+      listPaymentOrders: vi.fn(async () => []),
+      listManualPaymentHistory: vi.fn(async () => []),
+      listSubscriptionPeriods: vi.fn(async () => []),
+    };
+
+    const input = await buildBillingSettingsViewInput(repository, {
+      orgId: 'org-1',
+      actions: { canUpdateBilling: true, canCancelRenewal: false },
+    });
+
+    expect(input?.history).toHaveLength(24);
+    expect(input?.history?.slice(0, 2).map((item) => item.id)).toEqual([
+      'payment-00',
+      'payment-01',
+    ]);
+    expect(repository.listPaymentOrders).not.toHaveBeenCalled();
+    expect(repository.listManualPaymentHistory).not.toHaveBeenCalled();
+    expect(repository.listSubscriptionPeriods).not.toHaveBeenCalled();
+  });
+
+  it('resolves the current entitlement independently from the bounded history', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-21T04:30:00.000Z'));
+    const history = Array.from({ length: 24 }, (_, index) => ({
+      id: `pending-${index}`,
+      plan: 'basic',
+      provider: 'ecpay',
+      amountTwd: 399,
+      status: 'pending',
+      paidAt: null,
+      periodStart: null,
+      periodEnd: null,
+      createdAt: new Date(Date.UTC(2026, 6, 21, 4, 29, 59 - index)).toISOString(),
+    }));
+    const repository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Early Renewal Store',
+        plan: 'basic',
+        status: 'active',
+        suspensionSource: null,
+        billingEmail: null,
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => ({
+        provider: 'ecpay',
+        currentPeriodStart: '2026-08-19T04:30:00.000Z',
+        currentPeriodEnd: '2026-09-19T04:30:00.000Z',
+        trialEnd: null,
+        cancelAtPeriodEnd: false,
+      })),
+      getLatestInvoice: vi.fn(async () => null),
+      listPaymentHistory: vi.fn(async () => ({
+        history,
+        currentEntitlementPeriod: {
+          paymentOrderId: 'older-current-payment',
+          periodStart: '2026-07-19T04:30:00.000Z',
+          periodEnd: '2026-08-19T04:30:00.000Z',
+        },
+      })),
+      listPaymentOrders: vi.fn(async () => []),
+      listManualPaymentHistory: vi.fn(async () => []),
+      listSubscriptionPeriods: vi.fn(async () => []),
+    };
+
+    const input = await buildBillingSettingsViewInput(repository, {
+      orgId: 'org-1',
+      actions: { canUpdateBilling: true, canCancelRenewal: false },
+    });
+
+    expect(input?.history).toHaveLength(24);
+    expect(input?.subscription?.currentPeriodStart).toBe('2026-07-19T04:30:00.000Z');
+    expect(repository.listPaymentOrders).not.toHaveBeenCalled();
+    expect(repository.listManualPaymentHistory).not.toHaveBeenCalled();
+    expect(repository.listSubscriptionPeriods).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('fetches candidates by updated time and merges history by paid or created time', async () => {

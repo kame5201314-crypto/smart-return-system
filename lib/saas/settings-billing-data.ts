@@ -18,6 +18,7 @@ export interface SettingsBillingQueryBuilder extends PromiseLike<SupabaseQueryRe
   select(columns: string): SettingsBillingQueryBuilder;
   eq(column: string, value: unknown): SettingsBillingQueryBuilder;
   gt(column: string, value: unknown): SettingsBillingQueryBuilder;
+  lte(column: string, value: unknown): SettingsBillingQueryBuilder;
   in(column: string, values: readonly unknown[]): SettingsBillingQueryBuilder;
   order(column: string, options: { ascending: boolean }): SettingsBillingQueryBuilder;
   limit(count: number): SettingsBillingQueryBuilder;
@@ -36,7 +37,15 @@ export interface SettingsBillingDataRepository {
   getOrganizationBilling(input: { orgId: string }): Promise<SettingsBillingOrgData | null>;
   getSubscription(input: { orgId: string }): Promise<SettingsBillingSubscriptionData | null>;
   getLatestInvoice(input: { orgId: string }): Promise<SettingsBillingInvoiceData | null>;
+  getCurrentSubscriptionPeriod?(input: {
+    orgId: string;
+    now: string;
+  }): Promise<SettingsBillingSubscriptionPeriodData | null>;
   getSuspensionSource?(input: { orgId: string }): Promise<BillingSuspensionSource | null>;
+  listPaymentHistory?(input: {
+    orgId: string;
+    limit?: number;
+  }): Promise<SettingsBillingHistoryResult | null>;
   listPaymentOrders?(input: { orgId: string; limit?: number }): Promise<SettingsBillingPaymentOrderData[]>;
   listManualPaymentHistory?(input: {
     orgId: string;
@@ -97,16 +106,55 @@ export interface SettingsBillingManualPaymentData {
   createdAt: string;
 }
 
+export interface SettingsBillingHistoryData {
+  id: string;
+  plan: string | null;
+  provider: string;
+  amountTwd: number;
+  status: string;
+  paidAt: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  createdAt: string;
+}
+
+export interface SettingsBillingHistoryResult {
+  history: SettingsBillingHistoryData[];
+  currentEntitlementPeriod: SettingsBillingSubscriptionPeriodData | null;
+}
+
 export interface SettingsBillingSubscriptionPeriodData {
   paymentOrderId: string;
   periodStart: string;
   periodEnd: string;
+  status?: string;
 }
 
 function timestampOrNull(value: string | null): number | null {
   if (!value) return null;
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function sortAndLimitPaymentHistory(
+  rows: SettingsBillingHistoryData[],
+  limit: number
+): SettingsBillingHistoryData[] {
+  return [...rows]
+    .sort((left, right) => {
+      const rightSortAt = timestampOrNull(right.paidAt) ?? timestampOrNull(right.createdAt) ?? 0;
+      const leftSortAt = timestampOrNull(left.paidAt) ?? timestampOrNull(left.createdAt) ?? 0;
+      if (rightSortAt !== leftSortAt) return rightSortAt - leftSortAt;
+
+      const rightCreatedAt = timestampOrNull(right.createdAt) ?? 0;
+      const leftCreatedAt = timestampOrNull(left.createdAt) ?? 0;
+      if (rightCreatedAt !== leftCreatedAt) return rightCreatedAt - leftCreatedAt;
+
+      const leftTieKey = left.provider === 'manual' ? left.id : `${left.provider}:${left.id}`;
+      const rightTieKey = right.provider === 'manual' ? right.id : `${right.provider}:${right.id}`;
+      return leftTieKey.localeCompare(rightTieKey);
+    })
+    .slice(0, limit);
 }
 
 export function resolveCurrentEntitlementStart(input: {
@@ -314,6 +362,57 @@ function normalizeManualPayment(row: unknown): SettingsBillingManualPaymentData 
   };
 }
 
+function normalizePaymentHistory(row: unknown): SettingsBillingHistoryData | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  if (stringOrNull(row.provider) === 'manual') {
+    return normalizeManualPayment(row);
+  }
+
+  const order = normalizePaymentOrder(row);
+  if (!order || order.provider !== 'ecpay') {
+    return null;
+  }
+
+  const createdAtTimestamp = timestampOrNull(order.createdAt);
+  const paidAtTimestamp = timestampOrNull(order.paidAt);
+  if (
+    !Number.isInteger(order.amountTwd) ||
+    order.amountTwd <= 0 ||
+    createdAtTimestamp === null ||
+    (order.paidAt !== null && paidAtTimestamp === null) ||
+    (order.status === 'paid' && paidAtTimestamp === null)
+  ) {
+    return null;
+  }
+
+  const periodStart = stringOrNull(row.period_start);
+  const periodEnd = stringOrNull(row.period_end);
+  if ((periodStart === null) !== (periodEnd === null)) {
+    return null;
+  }
+
+  if (periodStart && periodEnd) {
+    const periodStartTimestamp = timestampOrNull(periodStart);
+    const periodEndTimestamp = timestampOrNull(periodEnd);
+    if (
+      periodStartTimestamp === null ||
+      periodEndTimestamp === null ||
+      periodEndTimestamp <= periodStartTimestamp
+    ) {
+      return null;
+    }
+  }
+
+  return {
+    ...order,
+    periodStart,
+    periodEnd,
+  };
+}
+
 function normalizeSubscriptionPeriod(
   row: unknown
 ): SettingsBillingSubscriptionPeriodData | null {
@@ -328,7 +427,22 @@ function normalizeSubscriptionPeriod(
     return null;
   }
 
-  return { paymentOrderId, periodStart, periodEnd };
+  const periodStartTimestamp = timestampOrNull(periodStart);
+  const periodEndTimestamp = timestampOrNull(periodEnd);
+  if (
+    periodStartTimestamp === null ||
+    periodEndTimestamp === null ||
+    periodEndTimestamp <= periodStartTimestamp
+  ) {
+    return null;
+  }
+
+  return {
+    paymentOrderId,
+    periodStart,
+    periodEnd,
+    ...(stringOrNull(row.status) ? { status: stringOrNull(row.status)! } : {}),
+  };
 }
 
 function normalizeCustomPlanOffer(row: unknown): SettingsBillingCustomPlanOfferData | null {
@@ -394,11 +508,14 @@ function isHistoryTableUnavailable(error: SupabaseQueryError | null, table: stri
   );
 }
 
-function isManualPaymentHistoryRpcUnavailable(error: SupabaseQueryError | null): boolean {
+function isPaymentHistoryRpcUnavailable(
+  error: SupabaseQueryError | null,
+  functionName: string
+): boolean {
   const code = error?.code?.toUpperCase() ?? '';
   const message = error?.message?.toLowerCase() ?? '';
   return code === 'PGRST202' || (
-    message.includes('list_customer_manual_payment_history') && (
+    message.includes(functionName) && (
       code === '42883' ||
       message.includes('does not exist') ||
       message.includes('schema cache') ||
@@ -446,6 +563,23 @@ export function createSettingsBillingDataRepository(
       return normalizeInvoice(data);
     },
 
+    async getCurrentSubscriptionPeriod(input) {
+      const { data, error } = await client
+        .from('subscription_periods')
+        .select('payment_order_id, period_start, period_end, status')
+        .eq('org_id', input.orgId)
+        .eq('status', 'active')
+        .lte('period_start', input.now)
+        .gt('period_end', input.now)
+        .order('period_start', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (isHistoryTableUnavailable(error, 'subscription_periods')) return null;
+      assertNoSupabaseError(error, 'Failed to load current subscription period.');
+      return normalizeSubscriptionPeriod(data);
+    },
+
     async getSuspensionSource(input) {
       const { data, error } = await client
         .from('audit_logs')
@@ -458,6 +592,39 @@ export function createSettingsBillingDataRepository(
 
       assertNoSupabaseError(error, 'Failed to load organization suspension source.');
       return normalizeSuspensionSource(data);
+    },
+
+    async listPaymentHistory(input) {
+      if (!client.rpc) {
+        return null;
+      }
+
+      const { data, error } = await client.rpc('list_customer_payment_history', {
+        p_org_id: input.orgId,
+        p_limit: input.limit ?? 24,
+      });
+
+      // Return null only while migration 054 is unavailable so callers can use
+      // the older split-query rollout fallback. Authorization and operational
+      // errors must remain visible rather than looking like an empty history.
+      if (isPaymentHistoryRpcUnavailable(error, 'list_customer_payment_history')) {
+        return null;
+      }
+      assertNoSupabaseError(error, 'Failed to load payment history.');
+      if (!isRecord(data)) {
+        return { history: [], currentEntitlementPeriod: null };
+      }
+
+      return {
+        history: Array.isArray(data.history)
+          ? data.history
+            .map(normalizePaymentHistory)
+            .filter((row): row is SettingsBillingHistoryData => row !== null)
+          : [],
+        currentEntitlementPeriod: normalizeSubscriptionPeriod(
+          data.current_entitlement_period
+        ),
+      };
     },
 
     async listPaymentOrders(input) {
@@ -493,7 +660,7 @@ export function createSettingsBillingDataRepository(
       // The customer history remains usable while migration 053 propagates to
       // PostgREST. Authentication, authorization and other RPC errors remain
       // observable instead of being misreported as an empty history.
-      if (isManualPaymentHistoryRpcUnavailable(error)) return [];
+      if (isPaymentHistoryRpcUnavailable(error, 'list_customer_manual_payment_history')) return [];
       assertNoSupabaseError(error, 'Failed to load manual payment history.');
       return Array.isArray(data)
         ? data
@@ -505,7 +672,7 @@ export function createSettingsBillingDataRepository(
     async listSubscriptionPeriods(input) {
       const { data, error } = await client
         .from('subscription_periods')
-        .select('payment_order_id, period_start, period_end, created_at')
+        .select('payment_order_id, period_start, period_end, status, created_at')
         .eq('org_id', input.orgId)
         .order('created_at', { ascending: false })
         .limit(input.limit ?? 24);
@@ -559,14 +726,14 @@ export async function buildBillingSettingsViewInput(
   }
 
   const historyLimit = 24;
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
   let customOffersUnavailable = false;
   const [
     subscription,
     latestInvoice,
     legacySuspensionSource,
-    paymentOrders,
-    manualPaymentHistory,
-    subscriptionPeriods,
+    authoritativeHistory,
     customPlanOffers,
   ] = await Promise.all([
     repository.getSubscription({ orgId: input.orgId }),
@@ -574,11 +741,8 @@ export async function buildBillingSettingsViewInput(
     org.suspensionSource === undefined
       ? repository.getSuspensionSource?.({ orgId: input.orgId }) ?? Promise.resolve(null)
       : Promise.resolve(null),
-    repository.listPaymentOrders?.({ orgId: input.orgId, limit: historyLimit }) ?? Promise.resolve([]),
-    repository.listManualPaymentHistory?.({ orgId: input.orgId, limit: historyLimit })
-      ?? Promise.resolve([]),
-    repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: historyLimit })
-      ?? Promise.resolve([]),
+    repository.listPaymentHistory?.({ orgId: input.orgId, limit: historyLimit })
+      ?? Promise.resolve(null),
     (async () => {
       try {
         return await (
@@ -593,7 +757,57 @@ export async function buildBillingSettingsViewInput(
     })(),
   ]);
 
-  const now = Date.now();
+  let history: SettingsBillingHistoryData[];
+  let entitlementPeriods: SettingsBillingSubscriptionPeriodData[];
+  if (authoritativeHistory !== null) {
+    history = sortAndLimitPaymentHistory(authoritativeHistory.history, historyLimit);
+    entitlementPeriods = authoritativeHistory.currentEntitlementPeriod
+      ? [authoritativeHistory.currentEntitlementPeriod]
+      : [];
+  } else {
+    // Migration 054 rollout fallback. The database RPC becomes authoritative
+    // as soon as it exists; until then preserve the existing split queries.
+    const [
+      paymentOrders,
+      manualPaymentHistory,
+      subscriptionPeriods,
+      currentSubscriptionPeriod,
+    ] = await Promise.all([
+      repository.listPaymentOrders?.({ orgId: input.orgId, limit: historyLimit })
+        ?? Promise.resolve([]),
+      repository.listManualPaymentHistory?.({ orgId: input.orgId, limit: historyLimit })
+        ?? Promise.resolve([]),
+      repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: historyLimit })
+        ?? Promise.resolve([]),
+      repository.getCurrentSubscriptionPeriod?.({ orgId: input.orgId, now: nowIso })
+        ?? Promise.resolve(null),
+    ]);
+    const providerHistory: SettingsBillingHistoryData[] = paymentOrders.map((order) => {
+      const period = subscriptionPeriods.find((item) => item.paymentOrderId === order.id);
+      return {
+        ...order,
+        periodStart: period?.periodStart ?? null,
+        periodEnd: period?.periodEnd ?? null,
+      };
+    });
+    history = sortAndLimitPaymentHistory(
+      [...providerHistory, ...manualPaymentHistory],
+      historyLimit
+    );
+    entitlementPeriods = [
+      ...(currentSubscriptionPeriod
+        ? [currentSubscriptionPeriod]
+        : subscriptionPeriods.filter((period) => (
+            period.status === undefined || period.status === 'active'
+          ))),
+      ...manualPaymentHistory.map((item) => ({
+        paymentOrderId: item.id,
+        periodStart: item.periodStart,
+        periodEnd: item.periodEnd,
+      })),
+    ];
+  }
+
   const availableCustomOffers = customPlanOffers.filter((offer) => {
     const expiresAt = Date.parse(offer.expiresAt);
     return offer.status === 'active' && Number.isFinite(expiresAt) && expiresAt > now;
@@ -603,32 +817,11 @@ export async function buildBillingSettingsViewInput(
         ...subscription,
         currentPeriodStart: resolveCurrentEntitlementStart({
           currentPeriodStart: subscription.currentPeriodStart,
-          periods: subscriptionPeriods,
+          periods: entitlementPeriods,
           now,
         }),
       }
     : null;
-  const paymentHistory = paymentOrders.map((order) => {
-    const period = subscriptionPeriods.find((item) => item.paymentOrderId === order.id);
-    return {
-      ...order,
-      periodStart: period?.periodStart ?? null,
-      periodEnd: period?.periodEnd ?? null,
-    };
-  });
-  const history = [...paymentHistory, ...manualPaymentHistory]
-    .sort((left, right) => {
-      const rightPaidAt = timestampOrNull(right.paidAt) ?? timestampOrNull(right.createdAt) ?? 0;
-      const leftPaidAt = timestampOrNull(left.paidAt) ?? timestampOrNull(left.createdAt) ?? 0;
-      if (rightPaidAt !== leftPaidAt) return rightPaidAt - leftPaidAt;
-
-      const rightCreatedAt = timestampOrNull(right.createdAt) ?? 0;
-      const leftCreatedAt = timestampOrNull(left.createdAt) ?? 0;
-      if (rightCreatedAt !== leftCreatedAt) return rightCreatedAt - leftCreatedAt;
-
-      return left.id.localeCompare(right.id);
-    })
-    .slice(0, historyLimit);
 
   return {
     org: {

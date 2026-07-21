@@ -608,13 +608,13 @@ export function BillingPlanSelector({
                         <dt className="text-muted-foreground">
                           {item.provider === 'manual'
                             ? '入帳時間'
-                            : item.status === 'paid' && item.paidAt
+                            : item.paidAt
                               ? '付款時間'
                               : '訂單建立時間'}
                         </dt>
                         <dd className="mt-1 text-gray-950">
                           {formatSaaSBillingDateTime(
-                            item.status === 'paid' && item.paidAt ? item.paidAt : item.createdAt
+                            item.paidAt ?? item.createdAt
                           )}
                         </dd>
                       </div>
@@ -661,7 +661,7 @@ export function BillingPlanSelector({
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {formatSaaSBillingDateTime(
-                            item.status === 'paid' && item.paidAt ? item.paidAt : item.createdAt
+                            item.paidAt ?? item.createdAt
                           )}
                         </td>
                       </tr>

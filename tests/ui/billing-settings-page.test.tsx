@@ -158,6 +158,28 @@ describe('BillingSettingsPage', () => {
     expect(screen.getAllByText('2026/07/21 12:30').length).toBeGreaterThan(0);
   });
 
+  it('keeps the original payment time visible after an order is refunded', async () => {
+    billingMocks.result.data.history = [
+      {
+        id: 'refunded-order-1',
+        plan: 'basic',
+        provider: 'ecpay',
+        periodStart: '2026-07-01T00:00:00.000Z',
+        periodEnd: '2026-08-01T00:00:00.000Z',
+        amountTwd: 399,
+        status: 'refunded',
+        paidAt: '2026-07-21T04:30:00.000Z',
+        createdAt: '2026-07-01T01:00:00.000Z',
+      },
+    ];
+
+    await renderPage();
+
+    expect(screen.getByText('付款時間')).toBeInTheDocument();
+    expect(screen.getAllByText('2026/07/21 12:30').length).toBeGreaterThan(0);
+    expect(screen.queryByText('2026/07/01 09:00')).not.toBeInTheDocument();
+  });
+
   it('shows an expired self-service trial as 試用版 without exposing the organization name', async () => {
     billingMocks.result.data.org.status = 'suspended';
     billingMocks.result.data.org.suspensionSource = 'trial_expired';
