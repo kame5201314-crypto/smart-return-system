@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -25,23 +25,11 @@ interface SelfServiceTrialFormProps {
 }
 
 const FIELD_CLASS = 'mt-2 h-12 text-base';
-const SELECT_CLASS = 'mt-2 h-12 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50';
 
-const PLATFORM_OPTIONS = [
-  ['shopee', '蝦皮'],
-  ['official_site', '品牌官網'],
-  ['momo', 'momo'],
-  ['multi_channel', '多通路'],
-  ['other', '其他'],
-] as const;
-
-const RETURN_BAND_OPTIONS = [
-  ['under_30', '30 筆以下'],
-  ['30_100', '30–100 筆'],
-  ['101_300', '101–300 筆'],
-  ['301_800', '301–800 筆'],
-  ['over_800', '800 筆以上'],
-] as const;
+// The simplified onboarding no longer asks merchants for segmentation data.
+// Keep contract-safe defaults so the existing provisioning API remains stable.
+const DEFAULT_PLATFORM = 'other';
+const DEFAULT_MONTHLY_RETURN_BAND = '30_100';
 
 function getErrorMessage(code: unknown): string {
   if (code === 'invite_required') return '目前為邀請制測試，請使用受邀的電子信箱登入。';
@@ -67,7 +55,6 @@ function isTaiwanMobile(value: string): boolean {
 export function SelfServiceTrialForm({
   identityLabel,
   identityProvider,
-  verifiedEmail = null,
   verifiedPhone = null,
   initialContactName = '',
   initialReferralCode = '',
@@ -78,14 +65,6 @@ export function SelfServiceTrialForm({
   const [orgName, setOrgName] = useState('');
   const [contactName, setContactName] = useState(initialContactName);
   const [contactPhone, setContactPhone] = useState(verifiedPhone || '');
-  const [lineId, setLineId] = useState('');
-  const [preferredContactChannel, setPreferredContactChannel] = useState<'email' | 'phone' | 'line'>(
-    verifiedEmail ? 'email' : 'phone'
-  );
-  const [platform, setPlatform] = useState('shopee');
-  const [monthlyReturnBand, setMonthlyReturnBand] = useState('30_100');
-  const [referralCode, setReferralCode] = useState(initialReferralCode);
-  const [plan, setPlan] = useState<SelfServiceTrialPlan>(initialPlan);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -93,14 +72,6 @@ export function SelfServiceTrialForm({
     event.preventDefault();
     if (!isTaiwanMobile(contactPhone)) {
       toast.error('請輸入有效的台灣手機號碼，例如 0912345678。');
-      return;
-    }
-    if (preferredContactChannel === 'email' && !verifiedEmail) {
-      toast.error('目前帳號沒有已驗證信箱，請選擇電話或 LINE。');
-      return;
-    }
-    if (preferredContactChannel === 'line' && !lineId.trim()) {
-      toast.error('偏好使用 LINE 聯絡時，請填寫 LINE ID。');
       return;
     }
     if (!termsAccepted) {
@@ -121,12 +92,12 @@ export function SelfServiceTrialForm({
           orgName,
           contactName,
           contactPhone: normalizeContactPhone(contactPhone),
-          lineId,
-          preferredContactChannel,
-          platform,
-          monthlyReturnBand,
-          referralCode,
-          plan,
+          lineId: '',
+          preferredContactChannel: 'phone',
+          platform: DEFAULT_PLATFORM,
+          monthlyReturnBand: DEFAULT_MONTHLY_RETURN_BAND,
+          referralCode: initialReferralCode,
+          plan: initialPlan,
           termsAccepted,
           termsVersion: CURRENT_SELF_SERVICE_TRIAL_TERMS_VERSION,
           idempotencyKey: idempotencyKeyRef.current,
@@ -239,114 +210,6 @@ export function SelfServiceTrialForm({
             disabled={isSubmitting}
             autoComplete="tel"
           />
-          <p className="mt-1.5 text-xs leading-5 text-neutral-500">
-            {verifiedPhone ? '此手機號碼已完成驗證。' : '作為客服聯絡使用，目前尚未完成手機驗證。'}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="trial-platform" className="text-sm font-medium text-neutral-900">
-            主要銷售平台 <span className="text-red-600">*</span>
-          </label>
-          <select
-            id="trial-platform"
-            className={SELECT_CLASS}
-            value={platform}
-            onChange={(event) => setPlatform(event.target.value)}
-            disabled={isSubmitting}
-            required
-          >
-            {PLATFORM_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="trial-return-band" className="text-sm font-medium text-neutral-900">
-            每月退貨量 <span className="text-red-600">*</span>
-          </label>
-          <select
-            id="trial-return-band"
-            className={SELECT_CLASS}
-            value={monthlyReturnBand}
-            onChange={(event) => setMonthlyReturnBand(event.target.value)}
-            disabled={isSubmitting}
-            required
-          >
-            {RETURN_BAND_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="trial-preferred-contact" className="text-sm font-medium text-neutral-900">
-            偏好聯絡方式 <span className="text-red-600">*</span>
-          </label>
-          <select
-            id="trial-preferred-contact"
-            className={SELECT_CLASS}
-            value={preferredContactChannel}
-            onChange={(event) => setPreferredContactChannel(event.target.value as 'email' | 'phone' | 'line')}
-            disabled={isSubmitting}
-            required
-          >
-            {verifiedEmail ? <option value="email">Email</option> : null}
-            <option value="phone">電話</option>
-            <option value="line">LINE</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="trial-line-id" className="text-sm font-medium text-neutral-900">
-            LINE ID {preferredContactChannel === 'line' ? <span className="text-red-600">*</span> : '（選填）'}
-          </label>
-          <Input
-            id="trial-line-id"
-            value={lineId}
-            onChange={(event) => setLineId(event.target.value)}
-            placeholder="例如：smartreturn"
-            className={FIELD_CLASS}
-            maxLength={80}
-            required={preferredContactChannel === 'line'}
-            disabled={isSubmitting}
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="trial-plan" className="text-sm font-medium text-neutral-900">
-            試用方案 <span className="text-red-600">*</span>
-          </label>
-          <select
-            id="trial-plan"
-            className={SELECT_CLASS}
-            value={plan}
-            onChange={(event) => setPlan(event.target.value as SelfServiceTrialPlan)}
-            disabled={isSubmitting}
-            required
-          >
-            <option value="basic">入門版 NT$399／月</option>
-          </select>
-          <p className="mt-1.5 text-xs leading-5 text-neutral-500">前 3 天免費，不需信用卡且不會自動扣款。</p>
-        </div>
-        <div>
-          <label htmlFor="trial-referral-code" className="text-sm font-medium text-neutral-900">
-            推薦碼（選填）
-          </label>
-          <Input
-            id="trial-referral-code"
-            value={referralCode}
-            onChange={(event) => setReferralCode(event.target.value)}
-            placeholder="請輸入推薦碼"
-            className={FIELD_CLASS}
-            maxLength={64}
-            disabled={isSubmitting}
-          />
         </div>
       </div>
 
@@ -371,13 +234,6 @@ export function SelfServiceTrialForm({
           ，並了解試用期為 3 天且不會自動扣款。
         </span>
       </label>
-
-      <div className="rounded-lg bg-neutral-50 p-4 text-xs leading-5 text-neutral-600">
-        <div className="flex items-start gap-2">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-700" aria-hidden="true" />
-          <p>商家資料只用於建立工作區、客服聯絡與提供 Smart Return 服務。</p>
-        </div>
-      </div>
 
       <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting}>
         {isSubmitting ? (

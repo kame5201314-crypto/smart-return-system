@@ -58,6 +58,13 @@ describe('SelfServiceTrialForm', () => {
     expect(screen.getByText('owner@example.com')).toBeInTheDocument();
     expect(screen.getByText(/Google 只用於確認登入身分/)).toBeInTheDocument();
     expect(screen.getByLabelText(/聯絡人姓名/)).toHaveValue('王小明');
+    expect(screen.queryByLabelText(/主要銷售平台/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/每月退貨量/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/偏好聯絡方式/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/LINE ID/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/試用方案/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/推薦碼/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/商家資料只用於建立工作區/)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/品牌或商店名稱/), {
       target: { value: '好好生活選物' },
@@ -65,17 +72,6 @@ describe('SelfServiceTrialForm', () => {
     fireEvent.change(screen.getByLabelText(/聯絡電話/), {
       target: { value: '0912-345-678' },
     });
-    fireEvent.change(screen.getByLabelText(/主要銷售平台/), {
-      target: { value: 'official_site' },
-    });
-    fireEvent.change(screen.getByLabelText(/每月退貨量/), {
-      target: { value: '101_300' },
-    });
-    fireEvent.change(screen.getByLabelText(/偏好聯絡方式/), {
-      target: { value: 'phone' },
-    });
-    expect(screen.getByLabelText(/試用方案/)).toHaveValue('basic');
-    expect(screen.queryByRole('option', { name: /699/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: '完成資料並開始 3 天免費試用' }));
 
@@ -93,8 +89,8 @@ describe('SelfServiceTrialForm', () => {
       contactPhone: '0912345678',
       lineId: '',
       preferredContactChannel: 'phone',
-      platform: 'official_site',
-      monthlyReturnBand: '101_300',
+      platform: 'other',
+      monthlyReturnBand: '30_100',
       referralCode: 'FRIEND-88',
       plan: 'basic',
       termsAccepted: true,
@@ -180,7 +176,12 @@ describe('SelfServiceTrialForm', () => {
     expect(navigationMocks.refresh).toHaveBeenCalled();
   });
 
-  it('requires LINE ID when LINE is the preferred contact channel', () => {
+  it('keeps a verified phone read-only and provisions with hidden contract defaults', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, redirectTo: '/analytics' }),
+    });
+
     render(
       <SelfServiceTrialForm
         identityLabel="0912345678"
@@ -192,15 +193,25 @@ describe('SelfServiceTrialForm', () => {
 
     expect(screen.getByLabelText(/聯絡電話/)).toHaveValue('0912345678');
     expect(screen.getByLabelText(/聯絡電話/)).toHaveAttribute('readonly');
-    expect(screen.getByText('此手機號碼已完成驗證。')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText(/偏好聯絡方式/), {
-      target: { value: 'line' },
+    fireEvent.change(screen.getByLabelText(/品牌或商店名稱/), {
+      target: { value: '好好生活選物' },
+    });
+    fireEvent.change(screen.getByLabelText(/聯絡人姓名/), {
+      target: { value: '王小明' },
     });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.submit(screen.getByTestId('merchant-profile-form'));
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(toastMocks.error).toHaveBeenCalledWith('偏好使用 LINE 聯絡時，請填寫 LINE ID。');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(request.body))).toEqual(expect.objectContaining({
+      contactPhone: '0912345678',
+      lineId: '',
+      preferredContactChannel: 'phone',
+      platform: 'other',
+      monthlyReturnBand: '30_100',
+      referralCode: '',
+      plan: 'basic',
+    }));
   });
 });
