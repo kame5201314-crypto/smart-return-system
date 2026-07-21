@@ -1,5 +1,34 @@
 # SaaS External Setup Status
 
+## 2026-07-20 Private Custom Offer Repository Update
+
+- User-provided ECPay email evidence shows that the merchant bank-account
+  verification passed on 2026-07-16. This verifies the settlement account; it
+  does not by itself configure or enable the Production checkout API.
+- The commercial operations console can prepare a private, tenant-scoped offer
+  with a server-owned title, description, amount, and expiry. Only an active
+  owner or administrator of that tenant can read and pay the offer.
+- A private offer purchases one month of the existing Basic entitlement and is
+  a one-time prepaid transaction. It does not store card data, auto-renew, or
+  expose an arbitrary entitlement editor.
+- The merchant sends only the offer UUID. The amount and one-month period are
+  reloaded from the database inside a service-role-only RPC before an ECPay
+  payment order can be signed. Existing signed-callback, independent trade
+  query, amount matching, idempotent settlement, and durable rate-limit guards
+  remain mandatory.
+- One private offer can permanently issue at most one provider payment order.
+  Operators cannot cancel an offer after a provider order has been issued. If
+  that order was created while the offer was valid, a later independently
+  verified successful ECPay notification must still grant the purchased month;
+  offer expiry only blocks creation of a new checkout.
+- Migration `049_saas_custom_plan_offers.sql` is repository-only in this
+  update. It has **not** been applied to Supabase. Do not rerun migrations
+  `040`-`048`; apply `049` only in a separately authorized SaaS-project rollout.
+- No deployment, migration execution, Vercel/Supabase setting, billing flag,
+  or ECPay secret was changed by this repository work. Production collection
+  remains closed until formal Production merchant credentials and the bounded
+  payment rollout are completed.
+
 ## 2026-07-20 Single Public NT$399 Plan Repository Update
 
 - New public signup, marketing, and self-service checkout now offer one paid

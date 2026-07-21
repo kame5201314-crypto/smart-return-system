@@ -9,11 +9,18 @@ import {
   generateECPayCheckoutIdempotencyKey,
   generateECPayMerchantTradeNo,
   normalizeECPaySelfServiceCheckoutPlan,
+  resolveECPayCustomOfferOrderMetadata,
   resolveECPayPrepaidAmountTwd,
   type ECPayCheckoutRepository,
   type ECPaySelfServiceCheckoutPlan,
 } from '@/lib/saas/billing-ecpay';
 import { resolveBillingWebhookState } from '@/lib/saas/billing';
+import {
+  createCustomPlanOfferRepository,
+  CustomPlanOfferError,
+  normalizeCustomPlanOfferId,
+  type CustomPlanOfferRepository,
+} from '@/lib/saas/custom-plan-offers';
 import {
   getOrgContext,
   SaaSOrgContextError,
@@ -36,11 +43,16 @@ interface CheckoutContext {
 export interface ECPayCheckoutRouteDependencies {
   env?: Record<string, string | undefined>;
   repository?: ECPayCheckoutRepository;
+  customOfferRepository?: CustomPlanOfferRepository;
   loadContext?: () => Promise<CheckoutContext>;
   now?: Date;
   generateMerchantTradeNo?: (now: Date) => string;
   generateIdempotencyKey?: () => string;
 }
+
+type CheckoutTarget =
+  | { kind: 'plan'; plan: ECPaySelfServiceCheckoutPlan }
+  | { kind: 'custom_offer'; offerId: string };
 
 class CheckoutRouteError extends Error {
   constructor(
@@ -57,9 +69,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-async function readCheckoutPlan(
-  request: NextRequest
-): Promise<ECPaySelfServiceCheckoutPlan> {
+async function readCheckoutTarget(request: NextRequest): Promise<CheckoutTarget> {
   let payload: unknown;
   try {
     payload = await request.json();
@@ -67,13 +77,38 @@ async function readCheckoutPlan(
     throw new CheckoutRouteError('invalid_request', 400, 'Checkout request body is invalid.');
   }
 
-  if (!isRecord(payload) || Object.keys(payload).some((key) => key !== 'plan')) {
+  if (!isRecord(payload)) {
     throw new CheckoutRouteError(
       'invalid_request',
       400,
-      'Checkout request only accepts a plan.'
+      'Checkout request must be an object.'
     );
   }
+
+  const keys = Object.keys(payload);
+  if (keys.length !== 1 || (keys[0] !== 'plan' && keys[0] !== 'offerId')) {
+    throw new CheckoutRouteError(
+      'invalid_request',
+      400,
+      'Checkout request accepts either one plan or one custom offer.'
+    );
+  }
+
+  if (keys[0] === 'offerId') {
+    try {
+      return {
+        kind: 'custom_offer',
+        offerId: normalizeCustomPlanOfferId(payload.offerId),
+      };
+    } catch {
+      throw new CheckoutRouteError(
+        'invalid_offer',
+        400,
+        'Checkout custom offer is invalid.'
+      );
+    }
+  }
+
   const plan = normalizeECPaySelfServiceCheckoutPlan(payload.plan);
   if (!plan) {
     throw new CheckoutRouteError(
@@ -82,7 +117,7 @@ async function readCheckoutPlan(
       'Checkout plan must be basic.'
     );
   }
-  return plan;
+  return { kind: 'plan', plan };
 }
 
 function resolveIdempotencyKey(
@@ -196,7 +231,7 @@ export async function handleCreateECPayCheckout(
 ) {
   try {
     const env = deps.env ?? process.env;
-    const plan = await readCheckoutPlan(request);
+    const target = await readCheckoutTarget(request);
     const context = await loadCheckoutContext(deps, env);
     assertCheckoutEnabled(context, env);
     if (context.plan !== 'basic') {
@@ -207,7 +242,6 @@ export async function handleCreateECPayCheckout(
       );
     }
 
-    const amountTwd = resolveECPayPrepaidAmountTwd(plan);
     const requestNow = deps.now ?? new Date();
     const merchantTradeNo = (deps.generateMerchantTradeNo ?? generateECPayMerchantTradeNo)(
       requestNow
@@ -215,30 +249,70 @@ export async function handleCreateECPayCheckout(
     const idempotencyKey = resolveIdempotencyKey(request, deps);
     const repository = deps.repository ?? createECPayCheckoutRepository();
     const providerMode = resolveBillingWebhookState('ecpay', env).config.mode;
-    const order = await repository.createOrder({
-      orgId: context.orgId,
-      actorUserId: context.userId,
-      plan,
-      amountTwd,
-      merchantTradeNo,
-      idempotencyKey,
-      merchantId: env.ECPAY_MERCHANT_ID!.trim(),
-      providerMode,
-    });
+    const merchantId = env.ECPAY_MERCHANT_ID!.trim();
+    const amountTwd = target.kind === 'plan'
+      ? resolveECPayPrepaidAmountTwd(target.plan)
+      : null;
+    const order = target.kind === 'plan'
+      ? await repository.createOrder({
+          orgId: context.orgId,
+          actorUserId: context.userId,
+          plan: target.plan,
+          amountTwd: amountTwd!,
+          merchantTradeNo,
+          idempotencyKey,
+          merchantId,
+          providerMode,
+        })
+      : await (
+          deps.customOfferRepository ?? createCustomPlanOfferRepository()
+        ).createPaymentOrder({
+          offerId: target.offerId,
+          orgId: context.orgId,
+          actorUserId: context.userId,
+          provider: 'ecpay',
+          providerMode,
+          merchantId,
+          merchantTradeNo,
+          idempotencyKey,
+        });
 
     if (
       order.orgId !== context.orgId
       || order.provider !== 'ecpay'
       || order.providerMode !== providerMode
-      || order.merchantId !== env.ECPAY_MERCHANT_ID!.trim()
-      || order.plan !== plan
-      || order.amountTwd !== amountTwd
+      || order.merchantId !== merchantId
+      || order.plan !== 'basic'
     ) {
       throw new CheckoutRouteError(
         'order_mismatch',
         409,
         'Persisted payment order does not match this checkout.'
       );
+    }
+
+    if (target.kind === 'plan') {
+      if (order.plan !== target.plan || order.amountTwd !== amountTwd) {
+        throw new CheckoutRouteError(
+          'order_mismatch',
+          409,
+          'Persisted payment order does not match this checkout.'
+        );
+      }
+    } else {
+      let customOffer;
+      try {
+        customOffer = resolveECPayCustomOfferOrderMetadata(order);
+      } catch {
+        customOffer = null;
+      }
+      if (!customOffer || customOffer.customOfferId !== target.offerId) {
+        throw new CheckoutRouteError(
+          'order_mismatch',
+          409,
+          'Persisted payment order does not match this custom offer.'
+        );
+      }
     }
 
     if (order.status.toLowerCase() !== 'pending') {
@@ -259,25 +333,36 @@ export async function handleCreateECPayCheckout(
       { status: 200, headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (error) {
-    if (error instanceof ECPayCheckoutRateLimitError) {
+    if (
+      error instanceof ECPayCheckoutRateLimitError
+      || (error instanceof CustomPlanOfferError
+        && error.code === 'checkout_rate_limited')
+    ) {
+      const retryAfterSeconds = error instanceof ECPayCheckoutRateLimitError
+        ? error.retryAfterSeconds
+        : error.retryAfterSeconds ?? 60;
       return NextResponse.json(
         {
           success: false,
           error: error.message,
           code: error.code,
-          retryAfterSeconds: error.retryAfterSeconds,
+          retryAfterSeconds,
         },
         {
           status: 429,
           headers: {
             'Cache-Control': 'no-store',
-            'Retry-After': String(error.retryAfterSeconds),
+            'Retry-After': String(retryAfterSeconds),
           },
         }
       );
     }
 
-    if (error instanceof SaaSOrgContextError || error instanceof CheckoutRouteError) {
+    if (
+      error instanceof SaaSOrgContextError
+      || error instanceof CheckoutRouteError
+      || error instanceof CustomPlanOfferError
+    ) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
         { status: error.status, headers: { 'Cache-Control': 'no-store' } }

@@ -147,6 +147,7 @@ describe('SaaS UI/backend contracts', () => {
         taxId: '12345678',
       },
       history: [],
+      customOffers: [],
       actions: {
         canUpdateBilling: true,
         canCancelRenewal: false,
@@ -284,6 +285,81 @@ describe('SaaS UI/backend contracts', () => {
       },
     ]);
   });
+
+  it('normalizes private custom offers without changing public plan contracts', () => {
+    expect(
+      buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'basic',
+          status: 'trialing',
+          suspensionSource: null,
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        customOffers: [
+          {
+            id: 'custom-offer-1',
+            title: '  首批導入專案  ',
+            description: '  包含資料整理  ',
+            amountTwd: 2680,
+            expiresAt: '2099-08-31T12:00:00.000Z',
+            billingPeriodMonths: 1,
+          },
+        ],
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: false,
+        },
+      }).customOffers
+    ).toEqual([
+      {
+        id: 'custom-offer-1',
+        title: '首批導入專案',
+        description: '包含資料整理',
+        amountTwd: 2680,
+        expiresAt: '2099-08-31T12:00:00.000Z',
+        billingPeriodMonths: 1,
+      },
+    ]);
+  });
+
+  it.each([4, 200_000, 99.5])(
+    'rejects an invalid ECPay custom offer amount %s',
+    (amountTwd) => {
+      expect(() => buildBillingSettingsView({
+        org: {
+          id: 'org-1',
+          name: 'Demo Org',
+          plan: 'basic',
+          status: 'trialing',
+          suspensionSource: null,
+        },
+        subscription: null,
+        invoiceSummary: {
+          latestInvoiceId: null,
+          latestInvoiceStatus: null,
+          billingEmail: null,
+          taxId: null,
+        },
+        customOffers: [{
+          id: 'custom-offer-1',
+          title: '專屬方案',
+          description: null,
+          amountTwd,
+          expiresAt: '2099-08-31T12:00:00.000Z',
+          billingPeriodMonths: 1,
+        }],
+        actions: { canUpdateBilling: true, canCancelRenewal: false },
+      })).toThrow('Invalid ECPay custom offer amount');
+    }
+  );
 
   it.each(['enterprise', 'legacy-plan'])(
     'rejects unsupported self-service payment plan %s',

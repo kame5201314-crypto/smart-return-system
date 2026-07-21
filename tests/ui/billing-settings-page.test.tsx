@@ -40,6 +40,7 @@ const billingMocks = vi.hoisted(() => ({
           createdAt: '2026-06-18T00:00:00.000Z',
         },
       ],
+      customOffers: [],
       actions: {
         canUpdateBilling: false,
         canCancelRenewal: false,
@@ -80,6 +81,8 @@ describe('BillingSettingsPage', () => {
     billingMocks.result.data.org.plan = 'basic';
     billingMocks.result.data.org.suspensionSource = null;
     billingMocks.result.data.subscription!.cancelAtPeriodEnd = false;
+    billingMocks.result.data.customOffers = [];
+    delete billingMocks.result.data.customOffersUnavailable;
     billingMocks.result.data.actions.canUpdateBilling = false;
     billingMocks.result.data.actions.disabledReason = '線上付款目前尚未開放。';
   });
@@ -297,6 +300,97 @@ describe('BillingSettingsPage', () => {
     expect(form).not.toBeNull();
     expect(form?.querySelector('input[name="MerchantTradeNo"]')).toHaveValue('trade-1');
     expect(form?.querySelector('input[name="TradeAmt"]')).toHaveValue('399');
+  });
+
+  it('shows a private custom offer and checks out with only the server-side offer id', async () => {
+    billingMocks.result.data.actions.canUpdateBilling = true;
+    billingMocks.result.data.actions.disabledReason = undefined;
+    billingMocks.result.data.customOffers = [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        title: '首批導入專案',
+        description: '包含初始資料整理與一個月系統使用。',
+        amountTwd: 2_680,
+        expiresAt: '2099-08-31T12:00:00.000Z',
+        billingPeriodMonths: 1,
+      },
+    ];
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          checkout: {
+            action: 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5',
+            fields: { MerchantTradeNo: 'custom-trade-1', TradeAmt: '2680' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => undefined);
+
+    await renderPage();
+
+    expect(screen.getByRole('heading', { name: '為你的工作區準備的方案' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '首批導入專案' })).toBeInTheDocument();
+    expect(screen.getByText('包含初始資料整理與一個月系統使用。')).toBeInTheDocument();
+    expect(screen.getByText('NT$2,680')).toBeInTheDocument();
+    expect(screen.getByText('報價有效至 2099/08/31')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /使用專屬報價付款/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/saas/billing/checkout',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ offerId: '11111111-1111-4111-8111-111111111111' }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+    const requestInit = (
+      fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    )[1];
+    const requestBody = JSON.parse(String(requestInit.body));
+    expect(requestBody).toEqual({ offerId: '11111111-1111-4111-8111-111111111111' });
+    expect(requestBody).not.toHaveProperty('amountTwd');
+    expect(requestBody).not.toHaveProperty('plan');
+  });
+
+  it('keeps the public plan available while reporting a recoverable custom-offer load error', async () => {
+    billingMocks.result.data.customOffersUnavailable = true;
+
+    await renderPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '專屬報價暫時無法載入；公開 NT$399 方案仍可正常使用。'
+    );
+    expect(screen.getByText('NT$399')).toBeInTheDocument();
+  });
+
+  it('shows a safe message when a private offer checkout is no longer available', async () => {
+    billingMocks.result.data.actions.canUpdateBilling = true;
+    billingMocks.result.data.actions.disabledReason = undefined;
+    billingMocks.result.data.customOffers = [{
+      id: '11111111-1111-4111-8111-111111111111',
+      title: '限時專屬方案',
+      description: null,
+      amountTwd: 899,
+      expiresAt: '2099-08-31T12:00:00.000Z',
+      billingPeriodMonths: 1,
+    }];
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ success: false, code: 'offer_unavailable' }),
+      { status: 409, headers: { 'content-type': 'application/json' } }
+    )));
+
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /使用專屬報價付款/ }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(
+      '這筆專屬報價已到期或付款連結已失效'
+    ));
   });
 
   it('aborts checkout after ten seconds and lets the user retry', async () => {

@@ -44,6 +44,14 @@ export interface ECPayPaymentOrder {
   merchantTradeNo: string;
   status: string;
   createdAt: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ECPayCustomOfferOrderMetadata {
+  pricingKind: 'custom_offer';
+  customOfferId: string;
+  customOfferTitle: string;
+  billingPeriodMonths: 1;
 }
 
 export interface CreateECPayPaymentOrderInput {
@@ -179,6 +187,29 @@ function integerOrNull(value: unknown): number | null {
   return null;
 }
 
+function normalizeMetadata(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function normalizeCustomOfferTitle(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value
+    .replace(/[\u0000-\u001f\u007f#]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized.length >= 2 && normalized.length <= 80 ? normalized : null;
+}
+
+function normalizeUuid(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+    normalized
+  )
+    ? normalized
+    : null;
+}
+
 function requireString(value: unknown, field: string): string {
   const normalized = stringOrNull(value);
   if (!normalized) {
@@ -243,6 +274,36 @@ function normalizePaymentOrder(value: unknown): ECPayPaymentOrder {
     ),
     status: requireString(row.status ?? row.order_status, 'status'),
     createdAt: stringOrNull(row.created_at ?? row.createdAt),
+    metadata: normalizeMetadata(row.metadata),
+  };
+}
+
+export function resolveECPayCustomOfferOrderMetadata(
+  order: ECPayPaymentOrder
+): ECPayCustomOfferOrderMetadata | null {
+  const metadata = normalizeMetadata(order.metadata);
+  if (stringOrNull(metadata.pricing_kind)?.toLowerCase() !== 'custom_offer') {
+    return null;
+  }
+
+  const customOfferId = normalizeUuid(metadata.custom_offer_id);
+  const customOfferTitle = normalizeCustomOfferTitle(metadata.custom_offer_title);
+  const billingPeriodMonths = integerOrNull(metadata.billing_period_months);
+  if (!customOfferId || !customOfferTitle || billingPeriodMonths !== 1) {
+    throw new Error('Custom offer payment order metadata is invalid.');
+  }
+  if (!Number.isSafeInteger(order.amountTwd) || order.amountTwd < 5 || order.amountTwd > 199_999) {
+    throw new Error('Custom offer payment order amount is outside the allowed range.');
+  }
+  if (order.plan !== 'basic') {
+    throw new Error('Custom offer payment orders must grant the Basic plan.');
+  }
+
+  return {
+    pricingKind: 'custom_offer',
+    customOfferId,
+    customOfferTitle,
+    billingPeriodMonths: 1,
   };
 }
 
@@ -426,9 +487,16 @@ export function buildECPayAioCheckoutForm(input: {
   if (!normalizeECPayMerchantTradeNo(input.order.merchantTradeNo)) {
     throw new Error('ECPay merchant trade number must be 1-20 alphanumeric characters.');
   }
-  const expectedAmount = resolveECPayPrepaidAmountTwd(input.order.plan);
-  if (input.order.amountTwd !== expectedAmount) {
-    throw new Error('Payment order amount does not match the server plan price.');
+  const customOffer = resolveECPayCustomOfferOrderMetadata(input.order);
+  if (!customOffer) {
+    const pricingKind = stringOrNull(input.order.metadata?.pricing_kind)?.toLowerCase();
+    if (pricingKind && pricingKind !== 'self_service') {
+      throw new Error('Payment order pricing metadata is not supported.');
+    }
+    const expectedAmount = resolveECPayPrepaidAmountTwd(input.order.plan);
+    if (input.order.amountTwd !== expectedAmount) {
+      throw new Error('Payment order amount does not match the server plan price.');
+    }
   }
 
   const merchantId = requireString(env.ECPAY_MERCHANT_ID, 'MerchantID');
@@ -446,8 +514,10 @@ export function buildECPayAioCheckoutForm(input: {
     MerchantTradeDate: formatECPayMerchantTradeDate(input.now ?? new Date()),
     PaymentType: 'aio',
     TotalAmount: String(input.order.amountTwd),
-    TradeDesc: 'Smart Return monthly plan',
-    ItemName: `Smart Return ${input.order.plan} one month`,
+    TradeDesc: customOffer ? 'Smart Return custom offer' : 'Smart Return monthly plan',
+    ItemName: customOffer
+      ? `Smart Return ${customOffer.customOfferTitle} one month`
+      : `Smart Return ${input.order.plan} one month`,
     ReturnURL: `${origin}/api/billing/ecpay/webhook`,
     ChoosePayment: 'Credit',
     EncryptType: '1',
@@ -457,7 +527,7 @@ export function buildECPayAioCheckoutForm(input: {
     OrderResultURL: `${origin}/api/billing/ecpay/result`,
     NeedExtraPaidInfo: 'N',
     CustomField1: input.order.orgId.slice(0, 50),
-    CustomField2: input.order.plan,
+    CustomField2: customOffer ? 'custom_offer' : input.order.plan,
     CustomField3: input.order.id.slice(0, 50),
     CustomField4: '',
   };

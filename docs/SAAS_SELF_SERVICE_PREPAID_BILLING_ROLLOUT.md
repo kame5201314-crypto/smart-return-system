@@ -4,6 +4,11 @@ Last updated: 2026-07-20
 
 ## Current Verified Status
 
+- A private custom-offer extension is prepared in repository migration `049`.
+  It lets platform operations quote a tenant-specific amount for one month of
+  Basic access. Migration `049` is not applied and is not part of the verified
+  Production baseline yet.
+
 - Migrations `045`, `046`, `047`, and `048` are applied only to SaaS Supabase project
   `auyznbwtjvemyamujmgt`. They must not be rerun or applied to another project.
 - Migration `047` explicitly grants authenticated users RLS-scoped read access
@@ -68,6 +73,13 @@ reconciliation rollout.
 
 - The client sends only the requested plan. Organization, price, period, and
   ECPay fields are derived on the server.
+- For a private custom offer, the client sends only the offer UUID. The
+  organization, price, period, status, expiry, and entitlement are revalidated
+  by a service-role-only database function before checkout is signed.
+- A private offer may issue exactly one payment order for its lifetime. Once a
+  provider order exists, the offer cannot be cancelled or used to mint another
+  checkout. A verified payment for an order created before the quote deadline
+  is fulfilled even when the server notification arrives later.
 - Every checkout has a unique, server-persisted merchant trade number and an
   idempotency key.
 - Checkout creation is serialized per organization. An unexpired pending order

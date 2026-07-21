@@ -92,6 +92,15 @@ export interface BillingSettingsView {
     periodEnd: string | null;
     createdAt: string;
   }>;
+  customOffers: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    amountTwd: number;
+    expiresAt: string;
+    billingPeriodMonths: number;
+  }>;
+  customOffersUnavailable?: boolean;
   actions: {
     canUpdateBilling: boolean;
     canCancelRenewal: boolean;
@@ -131,6 +140,15 @@ export interface BillingSettingsViewInput {
     periodEnd: string | null;
     createdAt: string;
   }>;
+  customOffers?: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    amountTwd: number;
+    expiresAt: string;
+    billingPeriodMonths: number;
+  }>;
+  customOffersUnavailable?: boolean;
   actions: BillingSettingsView['actions'];
 }
 
@@ -491,6 +509,27 @@ function nonNegativeNumber(value: number, fieldName: string): number {
   return value;
 }
 
+function positiveInteger(value: number, fieldName: string): number {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Invalid positive integer for ${fieldName}`);
+  }
+  return value;
+}
+
+function oneMonthBillingPeriod(value: number, fieldName: string): 1 {
+  if (positiveInteger(value, fieldName) !== 1) {
+    throw new Error(`Invalid one-month billing period for ${fieldName}`);
+  }
+  return 1;
+}
+
+function customOfferAmountTwd(value: number, fieldName: string): number {
+  if (!Number.isInteger(value) || value < 5 || value > 199_999) {
+    throw new Error(`Invalid ECPay custom offer amount for ${fieldName}`);
+  }
+  return value;
+}
+
 function normalizeAllowed<T extends string>(
   value: string,
   allowedValues: readonly T[],
@@ -758,6 +797,20 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
       periodEnd: item.periodEnd,
       createdAt: requireString(item.createdAt, 'billing.history.createdAt'),
     })),
+    customOffers: (input.customOffers ?? []).map((offer) => ({
+      id: requireString(offer.id, 'billing.customOffers.id'),
+      title: requireString(offer.title, 'billing.customOffers.title'),
+      description: offer.description?.trim() || null,
+      amountTwd: customOfferAmountTwd(offer.amountTwd, 'billing.customOffers.amountTwd'),
+      expiresAt: requireString(offer.expiresAt, 'billing.customOffers.expiresAt'),
+      billingPeriodMonths: oneMonthBillingPeriod(
+        offer.billingPeriodMonths,
+        'billing.customOffers.billingPeriodMonths'
+      ),
+    })),
+    ...(input.customOffersUnavailable === true
+      ? { customOffersUnavailable: true }
+      : {}),
     actions: {
       canUpdateBilling: requireBoolean(
         input.actions.canUpdateBilling,

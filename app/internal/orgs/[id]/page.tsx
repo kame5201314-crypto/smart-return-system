@@ -16,6 +16,7 @@ import {
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
 import { OrgBillingOperationControls } from '@/components/internal/org-billing-operation-controls';
+import { CustomPlanOfferControls } from '@/components/internal/custom-plan-offer-controls';
 import { OrgOperationsNoteForm } from '@/components/internal/org-operations-note-form';
 import {
   formatSuggestedActions,
@@ -480,41 +481,48 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
       </div>
 
       {result.state === 'ready' ? (
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>租戶操作</CardTitle>
-            <CardDescription>預覽、跟進、帳務與存取權限集中在同一處。</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-md border bg-neutral-50 p-3">
-              <p className="text-xs font-medium text-muted-foreground">主要操作</p>
-              <div className="mt-2">
-                <StartTenantPreviewButton
-                  orgId={result.data.organization.id}
-                  orgName={result.data.organization.name}
-                />
+        <>
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>租戶操作</CardTitle>
+              <CardDescription>預覽、跟進、帳務與存取權限集中在同一處。</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-md border bg-neutral-50 p-3">
+                <p className="text-xs font-medium text-muted-foreground">主要操作</p>
+                <div className="mt-2">
+                  <StartTenantPreviewButton
+                    orgId={result.data.organization.id}
+                    orgName={result.data.organization.name}
+                  />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">唯讀預覽有效 1 小時，不會修改客戶資料。</p>
               </div>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">唯讀預覽有效 1 小時，不會修改客戶資料。</p>
-            </div>
-            <div className="rounded-md border bg-neutral-50 p-3">
-              <p className="text-xs font-medium text-muted-foreground">營運跟進</p>
-              <div className="mt-2">
-                <OrgOperationsNoteForm
-                  orgId={result.data.organization.id}
-                  orgName={result.data.organization.name}
-                />
+              <div className="rounded-md border bg-neutral-50 p-3">
+                <p className="text-xs font-medium text-muted-foreground">營運跟進</p>
+                <div className="mt-2">
+                  <OrgOperationsNoteForm
+                    orgId={result.data.organization.id}
+                    orgName={result.data.organization.name}
+                  />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">聯絡內容與下次跟進時間會寫入操作紀錄。</p>
               </div>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">聯絡內容與下次跟進時間會寫入操作紀錄。</p>
-            </div>
-            <OrgBillingOperationControls
-              orgId={result.data.organization.id}
-              orgName={result.data.organization.name}
-              status={result.data.organization.status}
-              suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
-              canManageBillingOperations={result.context.permissions.includes('manage_billing_operations')}
-            />
-          </CardContent>
-        </Card>
+              <OrgBillingOperationControls
+                orgId={result.data.organization.id}
+                orgName={result.data.organization.name}
+                status={result.data.organization.status}
+                suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
+                canManageBillingOperations={result.context.permissions.includes('manage_billing_operations')}
+              />
+            </CardContent>
+          </Card>
+          <CustomPlanOfferControls
+            orgId={result.data.organization.id}
+            orgName={result.data.organization.name}
+            canManageBillingOperations={result.context.permissions.includes('manage_billing_operations')}
+          />
+        </>
       ) : null}
 
       {result.state === 'ready' ? (

@@ -5,6 +5,7 @@ import type {
 } from '@/lib/saas/ui-backend-contracts';
 
 interface SupabaseQueryError {
+  code?: string;
   message?: string;
 }
 
@@ -16,6 +17,7 @@ interface SupabaseQueryResult {
 export interface SettingsBillingQueryBuilder extends PromiseLike<SupabaseQueryResult> {
   select(columns: string): SettingsBillingQueryBuilder;
   eq(column: string, value: unknown): SettingsBillingQueryBuilder;
+  gt(column: string, value: unknown): SettingsBillingQueryBuilder;
   in(column: string, values: readonly unknown[]): SettingsBillingQueryBuilder;
   order(column: string, options: { ascending: boolean }): SettingsBillingQueryBuilder;
   limit(count: number): SettingsBillingQueryBuilder;
@@ -36,6 +38,10 @@ export interface SettingsBillingDataRepository {
     orgId: string;
     limit?: number;
   }): Promise<SettingsBillingSubscriptionPeriodData[]>;
+  listCustomPlanOffers?(input: {
+    orgId: string;
+    limit?: number;
+  }): Promise<SettingsBillingCustomPlanOfferData[]>;
 }
 
 export interface SettingsBillingOrgData {
@@ -75,6 +81,17 @@ export interface SettingsBillingSubscriptionPeriodData {
   paymentOrderId: string;
   periodStart: string;
   periodEnd: string;
+}
+
+export interface SettingsBillingCustomPlanOfferData {
+  id: string;
+  title: string;
+  description: string | null;
+  amountTwd: number;
+  status: 'active' | 'paid' | 'cancelled' | 'expired';
+  expiresAt: string;
+  billingPeriodMonths: number;
+  createdAt: string;
 }
 
 const SUSPENSION_ACTION_SOURCES = {
@@ -211,6 +228,48 @@ function normalizeSubscriptionPeriod(
   return { paymentOrderId, periodStart, periodEnd };
 }
 
+function normalizeCustomPlanOffer(row: unknown): SettingsBillingCustomPlanOfferData | null {
+  if (!isRecord(row)) {
+    return null;
+  }
+
+  const id = stringOrNull(row.id);
+  const title = stringOrNull(row.title);
+  const status = stringOrNull(row.status);
+  const amountTwd = nonNegativeNumberOrNull(row.amount_twd);
+  const expiresAt = stringOrNull(row.expires_at);
+  const billingPeriodMonths = nonNegativeNumberOrNull(row.billing_period_months);
+  const createdAt = stringOrNull(row.created_at);
+  if (
+    !id ||
+    !title ||
+    !status ||
+    !['active', 'paid', 'cancelled', 'expired'].includes(status) ||
+    amountTwd === null ||
+    !Number.isInteger(amountTwd) ||
+    amountTwd < 5 ||
+    amountTwd > 199_999 ||
+    billingPeriodMonths === null ||
+    !Number.isInteger(billingPeriodMonths) ||
+    billingPeriodMonths !== 1 ||
+    !expiresAt ||
+    !createdAt
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    description: stringOrNull(row.description),
+    amountTwd,
+    status: status as SettingsBillingCustomPlanOfferData['status'],
+    expiresAt,
+    billingPeriodMonths,
+    createdAt,
+  };
+}
+
 function normalizeSuspensionSource(row: unknown): BillingSuspensionSource | null {
   if (!isRecord(row)) {
     return null;
@@ -223,8 +282,9 @@ function normalizeSuspensionSource(row: unknown): BillingSuspensionSource | null
 }
 
 function isHistoryTableUnavailable(error: SupabaseQueryError | null, table: string): boolean {
+  const code = error?.code?.toUpperCase() ?? '';
   const message = error?.message?.toLowerCase() ?? '';
-  return message.includes(table) && (
+  return code === '42P01' || code === 'PGRST205' || message.includes(table) && (
     message.includes('does not exist') ||
     message.includes('schema cache') ||
     message.includes('could not find')
@@ -317,6 +377,30 @@ export function createSettingsBillingDataRepository(
             .filter((row): row is SettingsBillingSubscriptionPeriodData => row !== null)
         : [];
     },
+
+    async listCustomPlanOffers(input) {
+      const { data, error } = await client
+        .from('custom_plan_offers')
+        .select(
+          'id, title, description, amount_twd, status, expires_at, billing_period_months, created_at'
+        )
+        .eq('org_id', input.orgId)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(input.limit ?? 12);
+
+      // During the migration rollout, a missing table or stale PostgREST schema
+      // cache means there are no custom offers yet. Other failures must remain
+      // observable instead of silently looking like an empty offer list.
+      if (isHistoryTableUnavailable(error, 'custom_plan_offers')) return [];
+      assertNoSupabaseError(error, 'Failed to load custom plan offers.');
+      return Array.isArray(data)
+        ? data
+            .map(normalizeCustomPlanOffer)
+            .filter((row): row is SettingsBillingCustomPlanOfferData => row !== null)
+        : [];
+    },
   };
 }
 
@@ -333,12 +417,14 @@ export async function buildBillingSettingsViewInput(
     return null;
   }
 
+  let customOffersUnavailable = false;
   const [
     subscription,
     latestInvoice,
     legacySuspensionSource,
     paymentOrders,
     subscriptionPeriods,
+    customPlanOffers,
   ] = await Promise.all([
     repository.getSubscription({ orgId: input.orgId }),
     repository.getLatestInvoice({ orgId: input.orgId }),
@@ -347,7 +433,25 @@ export async function buildBillingSettingsViewInput(
       : Promise.resolve(null),
     repository.listPaymentOrders?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
     repository.listSubscriptionPeriods?.({ orgId: input.orgId, limit: 24 }) ?? Promise.resolve([]),
+    (async () => {
+      try {
+        return await (
+          repository.listCustomPlanOffers?.({ orgId: input.orgId, limit: 12 })
+          ?? Promise.resolve([])
+        );
+      } catch {
+        customOffersUnavailable = true;
+        console.error('Failed to load custom plan offers for the billing view.');
+        return [];
+      }
+    })(),
   ]);
+
+  const now = Date.now();
+  const availableCustomOffers = customPlanOffers.filter((offer) => {
+    const expiresAt = Date.parse(offer.expiresAt);
+    return offer.status === 'active' && Number.isFinite(expiresAt) && expiresAt > now;
+  });
 
   return {
     org: {
@@ -376,6 +480,15 @@ export async function buildBillingSettingsViewInput(
         periodEnd: period?.periodEnd ?? null,
       };
     }),
+    customOffers: availableCustomOffers.map((offer) => ({
+      id: offer.id,
+      title: offer.title,
+      description: offer.description,
+      amountTwd: offer.amountTwd,
+      expiresAt: offer.expiresAt,
+      billingPeriodMonths: offer.billingPeriodMonths,
+    })),
+    customOffersUnavailable,
     actions: input.actions,
   };
 }

@@ -17,6 +17,7 @@ import {
   verifyECPayCheckMacValue,
 } from '@/lib/saas/billing';
 import {
+  buildECPayAioCheckoutForm,
   createECPayCheckoutRepository,
   ECPayCheckoutRateLimitError,
   generateECPayMerchantTradeNo,
@@ -24,6 +25,11 @@ import {
   type ECPayCheckoutRepository,
   type ECPayPaymentOrder,
 } from '@/lib/saas/billing-ecpay';
+import {
+  CustomPlanOfferError,
+  type CustomOfferPaymentOrder,
+  type CustomPlanOfferRepository,
+} from '@/lib/saas/custom-plan-offers';
 
 const env = {
   ENABLE_BILLING: 'true',
@@ -50,6 +56,19 @@ const order: ECPayPaymentOrder = {
   createdAt: '2026-07-19T00:00:00.000Z',
 };
 
+const customOfferOrder: ECPayPaymentOrder = {
+  ...order,
+  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  amountTwd: 1280,
+  merchantTradeNo: 'SR20260719OFFER1',
+  metadata: {
+    pricing_kind: 'custom_offer',
+    custom_offer_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    custom_offer_title: '品牌導入專案',
+    billing_period_months: 1,
+  },
+};
+
 function checkoutContext(overrides: Record<string, unknown> = {}) {
   return {
     userId: order.actorUserId!,
@@ -74,6 +93,21 @@ function repository(
     createOrder: vi.fn(async () => paymentOrder),
     findOrderByMerchantTradeNo: vi.fn(async () => paymentOrder),
     processNotification: vi.fn(async () => notificationStatus),
+  };
+}
+
+function customOfferRepository(
+  paymentOrder: ECPayPaymentOrder = customOfferOrder
+): CustomPlanOfferRepository {
+  return {
+    createOffer: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    cancelOffer: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    listOffers: vi.fn(async () => []),
+    createPaymentOrder: vi.fn(async () => paymentOrder as CustomOfferPaymentOrder),
   };
 }
 
@@ -204,6 +238,131 @@ describe('self-service ECPay checkout', () => {
       merchantId: env.ECPAY_MERCHANT_ID,
       providerMode: 'test',
     });
+  });
+
+  it('creates a private custom-offer checkout from only the server-owned offer id', async () => {
+    const offers = customOfferRepository();
+    const offerId = String(customOfferOrder.metadata?.custom_offer_id);
+    const response = await handleCreateECPayCheckout(
+      checkoutRequest({ offerId }),
+      {
+        env,
+        repository: repository(),
+        customOfferRepository: offers,
+        loadContext: async () => checkoutContext(),
+        now: new Date('2026-07-19T04:00:00.000Z'),
+        generateMerchantTradeNo: () => customOfferOrder.merchantTradeNo,
+        generateIdempotencyKey: () => 'custom-offer-idempotency-0001',
+      }
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.checkout.fields).toMatchObject({
+      MerchantTradeNo: customOfferOrder.merchantTradeNo,
+      TotalAmount: '1280',
+      CustomField2: 'custom_offer',
+    });
+    expect(offers.createPaymentOrder).toHaveBeenCalledWith({
+      offerId,
+      orgId: order.orgId,
+      actorUserId: order.actorUserId,
+      provider: 'ecpay',
+      providerMode: 'test',
+      merchantId: env.ECPAY_MERCHANT_ID,
+      merchantTradeNo: customOfferOrder.merchantTradeNo,
+      idempotencyKey: 'custom-offer-idempotency-0001',
+    });
+    expect(verifyECPayCheckMacValue(payload.checkout.fields, env)).toBe(true);
+  });
+
+  it('rejects custom checkout when the persisted order belongs to another offer', async () => {
+    const offerId = String(customOfferOrder.metadata?.custom_offer_id);
+    const offers = customOfferRepository({
+      ...customOfferOrder,
+      metadata: {
+        ...customOfferOrder.metadata,
+        custom_offer_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      },
+    });
+    const response = await handleCreateECPayCheckout(
+      checkoutRequest({ offerId }),
+      {
+        env,
+        customOfferRepository: offers,
+        loadContext: async () => checkoutContext(),
+      }
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'order_mismatch' });
+  });
+
+  it('returns Retry-After when the custom-offer RPC rate limit is reached', async () => {
+    const offers = customOfferRepository();
+    vi.mocked(offers.createPaymentOrder).mockRejectedValueOnce(
+      new CustomPlanOfferError(
+        'checkout_rate_limited',
+        429,
+        'Too many checkout attempts.',
+        81
+      )
+    );
+    const response = await handleCreateECPayCheckout(
+      checkoutRequest({
+        offerId: customOfferOrder.metadata?.custom_offer_id,
+      }),
+      {
+        env,
+        customOfferRepository: offers,
+        loadContext: async () => checkoutContext(),
+      }
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('81');
+    expect(await response.json()).toMatchObject({
+      code: 'checkout_rate_limited',
+      retryAfterSeconds: 81,
+    });
+  });
+
+  it('signs a server-persisted custom offer amount without using the public catalogue price', () => {
+    const checkout = buildECPayAioCheckoutForm({
+      order: customOfferOrder,
+      env,
+      now: new Date('2026-07-19T04:00:00.000Z'),
+    });
+
+    expect(checkout.fields).toMatchObject({
+      MerchantTradeNo: customOfferOrder.merchantTradeNo,
+      TotalAmount: '1280',
+      TradeDesc: 'Smart Return custom offer',
+      ItemName: 'Smart Return 品牌導入專案 one month',
+      CustomField2: 'custom_offer',
+    });
+    expect(verifyECPayCheckMacValue(checkout.fields, env)).toBe(true);
+  });
+
+  it('fails closed when custom-offer metadata is incomplete or an unknown pricing kind changes the amount', () => {
+    expect(() => buildECPayAioCheckoutForm({
+      order: {
+        ...customOfferOrder,
+        metadata: {
+          ...customOfferOrder.metadata,
+          custom_offer_id: 'not-an-offer-id',
+        },
+      },
+      env,
+    })).toThrow('Custom offer payment order metadata is invalid.');
+
+    expect(() => buildECPayAioCheckoutForm({
+      order: {
+        ...customOfferOrder,
+        metadata: { pricing_kind: 'browser_price' },
+      },
+      env,
+    })).toThrow('Payment order pricing metadata is not supported.');
   });
 
   it('allows suspended owners to renew and never requires writable subscription access', async () => {

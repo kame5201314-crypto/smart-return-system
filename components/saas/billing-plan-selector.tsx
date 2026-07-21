@@ -189,6 +189,14 @@ function checkoutErrorMessage(payload: unknown, status: number): string {
       return '此工作區已由平台管理員停權，解除停權前無法線上付款。';
     case 'plan_downgrade_not_supported':
       return '目前不支援線上降級，請改選現有或更高方案。';
+    case 'invalid_offer':
+    case 'offer_not_found':
+      return '找不到這筆專屬報價，請重新整理帳務頁。';
+    case 'offer_unavailable':
+      return '這筆專屬報價已到期或付款連結已失效，請重新整理帳務頁。';
+    case 'offer_conflict':
+    case 'order_mismatch':
+      return '這筆專屬報價的付款狀態需要確認，請勿重複付款。';
     case 'checkout_order_not_pending':
       return '此付款訂單已失效，請重新建立付款流程。';
     default:
@@ -251,6 +259,7 @@ export function BillingPlanSelector({
 }: BillingPlanSelectorProps) {
   const router = useRouter();
   const [processingPlan, setProcessingPlan] = useState<SelfServiceSaaSPlanCode | null>(null);
+  const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<ProviderSubmission | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -339,8 +348,10 @@ export function BillingPlanSelector({
     };
   }, [paymentState, paymentTradeNo, router]);
 
-  async function startCheckout(plan: SelfServiceSaaSPlanCode) {
-    setProcessingPlan(plan);
+  async function requestCheckout(
+    request: { plan: SelfServiceSaaSPlanCode } | { offerId: string },
+    clearProcessing: () => void
+  ) {
     setError(null);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), CHECKOUT_REQUEST_TIMEOUT_MS);
@@ -350,20 +361,20 @@ export function BillingPlanSelector({
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify(request),
         signal: controller.signal,
       });
       const payload = (await response.json().catch(() => null)) as unknown;
       if (!response.ok) {
         setError(checkoutErrorMessage(payload, response.status));
-        setProcessingPlan(null);
+        clearProcessing();
         return;
       }
 
       const nextSubmission = normalizeProviderSubmission(payload);
       if (!nextSubmission) {
         setError('付款服務回應不完整，請稍後再試。');
-        setProcessingPlan(null);
+        clearProcessing();
         return;
       }
       setSubmission(nextSubmission);
@@ -373,10 +384,20 @@ export function BillingPlanSelector({
           ? '等待付款服務回應逾時，請稍後再試。'
           : CHECKOUT_GENERIC_ERROR_MESSAGE
       );
-      setProcessingPlan(null);
+      clearProcessing();
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  async function startCheckout(plan: SelfServiceSaaSPlanCode) {
+    setProcessingPlan(plan);
+    await requestCheckout({ plan }, () => setProcessingPlan(null));
+  }
+
+  async function startCustomOfferCheckout(offerId: string) {
+    setProcessingOfferId(offerId);
+    await requestCheckout({ offerId }, () => setProcessingOfferId(null));
   }
 
   return (
@@ -391,6 +412,81 @@ export function BillingPlanSelector({
           </p>
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
+          {data.customOffersUnavailable ? (
+            <div
+              role="alert"
+              className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"
+            >
+              <AlertCircle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+              <p>專屬報價暫時無法載入；公開 NT$399 方案仍可正常使用。請重新整理後再試。</p>
+            </div>
+          ) : null}
+          {data.customOffers.length > 0 ? (
+            <section
+              aria-labelledby="custom-plan-offers-title"
+              className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5"
+            >
+              <div className="mb-4">
+                <Badge className="mb-2 bg-emerald-700 text-white hover:bg-emerald-700">
+                  專屬報價
+                </Badge>
+                <h3 id="custom-plan-offers-title" className="text-lg font-semibold text-gray-950">
+                  為你的工作區準備的方案
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  此報價只會顯示在你的帳務頁，付款後會建立一個月使用期。
+                </p>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {data.customOffers.map((offer) => {
+                  const isProcessing = processingOfferId === offer.id;
+                  const hasLegacyPlan = !isTrial && data.org.plan !== SAAS_SELF_SERVICE_PLAN_CODE;
+                  const checkoutInProgress = processingPlan !== null || processingOfferId !== null;
+                  const disabled =
+                    !data.actions.canUpdateBilling || hasLegacyPlan || checkoutInProgress;
+
+                  return (
+                    <article
+                      key={offer.id}
+                      aria-labelledby={`custom-offer-${offer.id}`}
+                      className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm"
+                    >
+                      <h4
+                        id={`custom-offer-${offer.id}`}
+                        className="text-lg font-semibold text-gray-950"
+                      >
+                        {offer.title}
+                      </h4>
+                      {offer.description ? (
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          {offer.description}
+                        </p>
+                      ) : null}
+                      <p className="mt-5 text-3xl font-semibold text-gray-950">
+                        {formatAmount(offer.amountTwd)}
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        <p>一次預付一個月・不自動續扣</p>
+                        <p>報價有效至 {formatDate(offer.expiresAt)}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        className="mt-5 h-11 w-full"
+                        disabled={disabled}
+                        aria-busy={isProcessing}
+                        onClick={() => void startCustomOfferCheckout(offer.id)}
+                      >
+                        {isProcessing ? '正在前往付款…' : '使用專屬報價付款'}
+                        {!isProcessing ? <ArrowRight className="size-4" aria-hidden="true" /> : null}
+                      </Button>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
           {(() => {
             const code = SAAS_SELF_SERVICE_PLAN_CODE;
             const plan = SAAS_PLAN_DEFINITIONS[code];
@@ -399,7 +495,10 @@ export function BillingPlanSelector({
             const hasLegacyPlan = !isTrial && data.org.plan !== code;
             const isPrimaryPlan = requestedPlan === code || isTrial || isCurrentPlan;
             const disabled =
-              !data.actions.canUpdateBilling || hasLegacyPlan || processingPlan !== null;
+              !data.actions.canUpdateBilling ||
+              hasLegacyPlan ||
+              processingPlan !== null ||
+              processingOfferId !== null;
 
             return (
               <article

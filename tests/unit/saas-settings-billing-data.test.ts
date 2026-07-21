@@ -10,23 +10,28 @@ import { buildBillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
 interface QueryResult {
   data: unknown;
-  error: { message?: string } | null;
+  error: { code?: string; message?: string } | null;
 }
 
 interface TestQueryBuilder extends SettingsBillingQueryBuilder {
   select: Mock<(columns: string) => SettingsBillingQueryBuilder>;
   eq: Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
+  gt: Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
   in: Mock<(column: string, values: readonly unknown[]) => SettingsBillingQueryBuilder>;
   order: Mock<(column: string, options: { ascending: boolean }) => SettingsBillingQueryBuilder>;
   limit: Mock<(count: number) => SettingsBillingQueryBuilder>;
   maybeSingle: Mock<() => Promise<QueryResult>>;
 }
 
-function createChain(data: unknown, error: { message?: string } | null = null): TestQueryBuilder {
+function createChain(
+  data: unknown,
+  error: { code?: string; message?: string } | null = null
+): TestQueryBuilder {
   const chain = {} as TestQueryBuilder;
 
   chain.select = vi.fn(() => chain) as Mock<(columns: string) => SettingsBillingQueryBuilder>;
   chain.eq = vi.fn(() => chain) as Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
+  chain.gt = vi.fn(() => chain) as Mock<(column: string, value: unknown) => SettingsBillingQueryBuilder>;
   chain.in = vi.fn(() => chain) as Mock<
     (column: string, values: readonly unknown[]) => SettingsBillingQueryBuilder
   >;
@@ -81,13 +86,26 @@ describe('SaaS settings billing data repository', () => {
         created_at: '2026-05-20T00:00:00.000Z',
       },
     ]);
+    const customOffersChain = createChain([
+      {
+        id: 'custom-offer-1',
+        title: '首批導入專案',
+        description: '包含初始資料整理。',
+        amount_twd: 2680,
+        status: 'active',
+        expires_at: '2099-08-31T12:00:00.000Z',
+        billing_period_months: 1,
+        created_at: '2026-07-20T00:00:00.000Z',
+      },
+    ]);
     const from = vi
       .fn()
       .mockReturnValueOnce(organizationChain)
       .mockReturnValueOnce(subscriptionChain)
       .mockReturnValueOnce(invoiceChain)
       .mockReturnValueOnce(paymentOrdersChain)
-      .mockReturnValueOnce(subscriptionPeriodsChain);
+      .mockReturnValueOnce(subscriptionPeriodsChain)
+      .mockReturnValueOnce(customOffersChain);
     const repository = createSettingsBillingDataRepository({ from } as SettingsBillingQueryClient);
 
     const input = await buildBillingSettingsViewInput(repository, {
@@ -124,6 +142,15 @@ describe('SaaS settings billing data repository', () => {
           periodEnd: '2026-06-20T00:00:00.000Z',
         },
       ],
+      customOffers: [
+        {
+          id: 'custom-offer-1',
+          title: '首批導入專案',
+          amountTwd: 2680,
+          expiresAt: '2099-08-31T12:00:00.000Z',
+          billingPeriodMonths: 1,
+        },
+      ],
     });
     expect(buildBillingSettingsView(input!)).toMatchObject({
       invoiceSummary: {
@@ -135,6 +162,7 @@ describe('SaaS settings billing data repository', () => {
     expect(from).toHaveBeenNthCalledWith(3, 'invoices');
     expect(from).toHaveBeenNthCalledWith(4, 'payment_orders');
     expect(from).toHaveBeenNthCalledWith(5, 'subscription_periods');
+    expect(from).toHaveBeenNthCalledWith(6, 'custom_plan_offers');
     expect(subscriptionChain.select).toHaveBeenCalledWith(
       'provider, current_period_start, current_period_end, trial_end, cancel_at_period_end'
     );
@@ -146,6 +174,107 @@ describe('SaaS settings billing data repository', () => {
     expect(from).not.toHaveBeenCalledWith('audit_logs');
     expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
     expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
+    expect(customOffersChain.eq).toHaveBeenCalledWith('org_id', 'org-1');
+    expect(customOffersChain.eq).toHaveBeenCalledWith('status', 'active');
+    expect(customOffersChain.gt).toHaveBeenCalledWith('expires_at', expect.any(String));
+    expect(customOffersChain.limit).toHaveBeenCalledWith(12);
+  });
+
+  it('keeps only active unexpired offers for the current organization', async () => {
+    const baseOffer = {
+      id: 'custom-offer-active',
+      title: '專屬方案',
+      description: null,
+      amountTwd: 1680,
+      status: 'active' as const,
+      expiresAt: '2099-08-31T12:00:00.000Z',
+      billingPeriodMonths: 1,
+      createdAt: '2026-07-20T00:00:00.000Z',
+    };
+    const repository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Offer Store',
+        plan: 'basic',
+        status: 'trialing',
+        suspensionSource: null,
+        billingEmail: null,
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+      listCustomPlanOffers: vi.fn(async () => [
+        baseOffer,
+        { ...baseOffer, id: 'custom-offer-paid', status: 'paid' as const },
+        {
+          ...baseOffer,
+          id: 'custom-offer-expired',
+          expiresAt: '2020-01-01T00:00:00.000Z',
+        },
+      ]),
+    };
+
+    const input = await buildBillingSettingsViewInput(repository, {
+      orgId: 'org-1',
+      actions: { canUpdateBilling: true, canCancelRenewal: false },
+    });
+
+    expect(repository.listCustomPlanOffers).toHaveBeenCalledWith({ orgId: 'org-1', limit: 12 });
+    expect(input?.customOffers).toEqual([
+      {
+        id: 'custom-offer-active',
+        title: '專屬方案',
+        description: null,
+        amountTwd: 1680,
+        expiresAt: '2099-08-31T12:00:00.000Z',
+        billingPeriodMonths: 1,
+      },
+    ]);
+  });
+
+  it('hides custom offers only while the optional migration schema is unavailable', async () => {
+    const repository = createSettingsBillingDataRepository({
+      from: vi.fn(() => createChain(null, {
+        code: 'PGRST205',
+        message: 'custom_plan_offers was not found in the schema cache',
+      })),
+    } as SettingsBillingQueryClient);
+
+    await expect(
+      repository.listCustomPlanOffers?.({ orgId: 'org-1' })
+    ).resolves.toEqual([]);
+
+  });
+
+  it('keeps public checkout available while surfacing a custom-offer query failure', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const fallbackRepository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Fallback Store',
+        plan: 'basic',
+        status: 'trialing',
+        suspensionSource: null,
+        billingEmail: null,
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+      listCustomPlanOffers: vi.fn(async () => {
+        throw new Error('custom_plan_offers is unavailable');
+      }),
+    };
+
+    await expect(buildBillingSettingsViewInput(fallbackRepository, {
+      orgId: 'org-1',
+      actions: { canUpdateBilling: true, canCancelRenewal: false },
+    })).resolves.toMatchObject({
+      customOffers: [],
+      customOffersUnavailable: true,
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      'Failed to load custom plan offers for the billing view.'
+    );
   });
 
   it('returns null when organization billing data is missing', async () => {
