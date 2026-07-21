@@ -16,7 +16,6 @@ import {
 import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { StartTenantPreviewButton } from '@/components/internal/start-tenant-preview-button';
 import { OrgBillingOperationControls } from '@/components/internal/org-billing-operation-controls';
-import { CustomPlanOfferControls } from '@/components/internal/custom-plan-offer-controls';
 import { OrgOperationsNoteForm } from '@/components/internal/org-operations-note-form';
 import {
   formatSuggestedActions,
@@ -517,11 +516,6 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
               />
             </CardContent>
           </Card>
-          <CustomPlanOfferControls
-            orgId={result.data.organization.id}
-            orgName={result.data.organization.name}
-            canManageBillingOperations={result.context.permissions.includes('manage_billing_operations')}
-          />
         </>
       ) : null}
 
