@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarClock, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
+import { formatSaaSBillingDate } from '@/lib/saas/billing-date';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
 type BillingStatus = BillingSettingsView['org']['status'];
@@ -14,17 +15,6 @@ const STATUS_LABEL: Record<BillingStatus, string> = {
   suspended: '已暫停',
   cancelled: '已取消',
 };
-
-function formatDate(value: string | null): string {
-  if (!value) return '尚未設定';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '尚未設定';
-  return date.toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-}
 
 function statusVariant(status: BillingStatus): 'default' | 'secondary' | 'destructive' {
   if (status === 'active') return 'default';
@@ -86,7 +76,9 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
               <dt className="text-sm font-medium text-gray-950">
                 {isTrial ? '試用開始日' : '本期開始日'}
               </dt>
-              <dd className="mt-1 text-sm text-muted-foreground">{formatDate(periodStart)}</dd>
+              <dd className="mt-1 text-sm text-muted-foreground">
+                {formatSaaSBillingDate(periodStart)}
+              </dd>
             </div>
           </div>
           <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5">
@@ -95,7 +87,9 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
               <dt className="text-sm font-medium text-gray-950">
                 {isTrial ? '試用到期日' : '本期到期日'}
               </dt>
-              <dd className="mt-1 text-sm text-muted-foreground">{formatDate(periodEnd)}</dd>
+              <dd className="mt-1 text-sm text-muted-foreground">
+                {formatSaaSBillingDate(periodEnd)}
+              </dd>
             </div>
           </div>
         </dl>
@@ -105,7 +99,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
         {data.subscription?.cancelAtPeriodEnd ? (
           <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>目前方案將於 {formatDate(periodEnd)} 到期，屆時不會自動續扣。</p>
+            <p>目前方案將於 {formatSaaSBillingDate(periodEnd)} 到期，屆時不會自動續扣。</p>
           </div>
         ) : null}
       </CardContent>

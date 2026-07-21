@@ -12,6 +12,10 @@ import {
   SAAS_SELF_SERVICE_PLAN_CODE,
   type SelfServiceSaaSPlanCode,
 } from '@/lib/config/saas-plans';
+import {
+  formatSaaSBillingDate,
+  formatSaaSBillingDateTime,
+} from '@/lib/saas/billing-date';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
 export type BillingPaymentQueryState =
@@ -202,17 +206,6 @@ function checkoutErrorMessage(payload: unknown, status: number): string {
     default:
       return CHECKOUT_GENERIC_ERROR_MESSAGE;
   }
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '尚未設定';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '尚未設定';
-  return date.toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
 }
 
 function formatAmount(value: number): string {
@@ -468,7 +461,7 @@ export function BillingPlanSelector({
                       </p>
                       <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                         <p>一次預付一個月・不自動續扣</p>
-                        <p>報價有效至 {formatDate(offer.expiresAt)}</p>
+                        <p>報價有效至 {formatSaaSBillingDate(offer.expiresAt)}</p>
                       </div>
                       <Button
                         type="button"
@@ -586,7 +579,7 @@ export function BillingPlanSelector({
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {item.periodStart && item.periodEnd
-                            ? `${formatDate(item.periodStart)}－${formatDate(item.periodEnd)}`
+                            ? `${formatSaaSBillingDate(item.periodStart)}－${formatSaaSBillingDate(item.periodEnd)}`
                             : '尚未產生使用期間'}
                         </p>
                       </div>
@@ -612,8 +605,14 @@ export function BillingPlanSelector({
                         <dd className="mt-1 text-gray-950">{PROVIDER_LABEL[item.provider]}</dd>
                       </div>
                       <div className="col-span-2">
-                        <dt className="text-muted-foreground">紀錄日期</dt>
-                        <dd className="mt-1 text-gray-950">{formatDate(item.createdAt)}</dd>
+                        <dt className="text-muted-foreground">
+                          {item.status === 'paid' && item.paidAt ? '付款時間' : '訂單建立時間'}
+                        </dt>
+                        <dd className="mt-1 text-gray-950">
+                          {formatSaaSBillingDateTime(
+                            item.status === 'paid' && item.paidAt ? item.paidAt : item.createdAt
+                          )}
+                        </dd>
                       </div>
                     </dl>
                   </article>
@@ -629,7 +628,7 @@ export function BillingPlanSelector({
                       <th className="px-4 py-3 font-medium">金額</th>
                       <th className="px-4 py-3 font-medium">付款方式</th>
                       <th className="px-4 py-3 font-medium">狀態</th>
-                      <th className="px-4 py-3 font-medium">紀錄日期</th>
+                      <th className="px-4 py-3 font-medium">付款／建立時間</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -637,7 +636,7 @@ export function BillingPlanSelector({
                       <tr key={item.id}>
                         <td className="px-4 py-3 text-gray-950">
                           {item.periodStart && item.periodEnd
-                            ? `${formatDate(item.periodStart)}－${formatDate(item.periodEnd)}`
+                            ? `${formatSaaSBillingDate(item.periodStart)}－${formatSaaSBillingDate(item.periodEnd)}`
                             : '尚未產生使用期間'}
                         </td>
                         <td className="px-4 py-3">{SAAS_PLAN_DEFINITIONS[item.plan].name}</td>
@@ -655,7 +654,9 @@ export function BillingPlanSelector({
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {formatDate(item.createdAt)}
+                          {formatSaaSBillingDateTime(
+                            item.status === 'paid' && item.paidAt ? item.paidAt : item.createdAt
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -114,6 +114,8 @@ describe('BillingSettingsPage', () => {
     expect(screen.getAllByText('綠界科技').length).toBeGreaterThan(0);
     expect(screen.getAllByText('已付款').length).toBeGreaterThan(0);
     expect(screen.getByText('NT$499', { selector: 'td' })).toBeInTheDocument();
+    expect(screen.getByText('付款／建立時間')).toBeInTheDocument();
+    expect(screen.getAllByText('2026/06/18 08:00').length).toBeGreaterThan(0);
     expect(screen.queryByText('聯絡客服')).not.toBeInTheDocument();
     expect(document.querySelector('a[href="/pricing"]')).toBeNull();
   });
