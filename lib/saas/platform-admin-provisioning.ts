@@ -196,7 +196,7 @@ function normalizeTrialEnd(value: unknown): string | undefined {
       ? new Date(Date.UTC(year, month, 0)).getUTCDate()
       : 0;
 
-    if (day < 1 || day > daysInMonth) {
+    if (year < 2000 || year > 9999 || day < 1 || day > daysInMonth) {
       throw new PlatformOrgProvisioningError(
         'invalid_request',
         400,

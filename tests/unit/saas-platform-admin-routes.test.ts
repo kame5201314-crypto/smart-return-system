@@ -454,6 +454,18 @@ describe('SaaS platform admin API routes', () => {
     )).toThrow('trialEnd must be an ISO date string.');
   });
 
+  it('rejects date-only trial years that JavaScript would reinterpret', () => {
+    expect(() => normalizeManualBetaOrganizationInput(
+      {
+        orgName: 'Demo Store',
+        slug: 'demo-store',
+        ownerEmail: 'owner@example.com',
+        trialEnd: '0099-01-01',
+      },
+      'admin-1'
+    )).toThrow('trialEnd must be an ISO date string.');
+  });
+
   it('calls the manual Beta provisioning RPC through the repository', async () => {
     const rpc = vi.fn(async () => ({
       data: {
