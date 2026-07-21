@@ -74,7 +74,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
               <dt className="text-sm font-medium text-gray-950">
-                {isTrial ? '試用開始日' : '本期開始日'}
+                {isTrial ? '試用開始日' : '使用開始日'}
               </dt>
               <dd className="mt-1 text-sm text-muted-foreground">
                 {formatSaaSBillingDate(periodStart)}
@@ -85,7 +85,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
               <dt className="text-sm font-medium text-gray-950">
-                {isTrial ? '試用到期日' : '本期到期日'}
+                {isTrial ? '試用到期日' : '使用到期日'}
               </dt>
               <dd className="mt-1 text-sm text-muted-foreground">
                 {formatSaaSBillingDate(periodEnd)}

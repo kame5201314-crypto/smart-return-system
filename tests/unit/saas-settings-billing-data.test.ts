@@ -3,6 +3,7 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import {
   buildBillingSettingsViewInput,
   createSettingsBillingDataRepository,
+  resolveCurrentEntitlementStart,
   type SettingsBillingQueryBuilder,
   type SettingsBillingQueryClient,
 } from '@/lib/saas/settings-billing-data';
@@ -45,6 +46,33 @@ function createChain(
 }
 
 describe('SaaS settings billing data repository', () => {
+  it('shows the period usable now instead of a future early-renewal start', () => {
+    expect(resolveCurrentEntitlementStart({
+      currentPeriodStart: '2026-08-19T16:14:07.000Z',
+      periods: [
+        {
+          paymentOrderId: 'first-payment',
+          periodStart: '2026-07-19T16:14:07.000Z',
+          periodEnd: '2026-08-19T16:14:07.000Z',
+        },
+        {
+          paymentOrderId: 'early-renewal',
+          periodStart: '2026-08-19T16:14:07.000Z',
+          periodEnd: '2026-09-19T16:14:07.000Z',
+        },
+      ],
+      now: '2026-07-21T04:30:00.000Z',
+    })).toBe('2026-07-19T16:14:07.000Z');
+  });
+
+  it('keeps the subscription aggregate when no paid period covers now', () => {
+    expect(resolveCurrentEntitlementStart({
+      currentPeriodStart: '2026-07-21T04:30:00.000Z',
+      periods: [],
+      now: '2026-07-21T04:30:00.000Z',
+    })).toBe('2026-07-21T04:30:00.000Z');
+  });
+
   it('loads organization, subscription, and latest invoice data for billing settings DTOs', async () => {
     const organizationChain = createChain({
       id: 'org-1',

@@ -159,6 +159,16 @@ describe('BillingSettingsPage', () => {
     expect(screen.getAllByText(/不會自動續扣/).length).toBeGreaterThan(0);
   });
 
+  it('labels paid access as a usage window instead of a future billing period', async () => {
+    billingMocks.result.data.org.status = 'active';
+
+    await renderPage();
+
+    expect(screen.getByText('使用開始日')).toBeInTheDocument();
+    expect(screen.getByText('使用到期日')).toBeInTheDocument();
+    expect(screen.queryByText('本期開始日')).not.toBeInTheDocument();
+  });
+
   it('treats payment query parameters as a pending confirmation, not proof of payment', async () => {
     await renderPage(Promise.resolve({ payment: 'success', plan: 'basic' }));
 

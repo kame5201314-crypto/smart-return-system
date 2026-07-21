@@ -83,6 +83,37 @@ export interface SettingsBillingSubscriptionPeriodData {
   periodEnd: string;
 }
 
+function timestampOrNull(value: string | null): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+export function resolveCurrentEntitlementStart(input: {
+  currentPeriodStart: string | null;
+  periods: SettingsBillingSubscriptionPeriodData[];
+  now?: Date | string | number;
+}): string | null {
+  const now = input.now instanceof Date
+    ? input.now.getTime()
+    : typeof input.now === 'string' || typeof input.now === 'number'
+      ? new Date(input.now).getTime()
+      : Date.now();
+  if (!Number.isFinite(now)) return input.currentPeriodStart;
+
+  const coveringPeriod = input.periods
+    .filter((period) => {
+      const start = timestampOrNull(period.periodStart);
+      const end = timestampOrNull(period.periodEnd);
+      return start !== null && end !== null && start <= now && end > now;
+    })
+    .sort((left, right) => (
+      (timestampOrNull(right.periodStart) ?? 0) - (timestampOrNull(left.periodStart) ?? 0)
+    ))[0];
+
+  return coveringPeriod?.periodStart ?? input.currentPeriodStart;
+}
+
 export interface SettingsBillingCustomPlanOfferData {
   id: string;
   title: string;
@@ -452,6 +483,16 @@ export async function buildBillingSettingsViewInput(
     const expiresAt = Date.parse(offer.expiresAt);
     return offer.status === 'active' && Number.isFinite(expiresAt) && expiresAt > now;
   });
+  const resolvedSubscription = subscription
+    ? {
+        ...subscription,
+        currentPeriodStart: resolveCurrentEntitlementStart({
+          currentPeriodStart: subscription.currentPeriodStart,
+          periods: subscriptionPeriods,
+          now,
+        }),
+      }
+    : null;
 
   return {
     org: {
@@ -465,7 +506,7 @@ export async function buildBillingSettingsViewInput(
           ? org.suspensionSource
           : legacySuspensionSource,
     },
-    subscription,
+    subscription: resolvedSubscription,
     invoiceSummary: {
       latestInvoiceId: latestInvoice?.id ?? null,
       latestInvoiceStatus: latestInvoice?.status ?? null,
