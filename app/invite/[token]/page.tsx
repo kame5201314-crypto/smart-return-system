@@ -6,8 +6,8 @@ import { SettingsStateCard } from '@/components/saas/settings-state-card';
 import { loadInviteAcceptanceView } from '@/lib/saas/invite-acceptance-live-data';
 
 export const metadata: Metadata = {
-  title: '接受團隊邀請 | Smart Return SaaS',
-  description: '接受 Smart Return SaaS 團隊邀請並加入組織。',
+  title: '接受團隊邀請 | AI退貨管理系統',
+  description: '接受 AI退貨管理系統 團隊邀請並加入組織。',
 };
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
@@ -19,7 +19,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       <PageHeader
         eyebrow="Team Invite"
         title="接受團隊邀請"
-        description="確認邀請資訊與登入身分，加入你的 Smart Return SaaS 組織。"
+        description="確認邀請資訊與登入身分，加入你的 AI退貨管理系統 組織。"
       />
 
       <section className="bg-white py-14">

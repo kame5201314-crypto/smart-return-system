@@ -14,7 +14,7 @@ import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: '退貨流程管理｜蝦皮 + 官網 + momo 集中處理 | Smart Return',
+  title: '退貨流程管理｜蝦皮 + 官網 + momo 集中處理 | AI退貨管理系統',
   description:
     '把多平台退貨從散亂的 Excel、LINE 與後台集中到同一個工作台。客服登記、倉庫掃描入庫、退款結案，全部用同一份資料追蹤。',
 };
@@ -80,7 +80,7 @@ export default function ReturnsFeaturePage() {
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-5 text-emerald-700" />
-                <h2 className="text-base font-semibold text-emerald-900">After：用 Smart Return 之後</h2>
+                <h2 className="text-base font-semibold text-emerald-900">After：用 AI退貨管理系統 之後</h2>
               </div>
               <ul className="mt-5 space-y-3">
                 {beforeAfter.after.map((item) => (

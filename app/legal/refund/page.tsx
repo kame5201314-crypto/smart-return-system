@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 
 export const metadata: Metadata = {
-  title: '退費政策 | Smart Return',
-  description: 'Smart Return 退費政策草案。',
+  title: '退費政策 | AI退貨管理系統',
+  description: 'AI退貨管理系統 退費政策草案。',
 };
 
 const rules = [

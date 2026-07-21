@@ -14,7 +14,7 @@ import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: 'AI 退貨原因分析｜找出地雷 SKU | Smart Return',
+  title: 'AI 退貨原因分析｜找出地雷 SKU | AI退貨管理系統',
   description:
     'AI 自動分析退貨原因、找出高退貨 SKU、提示客服該優先處理誰。專為台灣電商品牌做的退貨洞察工具，不取代你做決定，只幫你看得更清楚。',
 };
@@ -75,7 +75,7 @@ export default function AiFeaturePage() {
               AI 成本有明確上限，不會在你不知道的情況下扣款。
             </h2>
             <p className="mt-4 text-base leading-7 text-neutral-600">
-              很多老闆怕用 AI 是因為「不知道會花多少錢」。Smart Return 把 AI 額度設計成月度硬上限，
+              很多老闆怕用 AI 是因為「不知道會花多少錢」。AI退貨管理系統 把 AI 額度設計成月度硬上限，
               超過就停止，不會自動加購、不會在月底嚇你一跳。
             </p>
           </div>

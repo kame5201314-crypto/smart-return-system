@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 
 export const metadata: Metadata = {
-  title: '隱私權政策 | Smart Return',
-  description: 'Smart Return 隱私權政策草案。',
+  title: '隱私權政策 | AI退貨管理系統',
+  description: 'AI退貨管理系統 隱私權政策草案。',
 };
 
 const sections = [
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
       <PageHeader
         eyebrow="法務"
         title="隱私權政策"
-        description="本政策說明 Smart Return 如何處理你的帳號、退貨、AI 分析與帳務資料。"
+        description="本政策說明 AI退貨管理系統 如何處理你的帳號、退貨、AI 分析與帳務資料。"
       />
       <section className="bg-white py-14">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">

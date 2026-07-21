@@ -3,12 +3,12 @@ import type { Metadata } from 'next';
 import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 
 export const metadata: Metadata = {
-  title: '服務條款 | Smart Return',
-  description: 'Smart Return 服務條款草案。',
+  title: '服務條款 | AI退貨管理系統',
+  description: 'AI退貨管理系統 服務條款草案。',
 };
 
 const sections = [
-  ['服務範圍', 'Smart Return 提供退貨管理、AI 文字分析、用量控管、團隊權限與帳務準備功能。Beta 期間部分功能會以人工開通方式提供。'],
+  ['服務範圍', 'AI退貨管理系統 提供退貨管理、AI 文字分析、用量控管、團隊權限與帳務準備功能。Beta 期間部分功能會以人工開通方式提供。'],
   ['帳號與角色', '品牌帳號的 Owner 對帳號、成員、資料與方案設定負主要管理責任。Admin、Staff、Viewer 等成員的可用功能會依其角色與品牌方案控制。'],
   ['方案與使用限制', '唯一公開收費方案為入門版 NT$399／月，包含既定席次、每月退貨量軟上限與 AI 月額度。退貨量超過軟上限時不會在未告知下產生額外費用；大量需求須另行評估。'],
   ['付款與續訂', '目前採一次預付一個月，不會自動續扣。只有在正式綠界付款頁完成付款，且系統收到並驗證付款通知後，才會開通或延長一個月使用期；到期後由使用者自行決定是否再次購買。Production 真實收款仍須完成正式綠界商店憑證、功能旗標、發票／退款與對帳驗證後才會開放。'],
