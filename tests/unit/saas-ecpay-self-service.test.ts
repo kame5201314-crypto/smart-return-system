@@ -242,6 +242,47 @@ describe('self-service ECPay checkout', () => {
     });
   });
 
+  it('blocks Production checkout before creating an order until collection methods are confirmed', async () => {
+    const checkoutRepository = repository();
+    const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
+      env: { ...env, ECPAY_MODE: 'production' },
+      repository: checkoutRepository,
+      loadContext: async () => checkoutContext(),
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      code: 'payment_methods_unavailable',
+    });
+    expect(checkoutRepository.createOrder).not.toHaveBeenCalled();
+  });
+
+  it('allows Production checkout after collection methods are explicitly confirmed', async () => {
+    const productionOrder = {
+      ...order,
+      providerMode: 'production' as const,
+    };
+    const checkoutRepository = repository(productionOrder);
+    const response = await handleCreateECPayCheckout(checkoutRequest({ plan: 'basic' }), {
+      env: {
+        ...env,
+        ECPAY_MODE: 'production',
+        ECPAY_PAYMENT_METHODS_CONFIRMED: 'true',
+      },
+      repository: checkoutRepository,
+      loadContext: async () => checkoutContext(),
+      now: new Date('2026-07-19T04:00:00.000Z'),
+      generateMerchantTradeNo: () => productionOrder.merchantTradeNo,
+      generateIdempotencyKey: () => 'checkout-production-confirmed',
+    });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).checkout.action).toBe(
+      'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5'
+    );
+  });
+
   it('creates a private custom-offer checkout from only the server-owned offer id', async () => {
     const offers = customOfferRepository();
     const offerId = String(customOfferOrder.metadata?.custom_offer_id);

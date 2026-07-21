@@ -204,6 +204,8 @@ function checkoutErrorMessage(payload: unknown, status: number): string {
     case 'credentials_missing':
     case 'provider_not_ready':
       return '線上付款目前暫時無法使用，請稍後再試。';
+    case 'payment_methods_unavailable':
+      return '綠界正式收款方式尚未開通，目前無法付款；請完成綠界收款審核後再試。';
     case 'platform_suspension_requires_review':
       return '此工作區已由平台管理員停權，解除停權前無法線上付款。';
     case 'plan_downgrade_not_supported':

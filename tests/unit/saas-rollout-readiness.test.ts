@@ -170,6 +170,7 @@ describe('SaaS rollout readiness check', () => {
       ECPAY_HASH_KEY: 'hash-key',
       ECPAY_HASH_IV: 'hash-iv',
       ECPAY_MODE: 'production',
+      ECPAY_PAYMENT_METHODS_CONFIRMED: 'true',
       SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
     });
 
@@ -207,12 +208,33 @@ describe('SaaS rollout readiness check', () => {
       ECPAY_HASH_KEY: 'hash-key',
       ECPAY_HASH_IV: 'hash-iv',
       ECPAY_MODE: 'production',
+      ECPAY_PAYMENT_METHODS_CONFIRMED: 'true',
       SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
     });
 
     expect(result.status).toBe(0);
     expect(result.output).toContain('ENABLE_SUBSCRIPTION_PLAN - enabled intentionally');
     expect(result.output).toContain('billing:ECPAY_MODE - set');
+    expect(result.output).toContain('billing:ECPAY_PAYMENT_METHODS_CONFIRMED');
+  });
+
+  it('blocks a Production billing rollout until an approved collection method is confirmed', () => {
+    const result = runRolloutCheck({
+      ENABLE_BILLING: 'true',
+      ENABLE_SUBSCRIPTION_PLAN: 'true',
+      ENABLE_PAID_PERIOD_EXPIRY_CRON: 'true',
+      BILLING_PROVIDER: 'ecpay',
+      ECPAY_MERCHANT_ID: 'merchant-1',
+      ECPAY_HASH_KEY: 'hash-key',
+      ECPAY_HASH_IV: 'hash-iv',
+      ECPAY_MODE: 'production',
+      ECPAY_PAYMENT_METHODS_CONFIRMED: 'false',
+      SENTRY_DSN: 'https://public@example.ingest.sentry.io/1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('billing:ECPAY_PAYMENT_METHODS_CONFIRMED');
+    expect(result.output).toContain('at least one Production collection method');
   });
 
   it('requires ECPAY_MODE=production on Vercel Production even without strict args', () => {

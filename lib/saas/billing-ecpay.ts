@@ -373,6 +373,17 @@ export function normalizeECPayProviderMode(value: unknown): ECPayProviderMode | 
   return normalized === 'test' || normalized === 'production' ? normalized : null;
 }
 
+export function areECPayPaymentMethodsConfirmed(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  const mode = normalizeECPayProviderMode(env.ECPAY_MODE);
+  if (mode !== 'production') {
+    return true;
+  }
+  const confirmed = env.ECPAY_PAYMENT_METHODS_CONFIRMED?.trim().toLowerCase();
+  return confirmed === '1' || confirmed === 'true' || confirmed === 'yes';
+}
+
 export function resolveECPayPrepaidAmountTwd(plan: ECPayPrepaidPlan): number {
   const definition = getSaaSPlanDefinition(plan);
   if (
@@ -471,6 +482,9 @@ export function assertECPayCheckoutEnvironment(
   }
   requireString(env.ECPAY_HASH_KEY, 'HashKey');
   requireString(env.ECPAY_HASH_IV, 'HashIV');
+  if (!areECPayPaymentMethodsConfirmed(env)) {
+    throw new Error('ECPay Production payment methods are not confirmed.');
+  }
   resolveCanonicalAppOrigin(env);
 }
 

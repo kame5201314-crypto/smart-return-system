@@ -558,6 +558,24 @@ function checkBillingReadiness() {
   if (
     provider === 'ecpay'
     && isProductionBillingContext()
+    && !parseBool(process.env.ECPAY_PAYMENT_METHODS_CONFIRMED)
+  ) {
+    record(
+      'fail',
+      'billing:ECPAY_PAYMENT_METHODS_CONFIRMED',
+      'must be true only after ECPay has approved at least one Production collection method'
+    );
+  } else if (provider === 'ecpay' && isProductionBillingContext()) {
+    record(
+      'pass',
+      'billing:ECPAY_PAYMENT_METHODS_CONFIRMED',
+      'Production collection methods were explicitly confirmed'
+    );
+  }
+
+  if (
+    provider === 'ecpay'
+    && isProductionBillingContext()
     && normalizeEnvValue(process.env.ECPAY_MODE).toLowerCase() !== 'production'
   ) {
     record(

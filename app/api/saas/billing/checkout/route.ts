@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { rejectCrossSiteRequest } from '@/lib/security/same-origin';
 import {
+  areECPayPaymentMethodsConfirmed,
   assertECPayCheckoutEnvironment,
   buildECPayAioCheckoutForm,
   createECPayCheckoutRepository,
@@ -212,6 +213,13 @@ function assertCheckoutEnabled(
       'credentials_missing',
       503,
       'ECPay billing credentials are not configured.'
+    );
+  }
+  if (!areECPayPaymentMethodsConfirmed(env)) {
+    throw new CheckoutRouteError(
+      'payment_methods_unavailable',
+      503,
+      'ECPay Production payment methods have not been confirmed.'
     );
   }
   try {

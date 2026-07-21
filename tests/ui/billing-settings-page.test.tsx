@@ -616,6 +616,27 @@ describe('BillingSettingsPage', () => {
     expect(screen.queryByText(/Too many checkout orders/)).not.toBeInTheDocument();
   });
 
+  it('explains when ECPay has not opened a Production collection method', async () => {
+    billingMocks.result.data.actions.canUpdateBilling = true;
+    billingMocks.result.data.actions.disabledReason = undefined;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: false,
+      error: 'ECPay Production payment methods have not been confirmed.',
+      code: 'payment_methods_unavailable',
+    }), {
+      status: 503,
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /升級方案・NT\$399/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '綠界正式收款方式尚未開通，目前無法付款；請完成綠界收款審核後再試。'
+    );
+    expect(screen.queryByText(/Production payment methods/)).not.toBeInTheDocument();
+  });
+
   it('does not expose backend checkout error details', async () => {
     billingMocks.result.data.actions.canUpdateBilling = true;
     billingMocks.result.data.actions.disabledReason = undefined;

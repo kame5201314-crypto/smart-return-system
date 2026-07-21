@@ -147,27 +147,33 @@ Before accepting a real customer payment:
    manager. Never reuse Stage credentials.
 2. Configure `BILLING_PROVIDER=ecpay`, `ECPAY_MODE=production`, and the formal
    credentials while both billing flags remain `false`.
-3. Confirm the stable Production HTTPS webhook/result URLs are registered with
+3. In the ECPay merchant console, confirm that collection review has passed and
+   at least one Production payment method is enabled for the same MerchantID.
+   Error `10300023` means the MerchantID is incorrect or no collection method
+   is available; changing `ChoosePayment` cannot bypass provider approval. Only
+   after the merchant console confirms approval, set the non-secret rollout
+   assertion `ECPAY_PAYMENT_METHODS_CONFIRMED=true`.
+4. Confirm the stable Production HTTPS webhook/result URLs are registered with
    ECPay and publicly reachable by the provider without weakening protection on
    merchant or administration pages.
-4. Run repository safety, lint, typecheck, complete tests, production build,
+5. Run repository safety, lint, typecheck, complete tests, production build,
    and a no-charge Production readiness smoke.
-5. Confirm migration `048` remains recorded only on the SaaS project and that
+6. Confirm migration `048` remains recorded only on the SaaS project and that
    the strict Billing schema gate remains green. Do not rerun migrations
    `045`-`048`.
-6. Complete the remaining provider matrix: Basic first purchase and same-plan
+7. Complete the remaining provider matrix: Basic first purchase and same-plan
    renewal, expired renewal, rejection of new legacy-plan checkout, verified
    callback drain for previously persisted orders, platform suspension,
    duplicate notification, Stage/Production isolation, feature-flag drain,
    provider failure, amount mismatch, simulated payment,
    browser-return/callback races, signed `QueryTradeInfo/V5` timeout/non-2xx,
    invalid query signature, and query-field mismatches.
-7. Verify the merchant billing page and platform billing events show the same
+8. Verify the merchant billing page and platform billing events show the same
    confirmed payment and service period, then restore any temporary Preview or
    deployment protection change used for acceptance.
-8. Complete legal invoice/receipt, refund, customer-support, and reconciliation
+9. Complete legal invoice/receipt, refund, customer-support, and reconciliation
    decisions.
-9. Only after all earlier steps pass, explicitly approve the Production deploy
+10. Only after all earlier steps pass, explicitly approve the Production deploy
    and set `ENABLE_BILLING=true` plus `ENABLE_SUBSCRIPTION_PLAN=true` together.
 
 ## External Values Required Later
@@ -177,6 +183,7 @@ Before accepting a real customer payment:
 - `ECPAY_MERCHANT_ID`
 - `ECPAY_HASH_KEY`
 - `ECPAY_HASH_IV`
+- `ECPAY_PAYMENT_METHODS_CONFIRMED=true` after provider approval
 - `ENABLE_BILLING=true`
 - `ENABLE_SUBSCRIPTION_PLAN=true`
 - A public HTTPS callback URL reachable by ECPay without Vercel protection
