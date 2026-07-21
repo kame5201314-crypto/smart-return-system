@@ -80,7 +80,22 @@ describe('BillingSettingsPage', () => {
     billingMocks.result.data.org.status = 'trialing';
     billingMocks.result.data.org.plan = 'basic';
     billingMocks.result.data.org.suspensionSource = null;
+    billingMocks.result.data.subscription!.currentPeriodStart = '2026-07-18T00:00:00.000Z';
+    billingMocks.result.data.subscription!.currentPeriodEnd = '2026-07-21T00:00:00.000Z';
     billingMocks.result.data.subscription!.cancelAtPeriodEnd = false;
+    billingMocks.result.data.history = [
+      {
+        id: 'payment-order-1',
+        plan: 'basic',
+        provider: 'ecpay',
+        periodStart: '2026-06-18T00:00:00.000Z',
+        periodEnd: '2026-07-18T00:00:00.000Z',
+        amountTwd: 499,
+        status: 'paid',
+        paidAt: '2026-06-18T00:00:00.000Z',
+        createdAt: '2026-06-18T00:00:00.000Z',
+      },
+    ];
     billingMocks.result.data.customOffers = [];
     delete billingMocks.result.data.customOffersUnavailable;
     billingMocks.result.data.actions.canUpdateBilling = false;
@@ -108,7 +123,7 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByRole('heading', { name: '入門版' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '成長版' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '大量需求' })).not.toBeInTheDocument();
-    expect(screen.getByText('NT$399')).toBeInTheDocument();
+    expect(screen.getAllByText('NT$399').length).toBeGreaterThan(0);
     expect(screen.queryByText('NT$699')).not.toBeInTheDocument();
     expect(screen.getAllByText('NT$499').length).toBeGreaterThan(0);
     expect(screen.getAllByText('綠界科技').length).toBeGreaterThan(0);
@@ -167,6 +182,44 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByText('使用開始日')).toBeInTheDocument();
     expect(screen.getByText('使用到期日')).toBeInTheDocument();
     expect(screen.queryByText('本期開始日')).not.toBeInTheDocument();
+  });
+
+  it('pairs the paid usage dates from the period covering today after an early renewal', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-21T04:00:00.000Z'));
+    billingMocks.result.data.org.status = 'active';
+    billingMocks.result.data.subscription!.currentPeriodStart = '2026-08-18T16:00:00.000Z';
+    billingMocks.result.data.subscription!.currentPeriodEnd = '2026-09-18T16:00:00.000Z';
+    billingMocks.result.data.history = [
+      {
+        id: 'payment-order-current',
+        plan: 'basic',
+        provider: 'ecpay',
+        periodStart: '2026-07-18T16:00:00.000Z',
+        periodEnd: '2026-08-18T16:00:00.000Z',
+        amountTwd: 399,
+        status: 'paid',
+        paidAt: '2026-07-18T16:00:00.000Z',
+        createdAt: '2026-07-18T16:00:00.000Z',
+      },
+      {
+        id: 'payment-order-queued',
+        plan: 'basic',
+        provider: 'ecpay',
+        periodStart: '2026-08-18T16:00:00.000Z',
+        periodEnd: '2026-09-18T16:00:00.000Z',
+        amountTwd: 399,
+        status: 'paid',
+        paidAt: '2026-07-18T17:00:00.000Z',
+        createdAt: '2026-07-18T17:00:00.000Z',
+      },
+    ];
+
+    await renderPage();
+
+    expect(screen.getByText('2026/07/19')).toBeInTheDocument();
+    expect(screen.getByText('2026/08/19')).toBeInTheDocument();
+    expect(screen.queryByText('2026/09/19')).not.toBeInTheDocument();
   });
 
   it('treats payment query parameters as a pending confirmation, not proof of payment', async () => {

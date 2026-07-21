@@ -27,14 +27,43 @@ function isTrialSubscription(data: BillingSettingsView): boolean {
     (data.org.status === 'suspended' && data.org.suspensionSource === 'trial_expired');
 }
 
+function resolveCurrentPaidPeriod(
+  data: BillingSettingsView,
+  now = new Date()
+): { periodStart: string; periodEnd: string } | null {
+  const nowTime = now.getTime();
+
+  return data.history
+    .filter((entry) => {
+      if (entry.status !== 'paid' || !entry.periodStart || !entry.periodEnd) {
+        return false;
+      }
+
+      const periodStart = Date.parse(entry.periodStart);
+      const periodEnd = Date.parse(entry.periodEnd);
+      return Number.isFinite(periodStart) &&
+        Number.isFinite(periodEnd) &&
+        periodStart <= nowTime &&
+        nowTime < periodEnd;
+    })
+    .sort((left, right) => Date.parse(right.periodStart!) - Date.parse(left.periodStart!))
+    .map((entry) => ({
+      periodStart: entry.periodStart!,
+      periodEnd: entry.periodEnd!,
+    }))[0] ?? null;
+}
+
 export function BillingSummary({ data }: { data: BillingSettingsView }) {
   const isTrial = isTrialSubscription(data);
   const isExpiredTrial = data.org.status === 'suspended' && isTrial;
   const planName = isTrial ? '試用版' : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
-  const periodStart = data.subscription?.currentPeriodStart ?? null;
+  const currentPaidPeriod = isTrial ? null : resolveCurrentPaidPeriod(data);
+  const periodStart = isTrial
+    ? data.subscription?.currentPeriodStart ?? null
+    : currentPaidPeriod?.periodStart ?? data.subscription?.currentPeriodStart ?? null;
   const periodEnd = isTrial
     ? data.subscription?.trialEnd ?? null
-    : data.subscription?.currentPeriodEnd ?? null;
+    : currentPaidPeriod?.periodEnd ?? data.subscription?.currentPeriodEnd ?? null;
   const statusLabel = isExpiredTrial ? '試用已到期' : STATUS_LABEL[data.org.status];
   const summaryCopy = isExpiredTrial
     ? '完成方案付款後，即可恢復新增退貨、資料匯入／匯出與 AI 分析。'
