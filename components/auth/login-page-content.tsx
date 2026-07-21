@@ -27,12 +27,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { signIn } from '@/lib/actions/auth';
 import { SAAS_SELF_SERVICE_PLAN_CODE } from '@/lib/config/saas-plans';
 
-const loginSchema = z.object({
-  email: z.string().min(1, '請輸入帳號'),
+const merchantLoginSchema = z.object({
+  email: z.string().trim().email('請輸入有效的電子信箱'),
   password: z.string().min(1, '請輸入密碼'),
 });
 
-type LoginInput = z.infer<typeof loginSchema>;
+const platformAdminLoginSchema = z.object({
+  email: z.string().trim().min(1, '請輸入管理員帳號或電子信箱'),
+  password: z.string().min(1, '請輸入密碼'),
+});
+
+type LoginInput = z.infer<typeof merchantLoginSchema>;
 
 interface LoginPageContentProps {
   googleAuthEnabled: boolean;
@@ -112,7 +117,9 @@ export function LoginPageContent({
   }, [passwordSetupSucceeded]);
 
   const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(
+      isPlatformAdminLogin ? platformAdminLoginSchema : merchantLoginSchema
+    ),
     defaultValues: {
       email: '',
       password: '',
@@ -177,24 +184,24 @@ export function LoginPageContent({
               <PackageCheck className="size-8 text-emerald-700" />
             )}
           </Link>
-          <h1 className="text-2xl font-bold text-neutral-950">Smart Return</h1>
-          <p className="mt-2 text-neutral-500">
-            {isPlatformAdminLogin ? '平台管理員登入' : '登入你的工作區'}
-          </p>
+          <h1 className="text-2xl font-bold text-neutral-950">
+            {isPlatformAdminLogin ? 'Smart Return' : 'AI退貨管理系統'}
+          </h1>
+          {isPlatformAdminLogin ? (
+            <p className="mt-2 text-neutral-500">平台管理員登入</p>
+          ) : null}
         </div>
 
         <Card className="border-neutral-200 bg-white shadow-lg">
           <CardHeader className="space-y-2 pb-5 sm:px-8 sm:pt-8">
             <CardTitle className="text-2xl">
-              {isPlatformAdminLogin ? '平台管理後台登入' : '登入工作區'}
+              {isPlatformAdminLogin ? '平台管理後台登入' : '登入'}
             </CardTitle>
-            <CardDescription className="leading-6">
-              {isPlatformAdminLogin
-                ? '請使用平台管理員帳號登入。商家請改用一般登入入口。'
-                : googleAuthEnabled
-                  ? '使用帳號密碼登入，或以 Google 繼續。'
-                  : '使用電子信箱／手機號碼與密碼登入。'}
-            </CardDescription>
+            {isPlatformAdminLogin ? (
+              <CardDescription className="leading-6">
+                請使用平台管理員帳號登入。商家請改用一般登入入口。
+              </CardDescription>
+            ) : null}
           </CardHeader>
           <CardContent className="sm:px-8 sm:pb-8">
             {googleError && (!googleAuthEnabled || isPlatformAdminLogin) ? (
@@ -232,16 +239,18 @@ export function LoginPageContent({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {isPlatformAdminLogin ? '管理員帳號或電子信箱' : '電子信箱／手機號碼'}
+                        {isPlatformAdminLogin ? '管理員帳號或電子信箱' : '電子信箱'}
                       </FormLabel>
                       <div className="relative">
                         <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
                         <FormControl>
                           <Input
-                            type="text"
+                            type={isPlatformAdminLogin ? 'text' : 'email'}
+                            inputMode={isPlatformAdminLogin ? undefined : 'email'}
+                            autoComplete={isPlatformAdminLogin ? 'username' : 'email'}
                             placeholder={isPlatformAdminLogin
                               ? '請輸入管理員帳號或電子信箱'
-                              : 'name@example.com 或 0912345678'}
+                              : 'name@example.com'}
                             className="h-12 pl-10 text-base"
                             disabled={isLoading}
                             {...field}
@@ -368,14 +377,23 @@ export function LoginPageContent({
                   改用一般登入
                 </Link>
               </p>
+            ) : accountRegistrationEnabled ? (
+              <p className="mt-6 text-center text-sm">
+                <Link
+                  href={signupHref}
+                  className="font-semibold text-emerald-700 underline-offset-2 hover:underline"
+                >
+                  建立帳號
+                </Link>
+              </p>
             ) : (
               <p className="mt-6 text-center text-sm text-neutral-600">
-                {accountRegistrationEnabled ? '第一次使用 Smart Return？' : '需要新的商家工作區？'}
+                需要新的商家工作區？
                 <Link
                   href={signupHref}
                   className="ml-1 font-semibold text-emerald-700 underline-offset-2 hover:underline"
                 >
-                  {accountRegistrationEnabled ? '建立帳號' : '申請免費試用'}
+                  申請免費試用
                 </Link>
               </p>
             )}

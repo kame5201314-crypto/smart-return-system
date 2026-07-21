@@ -89,7 +89,7 @@ describe('LoginPageContent', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+    fireEvent.change(screen.getByLabelText('電子信箱'), {
       target: { value: 'owner@example.com' },
     });
     fireEvent.change(screen.getByLabelText('密碼'), {
@@ -117,7 +117,7 @@ describe('LoginPageContent', () => {
     });
     render(<LoginPageContent googleAuthEnabled={false} />);
 
-    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+    fireEvent.change(screen.getByLabelText('電子信箱'), {
       target: { value: 'owner@example.com' },
     });
     fireEvent.change(screen.getByLabelText('密碼'), {
@@ -146,9 +146,11 @@ describe('LoginPageContent', () => {
       />
     );
 
-    expect(screen.getByText('登入工作區')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI退貨管理系統' })).toBeInTheDocument();
+    expect(screen.getByText('登入', { selector: '[data-slot="card-title"]' }))
+      .toBeInTheDocument();
     expect(screen.queryByText('平台管理後台登入')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('電子信箱／手機號碼'), {
+    fireEvent.change(screen.getByLabelText('電子信箱'), {
       target: { value: 'operator@example.com' },
     });
     fireEvent.change(screen.getByLabelText('密碼'), {
@@ -246,6 +248,7 @@ describe('LoginPageContent', () => {
 
     expect(screen.getByRole('link', { name: '建立帳號' }))
       .toHaveAttribute('href', '/signup?plan=basic');
+    expect(screen.queryByText('第一次使用 Smart Return？')).not.toBeInTheDocument();
     expect(screen.getByText('第一次使用 Google？驗證後會先完成商家資料。'))
       .toBeInTheDocument();
   });
@@ -270,11 +273,30 @@ describe('LoginPageContent', () => {
     expect(screen.queryByRole('link', { name: '使用 Google 繼續' }))
       .not.toBeInTheDocument();
     expect(screen.queryByText(/第一次使用 Google/)).not.toBeInTheDocument();
-    expect(screen.getByText('使用電子信箱／手機號碼與密碼登入。'))
+    expect(screen.getByRole('heading', { name: 'AI退貨管理系統' })).toBeInTheDocument();
+    expect(screen.getByText('登入', { selector: '[data-slot="card-title"]' }))
       .toBeInTheDocument();
+    expect(screen.getByLabelText('電子信箱')).toHaveAttribute('placeholder', 'name@example.com');
+    expect(screen.queryByText(/手機號碼/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '建立帳號' }))
       .toHaveAttribute('href', '/signup');
     expect(screen.getByText('密碼會區分英文字母大小寫。')).toBeInTheDocument();
+  });
+
+  it('rejects phone numbers on the merchant password login surface', () => {
+    render(<LoginPageContent googleAuthEnabled={false} />);
+
+    const emailInput = screen.getByLabelText('電子信箱');
+    fireEvent.change(emailInput, {
+      target: { value: '0912345678' },
+    });
+    fireEvent.change(screen.getByLabelText('密碼'), {
+      target: { value: 'Password8' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '登入' }));
+
+    expect(emailInput).toBeInvalid();
+    expect(authActionMocks.signIn).not.toHaveBeenCalled();
   });
 
   it('normalizes legacy plans and does not expose merchant signup to platform admins', () => {
