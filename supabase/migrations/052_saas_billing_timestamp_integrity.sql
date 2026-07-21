@@ -13,7 +13,13 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM public.payment_orders AS payment_order
-    WHERE payment_order.status = 'paid'
+    WHERE (
+        payment_order.status = 'paid'
+        OR (
+          payment_order.status = 'manual_review'
+          AND payment_order.paid_at IS NOT NULL
+        )
+      )
       AND (
         payment_order.paid_at IS NULL
         OR payment_order.paid_at < payment_order.created_at - INTERVAL '5 minutes'
@@ -22,7 +28,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
-      MESSAGE = 'existing paid payment orders contain invalid timestamps; audit them before applying migration 052';
+      MESSAGE = 'existing settled payment orders contain invalid timestamps; audit them before applying migration 052';
   END IF;
 END;
 $$;
@@ -55,7 +61,8 @@ BEGIN
     original_created_at := NEW.created_at;
   END IF;
 
-  IF NEW.status <> 'paid' THEN
+  IF NEW.status <> 'paid'
+     AND NOT (NEW.status = 'manual_review' AND NEW.paid_at IS NOT NULL) THEN
     RETURN NEW;
   END IF;
 
@@ -97,7 +104,7 @@ GRANT EXECUTE ON FUNCTION public.enforce_payment_order_paid_at_integrity()
   TO service_role;
 
 COMMENT ON FUNCTION public.enforce_payment_order_paid_at_integrity() IS
-  'Requires a paid payment order to carry a plausible paid_at timestamp relative to its immutable original created_at and the database transaction time.';
+  'Requires paid and settled manual-review payment orders to carry a plausible paid_at timestamp relative to immutable original creation and database transaction times.';
 
 CREATE OR REPLACE FUNCTION public.enforce_manual_payment_event_timestamp_integrity()
 RETURNS TRIGGER

@@ -21,6 +21,7 @@ import {
   createECPayCheckoutRepository,
   ECPayCheckoutRateLimitError,
   generateECPayMerchantTradeNo,
+  queryECPayVerifiedPaidTrade,
   type ECPayCheckoutQueryClient,
   type ECPayCheckoutRepository,
   type ECPayPaymentOrder,
@@ -713,6 +714,35 @@ describe('ECPay repository RPC boundary', () => {
 });
 
 describe('ECPay server notification', () => {
+  it.each([
+    ['before the order clock-skew boundary', '2026/07/19 07:54:59'],
+    ['after the server clock-skew boundary', '2026/07/19 12:05:01'],
+  ])('rejects a paid trade timestamp %s', async (_scenario, paymentDate) => {
+    await expect(queryECPayVerifiedPaidTrade({
+      order,
+      expectedTradeNo: '260719000000001',
+      env,
+      fetcher: queryTradeFetcher(queryTradePayload({ PaymentDate: paymentDate })),
+      now: new Date('2026-07-19T04:00:00.000Z'),
+    })).rejects.toThrow('ECPay trade query does not match the paid payment order.');
+  });
+
+  it.each([
+    ['order boundary', '2026/07/19 07:55:00'],
+    ['server boundary', '2026/07/19 12:05:00'],
+  ])('accepts a paid trade timestamp at the inclusive %s', async (_scenario, paymentDate) => {
+    await expect(queryECPayVerifiedPaidTrade({
+      order,
+      expectedTradeNo: '260719000000001',
+      env,
+      fetcher: queryTradeFetcher(queryTradePayload({ PaymentDate: paymentDate })),
+      now: new Date('2026-07-19T04:00:00.000Z'),
+    })).resolves.toMatchObject({
+      merchantTradeNo: order.merchantTradeNo,
+      paymentDate: expect.any(String),
+    });
+  });
+
   it('queries ECPay and acknowledges only after the trusted paid order is processed', async () => {
     const checkoutRepository = repository();
     const fetcher = queryTradeFetcher();

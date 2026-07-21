@@ -12,7 +12,7 @@ const source = readFileSync(
 );
 
 describe('SaaS billing timestamp integrity migration', () => {
-  it('requires every paid payment order to have a plausible paid_at timestamp', () => {
+  it('requires paid and settled manual-review orders to have plausible paid_at timestamps', () => {
     expect(source).toContain(
       'CREATE OR REPLACE FUNCTION public.enforce_payment_order_paid_at_integrity()'
     );
@@ -23,6 +23,9 @@ describe('SaaS billing timestamp integrity migration', () => {
       'OLD.paid_at IS NOT NULL AND NEW.paid_at IS DISTINCT FROM OLD.paid_at'
     );
     expect(source).toContain("IF NEW.status <> 'paid'");
+    expect(source).toContain(
+      "NEW.status = 'manual_review' AND NEW.paid_at IS NOT NULL"
+    );
     expect(source).toContain('IF NEW.paid_at IS NULL');
     expect(source).toContain(
       "NEW.paid_at < original_created_at - INTERVAL '5 minutes'"
@@ -53,12 +56,14 @@ describe('SaaS billing timestamp integrity migration', () => {
     );
   });
 
-  it('preflights existing paid rows instead of silently accepting old anomalies', () => {
+  it('preflights existing paid and settled manual-review rows instead of accepting anomalies', () => {
     expect(source).toContain('DO $$');
     expect(source).toContain("payment_order.status = 'paid'");
+    expect(source).toContain("payment_order.status = 'manual_review'");
+    expect(source).toContain('payment_order.paid_at IS NOT NULL');
     expect(source).toContain('payment_order.paid_at IS NULL');
     expect(source).toContain(
-      'existing paid payment orders contain invalid timestamps'
+      'existing settled payment orders contain invalid timestamps'
     );
   });
 

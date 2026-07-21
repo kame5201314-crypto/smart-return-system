@@ -145,6 +145,7 @@ const ECPAY_QUERY_TRADE_INFO_ACTIONS = {
 
 const ECPAY_QUERY_TIMEOUT_MS = 8_000;
 const ECPAY_QUERY_RESPONSE_MAX_LENGTH = 64_000;
+const ECPAY_PAYMENT_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 
 const ECPAY_NOTIFICATION_STATUSES: readonly ECPayNotificationStatus[] = [
   'processed',
@@ -579,6 +580,10 @@ export async function queryECPayVerifiedPaidTrade(
   if (!Number.isSafeInteger(queryTimestamp) || queryTimestamp <= 0) {
     throw new Error('ECPay trade query timestamp is invalid.');
   }
+  const orderCreatedAtTimestamp = Date.parse(input.order.createdAt ?? '');
+  if (!Number.isFinite(orderCreatedAtTimestamp)) {
+    throw new Error('ECPay trade query order creation time is invalid.');
+  }
   const requestFields: Record<string, string> = {
     MerchantID: merchantId,
     MerchantTradeNo: input.order.merchantTradeNo,
@@ -630,6 +635,7 @@ export async function queryECPayVerifiedPaidTrade(
     const responseTradeAmountTwd = integerOrNull(payload.TradeAmt);
     const tradeStatus = requireString(payload.TradeStatus, 'TradeStatus');
     const paymentDate = parseECPayPaymentDate(payload.PaymentDate);
+    const paymentTimestamp = Date.parse(paymentDate ?? '');
     if (
       responseMerchantId !== merchantId
       || responseMerchantId !== input.order.merchantId
@@ -639,6 +645,9 @@ export async function queryECPayVerifiedPaidTrade(
       || responseTradeAmountTwd !== input.order.amountTwd
       || tradeStatus !== '1'
       || !paymentDate
+      || !Number.isFinite(paymentTimestamp)
+      || paymentTimestamp < orderCreatedAtTimestamp - ECPAY_PAYMENT_CLOCK_SKEW_MS
+      || paymentTimestamp > queryTime.getTime() + ECPAY_PAYMENT_CLOCK_SKEW_MS
     ) {
       throw new Error('ECPay trade query does not match the paid payment order.');
     }
