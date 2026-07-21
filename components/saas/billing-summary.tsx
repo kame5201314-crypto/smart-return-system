@@ -84,7 +84,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
     : isTrial
       ? '試用期間可使用完整退貨工作區；到期後仍可查看歷史資料。'
       : isTestEntitlement
-        ? '這是綠界測試環境付款建立的測試使用期，不是新帳號的 3 天試用。'
+        ? null
         : '方案採一個月預付制，不會自動續扣；付款完成後會立即更新使用期限。';
 
   return (
@@ -139,7 +139,9 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
           </div>
         </dl>
 
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">{summaryCopy}</p>
+        {summaryCopy ? (
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">{summaryCopy}</p>
+        ) : null}
 
         {data.subscription?.cancelAtPeriodEnd ? (
           <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">

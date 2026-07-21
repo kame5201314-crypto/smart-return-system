@@ -44,7 +44,7 @@ const billingMocks = vi.hoisted(() => ({
       actions: {
         canUpdateBilling: false,
         canCancelRenewal: false,
-        disabledReason: '線上付款目前尚未開放。',
+        disabledReason: '線上帳務與自助付款目前尚未開放，請稍後再試。',
       },
     } as BillingSettingsView,
   },
@@ -99,7 +99,8 @@ describe('BillingSettingsPage', () => {
     billingMocks.result.data.customOffers = [];
     delete billingMocks.result.data.customOffersUnavailable;
     billingMocks.result.data.actions.canUpdateBilling = false;
-    billingMocks.result.data.actions.disabledReason = '線上付款目前尚未開放。';
+    billingMocks.result.data.actions.disabledReason =
+      '線上帳務與自助付款目前尚未開放，請稍後再試。';
   });
 
   afterEach(() => {
@@ -113,6 +114,8 @@ describe('BillingSettingsPage', () => {
     await renderPage();
 
     expect(screen.getByRole('heading', { name: '系統訂閱' })).toBeInTheDocument();
+    expect(screen.queryByText('查看目前方案與使用期限，並在此選擇方案付款。')).not.toBeInTheDocument();
+    expect(screen.queryByText('線上帳務與自助付款目前尚未開放，請稍後再試。')).not.toBeInTheDocument();
     expect(screen.queryByText('測試商店')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
     expect(screen.getByText('試用中')).toBeInTheDocument();
@@ -179,7 +182,7 @@ describe('BillingSettingsPage', () => {
 
     expect(screen.getByRole('heading', { name: '入門版（測試）' })).toBeInTheDocument();
     expect(screen.getByText('測試使用中')).toBeInTheDocument();
-    expect(screen.getByText(/不是新帳號的 3 天試用/)).toBeInTheDocument();
+    expect(screen.queryByText(/不是新帳號的 3 天試用/)).not.toBeInTheDocument();
     expect(screen.getAllByText('綠界測試環境').length).toBeGreaterThan(0);
     expect(screen.getAllByText('測試已付款').length).toBeGreaterThan(0);
     expect(screen.queryByRole('heading', { name: '試用版' })).not.toBeInTheDocument();

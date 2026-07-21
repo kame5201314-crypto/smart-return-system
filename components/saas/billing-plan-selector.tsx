@@ -52,6 +52,7 @@ const PAYMENT_POLL_INTERVAL_MS = 2_000;
 const PAYMENT_POLL_MAX_ATTEMPTS = 15;
 const CHECKOUT_REQUEST_TIMEOUT_MS = 10_000;
 const CHECKOUT_GENERIC_ERROR_MESSAGE = '目前無法建立付款流程，請稍後再試。';
+const BILLING_FEATURE_DISABLED_MESSAGE = '線上帳務與自助付款目前尚未開放，請稍後再試。';
 
 const PLAN_SUMMARY = '包含退貨管理、蝦皮匯入、基本報表與每月 10 次 AI 分析。';
 
@@ -558,7 +559,9 @@ export function BillingPlanSelector({
             );
           })()}
 
-          {!data.actions.canUpdateBilling && data.actions.disabledReason ? (
+          {!data.actions.canUpdateBilling &&
+          data.actions.disabledReason &&
+          data.actions.disabledReason !== BILLING_FEATURE_DISABLED_MESSAGE ? (
             <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
               {data.actions.disabledReason}
             </p>

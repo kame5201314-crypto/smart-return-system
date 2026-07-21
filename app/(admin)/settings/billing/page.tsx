@@ -58,10 +58,7 @@ export default async function BillingSettingsPage(
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5">
-      <PageHeader
-        title="系統訂閱"
-        description="查看目前方案與使用期限，並在此選擇方案付款。"
-      />
+      <PageHeader title="系統訂閱" />
 
       {result.state === 'ready' ? (
         <>
