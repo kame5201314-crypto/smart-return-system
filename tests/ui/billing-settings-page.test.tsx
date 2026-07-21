@@ -135,6 +135,56 @@ describe('BillingSettingsPage', () => {
     expect(document.querySelector('a[href="/pricing"]')).toBeNull();
   });
 
+  it('shows a fresh account as a three-day trial with no invented payment record', async () => {
+    billingMocks.result.data.subscription!.currentPeriodStart = '2026-07-21T04:00:00.000Z';
+    billingMocks.result.data.subscription!.currentPeriodEnd = '2026-07-24T04:00:00.000Z';
+    billingMocks.result.data.subscription!.trialEnd = '2026-07-24T04:00:00.000Z';
+    billingMocks.result.data.history = [];
+
+    await renderPage();
+
+    expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
+    expect(screen.getByText('試用中')).toBeInTheDocument();
+    expect(screen.getByText('試用開始日')).toBeInTheDocument();
+    expect(screen.getByText('試用到期日')).toBeInTheDocument();
+    expect(screen.getByText('2026/07/21')).toBeInTheDocument();
+    expect(screen.getByText('2026/07/24')).toBeInTheDocument();
+    expect(screen.getByText(/目前沒有付款紀錄/)).toBeInTheDocument();
+  });
+
+  it('labels ECPay test access and history without pretending it is a fresh trial', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-21T04:00:00.000Z'));
+    billingMocks.result.data.org.status = 'active';
+    billingMocks.result.data.subscription!.provider = 'ecpay';
+    billingMocks.result.data.subscription!.currentPeriodStart = '2026-07-20T00:14:00.000Z';
+    billingMocks.result.data.subscription!.currentPeriodEnd = '2026-08-20T00:14:00.000Z';
+    billingMocks.result.data.subscription!.trialEnd = null;
+    billingMocks.result.data.history = [
+      {
+        id: 'ecpay-test-payment',
+        plan: 'basic',
+        provider: 'ecpay',
+        providerMode: 'test',
+        periodStart: '2026-07-20T00:14:00.000Z',
+        periodEnd: '2026-08-20T00:14:00.000Z',
+        amountTwd: 399,
+        status: 'paid',
+        paidAt: '2026-07-20T00:14:00.000Z',
+        createdAt: '2026-07-20T00:13:00.000Z',
+      },
+    ];
+
+    await renderPage();
+
+    expect(screen.getByRole('heading', { name: '入門版（測試）' })).toBeInTheDocument();
+    expect(screen.getByText('測試使用中')).toBeInTheDocument();
+    expect(screen.getByText(/不是新帳號的 3 天試用/)).toBeInTheDocument();
+    expect(screen.getAllByText('綠界測試環境').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('測試已付款').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('heading', { name: '試用版' })).not.toBeInTheDocument();
+  });
+
   it('labels scrubbed manual payments without inventing a paid plan', async () => {
     billingMocks.result.data.history = [
       {

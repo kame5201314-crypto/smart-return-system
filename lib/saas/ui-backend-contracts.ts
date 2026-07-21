@@ -40,6 +40,7 @@ export type BillingSuspensionSource =
   | 'platform_admin';
 
 export type BillingProvider = 'manual' | 'ecpay' | 'stripe' | 'tappay';
+export type BillingProviderMode = 'test' | 'production';
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'failed' | 'void';
 export type BillingPaymentStatus =
   | 'pending'
@@ -85,6 +86,7 @@ export interface BillingSettingsView {
     id: string;
     plan: SaaSPlanCode | null;
     provider: BillingProvider;
+    providerMode?: BillingProviderMode | null;
     amountTwd: number;
     status: BillingPaymentStatus;
     paidAt: string | null;
@@ -133,6 +135,7 @@ export interface BillingSettingsViewInput {
     id: string;
     plan: unknown;
     provider: string;
+    providerMode?: string | null;
     amountTwd: number;
     status: string;
     paidAt: string | null;
@@ -806,6 +809,9 @@ export function buildBillingSettingsView(input: BillingSettingsViewInput): Billi
         id: requireString(item.id, 'billing.history.id'),
         plan: normalizeBillingHistoryPlan(item.plan, provider),
         provider,
+        providerMode: item.providerMode === 'test' || item.providerMode === 'production'
+          ? item.providerMode
+          : null,
         amountTwd: nonNegativeNumber(item.amountTwd, 'billing.history.amountTwd'),
         status: normalizeBillingPaymentStatus(item.status),
         paidAt: item.paidAt,

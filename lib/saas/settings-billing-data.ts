@@ -88,6 +88,7 @@ export interface SettingsBillingPaymentOrderData {
   id: string;
   plan: string;
   provider: string;
+  providerMode: 'test' | 'production' | null;
   amountTwd: number;
   status: string;
   paidAt: string | null;
@@ -98,6 +99,7 @@ export interface SettingsBillingManualPaymentData {
   id: string;
   plan: null;
   provider: 'manual';
+  providerMode: null;
   amountTwd: number;
   status: 'paid';
   paidAt: string;
@@ -110,6 +112,7 @@ export interface SettingsBillingHistoryData {
   id: string;
   plan: string | null;
   provider: string;
+  providerMode: 'test' | 'production' | null;
   amountTwd: number;
   status: string;
   paidAt: string | null;
@@ -128,6 +131,7 @@ export interface SettingsBillingSubscriptionPeriodData {
   periodStart: string;
   periodEnd: string;
   status?: string;
+  providerMode?: 'test' | 'production' | null;
 }
 
 function timestampOrNull(value: string | null): number | null {
@@ -217,6 +221,10 @@ function booleanOrFalse(value: unknown): boolean {
   return typeof value === 'boolean' ? value : false;
 }
 
+function providerModeOrNull(value: unknown): 'test' | 'production' | null {
+  return value === 'test' || value === 'production' ? value : null;
+}
+
 function nonNegativeNumberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 }
@@ -304,6 +312,7 @@ function normalizePaymentOrder(row: unknown): SettingsBillingPaymentOrderData | 
     id,
     plan,
     provider,
+    providerMode: providerModeOrNull(row.provider_mode),
     amountTwd,
     status: stringOrFallback(row.status, 'pending'),
     paidAt: stringOrNull(row.paid_at),
@@ -353,6 +362,7 @@ function normalizeManualPayment(row: unknown): SettingsBillingManualPaymentData 
     id,
     plan: null,
     provider: 'manual',
+    providerMode: null,
     amountTwd,
     status: 'paid',
     paidAt,
@@ -442,6 +452,7 @@ function normalizeSubscriptionPeriod(
     periodStart,
     periodEnd,
     ...(stringOrNull(row.status) ? { status: stringOrNull(row.status)! } : {}),
+    providerMode: providerModeOrNull(row.provider_mode),
   };
 }
 
@@ -615,22 +626,64 @@ export function createSettingsBillingDataRepository(
         return { history: [], currentEntitlementPeriod: null };
       }
 
+      const history = Array.isArray(data.history)
+        ? data.history
+          .map(normalizePaymentHistory)
+          .filter((row): row is SettingsBillingHistoryData => row !== null)
+        : [];
+      const currentEntitlementPeriod = normalizeSubscriptionPeriod(
+        data.current_entitlement_period
+      );
+      const paymentOrderIds = [...new Set([
+        ...history
+          .filter((row) => row.provider === 'ecpay' && row.providerMode === null)
+          .map((row) => row.id),
+        ...(currentEntitlementPeriod
+          && currentEntitlementPeriod.providerMode === null
+          && !currentEntitlementPeriod.paymentOrderId.startsWith('manual:')
+          ? [currentEntitlementPeriod.paymentOrderId]
+          : []),
+      ])];
+      const providerModeByOrderId = new Map<string, 'test' | 'production'>();
+
+      if (paymentOrderIds.length > 0) {
+        const { data: modeRows, error: modeError } = await client
+          .from('payment_orders')
+          .select('id, provider_mode')
+          .eq('org_id', input.orgId)
+          .in('id', paymentOrderIds);
+        assertNoSupabaseError(modeError, 'Failed to load payment provider modes.');
+
+        if (Array.isArray(modeRows)) {
+          for (const modeRow of modeRows) {
+            if (!isRecord(modeRow)) continue;
+            const id = stringOrNull(modeRow.id);
+            const providerMode = providerModeOrNull(modeRow.provider_mode);
+            if (id && providerMode) providerModeByOrderId.set(id, providerMode);
+          }
+        }
+      }
+
       return {
-        history: Array.isArray(data.history)
-          ? data.history
-            .map(normalizePaymentHistory)
-            .filter((row): row is SettingsBillingHistoryData => row !== null)
-          : [],
-        currentEntitlementPeriod: normalizeSubscriptionPeriod(
-          data.current_entitlement_period
-        ),
+        history: history.map((row) => ({
+          ...row,
+          providerMode: row.providerMode ?? providerModeByOrderId.get(row.id) ?? null,
+        })),
+        currentEntitlementPeriod: currentEntitlementPeriod
+          ? {
+              ...currentEntitlementPeriod,
+              providerMode: currentEntitlementPeriod.providerMode
+                ?? providerModeByOrderId.get(currentEntitlementPeriod.paymentOrderId)
+                ?? null,
+            }
+          : null,
       };
     },
 
     async listPaymentOrders(input) {
       const { data, error } = await client
         .from('payment_orders')
-        .select('id, plan, provider, amount_twd, status, paid_at, created_at')
+        .select('id, plan, provider, provider_mode, amount_twd, status, paid_at, created_at')
         .eq('org_id', input.orgId)
         // A delayed callback updates an older order after newer pending/failed
         // orders were created. Fetch candidates by last update, then sort the

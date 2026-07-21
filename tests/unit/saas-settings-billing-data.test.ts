@@ -102,6 +102,7 @@ describe('SaaS settings billing data repository', () => {
         id: 'payment-order-1',
         plan: 'growth',
         provider: 'ecpay',
+        provider_mode: 'production',
         amount_twd: 699,
         status: 'paid',
         paid_at: '2026-05-20T00:00:00.000Z',
@@ -170,6 +171,7 @@ describe('SaaS settings billing data repository', () => {
         {
           id: 'payment-order-1',
           plan: 'growth',
+          providerMode: 'production',
           status: 'paid',
           periodStart: '2026-05-20T00:00:00.000Z',
           periodEnd: '2026-06-20T00:00:00.000Z',
@@ -206,6 +208,9 @@ describe('SaaS settings billing data repository', () => {
     expect(invoiceChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(invoiceChain.limit).toHaveBeenCalledWith(1);
     expect(from).not.toHaveBeenCalledWith('audit_logs');
+    expect(paymentOrdersChain.select).toHaveBeenCalledWith(
+      'id, plan, provider, provider_mode, amount_twd, status, paid_at, created_at'
+    );
     expect(paymentOrdersChain.order).toHaveBeenCalledWith('updated_at', { ascending: false });
     expect(paymentOrdersChain.limit).toHaveBeenCalledWith(24);
     expect(subscriptionPeriodsChain.limit).toHaveBeenCalledWith(24);
@@ -277,6 +282,7 @@ describe('SaaS settings billing data repository', () => {
         id: 'manual:event-1',
         plan: null,
         provider: 'manual',
+        providerMode: null,
         amountTwd: 399,
         status: 'paid',
         paidAt: '2026-07-21T04:30:00.000Z',
@@ -382,8 +388,12 @@ describe('SaaS settings billing data repository', () => {
       },
       error: null,
     }));
+    const providerModeChain = createChain([
+      { id: 'payment-order-1', provider_mode: 'test' },
+    ]);
+    const from = vi.fn(() => providerModeChain);
     const repository = createSettingsBillingDataRepository({
-      from: vi.fn(),
+      from,
       rpc,
     } as unknown as SettingsBillingQueryClient);
 
@@ -394,6 +404,7 @@ describe('SaaS settings billing data repository', () => {
             id: 'payment-order-1',
             plan: 'basic',
             provider: 'ecpay',
+            providerMode: 'test',
             amountTwd: 399,
             status: 'refunded',
             paidAt: '2026-07-21T04:30:00.000Z',
@@ -405,6 +416,7 @@ describe('SaaS settings billing data repository', () => {
             id: 'manual:event-1',
             plan: null,
             provider: 'manual',
+            providerMode: null,
             amountTwd: 399,
             status: 'paid',
             paidAt: '2026-07-20T04:30:00.000Z',
@@ -417,12 +429,17 @@ describe('SaaS settings billing data repository', () => {
           paymentOrderId: 'manual:event-1',
           periodStart: '2026-07-20T00:00:00+08:00',
           periodEnd: '2026-08-20T00:00:00+08:00',
+          providerMode: null,
         },
       });
     expect(rpc).toHaveBeenCalledWith('list_customer_payment_history', {
       p_org_id: 'org-1',
       p_limit: 30,
     });
+    expect(from).toHaveBeenCalledWith('payment_orders');
+    expect(providerModeChain.select).toHaveBeenCalledWith('id, provider_mode');
+    expect(providerModeChain.eq).toHaveBeenCalledWith('org_id', 'org-1');
+    expect(providerModeChain.in).toHaveBeenCalledWith('id', ['payment-order-1']);
   });
 
   it.each([
@@ -458,6 +475,7 @@ describe('SaaS settings billing data repository', () => {
       id: `payment-${String(index).padStart(2, '0')}`,
       plan: 'basic',
       provider: 'ecpay',
+      providerMode: null,
       amountTwd: 399,
       status: 'paid',
       paidAt: index < 2
@@ -512,6 +530,7 @@ describe('SaaS settings billing data repository', () => {
       id: `pending-${index}`,
       plan: 'basic',
       provider: 'ecpay',
+      providerMode: null,
       amountTwd: 399,
       status: 'pending',
       paidAt: null,
@@ -610,6 +629,7 @@ describe('SaaS settings billing data repository', () => {
         id: 'manual:event-1',
         plan: null,
         provider: 'manual' as const,
+        providerMode: null,
         amountTwd: 399,
         status: 'paid' as const,
         paidAt: '2026-07-21T12:00:00.000Z',

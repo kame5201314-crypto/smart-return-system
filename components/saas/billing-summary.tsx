@@ -30,7 +30,11 @@ function isTrialSubscription(data: BillingSettingsView): boolean {
 function resolveCurrentPaidPeriod(
   data: BillingSettingsView,
   now = new Date()
-): { periodStart: string; periodEnd: string } | null {
+): {
+  periodStart: string;
+  periodEnd: string;
+  providerMode: BillingSettingsView['history'][number]['providerMode'];
+} | null {
   const nowTime = now.getTime();
 
   return data.history
@@ -50,26 +54,38 @@ function resolveCurrentPaidPeriod(
     .map((entry) => ({
       periodStart: entry.periodStart!,
       periodEnd: entry.periodEnd!,
+      providerMode: entry.providerMode,
     }))[0] ?? null;
 }
 
 export function BillingSummary({ data }: { data: BillingSettingsView }) {
   const isTrial = isTrialSubscription(data);
   const isExpiredTrial = data.org.status === 'suspended' && isTrial;
-  const planName = isTrial ? '試用版' : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
   const currentPaidPeriod = isTrial ? null : resolveCurrentPaidPeriod(data);
+  const isTestEntitlement = currentPaidPeriod?.providerMode === 'test';
+  const planName = isTrial
+    ? '試用版'
+    : isTestEntitlement
+      ? `${SAAS_PLAN_DEFINITIONS[data.org.plan].name}（測試）`
+      : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
   const periodStart = isTrial
     ? data.subscription?.currentPeriodStart ?? null
     : currentPaidPeriod?.periodStart ?? data.subscription?.currentPeriodStart ?? null;
   const periodEnd = isTrial
     ? data.subscription?.trialEnd ?? null
     : currentPaidPeriod?.periodEnd ?? data.subscription?.currentPeriodEnd ?? null;
-  const statusLabel = isExpiredTrial ? '試用已到期' : STATUS_LABEL[data.org.status];
+  const statusLabel = isExpiredTrial
+    ? '試用已到期'
+    : isTestEntitlement
+      ? '測試使用中'
+      : STATUS_LABEL[data.org.status];
   const summaryCopy = isExpiredTrial
     ? '完成方案付款後，即可恢復新增退貨、資料匯入／匯出與 AI 分析。'
     : isTrial
       ? '試用期間可使用完整退貨工作區；到期後仍可查看歷史資料。'
-      : '方案採一個月預付制，不會自動續扣；付款完成後會立即更新使用期限。';
+      : isTestEntitlement
+        ? '這是綠界測試環境付款建立的測試使用期，不是新帳號的 3 天試用。'
+        : '方案採一個月預付制，不會自動續扣；付款完成後會立即更新使用期限。';
 
   return (
     <Card className="w-full rounded-2xl border-gray-200 shadow-sm">

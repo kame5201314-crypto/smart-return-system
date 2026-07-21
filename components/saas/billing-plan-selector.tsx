@@ -113,6 +113,20 @@ const PROVIDER_LABEL: Record<BillingSettingsView['history'][number]['provider'],
   tappay: 'TapPay',
 };
 
+function providerLabel(item: BillingSettingsView['history'][number]): string {
+  if (item.provider === 'ecpay' && item.providerMode === 'test') {
+    return '綠界測試環境';
+  }
+  return PROVIDER_LABEL[item.provider];
+}
+
+function paymentStatusLabel(item: BillingSettingsView['history'][number]): string {
+  const label = PAYMENT_STATUS_LABEL[item.status];
+  return item.provider === 'ecpay' && item.providerMode === 'test'
+    ? `測試${label}`
+    : label;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -590,7 +604,7 @@ export function BillingPlanSelector({
                             : 'secondary'
                         }
                       >
-                        {PAYMENT_STATUS_LABEL[item.status]}
+                        {paymentStatusLabel(item)}
                       </Badge>
                     </div>
                     <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -602,7 +616,7 @@ export function BillingPlanSelector({
                       </div>
                       <div>
                         <dt className="text-muted-foreground">付款方式</dt>
-                        <dd className="mt-1 text-gray-950">{PROVIDER_LABEL[item.provider]}</dd>
+                        <dd className="mt-1 text-gray-950">{providerLabel(item)}</dd>
                       </div>
                       <div className="col-span-2">
                         <dt className="text-muted-foreground">
@@ -647,7 +661,7 @@ export function BillingPlanSelector({
                           {item.plan ? SAAS_PLAN_DEFINITIONS[item.plan].name : '方案未記錄'}
                         </td>
                         <td className="px-4 py-3">{formatAmount(item.amountTwd)}</td>
-                        <td className="px-4 py-3">{PROVIDER_LABEL[item.provider]}</td>
+                        <td className="px-4 py-3">{providerLabel(item)}</td>
                         <td className="px-4 py-3">
                           <Badge
                             variant={
@@ -656,7 +670,7 @@ export function BillingPlanSelector({
                                 : 'secondary'
                             }
                           >
-                            {PAYMENT_STATUS_LABEL[item.status]}
+                            {paymentStatusLabel(item)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
