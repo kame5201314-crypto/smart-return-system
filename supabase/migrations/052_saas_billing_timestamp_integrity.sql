@@ -1,9 +1,31 @@
--- Reject billing timestamps that would make a payment or entitlement appear
--- effective before it could have happened.
+-- Reject billing timestamps that would make a payment appear effective before
+-- it could have happened, and keep settled timestamps immutable afterwards.
 --
 -- This migration is additive and repository-only. Apply it only to the SaaS
 -- Supabase project after an explicit rollout approval. Never apply it to the
--- master/live/internal project.
+-- master/live/internal project. Migration 050 remains the source of truth for
+-- early-renewal subscription aggregate start dates; this migration must not
+-- reject a legitimate payment that is queued after an unexpired trial/manual
+-- entitlement.
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.payment_orders AS payment_order
+    WHERE payment_order.status = 'paid'
+      AND (
+        payment_order.paid_at IS NULL
+        OR payment_order.paid_at < payment_order.created_at - INTERVAL '5 minutes'
+        OR payment_order.paid_at > transaction_timestamp() + INTERVAL '5 minutes'
+      )
+  ) THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'existing paid payment orders contain invalid timestamps; audit them before applying migration 052';
+  END IF;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.enforce_payment_order_paid_at_integrity()
 RETURNS TRIGGER
@@ -15,14 +37,26 @@ DECLARE
   original_created_at TIMESTAMPTZ;
   accepted_future_limit TIMESTAMPTZ := transaction_timestamp() + INTERVAL '5 minutes';
 BEGIN
-  IF NEW.status <> 'paid' THEN
-    RETURN NEW;
-  END IF;
-
   IF TG_OP = 'UPDATE' THEN
     original_created_at := OLD.created_at;
+
+    IF NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+      RAISE EXCEPTION USING
+        ERRCODE = '23514',
+        MESSAGE = 'payment order created_at is immutable';
+    END IF;
+
+    IF OLD.paid_at IS NOT NULL AND NEW.paid_at IS DISTINCT FROM OLD.paid_at THEN
+      RAISE EXCEPTION USING
+        ERRCODE = '23514',
+        MESSAGE = 'payment order paid_at is immutable after it is recorded';
+    END IF;
   ELSE
     original_created_at := NEW.created_at;
+  END IF;
+
+  IF NEW.status <> 'paid' THEN
+    RETURN NEW;
   END IF;
 
   IF NEW.paid_at IS NULL THEN
@@ -79,35 +113,55 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF NEW.processed_at IS NOT NULL
-     AND NEW.processed_at > accepted_future_limit THEN
+  IF TG_OP = 'UPDATE'
+     AND OLD.event_type = 'manual.payment_marked'
+     AND (
+       NEW.processed_at IS DISTINCT FROM OLD.processed_at
+       OR NEW.payload -> 'effective_at' IS DISTINCT FROM OLD.payload -> 'effective_at'
+     ) THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'manual payment effective timestamps are immutable after processing';
+  END IF;
+
+  IF NEW.processed_at IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'manual payment processed_at is required';
+  END IF;
+
+  IF NEW.processed_at > accepted_future_limit THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
       MESSAGE = 'manual payment processed_at cannot be more than five minutes in the future';
   END IF;
 
-  IF NEW.payload ? 'effective_at'
-     AND jsonb_typeof(NEW.payload -> 'effective_at') <> 'null' THEN
-    BEGIN
-      payload_effective_at := NULLIF(BTRIM(NEW.payload ->> 'effective_at'), '')::TIMESTAMPTZ;
-    EXCEPTION
-      WHEN invalid_datetime_format OR datetime_field_overflow THEN
-        RAISE EXCEPTION USING
-          ERRCODE = '22007',
-          MESSAGE = 'manual payment payload effective_at must be a valid timestamp';
-    END;
+  IF NOT (NEW.payload ? 'effective_at')
+     OR jsonb_typeof(NEW.payload -> 'effective_at') = 'null' THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'manual payment payload effective_at is required';
+  END IF;
 
-    IF payload_effective_at IS NULL THEN
+  BEGIN
+    payload_effective_at := NULLIF(BTRIM(NEW.payload ->> 'effective_at'), '')::TIMESTAMPTZ;
+  EXCEPTION
+    WHEN invalid_datetime_format OR datetime_field_overflow THEN
       RAISE EXCEPTION USING
-        ERRCODE = '23514',
-        MESSAGE = 'manual payment payload effective_at cannot be empty';
-    END IF;
+        ERRCODE = '22007',
+        MESSAGE = 'manual payment payload effective_at must be a valid timestamp';
+  END;
 
-    IF payload_effective_at > accepted_future_limit THEN
-      RAISE EXCEPTION USING
-        ERRCODE = '23514',
-        MESSAGE = 'manual payment payload effective_at cannot be more than five minutes in the future';
-    END IF;
+  IF payload_effective_at IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'manual payment payload effective_at cannot be empty';
+  END IF;
+
+  IF payload_effective_at > accepted_future_limit THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '23514',
+      MESSAGE = 'manual payment payload effective_at cannot be more than five minutes in the future';
   END IF;
 
   RETURN NEW;
@@ -129,57 +183,4 @@ GRANT EXECUTE ON FUNCTION public.enforce_manual_payment_event_timestamp_integrit
   TO service_role;
 
 COMMENT ON FUNCTION public.enforce_manual_payment_event_timestamp_integrity() IS
-  'Rejects manual payment events whose processed or payload effective timestamp is implausibly in the future.';
-
-CREATE OR REPLACE FUNCTION public.enforce_paid_subscription_activation_timestamp()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  covering_period_start TIMESTAMPTZ;
-BEGIN
-  IF NEW.status = 'active'
-     AND NEW.provider IN ('ecpay', 'manual')
-     AND NEW.current_period_start IS NOT NULL
-     AND NEW.current_period_start > transaction_timestamp() THEN
-    SELECT period.period_start
-    INTO covering_period_start
-    FROM public.subscription_periods AS period
-    WHERE period.subscription_id = NEW.id
-      AND period.status = 'active'
-      AND period.period_start <= transaction_timestamp()
-      AND period.period_end > transaction_timestamp()
-    ORDER BY period.period_start DESC, period.created_at DESC
-    LIMIT 1;
-
-    IF covering_period_start IS NULL THEN
-      RAISE EXCEPTION USING
-        ERRCODE = '23514',
-        MESSAGE = 'a paid subscription cannot become active from a future period without a period covering the current database time';
-    END IF;
-
-    NEW.current_period_start := covering_period_start;
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_enforce_paid_subscription_activation_timestamp
-ON public.subscriptions;
-
-CREATE TRIGGER trg_enforce_paid_subscription_activation_timestamp
-BEFORE INSERT OR UPDATE OF status, provider, current_period_start, current_period_end
-ON public.subscriptions
-FOR EACH ROW
-EXECUTE FUNCTION public.enforce_paid_subscription_activation_timestamp();
-
-REVOKE ALL ON FUNCTION public.enforce_paid_subscription_activation_timestamp()
-  FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.enforce_paid_subscription_activation_timestamp()
-  TO service_role;
-
-COMMENT ON FUNCTION public.enforce_paid_subscription_activation_timestamp() IS
-  'Prevents ECPay or manual billing from activating a future entitlement unless an active immutable subscription period covers the current database time.';
+  'Requires immutable, plausible processing/effective timestamps for manual payment events.';

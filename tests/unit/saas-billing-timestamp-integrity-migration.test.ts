@@ -16,9 +16,13 @@ describe('SaaS billing timestamp integrity migration', () => {
     expect(source).toContain(
       'CREATE OR REPLACE FUNCTION public.enforce_payment_order_paid_at_integrity()'
     );
-    expect(source).toContain("IF NEW.status <> 'paid'");
     expect(source).toContain("IF TG_OP = 'UPDATE'");
     expect(source).toContain('original_created_at := OLD.created_at');
+    expect(source).toContain('NEW.created_at IS DISTINCT FROM OLD.created_at');
+    expect(source).toContain(
+      'OLD.paid_at IS NOT NULL AND NEW.paid_at IS DISTINCT FROM OLD.paid_at'
+    );
+    expect(source).toContain("IF NEW.status <> 'paid'");
     expect(source).toContain('IF NEW.paid_at IS NULL');
     expect(source).toContain(
       "NEW.paid_at < original_created_at - INTERVAL '5 minutes'"
@@ -37,8 +41,9 @@ describe('SaaS billing timestamp integrity migration', () => {
       'CREATE OR REPLACE FUNCTION public.enforce_manual_payment_event_timestamp_integrity()'
     );
     expect(source).toContain("NEW.event_type <> 'manual.payment_marked'");
+    expect(source).toContain('IF NEW.processed_at IS NULL');
     expect(source).toContain('NEW.processed_at > accepted_future_limit');
-    expect(source).toContain("NEW.payload ? 'effective_at'");
+    expect(source).toContain("NOT (NEW.payload ? 'effective_at')");
     expect(source).toContain(
       "NULLIF(BTRIM(NEW.payload ->> 'effective_at'), '')::TIMESTAMPTZ"
     );
@@ -48,27 +53,22 @@ describe('SaaS billing timestamp integrity migration', () => {
     );
   });
 
-  it('allows a future paid renewal only when an active period covers database now', () => {
+  it('preflights existing paid rows instead of silently accepting old anomalies', () => {
+    expect(source).toContain('DO $$');
+    expect(source).toContain("payment_order.status = 'paid'");
+    expect(source).toContain('payment_order.paid_at IS NULL');
     expect(source).toContain(
-      'CREATE OR REPLACE FUNCTION public.enforce_paid_subscription_activation_timestamp()'
-    );
-    expect(source).toContain("NEW.provider IN ('ecpay', 'manual')");
-    expect(source).toContain(
-      'NEW.current_period_start > transaction_timestamp()'
-    );
-    expect(source).toContain(
-      'period.period_start <= transaction_timestamp()'
-    );
-    expect(source).toContain('period.period_end > transaction_timestamp()');
-    expect(source).toContain('IF covering_period_start IS NULL');
-    expect(source).toContain('NEW.current_period_start := covering_period_start');
-    expect(source).toContain(
-      'BEFORE INSERT OR UPDATE OF status, provider, current_period_start, current_period_end'
+      'existing paid payment orders contain invalid timestamps'
     );
   });
 
-  it('keeps all trigger functions unavailable to public callers', () => {
-    expect(source.match(/REVOKE ALL ON FUNCTION public\./g)).toHaveLength(3);
-    expect(source.match(/TO service_role;/g)).toHaveLength(3);
+  it('does not block legitimate future-start trial or manual renewals', () => {
+    expect(source).not.toContain('enforce_paid_subscription_activation_timestamp');
+    expect(source).not.toContain('trg_enforce_paid_subscription_activation_timestamp');
+  });
+
+  it('keeps both trigger functions unavailable to public callers', () => {
+    expect(source.match(/REVOKE ALL ON FUNCTION public\./g)).toHaveLength(2);
+    expect(source.match(/TO service_role;/g)).toHaveLength(2);
   });
 });
