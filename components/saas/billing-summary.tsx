@@ -66,7 +66,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
   const planName = isTrial
     ? '試用版'
     : isTestEntitlement
-      ? `${SAAS_PLAN_DEFINITIONS[data.org.plan].name}（測試）`
+      ? `${SAAS_PLAN_DEFINITIONS[data.org.plan].name} (三天測試期)`
       : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
   const periodStart = isTrial
     ? data.subscription?.currentPeriodStart ?? null

@@ -180,7 +180,7 @@ describe('BillingSettingsPage', () => {
 
     await renderPage();
 
-    expect(screen.getByRole('heading', { name: '入門版（測試）' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '入門版 (三天測試期)' })).toBeInTheDocument();
     expect(screen.getByText('測試使用中')).toBeInTheDocument();
     expect(screen.queryByText(/不是新帳號的 3 天試用/)).not.toBeInTheDocument();
     expect(screen.getAllByText('綠界測試環境').length).toBeGreaterThan(0);
