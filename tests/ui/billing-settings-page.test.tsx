@@ -112,7 +112,7 @@ describe('BillingSettingsPage', () => {
   it('shows current plan, period dates, in-app plans, and payment history', async () => {
     await renderPage();
 
-    expect(screen.getByRole('heading', { name: '帳務與訂閱' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '系統訂閱' })).toBeInTheDocument();
     expect(screen.queryByText('測試商店')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
     expect(screen.getByText('試用中')).toBeInTheDocument();

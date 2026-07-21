@@ -234,7 +234,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: '/orders', label: '訂單查詢', icon: 'ShoppingCart' },
   { href: '/analytics', label: '數據中心', icon: 'BarChart3' },
   { href: '/analytics/ai-report', label: 'AI 分析', icon: 'Brain' },
-  { href: '/settings', label: '系統設定', icon: 'Settings' },
+  { href: '/settings/billing', label: '系統訂閱', icon: 'Settings' },
 ] as const;
 
 // =====================================================
