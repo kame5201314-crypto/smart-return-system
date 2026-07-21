@@ -95,13 +95,14 @@ describe('PlatformOrganizationsExplorer', () => {
   it('searches tenants and exposes explicit tenant actions', () => {
     render(<PlatformOrganizationsExplorer data={data} />);
 
-    fireEvent.change(screen.getByLabelText('搜尋租戶'), { target: { value: '健康品牌' } });
+    fireEvent.change(screen.getByLabelText('搜尋租戶'), { target: { value: 'healthy@example.com' } });
 
     expect(screen.getByText('共 2 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
     expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
-    expect(screen.getAllByText('健康品牌').length).toBeGreaterThan(0);
+    expect(screen.queryByText('健康品牌')).not.toBeInTheDocument();
+    expect(screen.getAllByText('healthy@example.com').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Google 註冊').length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: '管理租戶：健康品牌' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: '管理租戶：healthy@example.com' }).length).toBeGreaterThan(0);
   });
 
   it('filters the list to tenants that need attention', () => {
@@ -174,6 +175,7 @@ describe('PlatformOrganizationsExplorer', () => {
         name: `品牌 ${sequence}`,
         slug: `brand-${sequence}`,
         ownerEmail: `owner-${sequence}@example.com`,
+        provisioningSource: 'manual' as const,
       };
     });
     const largeData: PlatformOrganizationListView = {
@@ -209,6 +211,7 @@ describe('PlatformOrganizationsExplorer', () => {
       id: `org-${index + 1}`,
       name: index === 20 ? '唯一第 21 筆' : `一般品牌 ${index + 1}`,
       slug: `brand-${index + 1}`,
+      provisioningSource: 'manual' as const,
     }));
     const largeData: PlatformOrganizationListView = {
       summary: {

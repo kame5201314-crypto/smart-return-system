@@ -41,6 +41,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
 import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
+import { getPlatformOrganizationDisplayIdentity } from '@/lib/saas/platform-organization-display';
 import type { PlatformOrganizationDetailView } from '@/lib/saas/ui-backend-contracts';
 
 function formatDate(value: string | null): string {
@@ -128,6 +129,7 @@ function statusBadgeClass(status: PlatformOrganizationDetailView['organization']
 
 function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const org = data.organization;
+  const identity = getPlatformOrganizationDisplayIdentity(org);
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
 
   const trialExpired =
@@ -266,7 +268,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.seats)}
-                aria-label={`${org.name} 席次使用率`}
+                aria-label={`${identity.primaryLabel} 席次使用率`}
                 aria-valuetext={`已使用 ${org.memberCount} / ${plan.seatLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.seats)}%`}
               />
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -283,7 +285,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.returns)}
-                aria-label={`${org.name} 退貨量使用率`}
+                aria-label={`${identity.primaryLabel} 退貨量使用率`}
                 aria-valuetext={`已使用 ${org.usage.returnsThisMonth} / ${plan.monthlyReturnSoftLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.returns)}%`}
               />
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -299,7 +301,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.ai)}
-                aria-label={`${org.name} AI 額度使用率`}
+                aria-label={`${identity.primaryLabel} AI 額度使用率`}
                 aria-valuetext={`已使用 ${org.usage.aiUsedThisMonth} / ${plan.aiMonthlyLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.ai)}%`}
               />
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -382,8 +384,9 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
   const { id } = await params;
   const result = await loadPlatformOrganizationDetailView(id);
   redirectUnauthenticatedPlatformAdminResult(result, `/internal/orgs/${id}`);
-  const title = result.state === 'ready' ? result.data.organization.name : '租戶詳情';
   const readyOrg = result.state === 'ready' ? result.data.organization : null;
+  const readyIdentity = readyOrg ? getPlatformOrganizationDisplayIdentity(readyOrg) : null;
+  const title = readyIdentity?.primaryLabel ?? '租戶詳情';
   const readyPlan = readyOrg ? SAAS_PLAN_DEFINITIONS[readyOrg.plan] : null;
 
   return (
@@ -407,7 +410,8 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
           </div>
           {readyOrg ? (
             <p className="mt-2 text-sm text-muted-foreground">
-              {readyOrg.ownerEmail ?? '未提供帳號信箱'} · {formatProvisioningSource(readyOrg.provisioningSource)}
+              {readyIdentity?.secondaryLabel ? `${readyIdentity.secondaryLabel} · ` : ''}
+              {formatProvisioningSource(readyOrg.provisioningSource)}
             </p>
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">
@@ -430,7 +434,7 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
                 <div className="mt-2">
                   <StartTenantPreviewButton
                     orgId={result.data.organization.id}
-                    orgName={result.data.organization.name}
+                    orgName={title}
                   />
                 </div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">唯讀預覽有效 1 小時，不會修改客戶資料。</p>
@@ -440,14 +444,14 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
                 <div className="mt-2">
                   <OrgOperationsNoteForm
                     orgId={result.data.organization.id}
-                    orgName={result.data.organization.name}
+                    orgName={title}
                   />
                 </div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">聯絡內容與下次跟進時間會寫入操作紀錄。</p>
               </div>
               <OrgBillingOperationControls
                 orgId={result.data.organization.id}
-                orgName={result.data.organization.name}
+                orgName={title}
                 status={result.data.organization.status}
                 suggestedAmountTwd={SAAS_PLAN_DEFINITIONS[result.data.organization.plan].monthlyPriceTwd}
                 canManageBillingOperations={result.context.permissions.includes('manage_billing_operations')}

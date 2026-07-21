@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
+import { getPlatformOrganizationDisplayIdentity } from '@/lib/saas/platform-organization-display';
 import type { PlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
 import {
   formatSuggestedActions,
@@ -87,18 +88,20 @@ function matchesFilter(org: PlatformOrg, filter: PlatformOrganizationFilter): bo
 }
 
 function compareOrganizations(a: PlatformOrg, b: PlatformOrg, sort: OrgSort): number {
-  if (sort === 'name') return a.name.localeCompare(b.name, 'zh-TW');
+  const displayNameA = getPlatformOrganizationDisplayIdentity(a).primaryLabel;
+  const displayNameB = getPlatformOrganizationDisplayIdentity(b).primaryLabel;
+  if (sort === 'name') return displayNameA.localeCompare(displayNameB, 'zh-TW');
   if (sort === 'usage') return maxUsagePercent(b) - maxUsagePercent(a);
   if (sort === 'trial_end') {
     const daysA = a.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY;
     const daysB = b.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY;
-    return daysA - daysB || a.name.localeCompare(b.name, 'zh-TW');
+    return daysA - daysB || displayNameA.localeCompare(displayNameB, 'zh-TW');
   }
   return (
     followUpTier(a) - followUpTier(b) ||
     (a.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY) -
       (b.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY) ||
-    a.name.localeCompare(b.name, 'zh-TW')
+    displayNameA.localeCompare(displayNameB, 'zh-TW')
   );
 }
 
@@ -232,18 +235,21 @@ function SummaryChips({
 function TenantMobileCard({ org }: { org: PlatformOrg }) {
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
   const suggestions = buildSuggestions(org);
+  const identity = getPlatformOrganizationDisplayIdentity(org);
   return (
     <li className="rounded-lg border bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Link className="font-semibold text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
-            {org.name}
+            {identity.primaryLabel}
           </Link>
           <p className="mt-1 text-xs text-muted-foreground">{plan.name}</p>
         </div>
         <HealthBadge org={org} />
       </div>
-      <p className="mt-3 break-all text-xs text-muted-foreground">{org.ownerEmail ?? '未提供帳號信箱'}</p>
+      {identity.secondaryLabel ? (
+        <p className="mt-3 break-all text-xs text-muted-foreground">{identity.secondaryLabel}</p>
+      ) : null}
       <div className="mt-2 flex flex-wrap gap-1.5">
         <StatusBadge org={org} />
         <ProvisioningSourceBadge org={org} />
@@ -257,7 +263,7 @@ function TenantMobileCard({ org }: { org: PlatformOrg }) {
         </div>
       ) : null}
       <Button asChild variant="outline" size="sm" className="mt-4 w-full">
-        <Link href={`/internal/orgs/${org.id}`} aria-label={`管理租戶：${org.name}`}>
+        <Link href={`/internal/orgs/${org.id}`} aria-label={`管理租戶：${identity.primaryLabel}`}>
           管理租戶
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
@@ -287,7 +293,8 @@ export function PlatformOrganizationsExplorer({
       .filter((org) => {
         if (!normalizedQuery) return true;
         const planName = SAAS_PLAN_DEFINITIONS[org.plan].name;
-        return [org.name, org.slug, org.ownerEmail ?? '', planName]
+        const identity = getPlatformOrganizationDisplayIdentity(org);
+        return [identity.primaryLabel, identity.secondaryLabel ?? '', org.slug, planName]
           .some((value) => value.toLocaleLowerCase('zh-TW').includes(normalizedQuery));
       })
       .sort((a, b) => compareOrganizations(a, b, sort));
@@ -401,13 +408,16 @@ export function PlatformOrganizationsExplorer({
               <tbody className="divide-y">
                 {displayedOrganizations.map((org) => {
                   const suggestions = buildSuggestions(org);
+                  const identity = getPlatformOrganizationDisplayIdentity(org);
                   return (
                     <tr key={org.id} className="align-top hover:bg-neutral-50/70">
                       <td className="px-4 py-4">
                         <Link className="font-medium text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
-                          {org.name}
+                          {identity.primaryLabel}
                         </Link>
-                        <p className="mt-1 max-w-52 break-all text-xs text-muted-foreground">{org.ownerEmail ?? '未提供帳號信箱'}</p>
+                        {identity.secondaryLabel ? (
+                          <p className="mt-1 max-w-52 break-all text-xs text-muted-foreground">{identity.secondaryLabel}</p>
+                        ) : null}
                         <div className="mt-2">
                           <ProvisioningSourceBadge org={org} />
                         </div>
@@ -428,7 +438,7 @@ export function PlatformOrganizationsExplorer({
                       </td>
                       <td className="px-4 py-4 text-right">
                         <Button asChild variant="outline" size="sm">
-                          <Link href={`/internal/orgs/${org.id}`} aria-label={`管理租戶：${org.name}`}>
+                          <Link href={`/internal/orgs/${org.id}`} aria-label={`管理租戶：${identity.primaryLabel}`}>
                             管理
                             <ArrowRight className="size-4" aria-hidden="true" />
                           </Link>
