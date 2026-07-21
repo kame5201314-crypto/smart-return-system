@@ -258,35 +258,53 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           </div>
           <div className="grid gap-3 text-sm md:grid-cols-3">
             <div className="rounded-md border p-3">
-              <div className="mb-2 text-xs text-muted-foreground">
-                席次 {org.memberCount} / {plan.seatLimit ?? '合約'}
+              <div className="mb-2">
+                <p className="font-medium">團隊席次</p>
+                <p className="text-xs text-muted-foreground">
+                  已使用 {org.memberCount} / {plan.seatLimit ?? '合約'}
+                </p>
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.seats)}
                 aria-label={`${org.name} 席次使用率`}
                 aria-valuetext={`已使用 ${org.memberCount} / ${plan.seatLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.seats)}%`}
               />
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                計算目前已加入的團隊成員；達上限後將無法再新增成員。
+              </p>
             </div>
             <div className="rounded-md border p-3">
-              <div className="mb-2 text-xs text-muted-foreground">
-                退貨量 {org.usage.returnsThisMonth.toLocaleString('zh-TW')} /{' '}
-                {plan.monthlyReturnSoftLimit?.toLocaleString('zh-TW') ?? '合約'}
+              <div className="mb-2">
+                <p className="font-medium">本月退貨量</p>
+                <p className="text-xs text-muted-foreground">
+                  已使用 {org.usage.returnsThisMonth.toLocaleString('zh-TW')} /{' '}
+                  {plan.monthlyReturnSoftLimit?.toLocaleString('zh-TW') ?? '合約'}
+                </p>
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.returns)}
                 aria-label={`${org.name} 退貨量使用率`}
                 aria-valuetext={`已使用 ${org.usage.returnsThisMonth} / ${plan.monthlyReturnSoftLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.returns)}%`}
               />
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                計算本月新增與匯入的退貨筆數；達上限後將無法再新增退貨。
+              </p>
             </div>
             <div className="rounded-md border p-3">
-              <div className="mb-2 text-xs text-muted-foreground">
-                AI {org.usage.aiUsedThisMonth} / {plan.aiMonthlyLimit ?? '合約'}
+              <div className="mb-2">
+                <p className="font-medium">本月 AI 分析</p>
+                <p className="text-xs text-muted-foreground">
+                  已使用 {org.usage.aiUsedThisMonth} / {plan.aiMonthlyLimit ?? '合約'}
+                </p>
               </div>
               <UsageProgress
                 value={usagePercent(org.health.usagePercentages.ai)}
                 aria-label={`${org.name} AI 額度使用率`}
                 aria-valuetext={`已使用 ${org.usage.aiUsedThisMonth} / ${plan.aiMonthlyLimit ?? '合約'}，${usagePercent(org.health.usagePercentages.ai)}%`}
               />
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                計算本月執行 AI 分析的次數；達上限後本月將暫停 AI 分析。
+              </p>
             </div>
           </div>
         </CardContent>
