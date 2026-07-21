@@ -465,6 +465,17 @@ describe('BillingSettingsPage', () => {
     expect(form?.querySelector('input[name="TradeAmt"]')).toHaveValue('399');
   });
 
+  it('uses the full billing card width for the public upgrade plan', async () => {
+    await renderPage();
+
+    const planHeading = screen.getByRole('heading', { name: '入門版' });
+    const planCard = planHeading.closest('article');
+
+    expect(planCard).not.toBeNull();
+    expect(planCard).toHaveClass('w-full');
+    expect(planCard).not.toHaveClass('max-w-2xl');
+  });
+
   it('shows a private custom offer and checks out with only the server-side offer id', async () => {
     billingMocks.result.data.actions.canUpdateBilling = true;
     billingMocks.result.data.actions.disabledReason = undefined;

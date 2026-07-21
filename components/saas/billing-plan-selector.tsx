@@ -511,7 +511,7 @@ export function BillingPlanSelector({
             return (
               <article
                 aria-labelledby={`billing-plan-${code}`}
-                className={`max-w-2xl rounded-xl border p-5 ${
+                className={`w-full rounded-xl border p-5 sm:p-6 ${
                   isPrimaryPlan
                     ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500'
                     : 'border-gray-200 bg-white'
