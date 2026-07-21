@@ -221,6 +221,7 @@ describe('self-service ECPay checkout', () => {
           MerchantID: env.ECPAY_MERCHANT_ID,
           MerchantTradeNo: order.merchantTradeNo,
           TotalAmount: '399',
+          ChoosePayment: 'ALL',
           ReturnURL: `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/webhook`,
           ClientBackURL: `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result?back=1&trade=${order.merchantTradeNo}`,
           OrderResultURL: `${env.NEXT_PUBLIC_APP_URL}/api/billing/ecpay/result`,

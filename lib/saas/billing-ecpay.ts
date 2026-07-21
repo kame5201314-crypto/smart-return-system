@@ -520,7 +520,10 @@ export function buildECPayAioCheckoutForm(input: {
       ? `Smart Return ${customOffer.customOfferTitle} one month`
       : `Smart Return ${input.order.plan} one month`,
     ReturnURL: `${origin}/api/billing/ecpay/webhook`,
-    ChoosePayment: 'Credit',
+    // Let ECPay present every payment method that has actually been approved
+    // for this merchant. Restricting checkout to Credit makes an otherwise
+    // valid merchant fail with 10300023 when only non-card methods are active.
+    ChoosePayment: 'ALL',
     EncryptType: '1',
     ClientBackURL: `${origin}/api/billing/ecpay/result?back=1&trade=${encodeURIComponent(
       input.order.merchantTradeNo
