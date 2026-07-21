@@ -113,6 +113,8 @@ DECLARE
   subscription_record public.subscriptions%ROWTYPE;
   covering_period_start TIMESTAMPTZ;
   covering_period_end TIMESTAMPTZ;
+  trusted_paid_through_end TIMESTAMPTZ;
+  repaired_period_end TIMESTAMPTZ;
   created_audit_log_id UUID;
   expired_period_count INTEGER := 0;
 BEGIN
@@ -150,9 +152,17 @@ BEGIN
 
   -- A stale aggregate may point at an already-ended period while the immutable
   -- ledger still contains a period that covers this exact effective instant.
-  -- Lock that covering period after the subscription, repair both aggregate
-  -- endpoints atomically, and leave the tenant active. A future-only period or
-  -- a gap does not cover effective_at and therefore fails closed below.
+  -- Lock active ledger periods after the subscription so billing callbacks
+  -- cannot append or mutate the prepaid timeline during the repair.
+  PERFORM 1
+  FROM public.subscription_periods AS period
+  WHERE period.subscription_id = subscription_record.id
+    AND period.status = 'active'
+  ORDER BY period.period_start, period.period_end
+  FOR UPDATE;
+
+  -- Find the period covering the exact effective instant. A future-only period
+  -- or a gap does not cover effective_at and therefore fails closed below.
   SELECT
     period.period_start,
     period.period_end
@@ -165,14 +175,37 @@ BEGIN
       AND period.period_start <= effective_at
       AND period.period_end > effective_at
     ORDER BY period.period_start DESC, period.created_at DESC
-    LIMIT 1
-    FOR UPDATE;
+    LIMIT 1;
 
   IF FOUND THEN
+    -- Early renewals are appended as adjacent active ledger rows. Follow only
+    -- rows that overlap or start exactly at the prior paid-through boundary;
+    -- periods after a gap are not trusted as current entitlement. The strictly
+    -- increasing period_end predicate makes the recursive chain finite.
+    WITH RECURSIVE entitlement_chain(chain_end) AS (
+      SELECT covering_period_end
+      UNION
+      SELECT period.period_end
+      FROM entitlement_chain AS entitlement
+      JOIN public.subscription_periods AS period
+        ON period.subscription_id = subscription_record.id
+       AND period.status = 'active'
+       AND period.period_start <= entitlement.chain_end
+       AND period.period_end > entitlement.chain_end
+    )
+    SELECT MAX(entitlement.chain_end)
+    INTO trusted_paid_through_end
+    FROM entitlement_chain AS entitlement;
+
+    repaired_period_end := GREATEST(
+      subscription_record.current_period_end,
+      trusted_paid_through_end
+    );
+
     UPDATE public.subscriptions
     SET
       current_period_start = covering_period_start,
-      current_period_end = covering_period_end,
+      current_period_end = repaired_period_end,
       updated_at = NOW()
     WHERE id = subscription_record.id;
 
@@ -183,7 +216,7 @@ BEGIN
       'reason', 'active_paid_period_aggregate_repaired',
       'aggregate_repaired', true,
       'current_period_start', covering_period_start,
-      'current_period_end', covering_period_end
+      'current_period_end', repaired_period_end
     );
   END IF;
 

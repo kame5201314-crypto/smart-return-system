@@ -57,7 +57,7 @@ describe('SaaS fixed-term prepaid expiry migration', () => {
     expect(block).toContain('period.period_end > effective_at');
     expect(block).toContain('FOR UPDATE;');
     expect(block).toContain('current_period_start = covering_period_start');
-    expect(block).toContain('current_period_end = covering_period_end');
+    expect(block).toContain('current_period_end = repaired_period_end');
     expect(block).toContain("'reason', 'active_paid_period_aggregate_repaired'");
     expect(block).toContain("'aggregate_repaired', true");
     expect(block).not.toContain("'reason', 'active_paid_period_remains'");
@@ -72,6 +72,21 @@ describe('SaaS fixed-term prepaid expiry migration', () => {
     expect(block.match(/INSERT INTO public\.audit_logs/g)).toHaveLength(1);
     expect(block).not.toContain('cancel_at_period_end');
     expect(source).not.toContain('DROP POLICY');
+  });
+
+  it('keeps every contiguous early-renewal period in the repaired prepaid-through end', () => {
+    const block = functionBlock('suspend_expired_paid_organization(');
+
+    expect(block).toContain('WITH RECURSIVE entitlement_chain(chain_end) AS');
+    expect(block).toContain('SELECT covering_period_end');
+    expect(block).toContain('period.period_start <= entitlement.chain_end');
+    expect(block).toContain('period.period_end > entitlement.chain_end');
+    expect(block).toContain('SELECT MAX(entitlement.chain_end)');
+    expect(block).toContain('INTO trusted_paid_through_end');
+    expect(block).toContain(
+      'repaired_period_end := GREATEST(\n      subscription_record.current_period_end,\n      trusted_paid_through_end\n    );'
+    );
+    expect(block).toContain("'current_period_end', repaired_period_end");
   });
 
   it('keeps the expiry RPC service-role only and maps its audit to billing suspension', () => {
