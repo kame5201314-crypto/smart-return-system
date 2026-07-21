@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, AlertTriangle, ArrowLeft, ChevronDown, FileClock, Flag, ReceiptText, UsersRound } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, FileClock, ReceiptText } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,19 +23,6 @@ import {
   PLATFORM_RISK_LEVEL_LABEL,
   PLATFORM_RISK_REASON_LABEL,
 } from '@/components/internal/platform-labels';
-
-const MEMBER_ROLE_LABEL: Record<string, string> = {
-  owner: '擁有者',
-  admin: '管理員',
-  staff: '作業成員',
-  viewer: '檢視者',
-};
-
-const MEMBER_STATUS_LABEL: Record<string, string> = {
-  active: '已加入',
-  invited: '邀請中',
-  disabled: '已停用',
-};
 
 // 常見平台操作的繁中對照；未知 action 以原始代碼顯示。
 const AUDIT_ACTION_LABEL: Record<string, string> = {
@@ -142,7 +129,6 @@ function statusBadgeClass(status: PlatformOrganizationDetailView['organization']
 function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const org = data.organization;
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
-  const featureFlags = Object.entries(org.featureFlags);
 
   const trialExpired =
     org.status === 'trialing' && org.daysUntilTrialEnd !== null && org.daysUntilTrialEnd <= 0;
@@ -295,101 +281,25 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UsersRound className="size-5 text-emerald-700" aria-hidden="true" />
-              成員資訊
-            </CardTitle>
-            <CardDescription>查看組織內成員、角色與目前狀態。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.members.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">尚無成員。</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>角色</TableHead>
-                    <TableHead>狀態</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.members.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">
-                        {member.displayName ? `${member.displayName}（${member.email}）` : member.email}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{MEMBER_ROLE_LABEL[member.role] ?? member.role}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {MEMBER_STATUS_LABEL[member.status] ?? member.status}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ReceiptText className="size-5 text-cyan-700" aria-hidden="true" />
+            帳務資料
+          </CardTitle>
+          <CardDescription>帳務與訂閱基本資料。</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          {billingRows.map(([label, value]) => (
+            <div key={label} className="rounded-md border p-3">
+              <div className="text-xs text-muted-foreground">{label}</div>
+              <div className="mt-1 font-medium">{value}</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ReceiptText className="size-5 text-cyan-700" aria-hidden="true" />
-              帳務資料
-            </CardTitle>
-            <CardDescription>帳務與訂閱基本資料。</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm">
-            {billingRows.map(([label, value]) => (
-              <div key={label} className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">{label}</div>
-                <div className="mt-1 font-medium">{value}</div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <details className="group h-fit rounded-lg border bg-white shadow-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
-            <span>
-              <span className="flex items-center gap-2 font-semibold">
-                <Flag className="size-5 text-emerald-700" aria-hidden="true" />
-                進階功能資訊
-              </span>
-              <span className="mt-1 block text-sm text-muted-foreground">
-                技術支援需要時再展開查看功能開關。
-              </span>
-            </span>
-            <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-          </summary>
-          <div className="border-t px-6 py-5">
-            {featureFlags.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">尚未設定功能開關。</p>
-            ) : (
-              <Table>
-                <TableBody>
-                  {featureFlags.map(([flag, enabled]) => (
-                    <TableRow key={flag}>
-                      <TableCell className="font-mono text-xs">{flag}</TableCell>
-                      <TableCell>
-                        <Badge variant={enabled ? 'default' : 'outline'}>{enabled ? '啟用' : '停用'}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </details>
-
-        <Card className="rounded-lg">
+      <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileClock className="size-5 text-cyan-700" aria-hidden="true" />
@@ -434,8 +344,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
               </Table>
             )}
           </CardContent>
-        </Card>
-      </div>
+      </Card>
     </>
   );
 }
