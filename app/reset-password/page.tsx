@@ -12,8 +12,8 @@ import {
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
-  title: '設定新密碼 | Smart Return',
-  description: '為 Smart Return 帳號設定新的登入密碼。',
+  title: '設定新密碼 | AI退貨管理系統',
+  description: '為 AI退貨管理系統 帳號設定新的登入密碼。',
 };
 
 export const dynamic = 'force-dynamic';

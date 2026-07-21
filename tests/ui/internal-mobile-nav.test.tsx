@@ -23,7 +23,7 @@ describe('InternalMobileNav', () => {
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('navigation', { name: '商業營運後台行動版選單' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'AI退貨管理系統行動版選單' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /租戶管理/ })).toHaveAttribute('aria-current', 'page');
   });
 });

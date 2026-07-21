@@ -8,8 +8,8 @@ import { isExplicitPlatformAdminPrincipal } from '@/lib/auth/platform-admin-iden
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
-  title: '設定登入密碼 | Smart Return',
-  description: '為已驗證的 Smart Return Google 帳號設定信箱登入密碼。',
+  title: '設定登入密碼 | AI退貨管理系統',
+  description: '為已驗證的 AI退貨管理系統 Google 帳號設定信箱登入密碼。',
 };
 
 export const dynamic = 'force-dynamic';

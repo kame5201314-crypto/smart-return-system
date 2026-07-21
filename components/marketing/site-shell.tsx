@@ -20,7 +20,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
               <span className="flex size-9 items-center justify-center rounded-md bg-neutral-950 text-white">
                 <PackageCheck className="size-5" />
               </span>
-              <span>Smart Return</span>
+              <span>AI退貨管理系統</span>
             </Link>
           </div>
 
@@ -59,7 +59,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
               <span className="flex size-8 items-center justify-center rounded-md bg-white text-neutral-950">
                 <PackageCheck className="size-4" />
               </span>
-              Smart Return
+              AI退貨管理系統
             </div>
             <p className="mt-4 max-w-md text-sm leading-6 text-neutral-300">
               專為台灣電商品牌設計的退貨管理系統。把蝦皮、官網、momo
@@ -98,7 +98,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-neutral-400">
-          Copyright 2026 Smart Return. All rights reserved.
+          Copyright 2026 AI退貨管理系統. All rights reserved.
         </div>
       </footer>
 

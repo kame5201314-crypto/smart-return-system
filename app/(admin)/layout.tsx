@@ -75,7 +75,7 @@ function BrandLink({ onClick }: { onClick?: () => void }) {
       className="flex h-16 items-center border-b px-6 transition-colors hover:bg-gray-50"
     >
       <Package className="size-8 text-primary" />
-      <span className="ml-2 text-lg font-bold">AI 退貨管理系統</span>
+      <span className="ml-2 text-lg font-bold">AI退貨管理系統</span>
     </Link>
   );
 }
@@ -144,7 +144,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Package className="size-6 text-primary" />
-            <span className="font-bold">AI 退貨管理系統</span>
+            <span className="font-bold">AI退貨管理系統</span>
           </div>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>

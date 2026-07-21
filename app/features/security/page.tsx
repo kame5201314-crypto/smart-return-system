@@ -15,7 +15,7 @@ import { MarketingShell, PageHeader } from '@/components/marketing/site-shell';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: '資料安全與隱私 | Smart Return',
+  title: '資料安全與隱私 | AI退貨管理系統',
   description:
     '每個品牌的退貨資料完全獨立隔離、客戶個資不會外洩、團隊角色分權清楚。專為台灣電商品牌設計的資料安全標準。',
 };
@@ -66,7 +66,7 @@ export default function SecurityFeaturePage() {
       <PageHeader
         eyebrow="資料安全"
         title="你的退貨資料只有你看得到，客戶個資不會被我們拿去做別的事。"
-        description="電商最怕資料外流。Smart Return 從第一天就把資料隔離、權限分層、操作可追溯做進系統，不是事後補的。"
+        description="電商最怕資料外流。AI退貨管理系統 從第一天就把資料隔離、權限分層、操作可追溯做進系統，不是事後補的。"
       />
 
       <section className="bg-white py-14">

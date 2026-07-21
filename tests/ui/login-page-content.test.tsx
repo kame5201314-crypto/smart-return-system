@@ -248,7 +248,7 @@ describe('LoginPageContent', () => {
 
     expect(screen.getByRole('link', { name: '建立帳號' }))
       .toHaveAttribute('href', '/signup?plan=basic');
-    expect(screen.queryByText('第一次使用 Smart Return？')).not.toBeInTheDocument();
+    expect(screen.queryByText('第一次使用 AI退貨管理系統？')).not.toBeInTheDocument();
     expect(screen.getByText('第一次使用 Google？驗證後會先完成商家資料。'))
       .toBeInTheDocument();
   });

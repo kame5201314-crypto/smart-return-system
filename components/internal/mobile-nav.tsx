@@ -47,7 +47,7 @@ export function InternalMobileNav({ items }: { items: readonly MobileNavItem[] }
         <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </Button>
       {open ? (
-        <nav id="internal-mobile-navigation" className="mt-2 grid gap-1 border-t pt-2" aria-label="商業營運後台行動版選單">
+        <nav id="internal-mobile-navigation" className="mt-2 grid gap-1 border-t pt-2" aria-label="AI退貨管理系統行動版選單">
           {items.map((item) => (
             <InternalNavLink key={item.href} {...item} onNavigate={() => setOpen(false)} />
           ))}

@@ -94,8 +94,8 @@ function buildLeadMessage(
 ): string {
   const heading =
     variant === 'signup'
-      ? '您好，想申請 Smart Return Beta 試用：'
-      : '您好，想諮詢 Smart Return：';
+      ? '您好，想申請 AI退貨管理系統 Beta 試用：'
+      : '您好，想諮詢 AI退貨管理系統：';
 
   return [
     heading,
@@ -250,7 +250,7 @@ export function LeadCaptureForm({
   };
 
   const mailHref = `mailto:${contactEmail}?subject=${encodeURIComponent(
-    variant === 'signup' ? 'Smart Return Beta 試用申請' : 'Smart Return 諮詢'
+    variant === 'signup' ? 'AI退貨管理系統 Beta 試用申請' : 'AI退貨管理系統 諮詢'
   )}&body=${encodeURIComponent(message)}`;
   const lineHref = lineOaId ? buildLineHref(lineOaId, message) : null;
   const inputClassName =

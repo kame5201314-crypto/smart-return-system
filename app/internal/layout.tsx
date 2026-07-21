@@ -28,7 +28,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
             <span className="flex size-10 items-center justify-center rounded-md bg-neutral-950 text-white">
               <ShieldCheck className="size-5" aria-hidden="true" />
             </span>
-            <p className="text-lg font-semibold">商業營運後台</p>
+            <p className="text-lg font-semibold">AI退貨管理系統</p>
           </div>
           <form action={leavePlatformAdmin}>
             <Button type="submit" variant="outline" size="sm">
@@ -41,7 +41,7 @@ export default function InternalLayout({ children }: { children: ReactNode }) {
         <div className="border-t">
           <nav
             className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6 lg:px-8"
-            aria-label="商業營運後台選單"
+            aria-label="AI退貨管理系統選單"
           >
             {internalNav.map((item) => (
               <InternalNavLink

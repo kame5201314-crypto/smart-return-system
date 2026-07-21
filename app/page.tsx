@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
-  title: 'Smart Return｜台灣電商退貨管理系統｜蝦皮 + 官網 + momo 集中處理',
+  title: 'AI退貨管理系統｜台灣電商退貨管理系統｜蝦皮 + 官網 + momo 集中處理',
   description:
     '蝦皮退貨自動匯入、掃描對單；官網、momo 等通路的退貨手動集中在同一個工作台，AI 自動分析退貨原因、找出地雷 SKU。3 天免費試用，不需信用卡。專為每月 30 筆以上退貨的台灣電商品牌設計。',
 };
@@ -103,7 +103,7 @@ const onboardingSteps = [
 const faqItems = [
   {
     q: '跟 Excel / 蝦皮後台有什麼不一樣？',
-    a: 'Excel 不會自動同步退貨狀態、不能分權、不會 AI 分析；蝦皮後台只看得到蝦皮、看不到官網與 momo。Smart Return 把多平台集中、AI 找原因、角色分權做在同一個工作台。',
+    a: 'Excel 不會自動同步退貨狀態、不能分權、不會 AI 分析；蝦皮後台只看得到蝦皮、看不到官網與 momo。AI退貨管理系統 把多平台集中、AI 找原因、角色分權做在同一個工作台。',
   },
   {
     q: '試用要綁信用卡嗎？',
@@ -199,7 +199,7 @@ export default function HomePage() {
               集中在同一個工作台。
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-neutral-200 sm:text-lg">
-              Smart Return 幫台灣電商品牌匯入退貨資料、追蹤處理狀態，並用 AI
+              AI退貨管理系統 幫台灣電商品牌匯入退貨資料、追蹤處理狀態，並用 AI
               <span className="font-semibold text-white"> 找出高退貨商品與主要原因</span>
               ，減少客服與倉庫來回確認。
             </p>
@@ -241,7 +241,7 @@ export default function HomePage() {
               </h2>
               <p className="mt-4 text-base leading-7 text-neutral-600">
                 資料散在 4 個地方、客服與倉庫對不上、老闆永遠看不到全貌。
-                打勾任意 2 條以上，Smart Return 就是為你做的。
+                打勾任意 2 條以上，AI退貨管理系統 就是為你做的。
               </p>
             </div>
             <ul className="space-y-3">
@@ -343,7 +343,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <p className="mt-5 text-xs text-neutral-500">
-                如果你只是想把現有 Excel 變漂亮，Smart Return 不會幫你太多。
+                如果你只是想把現有 Excel 變漂亮，AI退貨管理系統 不會幫你太多。
               </p>
             </div>
           </div>
@@ -366,7 +366,7 @@ export default function HomePage() {
                   <th className="p-4 text-left font-semibold text-neutral-700">能力</th>
                   <th className="p-4 text-center font-semibold text-neutral-700">Excel</th>
                   <th className="p-4 text-center font-semibold text-neutral-700">蝦皮後台</th>
-                  <th className="p-4 text-center font-semibold text-emerald-700">Smart Return</th>
+                  <th className="p-4 text-center font-semibold text-emerald-700">AI退貨管理系統</th>
                 </tr>
               </thead>
               <tbody>

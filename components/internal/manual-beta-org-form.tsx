@@ -141,7 +141,7 @@ export function ManualBetaOrgForm() {
                   setOrgName(nextName);
                   if (!slugManuallyEdited) setSlug(slugify(nextName));
                 }}
-                placeholder="例如：Smart Return Beta"
+                placeholder="例如：AI退貨管理系統 Beta"
                 required
               />
             </div>

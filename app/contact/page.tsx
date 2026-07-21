@@ -13,7 +13,7 @@ import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 import type { SaaSPlanCode } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
-  title: '預約 Demo / 聯絡我們 | Smart Return',
+  title: '預約 Demo / 聯絡我們 | AI退貨管理系統',
   description:
     '預約 30 分鐘 Demo、申請 Beta 試用、洽談企業方案。我們會在 1 個工作天內回覆。',
 };
@@ -22,7 +22,7 @@ const contactReasons = [
   [
     CalendarClock,
     '預約 30 分鐘 Demo',
-    '用你自己的退貨資料當場跑一遍，看 Smart Return 是否真的能解決你的問題。',
+    '用你自己的退貨資料當場跑一遍，看 AI退貨管理系統 是否真的能解決你的問題。',
   ],
   [
     Building2,

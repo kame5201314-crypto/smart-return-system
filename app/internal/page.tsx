@@ -58,7 +58,7 @@ function GatedView({
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/analytics">返回 AI 退貨管理系統</Link>
+            <Link href="/analytics">返回 AI退貨管理系統</Link>
           </Button>
           <form action={signOut}>
             <Button type="submit" variant="ghost">

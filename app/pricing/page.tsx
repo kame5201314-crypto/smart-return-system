@@ -13,9 +13,9 @@ import { Badge } from '@/components/ui/badge';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 
 export const metadata: Metadata = {
-  title: '價格方案｜NT$399 單一月費方案 | Smart Return',
+  title: '價格方案｜NT$399 單一月費方案 | AI退貨管理系統',
   description:
-    'Smart Return 只有一個公開收費方案：每月 NT$399。3 天免費試用、不需信用卡，每次付款購買一個月且不會自動續扣。',
+    'AI退貨管理系統 只有一個公開收費方案：每月 NT$399。3 天免費試用、不需信用卡，每次付款購買一個月且不會自動續扣。',
 };
 
 const pricingFaq = [

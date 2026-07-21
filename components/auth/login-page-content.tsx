@@ -185,7 +185,7 @@ export function LoginPageContent({
             )}
           </Link>
           <h1 className="text-2xl font-bold text-neutral-950">
-            {isPlatformAdminLogin ? 'Smart Return' : 'AI退貨管理系統'}
+            {isPlatformAdminLogin ? 'AI退貨管理系統' : 'AI退貨管理系統'}
           </h1>
           {isPlatformAdminLogin ? (
             <p className="mt-2 text-neutral-500">平台管理員登入</p>
@@ -411,7 +411,7 @@ export function LoginPageContent({
         </p>
 
         <p className="mt-4 text-center text-xs text-neutral-400">
-          © {new Date().getFullYear()} Smart Return. All rights reserved.
+          © {new Date().getFullYear()} AI退貨管理系統. All rights reserved.
         </p>
       </div>
     </div>

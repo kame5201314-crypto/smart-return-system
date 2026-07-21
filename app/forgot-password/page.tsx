@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { resolvePasswordRecoveryAvailability } from '@/lib/auth/password-recovery';
 
 export const metadata: Metadata = {
-  title: '復原帳號 | Smart Return',
-  description: '使用已驗證的電子信箱或手機號碼復原 Smart Return 帳號。',
+  title: '復原帳號 | AI退貨管理系統',
+  description: '使用已驗證的電子信箱或手機號碼復原 AI退貨管理系統 帳號。',
 };
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
             <CardDescription className="leading-6">
               {enabled
                 ? '輸入已驗證的電子信箱或手機號碼，我們會傳送一次性驗證碼。'
-                : '帳號復原目前尚未開放，請聯絡 Smart Return 客服協助處理。'}
+                : '帳號復原目前尚未開放，請聯絡 AI退貨管理系統 客服協助處理。'}
             </CardDescription>
           </CardHeader>
           <CardContent>

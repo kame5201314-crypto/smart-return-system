@@ -99,7 +99,7 @@ function defaultExpiryLocal(now = new Date()): string {
 
 function resolveApiError(payload: CustomPlanOfferApiResponse | null): string {
   if (payload?.code === 'permission_denied') return '權限不足，無法管理客製報價。';
-  if (payload?.code === 'feature_disabled') return '商業營運後台目前未啟用此功能。';
+  if (payload?.code === 'feature_disabled') return 'AI退貨管理系統目前未啟用此功能。';
   if (payload?.code === 'invalid_request') return '請檢查報價名稱、金額、付款期限與取消原因。';
   if (payload?.code === 'offer_not_found') return '找不到這筆客製報價，請重新載入。';
   if (payload?.code === 'offer_unavailable') return '這筆報價已付款、取消或到期，無法再操作。';

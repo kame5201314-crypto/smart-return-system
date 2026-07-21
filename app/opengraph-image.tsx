@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-export const alt = 'Smart Return — 台灣電商退貨管理 SaaS';
+export const alt = 'AI退貨管理系統 — 台灣電商退貨管理 SaaS';
 
 const SUBTITLE_ZH = '台灣電商退貨管理 SaaS';
 const TAGLINE_ZH = '蝦皮＋官網退貨集中管理 · AI 退貨原因分析';
@@ -72,7 +72,7 @@ export default async function OpengraphImage() {
             SR
           </div>
           <div style={{ color: '#e5e5e5', fontSize: 30, fontWeight: 700 }}>
-            Smart Return
+            AI退貨管理系統
           </div>
         </div>
 

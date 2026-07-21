@@ -118,7 +118,7 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
           </CardTitle>
           <CardDescription className="leading-6">
             {membershipDisabled
-              ? '你的帳號目前沒有可使用的商家工作區。請聯絡原商家管理員或 Smart Return 客服確認權限。'
+              ? '你的帳號目前沒有可使用的商家工作區。請聯絡原商家管理員或 AI退貨管理系統 客服確認權限。'
               : selfServiceEnabled
                 ? '信箱或手機驗證已完成。請補齊聯絡與營運資料，完成後會建立 3 天免費試用工作區。'
                 : '這個帳號尚未加入商家工作區。現階段可先送出試用申請，我們會協助開通。'}

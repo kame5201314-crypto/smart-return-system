@@ -25,9 +25,9 @@ import {
 import { resolveSaaSFeatureFlags } from '@/lib/config/feature-flags';
 
 export const metadata: Metadata = {
-  title: '註冊新帳號 | Smart Return',
+  title: '註冊新帳號 | AI退貨管理系統',
   description:
-    '註冊 Smart Return 帳號並開始 3 天免費試用。不需信用卡，也不會自動扣款。',
+    '註冊 AI退貨管理系統 帳號並開始 3 天免費試用。不需信用卡，也不會自動扣款。',
 };
 
 interface SignupPageProps {
@@ -95,7 +95,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           >
             <PackageCheck className="size-8 text-emerald-700" aria-hidden="true" />
           </Link>
-          <p className="text-2xl font-bold text-neutral-950">Smart Return</p>
+          <p className="text-2xl font-bold text-neutral-950">AI退貨管理系統</p>
           <p className="mt-2 text-neutral-500">建立你的退貨工作區</p>
         </div>
 
@@ -151,7 +151,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         </p>
 
         <p className="mt-4 text-center text-xs text-neutral-400">
-          © {new Date().getFullYear()} Smart Return. All rights reserved.
+          © {new Date().getFullYear()} AI退貨管理系統. All rights reserved.
         </p>
       </div>
     </main>
