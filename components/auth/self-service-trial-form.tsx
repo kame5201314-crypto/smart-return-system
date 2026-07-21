@@ -19,7 +19,6 @@ interface SelfServiceTrialFormProps {
   identityProvider: SelfServiceTrialIdentityProvider;
   verifiedEmail?: string | null;
   verifiedPhone?: string | null;
-  initialContactName?: string;
   initialReferralCode?: string;
   initialPlan: SelfServiceTrialPlan;
 }
@@ -56,14 +55,13 @@ export function SelfServiceTrialForm({
   identityLabel,
   identityProvider,
   verifiedPhone = null,
-  initialContactName = '',
   initialReferralCode = '',
   initialPlan,
 }: SelfServiceTrialFormProps) {
   const router = useRouter();
   const idempotencyKeyRef = useRef<string | null>(null);
   const [orgName, setOrgName] = useState('');
-  const [contactName, setContactName] = useState(initialContactName);
+  const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState(verifiedPhone || '');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

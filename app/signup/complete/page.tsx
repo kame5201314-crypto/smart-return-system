@@ -85,11 +85,6 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
   const verifiedPhone = currentUser?.phone && currentUser.phone_confirmed_at
     ? currentUser.phone
     : null;
-  const initialContactName = metadataText(
-    currentUser?.user_metadata?.full_name
-      ?? currentUser?.user_metadata?.name
-      ?? currentUser?.user_metadata?.display_name
-  );
   const initialReferralCode = metadataText(currentUser?.user_metadata?.referral_code);
   const planParam = Array.isArray(params?.plan) ? params?.plan[0] : params?.plan;
 
@@ -131,7 +126,6 @@ export default async function SignupCompletePage({ searchParams }: SignupComplet
               identityProvider={identityProvider}
               verifiedEmail={verifiedEmail}
               verifiedPhone={verifiedPhone}
-              initialContactName={initialContactName}
               initialReferralCode={initialReferralCode}
               initialPlan={normalizeGoogleTrialPlan(planParam)}
             />

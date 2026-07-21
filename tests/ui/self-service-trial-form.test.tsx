@@ -48,7 +48,6 @@ describe('SelfServiceTrialForm', () => {
         identityLabel="owner@example.com"
         identityProvider="google"
         verifiedEmail="owner@example.com"
-        initialContactName="王小明"
         initialReferralCode="FRIEND-88"
         initialPlan="basic"
       />
@@ -57,7 +56,7 @@ describe('SelfServiceTrialForm', () => {
     expect(screen.getByText('登入身分已驗證')).toBeInTheDocument();
     expect(screen.getByText('owner@example.com')).toBeInTheDocument();
     expect(screen.getByText(/Google 只用於確認登入身分/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/聯絡人姓名/)).toHaveValue('王小明');
+    expect(screen.getByLabelText(/聯絡人姓名/)).toHaveValue('');
     expect(screen.queryByLabelText(/主要銷售平台/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/每月退貨量/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/偏好聯絡方式/)).not.toBeInTheDocument();
@@ -68,6 +67,9 @@ describe('SelfServiceTrialForm', () => {
 
     fireEvent.change(screen.getByLabelText(/品牌或商店名稱/), {
       target: { value: '好好生活選物' },
+    });
+    fireEvent.change(screen.getByLabelText(/聯絡人姓名/), {
+      target: { value: '王小明' },
     });
     fireEvent.change(screen.getByLabelText(/聯絡電話/), {
       target: { value: '0912-345-678' },
