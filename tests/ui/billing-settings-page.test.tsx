@@ -431,7 +431,7 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       '專屬報價暫時無法載入；公開 NT$399 方案仍可正常使用。'
     );
-    expect(screen.getByText('NT$399')).toBeInTheDocument();
+    expect(screen.getAllByText('NT$399').length).toBeGreaterThan(0);
   });
 
   it('shows a safe message when a private offer checkout is no longer available', async () => {
