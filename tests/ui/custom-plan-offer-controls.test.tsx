@@ -45,6 +45,31 @@ describe('CustomPlanOfferControls', () => {
     vi.unstubAllGlobals();
   });
 
+  it('defaults a new designated-account offer to the NT$100 friend price', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      success: true,
+      data: { offers: [] },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <CustomPlanOfferControls
+        orgId={orgId}
+        orgName="朋友測試帳號"
+        canManageBillingOperations
+      />
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: '建立客製報價' }));
+
+    expect(screen.getByLabelText('一次付款金額（NT$）')).toHaveValue(100);
+    expect(screen.getByLabelText('報價名稱')).toHaveValue('朋友專屬優惠');
+    expect(screen.getByLabelText('方案說明（選填）')).toHaveValue(
+      '指定帳號優惠價 NT$100；付款後提供一個月 AI 退貨管理系統使用權。'
+    );
+  });
+
   it('loads private offers and clearly labels one-time prepaid terms', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       success: true,

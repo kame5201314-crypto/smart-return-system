@@ -117,9 +117,9 @@ export function CustomPlanOfferControls({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [title, setTitle] = useState('專屬月費方案');
-  const [description, setDescription] = useState('依雙方確認內容提供一個月 AI 退貨系統使用權。');
-  const [amountTwd, setAmountTwd] = useState('399');
+  const [title, setTitle] = useState('朋友專屬優惠');
+  const [description, setDescription] = useState('指定帳號優惠價 NT$100；付款後提供一個月 AI 退貨管理系統使用權。');
+  const [amountTwd, setAmountTwd] = useState('100');
   const [expiresAt, setExpiresAt] = useState(() => defaultExpiryLocal());
   const [termsConfirmed, setTermsConfirmed] = useState(false);
   const [cancelOffer, setCancelOffer] = useState<CustomPlanOfferDto | null>(null);
@@ -157,9 +157,9 @@ export function CustomPlanOfferControls({
   }
 
   function resetCreateForm() {
-    setTitle('專屬月費方案');
-    setDescription('依雙方確認內容提供一個月 AI 退貨系統使用權。');
-    setAmountTwd('399');
+    setTitle('朋友專屬優惠');
+    setDescription('指定帳號優惠價 NT$100；付款後提供一個月 AI 退貨管理系統使用權。');
+    setAmountTwd('100');
     setExpiresAt(defaultExpiryLocal());
     setTermsConfirmed(false);
   }
@@ -261,10 +261,10 @@ export function CustomPlanOfferControls({
         <div>
           <h3 id="custom-plan-offers-title" className="flex items-center gap-2 text-lg font-semibold">
             <CircleDollarSign className="size-5 text-emerald-700" aria-hidden="true" />
-            私人客製報價
+            指定帳號優惠
           </h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            僅「{orgName}」可在帳務頁看到。每筆報價都是一次預付一個月，不會自動續扣。
+            僅「{orgName}」的 Owner／Admin 可在帳務頁看到。每次付款取得一個月使用期，不會自動續扣。
           </p>
         </div>
         <Button
@@ -350,9 +350,9 @@ export function CustomPlanOfferControls({
       >
         <DialogContent className="sm:max-w-xl" showCloseButton={!submitting}>
           <DialogHeader>
-            <DialogTitle>建立私人客製報價</DialogTitle>
+            <DialogTitle>設定指定帳號優惠</DialogTitle>
             <DialogDescription>
-              報價只會顯示給「{orgName}」。金額會由後端保存，客戶端無法自行修改。
+              優惠只會顯示給「{orgName}」。金額由後端保存，客戶端無法自行修改；本次付款提供一個月使用期。
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">

@@ -4,14 +4,16 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('internal organization detail visibility', () => {
-  it('keeps private custom offer controls hidden from the operations UI', () => {
+  it('shows tenant-scoped offer controls only through the protected organization detail UI', () => {
     const source = readFileSync(
       join(process.cwd(), 'app/internal/orgs/[id]/page.tsx'),
       'utf8'
     );
 
-    expect(source).not.toContain('CustomPlanOfferControls');
-    expect(source).not.toContain('custom-plan-offer-controls');
+    expect(source).toContain("import { CustomPlanOfferControls }");
+    expect(source).toContain('custom-plan-offer-controls');
+    expect(source).toContain('<CustomPlanOfferControls');
+    expect(source).toContain("permissions.includes('manage_billing_operations')");
   });
 
   it('hides member and advanced feature diagnostics from the operations UI', () => {
