@@ -31,8 +31,8 @@ export function buildWorkspaceAccessNotice(input: {
   if (input.suspensionSource === 'trial_expired') {
     return {
       kind: 'trial_expired',
-      title: '3 天免費試用已結束',
-      message: '目前仍可查看歷史資料；新增退貨、資料匯入／匯出與 AI 分析已停用。請前往帳務與訂閱升級方案以恢復使用。',
+      title: '三日試用期已到期',
+      message: '如需繼續使用，請前往系統訂閱升級方案。',
     };
   }
   return {
