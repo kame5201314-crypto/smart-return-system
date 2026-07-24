@@ -63,8 +63,15 @@ export interface FindSaaSOrgMembershipInput {
   orgId?: string | null;
 }
 
+export interface FindSaaSOrgSuspensionSourceInput {
+  orgId: string;
+}
+
 export interface SaaSOrgMembershipRepository {
   findMembership(input: FindSaaSOrgMembershipInput): Promise<SaaSOrgMembershipRecord | null>;
+  findSuspensionSource?(
+    input: FindSaaSOrgSuspensionSourceInput
+  ): Promise<SaaSOrgSuspensionSource | null>;
 }
 
 export interface SaaSOrgContextRequirements {
@@ -119,6 +126,33 @@ interface SupabaseOrgQueryBuilder {
 interface SupabaseOrgQueryClient {
   from(table: string): SupabaseOrgQueryBuilder;
 }
+
+interface SupabaseSuspensionQueryBuilder {
+  select(columns: string): SupabaseSuspensionQueryBuilder;
+  eq(column: string, value: unknown): SupabaseSuspensionQueryBuilder;
+  in(column: string, values: readonly unknown[]): SupabaseSuspensionQueryBuilder;
+  order(
+    column: string,
+    options: { ascending: boolean }
+  ): SupabaseSuspensionQueryBuilder;
+  limit(count: number): SupabaseSuspensionQueryBuilder;
+  maybeSingle(): PromiseLike<{
+    data: unknown;
+    error: SupabaseOrgQueryError | null;
+  }>;
+}
+
+interface SupabaseSuspensionQueryClient {
+  from(table: string): SupabaseSuspensionQueryBuilder;
+}
+
+const SUSPENSION_ACTION_SOURCES: Record<string, SaaSOrgSuspensionSource> = {
+  'lifecycle.trial_expired_suspended': 'trial_expired',
+  'lifecycle.prepaid_period_expired_suspended': 'billing',
+  'platform.billing.org_suspended': 'platform_admin',
+};
+
+const SUSPENSION_ACTIONS = Object.keys(SUSPENSION_ACTION_SOURCES);
 
 const SAAS_FEATURE_FLAGS: SaaSFeatureFlag[] = [
   'public_signup',
@@ -458,6 +492,36 @@ export function createSupabaseOrgMembershipRepository(
 
       return selectPreferredSaaSOrgMembership(data);
     },
+    async findSuspensionSource(
+      input: FindSaaSOrgSuspensionSourceInput
+    ): Promise<SaaSOrgSuspensionSource | null> {
+      const client =
+        injectedClient ?? ((await createClient()) as unknown as SupabaseOrgQueryClient);
+      const suspensionClient = client as unknown as SupabaseSuspensionQueryClient;
+      const { data, error } = await suspensionClient
+        .from('audit_logs')
+        .select('action, created_at')
+        .eq('org_id', input.orgId)
+        .in('action', SUSPENSION_ACTIONS)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        throw new SaaSOrgContextError(
+          'lookup_failed',
+          500,
+          error.message || 'Failed to load SaaS organization suspension source.'
+        );
+      }
+
+      if (!isRecord(data)) {
+        return null;
+      }
+
+      const action = stringOrNull(data.action);
+      return action ? SUSPENSION_ACTION_SOURCES[action] ?? null : null;
+    },
   };
 }
 
@@ -490,13 +554,29 @@ export async function getOrgContext(options: GetOrgContextOptions = {}): Promise
     );
   }
 
-  const context = buildSaaSOrgContext({
+  let context = buildSaaSOrgContext({
     userId: auth.userId,
     membership,
     isPlatformAdmin: auth.isAdmin === true,
     env: options.env,
     now: options.now,
   });
+
+  if (
+    context.orgStatus === 'suspended'
+    && !context.suspensionSource
+    && repository.findSuspensionSource
+  ) {
+    const suspensionSource = await repository.findSuspensionSource({
+      orgId: context.orgId,
+    });
+    if (suspensionSource) {
+      context = {
+        ...context,
+        suspensionSource,
+      };
+    }
+  }
 
   assertSaaSOrgContext(context, options.requirements);
   return context;

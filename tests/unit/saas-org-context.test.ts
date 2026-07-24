@@ -344,6 +344,43 @@ describe('SaaS org context', () => {
     });
   });
 
+  it('recovers a missing trial-expiry suspension source from the audit history', async () => {
+    const repository: SaaSOrgMembershipRepository = {
+      findMembership: vi.fn(async () => ({
+        orgId: 'org-1',
+        role: 'owner',
+        organization: {
+          id: 'org-1',
+          name: 'Expired Trial Store',
+          slug: 'expired-trial-store',
+          plan: 'basic',
+          status: 'suspended',
+          subscriptionStatus: 'suspended',
+          feature_flags: {
+            billing: true,
+            subscription_plan: true,
+          },
+        },
+      })),
+      findSuspensionSource: vi.fn(async () => 'trial_expired' as const),
+    };
+
+    const context = await getOrgContext({
+      auth: authOk,
+      repository,
+      env: {},
+    });
+
+    expect(context).toMatchObject({
+      orgId: 'org-1',
+      orgStatus: 'suspended',
+      suspensionSource: 'trial_expired',
+    });
+    expect(repository.findSuspensionSource).toHaveBeenCalledWith({
+      orgId: 'org-1',
+    });
+  });
+
   it('rejects request-time writes and exports at the prepaid period boundary', async () => {
     const repository = createRepository({
       orgId: 'org-1',

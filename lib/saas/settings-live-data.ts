@@ -302,17 +302,21 @@ export async function loadBillingSettingsView(
     const billingAccess = getSaaSSubscriptionAccessPolicy(context.orgStatus);
     const selfServiceBillingEnabled =
       context.featureFlags.billing && context.featureFlags.subscription_plan;
+    const suspensionSource =
+      context.orgStatus === 'suspended' && !context.suspensionSource
+        ? await repository.getSuspensionSource?.({ orgId: context.orgId }) ?? null
+        : context.suspensionSource;
     const platformSuspensionBlocksCheckout =
       context.orgStatus === 'suspended'
-      && context.suspensionSource !== 'trial_expired'
-      && context.suspensionSource !== 'billing';
+      && suspensionSource !== 'trial_expired'
+      && suspensionSource !== 'billing';
     const canManageBilling =
       selfServiceBillingEnabled
       && billingAccess.canManageBilling
       && !platformSuspensionBlocksCheckout;
     const input = await buildBillingSettingsViewInput(repository, {
       orgId: context.orgId,
-      suspensionSource: context.suspensionSource,
+      suspensionSource,
       actions: {
         canUpdateBilling: canManageBilling,
         canCancelRenewal: canManageBilling,
@@ -325,7 +329,10 @@ export async function loadBillingSettingsView(
             : undefined,
       },
     });
-    const liveContext = toLiveDataContext(context);
+    const liveContext = toLiveDataContext({
+      ...context,
+      suspensionSource,
+    });
 
     if (!input) {
       return {

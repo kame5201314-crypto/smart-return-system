@@ -269,6 +269,47 @@ describe('SaaS settings live data loaders', () => {
     }
   );
 
+  it('allows checkout when audit history identifies a legacy suspended trial', async () => {
+    const context = buildContext({
+      orgStatus: 'suspended',
+      suspensionSource: null,
+    });
+    const billingRepository = {
+      getOrganizationBilling: vi.fn(async () => ({
+        id: 'org-1',
+        name: 'Expired Trial Store',
+        plan: 'basic',
+        status: 'suspended',
+        billingEmail: 'owner@example.com',
+        taxId: null,
+      })),
+      getSubscription: vi.fn(async () => null),
+      getLatestInvoice: vi.fn(async () => null),
+      getSuspensionSource: vi.fn(async () => 'trial_expired' as const),
+    };
+
+    const result = await loadBillingSettingsView({
+      getContext: vi.fn(async () => context),
+      billingRepository,
+    });
+
+    expect(result).toMatchObject({
+      state: 'ready',
+      context: {
+        suspensionSource: 'trial_expired',
+      },
+      data: {
+        actions: {
+          canUpdateBilling: true,
+          canCancelRenewal: true,
+        },
+      },
+    });
+    expect(billingRepository.getSuspensionSource).toHaveBeenCalledWith({
+      orgId: 'org-1',
+    });
+  });
+
   it.each([null, 'platform_admin'] as const)(
     'disables checkout for a platform-suspended workspace (source: %s)',
     async (suspensionSource) => {
