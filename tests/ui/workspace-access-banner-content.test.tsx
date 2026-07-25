@@ -11,8 +11,7 @@ import { WorkspaceAccessBannerContent } from '@/components/saas/workspace-access
 
 const notice = {
   kind: 'trial_expired' as const,
-  title: '三日試用期已到期',
-  message: '如需繼續使用，請前往系統訂閱升級方案。',
+  title: '試用期已到期，如需繼續使用，請前往系統訂閱升級方案。',
 };
 
 describe('WorkspaceAccessBannerContent', () => {
@@ -28,6 +27,7 @@ describe('WorkspaceAccessBannerContent', () => {
     render(<WorkspaceAccessBannerContent notice={notice} />);
 
     expect(screen.getByText(notice.title)).toBeInTheDocument();
+    expect(screen.getByText(notice.title).tagName).toBe('P');
     expect(screen.getByRole('link', { name: '升級方案' })).toHaveAttribute(
       'href',
       '/settings/billing#plans'

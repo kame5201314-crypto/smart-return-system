@@ -4,7 +4,7 @@ import type { BillingSuspensionSource } from '@/lib/saas/ui-backend-contracts';
 export interface WorkspaceAccessNotice {
   kind: 'trial_expired' | 'past_due' | 'suspended' | 'cancelled';
   title: string;
-  message: string;
+  message?: string;
 }
 
 export async function resolveWorkspaceAccessSuspensionSource(input: {
@@ -42,8 +42,7 @@ export function buildWorkspaceAccessNotice(input: {
   if (input.suspensionSource === 'trial_expired') {
     return {
       kind: 'trial_expired',
-      title: '三日試用期已到期',
-      message: '如需繼續使用，請前往系統訂閱升級方案。',
+      title: '試用期已到期，如需繼續使用，請前往系統訂閱升級方案。',
     };
   }
   return {

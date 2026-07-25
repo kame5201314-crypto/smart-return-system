@@ -34,8 +34,7 @@ describe('workspace access notice', () => {
       suspensionSource: 'trial_expired',
     })).toEqual({
       kind: 'trial_expired',
-      title: '三日試用期已到期',
-      message: '如需繼續使用，請前往系統訂閱升級方案。',
+      title: '試用期已到期，如需繼續使用，請前往系統訂閱升級方案。',
     });
   });
 

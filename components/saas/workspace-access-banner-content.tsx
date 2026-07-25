@@ -21,7 +21,9 @@ export function WorkspaceAccessBannerContent({ notice }: { notice: WorkspaceAcce
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
           <div>
             <p className="font-semibold">{notice.title}</p>
-            <p className="mt-0.5 text-sm text-amber-900">{notice.message}</p>
+            {notice.message ? (
+              <p className="mt-0.5 text-sm text-amber-900">{notice.message}</p>
+            ) : null}
           </div>
         </div>
         <Button asChild size="sm" variant="outline" className="w-fit shrink-0 bg-white">
