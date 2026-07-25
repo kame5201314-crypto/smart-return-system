@@ -45,7 +45,10 @@ export interface PlatformBillingOperationsRepository {
 }
 
 interface SupabaseRpcError {
+  code?: string;
   message?: string;
+  details?: string;
+  hint?: string;
 }
 
 interface SupabaseRpcClient {
@@ -355,17 +358,70 @@ export function buildPlatformBillingOperationRpcArgs(
   };
 }
 
+const PLATFORM_BILLING_OPERATION_RPC_V2 = 'perform_platform_billing_operation_v2';
+const PLATFORM_BILLING_OPERATION_RPC_LEGACY = 'perform_platform_billing_operation';
+
+function isMissingPlatformBillingOperationV2(error: SupabaseRpcError | null): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const diagnostic = [
+    error.message,
+    error.details,
+    error.hint,
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    error.code?.toUpperCase() === 'PGRST202'
+    && diagnostic.includes(PLATFORM_BILLING_OPERATION_RPC_V2)
+  ) || (
+    diagnostic.includes(`function public.${PLATFORM_BILLING_OPERATION_RPC_V2}`)
+    && diagnostic.includes('schema cache')
+  );
+}
+
+function canUseLegacyPlatformBillingOperation(
+  operation: PlatformBillingOperation
+): boolean {
+  // State toggles are safe to repeat and migration 046 already guarantees the
+  // same subscription -> organization lock order. Manual payments and refund
+  // requests must keep using v2 so retries cannot duplicate financial records.
+  return operation === 'suspend_org' || operation === 'resume_org';
+}
+
 export function createPlatformBillingOperationsRepository(
   client: SupabaseRpcClient
 ): PlatformBillingOperationsRepository {
   return {
     async performBillingOperation(input) {
-      const { data, error } = await client.rpc(
-        'perform_platform_billing_operation_v2',
-        buildPlatformBillingOperationRpcArgs(input)
+      const args = buildPlatformBillingOperationRpcArgs(input);
+      let { data, error } = await client.rpc(
+        PLATFORM_BILLING_OPERATION_RPC_V2,
+        args
       );
 
+      if (
+        isMissingPlatformBillingOperationV2(error)
+        && canUseLegacyPlatformBillingOperation(input.operation)
+      ) {
+        ({ data, error } = await client.rpc(
+          PLATFORM_BILLING_OPERATION_RPC_LEGACY,
+          args
+        ));
+      }
+
       if (error) {
+        if (isMissingPlatformBillingOperationV2(error)) {
+          throw new PlatformBillingOperationError(
+            'operation_failed',
+            503,
+            '帳務資料庫版本尚未完成更新，請稍後再試。'
+          );
+        }
         throw new PlatformBillingOperationError(
           'operation_failed',
           500,

@@ -433,4 +433,113 @@ describe('SaaS platform admin billing operations', () => {
       p_metadata: {},
     });
   });
+
+  it('falls back to the legacy RPC for a resume when v2 is not in the schema cache', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: 'PGRST202',
+          message:
+            'Could not find the function public.perform_platform_billing_operation_v2(...) in the schema cache',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          operation: 'resume_org',
+          org_id: orgId,
+          subscription_id: subscriptionId,
+          audit_log_id: auditLogId,
+          billing_event_id: null,
+          invoice_id: null,
+          next_status: 'active',
+        },
+        error: null,
+      });
+    const repository = createPlatformBillingOperationsRepository({ rpc });
+    const input = normalizePlatformBillingOperationRequest(
+      {
+        operation: 'resume_org',
+        orgId,
+        reason: 'Restore access after operator review',
+      },
+      actorUserId,
+      new Date('2026-07-25T00:00:00.000Z')
+    );
+
+    await expect(repository.performBillingOperation(input)).resolves.toMatchObject({
+      operation: 'resume_org',
+      orgId,
+      subscriptionId,
+      auditLogId,
+      nextStatus: 'active',
+    });
+    expect(rpc).toHaveBeenNthCalledWith(
+      1,
+      'perform_platform_billing_operation_v2',
+      buildPlatformBillingOperationRpcArgs(input)
+    );
+    expect(rpc).toHaveBeenNthCalledWith(
+      2,
+      'perform_platform_billing_operation',
+      buildPlatformBillingOperationRpcArgs(input)
+    );
+  });
+
+  it('does not downgrade manual payments when v2 is unavailable', async () => {
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message:
+          'Could not find the function public.perform_platform_billing_operation_v2(...) in the schema cache',
+      },
+    }));
+    const repository = createPlatformBillingOperationsRepository({ rpc });
+    const input = normalizePlatformBillingOperationRequest(
+      {
+        operation: 'mark_manual_payment',
+        orgId,
+        amountTwd: 399,
+        periodEnd: '2026-08-25T00:00:00.000Z',
+        idempotencyKey: 'manual-payment-safe-fallback-20260725',
+      },
+      actorUserId,
+      new Date('2026-07-25T00:00:00.000Z')
+    );
+
+    await expect(repository.performBillingOperation(input)).rejects.toMatchObject({
+      code: 'operation_failed',
+      status: 503,
+      message: '帳務資料庫版本尚未完成更新，請稍後再試。',
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not hide unrelated v2 RPC failures behind the legacy fallback', async () => {
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: '42501',
+        message: 'permission denied for function perform_platform_billing_operation_v2',
+      },
+    }));
+    const repository = createPlatformBillingOperationsRepository({ rpc });
+    const input = normalizePlatformBillingOperationRequest(
+      {
+        operation: 'resume_org',
+        orgId,
+        reason: 'Restore access after operator review',
+      },
+      actorUserId,
+      new Date('2026-07-25T00:00:00.000Z')
+    );
+
+    await expect(repository.performBillingOperation(input)).rejects.toMatchObject({
+      code: 'operation_failed',
+      status: 500,
+      message: 'permission denied for function perform_platform_billing_operation_v2',
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
 });
