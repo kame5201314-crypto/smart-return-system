@@ -82,6 +82,7 @@ describe('BillingSettingsPage', () => {
     billingMocks.result.data.org.suspensionSource = null;
     billingMocks.result.data.subscription!.currentPeriodStart = '2026-07-18T00:00:00.000Z';
     billingMocks.result.data.subscription!.currentPeriodEnd = '2026-07-21T00:00:00.000Z';
+    billingMocks.result.data.subscription!.trialEnd = '2026-07-21T00:00:00.000Z';
     billingMocks.result.data.subscription!.cancelAtPeriodEnd = false;
     billingMocks.result.data.history = [
       {
@@ -117,8 +118,8 @@ describe('BillingSettingsPage', () => {
     expect(screen.queryByText('查看目前方案與使用期限，並在此選擇方案付款。')).not.toBeInTheDocument();
     expect(screen.queryByText('線上帳務與自助付款目前尚未開放，請稍後再試。')).not.toBeInTheDocument();
     expect(screen.queryByText('測試商店')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
-    expect(screen.getByText('試用中')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '入門版 (三天測試期)' })).toBeInTheDocument();
+    expect(screen.getByText('測試使用中')).toBeInTheDocument();
     expect(screen.getByText('2026/07/18')).toBeInTheDocument();
     expect(screen.getByText('2026/07/21')).toBeInTheDocument();
     expect(screen.getByText('升級方案')).toBeInTheDocument();
@@ -146,10 +147,10 @@ describe('BillingSettingsPage', () => {
 
     await renderPage();
 
-    expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
-    expect(screen.getByText('試用中')).toBeInTheDocument();
-    expect(screen.getByText('試用開始日')).toBeInTheDocument();
-    expect(screen.getByText('試用到期日')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '入門版 (三天測試期)' })).toBeInTheDocument();
+    expect(screen.getByText('測試使用中')).toBeInTheDocument();
+    expect(screen.getByText('使用開始日')).toBeInTheDocument();
+    expect(screen.getByText('使用到期日')).toBeInTheDocument();
     expect(screen.getByText('2026/07/21')).toBeInTheDocument();
     expect(screen.getByText('2026/07/24')).toBeInTheDocument();
     expect(screen.getByText(/目前沒有付款紀錄/)).toBeInTheDocument();
@@ -233,17 +234,18 @@ describe('BillingSettingsPage', () => {
     expect(screen.queryByText('2026/07/01 09:00')).not.toBeInTheDocument();
   });
 
-  it('shows an expired self-service trial as 試用版 without exposing the organization name', async () => {
+  it('shows an expired self-service trial as the same three-day test plan without exposing the organization name', async () => {
     billingMocks.result.data.org.status = 'suspended';
     billingMocks.result.data.org.suspensionSource = 'trial_expired';
 
     await renderPage();
 
-    expect(screen.getByRole('heading', { name: '試用版' })).toBeInTheDocument();
-    expect(screen.getByText('試用已到期')).toBeInTheDocument();
-    expect(screen.getByText('試用到期日')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '入門版 (三天測試期)' })).toBeInTheDocument();
+    expect(screen.getByText('測試已到期')).toBeInTheDocument();
+    expect(screen.getByText('使用開始日')).toBeInTheDocument();
+    expect(screen.getByText('使用到期日')).toBeInTheDocument();
     expect(screen.queryByText('測試商店')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: '入門版', level: 2 })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '試用版' })).not.toBeInTheDocument();
   });
 
   it('does not mislabel a platform-suspended paid workspace as a trial', async () => {
@@ -259,7 +261,7 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByText('已暫停')).toBeInTheDocument();
     expect(screen.getByText(/平台管理員停權/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /升級方案・NT\$399/ })).toBeDisabled();
-    expect(screen.queryByText('試用已到期')).not.toBeInTheDocument();
+    expect(screen.queryByText('測試已到期')).not.toBeInTheDocument();
   });
 
   it('shows scheduled expiry without implying automatic renewal', async () => {

@@ -63,11 +63,10 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
   const isExpiredTrial = data.org.status === 'suspended' && isTrial;
   const currentPaidPeriod = isTrial ? null : resolveCurrentPaidPeriod(data);
   const isTestEntitlement = currentPaidPeriod?.providerMode === 'test';
-  const planName = isTrial
-    ? '試用版'
-    : isTestEntitlement
-      ? `${SAAS_PLAN_DEFINITIONS[data.org.plan].name} (三天測試期)`
-      : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
+  const isThreeDayTestPeriod = isTrial || isTestEntitlement;
+  const planName = isThreeDayTestPeriod
+    ? `${SAAS_PLAN_DEFINITIONS[data.org.plan].name} (三天測試期)`
+    : SAAS_PLAN_DEFINITIONS[data.org.plan].name;
   const periodStart = isTrial
     ? data.subscription?.currentPeriodStart ?? null
     : currentPaidPeriod?.periodStart ?? data.subscription?.currentPeriodStart ?? null;
@@ -75,14 +74,14 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
     ? data.subscription?.trialEnd ?? null
     : currentPaidPeriod?.periodEnd ?? data.subscription?.currentPeriodEnd ?? null;
   const statusLabel = isExpiredTrial
-    ? '試用已到期'
-    : isTestEntitlement
+    ? '測試已到期'
+    : isThreeDayTestPeriod
       ? '測試使用中'
       : STATUS_LABEL[data.org.status];
   const summaryCopy = isExpiredTrial
     ? '完成方案付款後，即可恢復新增退貨、資料匯入／匯出與 AI 分析。'
     : isTrial
-      ? '試用期間可使用完整退貨工作區；到期後仍可查看歷史資料。'
+      ? '三天測試期間可使用完整退貨工作區；到期後仍可查看歷史資料。'
       : isTestEntitlement
         ? null
         : '方案採一個月預付制，不會自動續扣；付款完成後會立即更新使用期限。';
@@ -118,9 +117,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
           <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5">
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
-              <dt className="text-sm font-medium text-gray-950">
-                {isTrial ? '試用開始日' : '使用開始日'}
-              </dt>
+              <dt className="text-sm font-medium text-gray-950">使用開始日</dt>
               <dd className="mt-1 text-sm text-muted-foreground">
                 {formatSaaSBillingDate(periodStart)}
               </dd>
@@ -129,9 +126,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
           <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5">
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
-              <dt className="text-sm font-medium text-gray-950">
-                {isTrial ? '試用到期日' : '使用到期日'}
-              </dt>
+              <dt className="text-sm font-medium text-gray-950">使用到期日</dt>
               <dd className="mt-1 text-sm text-muted-foreground">
                 {formatSaaSBillingDate(periodEnd)}
               </dd>
