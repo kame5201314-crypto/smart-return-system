@@ -1,10 +1,33 @@
 /* @vitest-environment node */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { buildWorkspaceAccessNotice } from '@/lib/saas/workspace-access-notice';
+import {
+  buildWorkspaceAccessNotice,
+  resolveWorkspaceAccessSuspensionSource,
+} from '@/lib/saas/workspace-access-notice';
 
 describe('workspace access notice', () => {
+  it('keeps the trial-expiry source already resolved by the organization context', async () => {
+    const loadSuspensionSource = vi.fn(async () => null);
+
+    await expect(resolveWorkspaceAccessSuspensionSource({
+      contextSuspensionSource: 'trial_expired',
+      loadSuspensionSource,
+    })).resolves.toBe('trial_expired');
+    expect(loadSuspensionSource).not.toHaveBeenCalled();
+  });
+
+  it('falls back to audit history when the organization context has no source', async () => {
+    const loadSuspensionSource = vi.fn(async () => 'trial_expired' as const);
+
+    await expect(resolveWorkspaceAccessSuspensionSource({
+      contextSuspensionSource: null,
+      loadSuspensionSource,
+    })).resolves.toBe('trial_expired');
+    expect(loadSuspensionSource).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a trial-expired notice for an expired suspended workspace', () => {
     expect(buildWorkspaceAccessNotice({
       status: 'suspended',

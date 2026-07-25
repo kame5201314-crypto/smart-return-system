@@ -6,6 +6,7 @@ import {
 } from '@/lib/saas/settings-billing-data';
 import {
   buildWorkspaceAccessNotice,
+  resolveWorkspaceAccessSuspensionSource,
   type WorkspaceAccessNotice,
 } from '@/lib/saas/workspace-access-notice';
 import { createClient } from '@/lib/supabase/server';
@@ -23,10 +24,13 @@ async function loadWorkspaceAccessNotice(): Promise<WorkspaceAccessNotice | null
     const repository = createSettingsBillingDataRepository(
       client as unknown as SettingsBillingQueryClient
     );
-    const suspensionSource = await repository.getSuspensionSource?.({ orgId: context.orgId });
+    const suspensionSource = await resolveWorkspaceAccessSuspensionSource({
+      contextSuspensionSource: context.suspensionSource,
+      loadSuspensionSource: () => repository.getSuspensionSource?.({ orgId: context.orgId }),
+    });
     return buildWorkspaceAccessNotice({
       status: context.orgStatus,
-      suspensionSource: suspensionSource ?? null,
+      suspensionSource,
     });
   } catch {
     return null;

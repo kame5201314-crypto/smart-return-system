@@ -7,6 +7,17 @@ export interface WorkspaceAccessNotice {
   message: string;
 }
 
+export async function resolveWorkspaceAccessSuspensionSource(input: {
+  contextSuspensionSource?: BillingSuspensionSource | null;
+  loadSuspensionSource?: () => Promise<BillingSuspensionSource | null> | undefined;
+}): Promise<BillingSuspensionSource | null> {
+  if (input.contextSuspensionSource) {
+    return input.contextSuspensionSource;
+  }
+
+  return await input.loadSuspensionSource?.() ?? null;
+}
+
 export function buildWorkspaceAccessNotice(input: {
   status: SaaSSubscriptionStatus;
   suspensionSource?: BillingSuspensionSource | null;
