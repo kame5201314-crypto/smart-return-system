@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { PlatformAdminDashboardContent } from '@/components/internal/platform-admin-dashboard-content';
@@ -80,17 +80,32 @@ describe('PlatformAdminDashboardContent', () => {
     expect(screen.getByText('優先待辦（1）')).toBeInTheDocument();
     expect(screen.getByText('已逾期 2 天')).toBeInTheDocument();
     expect(screen.getByText('帳號：owner@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /測試租戶.*提醒補款/ }))
+    expect(screen.getByRole('link', { name: '測試租戶' }))
       .toHaveAttribute('href', '/internal/orgs/org-1');
-    expect(screen.getAllByRole('link', { name: /測試租戶.*提醒補款/ })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: '提醒補款' }))
+      .toHaveAttribute('href', '/internal/orgs/org-1');
+    expect(screen.getByRole('button', { name: '複製 Email：owner@example.com' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看全部租戶：5 個' }))
       .toHaveAttribute('href', '/internal/orgs');
     expect(screen.getByRole('link', { name: '查看試用中租戶：2 個' }))
       .toHaveAttribute('href', '/internal/orgs?filter=trialing');
     expect(screen.getByRole('link', { name: '查看需關注租戶：1 個' }))
       .toHaveAttribute('href', '/internal/orgs?filter=attention');
+    expect(screen.getByRole('link', { name: '查看試用潛在月營收：NT$1,198' }))
+      .toHaveAttribute('href', '/internal/orgs?filter=trialing');
+    expect(screen.getByRole('link', { name: '查看付款失敗事件：1 項' }))
+      .toHaveAttribute('href', '/internal/billing/events');
     expect(screen.getByText('試用轉換')).toBeInTheDocument();
     expect(screen.getByText('帳務處理')).toBeInTheDocument();
+  });
+
+  it('filters the priority list by operational category', () => {
+    render(<PlatformAdminDashboardContent data={dashboard} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '試用 0' }));
+
+    expect(screen.getByText('目前節錄名單中沒有「試用」警示。')).toBeInTheDocument();
+    expect(screen.queryByText('付款已逾期。')).not.toBeInTheDocument();
   });
 
   it('explains when the priority list is truncated and links to affected tenants', () => {

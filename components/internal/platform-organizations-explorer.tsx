@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { CopyEmailButton } from '@/components/internal/copy-email-button';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import { getPlatformOrganizationDisplayIdentity } from '@/lib/saas/platform-organization-display';
 import type { PlatformOrganizationListView } from '@/lib/saas/ui-backend-contracts';
@@ -26,7 +27,9 @@ export type PlatformOrganizationFilter =
   | 'past_due'
   | 'suspended'
   | 'healthy';
-type OrgSort = 'priority' | 'trial_end' | 'usage' | 'name';
+type OrgSort = 'priority' | 'trial_end' | 'created_desc' | 'usage' | 'name';
+type PlanFilter = 'all' | PlatformOrg['plan'];
+type ProvisioningSourceFilter = 'all' | PlatformOrg['provisioningSource'];
 const INITIAL_VISIBLE_ORGANIZATIONS = 20;
 
 const FILTER_LABEL: Record<PlatformOrganizationFilter, string> = {
@@ -96,6 +99,9 @@ function compareOrganizations(a: PlatformOrg, b: PlatformOrg, sort: OrgSort): nu
     const daysA = a.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY;
     const daysB = b.daysUntilTrialEnd ?? Number.POSITIVE_INFINITY;
     return daysA - daysB || displayNameA.localeCompare(displayNameB, 'zh-TW');
+  }
+  if (sort === 'created_desc') {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   }
   return (
     followUpTier(a) - followUpTier(b) ||
@@ -236,19 +242,30 @@ function TenantMobileCard({ org }: { org: PlatformOrg }) {
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
   const suggestions = buildSuggestions(org);
   const identity = getPlatformOrganizationDisplayIdentity(org);
+  const secondaryLabel = identity.secondaryLabel === identity.primaryLabel
+    ? null
+    : identity.secondaryLabel;
   return (
     <li className="rounded-lg border bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <Link className="font-semibold text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
-            {identity.primaryLabel}
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link className="font-semibold text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
+              {identity.primaryLabel}
+            </Link>
+            {org.ownerEmail === identity.primaryLabel ? <CopyEmailButton email={org.ownerEmail} /> : null}
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">{plan.name}</p>
         </div>
         <HealthBadge org={org} />
       </div>
-      {identity.secondaryLabel ? (
-        <p className="mt-3 break-all text-xs text-muted-foreground">{identity.secondaryLabel}</p>
+      {secondaryLabel || (org.ownerEmail && org.ownerEmail !== identity.primaryLabel) ? (
+        <div className="mt-3 flex items-center gap-1">
+          <p className="min-w-0 break-all text-xs text-muted-foreground">
+            {secondaryLabel ?? org.ownerEmail}
+          </p>
+          {org.ownerEmail ? <CopyEmailButton email={org.ownerEmail} /> : null}
+        </div>
       ) : null}
       <div className="mt-2 flex flex-wrap gap-1.5">
         <StatusBadge org={org} />
@@ -281,6 +298,8 @@ export function PlatformOrganizationsExplorer({
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<PlatformOrganizationFilter>(initialFilter);
+  const [planFilter, setPlanFilter] = useState<PlanFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<ProvisioningSourceFilter>('all');
   const [sort, setSort] = useState<OrgSort>('priority');
   const [expanded, setExpanded] = useState(false);
   const pastDueCount = data.organizations.filter((org) => org.status === 'past_due').length;
@@ -290,6 +309,8 @@ export function PlatformOrganizationsExplorer({
     const normalizedQuery = query.trim().toLocaleLowerCase('zh-TW');
     return data.organizations
       .filter((org) => matchesFilter(org, filter))
+      .filter((org) => planFilter === 'all' || org.plan === planFilter)
+      .filter((org) => sourceFilter === 'all' || org.provisioningSource === sourceFilter)
       .filter((org) => {
         if (!normalizedQuery) return true;
         const planName = SAAS_PLAN_DEFINITIONS[org.plan].name;
@@ -298,7 +319,7 @@ export function PlatformOrganizationsExplorer({
           .some((value) => value.toLocaleLowerCase('zh-TW').includes(normalizedQuery));
       })
       .sort((a, b) => compareOrganizations(a, b, sort));
-  }, [data.organizations, filter, query, sort]);
+  }, [data.organizations, filter, planFilter, query, sort, sourceFilter]);
 
   const displayedOrganizations = expanded
     ? visibleOrganizations
@@ -313,6 +334,8 @@ export function PlatformOrganizationsExplorer({
   function resetControls() {
     setQuery('');
     setFilter('all');
+    setPlanFilter('all');
+    setSourceFilter('all');
     setSort('priority');
     setExpanded(false);
   }
@@ -329,7 +352,7 @@ export function PlatformOrganizationsExplorer({
 
       <Card className="rounded-lg">
         <CardContent className="p-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_200px_200px_auto] lg:items-end">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_150px_150px_180px_180px_auto] xl:items-end">
             <div>
               <label htmlFor="tenant-search" className="text-sm font-medium">搜尋租戶</label>
               <div className="relative mt-1.5">
@@ -345,6 +368,40 @@ export function PlatformOrganizationsExplorer({
                   className="pl-9"
                 />
               </div>
+            </div>
+            <div>
+              <label htmlFor="tenant-plan-filter" className="text-sm font-medium">方案</label>
+              <select
+                id="tenant-plan-filter"
+                value={planFilter}
+                onChange={(event) => {
+                  setPlanFilter(event.target.value as PlanFilter);
+                  setExpanded(false);
+                }}
+                className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="all">全部方案</option>
+                {Object.entries(SAAS_PLAN_DEFINITIONS).map(([value, definition]) => (
+                  <option key={value} value={value}>{definition.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="tenant-source-filter" className="text-sm font-medium">開通來源</label>
+              <select
+                id="tenant-source-filter"
+                value={sourceFilter}
+                onChange={(event) => {
+                  setSourceFilter(event.target.value as ProvisioningSourceFilter);
+                  setExpanded(false);
+                }}
+                className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="all">全部來源</option>
+                {Object.entries(PROVISIONING_SOURCE_LABEL).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="tenant-filter" className="text-sm font-medium">租戶狀態</label>
@@ -372,6 +429,7 @@ export function PlatformOrganizationsExplorer({
               >
                 <option value="priority">處理優先級</option>
                 <option value="trial_end">試用到期日</option>
+                <option value="created_desc">建立時間（新到舊）</option>
                 <option value="usage">最高用量</option>
                 <option value="name">品牌名稱</option>
               </select>
@@ -409,14 +467,28 @@ export function PlatformOrganizationsExplorer({
                 {displayedOrganizations.map((org) => {
                   const suggestions = buildSuggestions(org);
                   const identity = getPlatformOrganizationDisplayIdentity(org);
+                  const secondaryLabel = identity.secondaryLabel === identity.primaryLabel
+                    ? null
+                    : identity.secondaryLabel;
                   return (
                     <tr key={org.id} className="align-top hover:bg-neutral-50/70">
                       <td className="px-4 py-4">
-                        <Link className="font-medium text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
-                          {identity.primaryLabel}
-                        </Link>
-                        {identity.secondaryLabel ? (
-                          <p className="mt-1 max-w-52 break-all text-xs text-muted-foreground">{identity.secondaryLabel}</p>
+                        <div className="flex items-center gap-1">
+                          <Link className="font-medium text-emerald-700 underline-offset-4 hover:underline" href={`/internal/orgs/${org.id}`}>
+                            {identity.primaryLabel}
+                          </Link>
+                          {org.ownerEmail === identity.primaryLabel ? <CopyEmailButton email={org.ownerEmail} /> : null}
+                        </div>
+                        {secondaryLabel ? (
+                          <div className="mt-1 flex max-w-60 items-center gap-1">
+                            <p className="min-w-0 break-all text-xs text-muted-foreground">{secondaryLabel}</p>
+                            {org.ownerEmail ? <CopyEmailButton email={org.ownerEmail} /> : null}
+                          </div>
+                        ) : org.ownerEmail && org.ownerEmail !== identity.primaryLabel ? (
+                          <div className="mt-1 flex max-w-60 items-center gap-1">
+                            <p className="min-w-0 break-all text-xs text-muted-foreground">{org.ownerEmail}</p>
+                            <CopyEmailButton email={org.ownerEmail} />
+                          </div>
                         ) : null}
                         <div className="mt-2">
                           <ProvisioningSourceBadge org={org} />

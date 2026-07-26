@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -12,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CopyEmailButton } from '@/components/internal/copy-email-button';
 import {
   PLATFORM_ALERT_SEVERITY_LABEL,
   PLATFORM_ALERT_TYPE_MESSAGE,
@@ -30,6 +34,8 @@ const ALERT_CATEGORY_LABEL: Record<PlatformAtRiskAlertCategory, string> = {
   quota: '額度',
   team: '團隊',
 };
+
+type AlertCategoryFilter = 'all' | PlatformAtRiskAlertCategory;
 
 const ALERT_ACTION_LABEL: Record<PlatformAtRiskAlertType, string> = {
   past_due: '提醒補款',
@@ -60,25 +66,39 @@ function formatDueLabel(alert: PlatformAtRiskAlert): string | null {
 }
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('zh-TW', {
-    style: 'currency',
-    currency: 'TWD',
+  return `NT$${new Intl.NumberFormat('zh-TW', {
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value)}`;
 }
 
 export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDashboardView }) {
+  const [alertCategory, setAlertCategory] = useState<AlertCategoryFilter>('all');
   const summary = data.organizations;
   const atRisk = data.atRisk;
   const trial = data.trialConversion.summary;
   const billing = data.billingEvents.summary;
-  const remainingAlerts = Math.max(0, atRisk.summary.totalAlerts - atRisk.topAlerts.length);
+  const alertCategoryCounts: Record<PlatformAtRiskAlertCategory, number> = {
+    billing: atRisk.summary.billingAlerts,
+    trial: atRisk.summary.trialAlerts,
+    quota: atRisk.summary.quotaAlerts,
+    team: atRisk.summary.teamAlerts,
+  };
+  const visibleAlerts = useMemo(
+    () =>
+      alertCategory === 'all'
+        ? atRisk.topAlerts
+        : atRisk.topAlerts.filter((alert) => alert.category === alertCategory),
+    [alertCategory, atRisk.topAlerts]
+  );
+  const selectedAlertCount =
+    alertCategory === 'all' ? atRisk.summary.totalAlerts : alertCategoryCounts[alertCategory];
+  const remainingAlerts = Math.max(0, selectedAlertCount - visibleAlerts.length);
 
   return (
     <>
       <Card className="rounded-lg py-0">
         <CardContent className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             <Link
               href="/internal/orgs"
               aria-label={`查看全部租戶：${summary.totalOrganizations} 個`}
@@ -129,6 +149,41 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
                 {formatCurrency(summary.estimatedActiveMrrTwd)}
               </p>
             </div>
+            <Link
+              href="/internal/orgs?filter=trialing"
+              aria-label={`查看試用潛在月營收：${formatCurrency(summary.trialPipelineMrrTwd)}`}
+              className="block rounded-md border bg-emerald-50/60 p-4 transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-emerald-900">試用潛在月營收</p>
+                <BadgeDollarSign className="size-4 text-emerald-700" aria-hidden="true" />
+              </div>
+              <p className="mt-1 text-2xl font-semibold text-emerald-950">
+                {formatCurrency(summary.trialPipelineMrrTwd)}
+              </p>
+            </Link>
+            <Link
+              href="/internal/billing/events"
+              aria-label={`查看付款失敗事件：${billing.failedEvents} 項`}
+              className={`block rounded-md border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+                billing.failedEvents > 0
+                  ? 'border-red-200 bg-red-50 hover:bg-red-100'
+                  : 'bg-neutral-50 hover:bg-neutral-100'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className={billing.failedEvents > 0 ? 'text-sm text-red-800' : 'text-sm text-muted-foreground'}>
+                  付款失敗事件
+                </p>
+                <CircleDollarSign
+                  className={billing.failedEvents > 0 ? 'size-4 text-red-700' : 'size-4 text-neutral-500'}
+                  aria-hidden="true"
+                />
+              </div>
+              <p className={`mt-1 text-3xl font-semibold ${billing.failedEvents > 0 ? 'text-red-950' : 'text-gray-950'}`}>
+                {billing.failedEvents.toLocaleString('zh-TW')}
+              </p>
+            </Link>
           </div>
         </CardContent>
       </Card>
@@ -145,21 +200,46 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="警示分類篩選">
+              <Button
+                type="button"
+                variant={alertCategory === 'all' ? 'default' : 'outline'}
+                size="sm"
+                aria-pressed={alertCategory === 'all'}
+                onClick={() => setAlertCategory('all')}
+              >
+                全部 {atRisk.summary.totalAlerts}
+              </Button>
+              {(Object.keys(ALERT_CATEGORY_LABEL) as PlatformAtRiskAlertCategory[]).map((category) => (
+                <Button
+                  key={category}
+                  type="button"
+                  variant={alertCategory === category ? 'default' : 'outline'}
+                  size="sm"
+                  aria-pressed={alertCategory === category}
+                  onClick={() => setAlertCategory(category)}
+                >
+                  {ALERT_CATEGORY_LABEL[category]} {alertCategoryCounts[category]}
+                </Button>
+              ))}
+            </div>
             <ul className="space-y-2">
-              {atRisk.topAlerts.map((alert) => {
+              {visibleAlerts.map((alert) => {
                 const dueLabel = formatDueLabel(alert);
                 const actionLabel = ALERT_ACTION_LABEL[alert.type];
                 return (
-                  <li key={alert.id}>
-                    <Link
-                      href={`/internal/orgs/${alert.orgId}`}
-                      className="group flex flex-col items-start justify-between gap-4 rounded-md border border-amber-200 bg-white p-4 transition-colors hover:bg-amber-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 sm:flex-row sm:items-center"
-                    >
+                  <li
+                    key={alert.id}
+                    className="group flex flex-col items-start justify-between gap-4 rounded-md border border-amber-200 bg-white p-4 transition-colors hover:bg-amber-50/70 sm:flex-row sm:items-center"
+                  >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-emerald-700 group-hover:underline">
+                          <Link
+                            href={`/internal/orgs/${alert.orgId}`}
+                            className="font-medium text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                          >
                             {alert.orgName}
-                          </span>
+                          </Link>
                           <Badge variant={severityVariant(alert.severity)} className="text-xs">
                             {PLATFORM_ALERT_SEVERITY_LABEL[alert.severity]}
                           </Badge>
@@ -176,7 +256,12 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
                           {PLATFORM_ALERT_TYPE_MESSAGE[alert.type] ?? alert.message}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                          {alert.ownerEmail ? <span>帳號：{alert.ownerEmail}</span> : null}
+                          {alert.ownerEmail ? (
+                            <span className="inline-flex items-center gap-1">
+                              帳號：{alert.ownerEmail}
+                              <CopyEmailButton email={alert.ownerEmail} />
+                            </span>
+                          ) : null}
                           {alert.metric ? (
                             <span>
                               用量 {alert.metric.used.toLocaleString('zh-TW')} / {alert.metric.limit.toLocaleString('zh-TW')}（{alert.metric.percent}%）
@@ -184,15 +269,23 @@ export function PlatformAdminDashboardContent({ data }: { data: PlatformAdminDas
                           ) : null}
                         </div>
                       </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-800">
+                      <Link
+                        href={`/internal/orgs/${alert.orgId}`}
+                        className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                      >
                         {actionLabel}
                         <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                      </span>
-                    </Link>
+                      </Link>
                   </li>
                 );
               })}
             </ul>
+            {visibleAlerts.length === 0 ? (
+              <div className="rounded-md border border-dashed border-amber-300 bg-white p-4 text-sm text-amber-950">
+                目前節錄名單中沒有「{alertCategory === 'all' ? '全部' : ALERT_CATEGORY_LABEL[alertCategory]}」警示。
+                {selectedAlertCount > 0 ? '請前往租戶管理查看完整名單。' : ''}
+              </div>
+            ) : null}
             {remainingAlerts > 0 ? (
               <div className="mt-4 flex flex-col gap-3 border-t border-amber-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-amber-950">另有 {remainingAlerts} 項警示未列出。</p>

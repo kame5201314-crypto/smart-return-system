@@ -115,6 +115,31 @@ describe('PlatformOrganizationsExplorer', () => {
     expect(screen.queryByText('健康品牌')).not.toBeInTheDocument();
   });
 
+  it('filters tenants by plan and provisioning source', () => {
+    render(<PlatformOrganizationsExplorer data={data} />);
+
+    fireEvent.change(screen.getByLabelText('方案'), { target: { value: 'growth' } });
+    fireEvent.change(screen.getByLabelText('開通來源'), {
+      target: { value: 'google_self_service' },
+    });
+
+    expect(screen.getByText('共 2 個租戶；符合 1 筆，目前顯示 1 筆')).toBeInTheDocument();
+    expect(screen.getAllByText('healthy@example.com').length).toBeGreaterThan(0);
+    expect(screen.queryByText('待補款品牌')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: '複製 Email：healthy@example.com' }).length)
+      .toBeGreaterThan(0);
+  });
+
+  it('offers newest-created sorting for recently added tenants', () => {
+    render(<PlatformOrganizationsExplorer data={data} />);
+
+    fireEvent.change(screen.getByLabelText('排序方式'), {
+      target: { value: 'created_desc' },
+    });
+
+    expect(screen.getByLabelText('排序方式')).toHaveValue('created_desc');
+  });
+
   it('separates past-due tenants from suspended read-only tenants', () => {
     render(<PlatformOrganizationsExplorer data={dataWithSuspended} />);
 
