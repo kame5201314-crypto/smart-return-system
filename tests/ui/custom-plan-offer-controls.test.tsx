@@ -226,6 +226,30 @@ describe('CustomPlanOfferControls', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('disables creation and explains when migration 049 is not enabled', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      success: false,
+      code: 'feature_disabled',
+      error: 'Custom plan offers require SaaS database migration 049.',
+    }, 503));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <CustomPlanOfferControls
+        orgId={orgId}
+        orgName="尚未啟用租戶"
+        canManageBillingOperations
+      />
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '客製報價尚未完成資料庫啟用，請先套用 SaaS Migration 049 後再使用。'
+    );
+    expect(screen.getByRole('button', { name: '建立客製報價' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '重新載入' })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('distinguishes an issued closed checkout from a quote that simply expired', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       success: true,

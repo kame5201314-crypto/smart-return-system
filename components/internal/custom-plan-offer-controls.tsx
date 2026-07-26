@@ -50,6 +50,8 @@ interface CustomPlanOfferControlsProps {
   canManageBillingOperations: boolean;
 }
 
+type FeatureAvailability = 'checking' | 'ready' | 'unavailable';
+
 const MIN_OFFER_LIFETIME_MS = 61 * 60 * 1000;
 const MAX_OFFER_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -99,7 +101,9 @@ function defaultExpiryLocal(now = new Date()): string {
 
 function resolveApiError(payload: CustomPlanOfferApiResponse | null): string {
   if (payload?.code === 'permission_denied') return '權限不足，無法管理客製報價。';
-  if (payload?.code === 'feature_disabled') return 'AI退貨管理系統目前未啟用此功能。';
+  if (payload?.code === 'feature_disabled') {
+    return '客製報價尚未完成資料庫啟用，請先套用 SaaS Migration 049 後再使用。';
+  }
   if (payload?.code === 'invalid_request') return '請檢查報價名稱、金額、付款期限與取消原因。';
   if (payload?.code === 'offer_not_found') return '找不到這筆客製報價，請重新載入。';
   if (payload?.code === 'offer_unavailable') return '這筆報價已付款、取消或到期，無法再操作。';
@@ -115,6 +119,8 @@ export function CustomPlanOfferControls({
   const [offers, setOffers] = useState<CustomPlanOfferDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [featureAvailability, setFeatureAvailability] =
+    useState<FeatureAvailability>('checking');
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState('朋友專屬優惠');
@@ -128,6 +134,7 @@ export function CustomPlanOfferControls({
   const loadOffers = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setFeatureAvailability('checking');
     try {
       const response = await fetch(
         `/api/internal/saas/custom-plan-offers?orgId=${encodeURIComponent(orgId)}`,
@@ -135,11 +142,16 @@ export function CustomPlanOfferControls({
       );
       const payload = await response.json().catch(() => null) as CustomPlanOfferApiResponse | null;
       if (!response.ok || payload?.success !== true || !Array.isArray(payload.data?.offers)) {
+        if (payload?.code === 'feature_disabled') {
+          setFeatureAvailability('unavailable');
+        }
         setLoadError(resolveApiError(payload));
         return;
       }
+      setFeatureAvailability('ready');
       setOffers(payload.data.offers);
     } catch {
+      setFeatureAvailability('unavailable');
       setLoadError('客製報價載入失敗，請重新整理後再試。');
     } finally {
       setLoading(false);
@@ -208,6 +220,11 @@ export function CustomPlanOfferControls({
       });
       const payload = await response.json().catch(() => null) as CustomPlanOfferApiResponse | null;
       if (!response.ok || payload?.success !== true) {
+        if (payload?.code === 'feature_disabled') {
+          setFeatureAvailability('unavailable');
+          setCreateOpen(false);
+          setLoadError(resolveApiError(payload));
+        }
         toast.error(resolveApiError(payload));
         return;
       }
@@ -270,7 +287,7 @@ export function CustomPlanOfferControls({
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
-          disabled={submitting}
+          disabled={submitting || featureAvailability !== 'ready'}
           className="shrink-0"
         >
           <Plus className="size-4" aria-hidden="true" />
@@ -284,11 +301,19 @@ export function CustomPlanOfferControls({
           正在載入客製報價…
         </div>
       ) : loadError ? (
-        <div className="mt-5 flex flex-col gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={`mt-5 flex flex-col gap-3 rounded-md border p-4 text-sm sm:flex-row sm:items-center sm:justify-between ${
+            featureAvailability === 'unavailable'
+              ? 'border-amber-200 bg-amber-50 text-amber-950'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
           <p role="alert">{loadError}</p>
-          <Button type="button" variant="outline" size="sm" onClick={() => void loadOffers()}>
-            重新載入
-          </Button>
+          {featureAvailability !== 'unavailable' ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => void loadOffers()}>
+              重新載入
+            </Button>
+          ) : null}
         </div>
       ) : offers.length === 0 ? (
         <div className="mt-5 rounded-md border border-dashed bg-neutral-50 p-5 text-sm text-muted-foreground">

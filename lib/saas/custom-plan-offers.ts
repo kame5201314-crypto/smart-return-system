@@ -29,6 +29,7 @@ export interface CustomPlanOfferAuditActorMetadata {
 export type CustomPlanOfferErrorCode =
   | 'invalid_request'
   | 'permission_denied'
+  | 'feature_disabled'
   | 'offer_not_found'
   | 'offer_unavailable'
   | 'offer_conflict'
@@ -451,11 +452,26 @@ function normalizePaymentOrder(value: unknown): CustomOfferPaymentOrder {
   };
 }
 
-function isMissingSchemaError(error: RepositoryError | null): boolean {
+function isMissingCustomPlanOfferSchemaError(error: RepositoryError | null): boolean {
   const code = error?.code?.toUpperCase();
   const message = error?.message?.toLowerCase() ?? '';
-  return code === '42P01' || code === 'PGRST205'
-    || message.includes('custom_plan_offers') && message.includes('does not exist');
+  const referencesCustomPlanOfferSchema = [
+    'custom_plan_offers',
+    'create_custom_plan_offer',
+    'cancel_custom_plan_offer',
+    'create_custom_plan_payment_order',
+  ].some((identifier) => message.includes(identifier));
+  const isMissingDatabaseObject = [
+    '42P01',
+    '42883',
+    'PGRST202',
+    'PGRST205',
+  ].includes(code ?? '')
+    || message.includes('does not exist')
+    || message.includes('could not find')
+    || message.includes('schema cache');
+
+  return referencesCustomPlanOfferSchema && isMissingDatabaseObject;
 }
 
 function throwRepositoryError(
@@ -464,6 +480,13 @@ function throwRepositoryError(
 ): void {
   if (!error) return;
   const message = error.message?.toLowerCase() ?? '';
+  if (isMissingCustomPlanOfferSchemaError(error)) {
+    throw new CustomPlanOfferError(
+      'feature_disabled',
+      503,
+      'Custom plan offers require SaaS database migration 049.'
+    );
+  }
   if (message.includes('active owner or admin membership')) {
     throw new CustomPlanOfferError(
       'permission_denied',
@@ -640,7 +663,6 @@ export function createCustomPlanOfferRepository(
         .eq('org_id', orgId)
         .order('created_at', { ascending: false })
         .limit(limit);
-      if (isMissingSchemaError(error)) return [];
       throwRepositoryError(error, 'Failed to load custom plan offers.');
       if (!Array.isArray(data)) {
         throw new CustomPlanOfferError(

@@ -227,7 +227,7 @@ describe('custom plan offer repository', () => {
     });
   });
 
-  it('lists normalized offers and safely treats an unapplied table as empty', async () => {
+  it('lists normalized offers and reports an unapplied schema as unavailable', async () => {
     const fake = queryClient({ rows: [offerRow] });
     await expect(
       createCustomPlanOfferRepository(fake.client).listOffers({ orgId, limit: 10 })
@@ -244,7 +244,43 @@ describe('custom plan offer repository', () => {
     });
     await expect(
       createCustomPlanOfferRepository(missing.client).listOffers({ orgId })
-    ).resolves.toEqual([]);
+    ).rejects.toMatchObject({
+      code: 'feature_disabled',
+      status: 503,
+      message: 'Custom plan offers require SaaS database migration 049.',
+    });
+  });
+
+  it.each([
+    {
+      code: 'PGRST202',
+      message: 'Could not find the function public.create_custom_plan_offer in the schema cache',
+    },
+    {
+      code: '42883',
+      message: 'function cancel_custom_plan_offer(uuid, uuid, jsonb, text) does not exist',
+    },
+  ])('reports missing custom-offer RPCs as unavailable ($code)', async ({ code, message }) => {
+    const fake = queryClient({
+      rpc: async () => ({
+        data: null,
+        error: { code, message },
+      }),
+    });
+    const repository = createCustomPlanOfferRepository(fake.client);
+
+    await expect(repository.createOffer({
+      orgId,
+      actorUserId,
+      actorMetadata,
+      title: '專屬入門方案',
+      description: null,
+      amountTwd: 899,
+      expiresAt: '2026-07-27T12:00:00.000Z',
+    })).rejects.toMatchObject({
+      code: 'feature_disabled',
+      status: 503,
+    });
   });
 
   it('creates checkout without accepting an amount, then loads SELECT-star metadata', async () => {
