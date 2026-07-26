@@ -78,7 +78,7 @@ export function StartTenantPreviewButton({
       onClick={handleStart}
       disabled={submitting}
       variant="default"
-      title={`以「${orgName}」身分唯讀查看`}
+      title={`以「${orgName}」身分唯讀查看 1 小時，不會修改客戶資料`}
     >
       {submitting ? (
         <Loader2 className="size-4 animate-spin" aria-hidden="true" />

@@ -1,6 +1,17 @@
 import Link from 'next/link';
-import { Activity, AlertTriangle, ArrowLeft, FileClock, ReceiptText } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  FileClock,
+  Flag,
+  ReceiptText,
+  Users,
+} from 'lucide-react';
 
+import { CopyEmailButton } from '@/components/internal/copy-email-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,12 +49,24 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   'platform.tenant_preview_started': '開始租戶預覽',
   'platform.tenant_preview_cleared': '結束租戶預覽',
   'platform.org.note_added': '營運紀錄',
+  'platform.billing.manual_payment_marked': '記錄人工付款',
+  'platform.billing.org_suspended': '停權租戶',
+  'platform.billing.org_resumed': '恢復租戶',
+  'platform.billing.refund_requested': '申請退款',
 };
-import { loadPlatformOrganizationDetailView } from '@/lib/saas/platform-admin-live-data';
+import {
+  loadPlatformOrganizationDetailView,
+  loadPlatformOrganizationsView,
+} from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import { getPlatformOrganizationDisplayIdentity } from '@/lib/saas/platform-organization-display';
-import type { PlatformOrganizationDetailView } from '@/lib/saas/ui-backend-contracts';
+import type {
+  PlatformOrganizationDetailView,
+  PlatformOrganizationListItem,
+  TeamMemberRole,
+  TeamMemberStatus,
+} from '@/lib/saas/ui-backend-contracts';
 
 function formatDate(value: string | null): string {
   if (!value) return '—';
@@ -64,6 +87,29 @@ function formatDateTime(value: string | null): string {
     minute: '2-digit',
     hour12: false,
   });
+}
+
+function formatRelativeTime(value: string, now = new Date()): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '時間未知';
+
+  const diffSeconds = Math.round((date.getTime() - now.getTime()) / 1000);
+  const formatter = new Intl.RelativeTimeFormat('zh-TW', { numeric: 'auto' });
+  const units = [
+    ['year', 60 * 60 * 24 * 365],
+    ['month', 60 * 60 * 24 * 30],
+    ['day', 60 * 60 * 24],
+    ['hour', 60 * 60],
+    ['minute', 60],
+  ] as const;
+
+  for (const [unit, seconds] of units) {
+    if (Math.abs(diffSeconds) >= seconds) {
+      return formatter.format(Math.round(diffSeconds / seconds), unit);
+    }
+  }
+
+  return formatter.format(diffSeconds, 'second');
 }
 
 function formatTwd(value: number): string {
@@ -100,6 +146,108 @@ const NOTE_TYPE_LABEL: Record<string, string> = {
   follow_up: '後續跟進',
   internal: '內部備註',
 };
+
+const TEAM_ROLE_LABEL: Record<TeamMemberRole, string> = {
+  owner: '擁有者',
+  admin: '管理員',
+  staff: '作業成員',
+  viewer: '檢視者',
+};
+
+const TEAM_ROLE_ORDER: Record<TeamMemberRole, number> = {
+  owner: 0,
+  admin: 1,
+  staff: 2,
+  viewer: 3,
+};
+
+const TEAM_STATUS_LABEL: Record<TeamMemberStatus, string> = {
+  active: '已加入',
+  invited: '邀請中',
+  disabled: '已停用',
+};
+
+const FEATURE_FLAG_LABEL: Record<string, string> = {
+  public_signup: '公開註冊',
+  public_lead_capture: '試用申請',
+  google_auth: 'Google 登入',
+  google_auth_ui: 'Google 登入入口',
+  google_trial_signup: 'Google 自助試用',
+  email_otp_signup: 'Email 驗證註冊',
+  phone_otp_signup: '手機驗證註冊',
+  billing: '線上帳務',
+  subscription_plan: '訂閱方案',
+  ai_usage_limit: 'AI 額度限制',
+  advanced_analytics: '進階分析',
+  multi_tenant_admin: '多租戶管理',
+  image_ai: '圖片 AI',
+};
+
+const SENSITIVE_AUDIT_ACTIONS = new Set([
+  'member.disabled',
+  'platform.billing.org_suspended',
+  'platform.billing.org_resumed',
+  'platform.billing.refund_requested',
+]);
+
+function EmailLink({ email, className = '' }: { email: string; className?: string }) {
+  return (
+    <div className={`flex min-w-0 items-center gap-1 ${className}`}>
+      <a
+        href={`mailto:${encodeURIComponent(email)}`}
+        className="min-w-0 truncate text-emerald-800 underline-offset-4 hover:underline"
+        title={email}
+      >
+        {email}
+      </a>
+      <CopyEmailButton email={email} />
+    </div>
+  );
+}
+
+function memberStatusBadge(status: TeamMemberStatus) {
+  if (status === 'invited') {
+    return (
+      <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-900">
+        {TEAM_STATUS_LABEL[status]}
+      </Badge>
+    );
+  }
+  if (status === 'disabled') {
+    return (
+      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-800">
+        {TEAM_STATUS_LABEL[status]}
+      </Badge>
+    );
+  }
+  return <Badge variant="outline">{TEAM_STATUS_LABEL[status]}</Badge>;
+}
+
+interface AttentionNavigation {
+  previous: Pick<PlatformOrganizationListItem, 'id' | 'name'> | null;
+  next: Pick<PlatformOrganizationListItem, 'id' | 'name'> | null;
+}
+
+function buildAttentionNavigation(
+  currentOrgId: string,
+  organizations: PlatformOrganizationListItem[]
+): AttentionNavigation | null {
+  const attentionOrganizations = organizations.filter((org) => org.requiresAttention);
+  if (attentionOrganizations.length === 0) return null;
+
+  const currentIndex = attentionOrganizations.findIndex((org) => org.id === currentOrgId);
+  if (currentIndex === -1) {
+    return {
+      previous: null,
+      next: attentionOrganizations[0] ?? null,
+    };
+  }
+
+  return {
+    previous: attentionOrganizations[currentIndex - 1] ?? null,
+    next: attentionOrganizations[currentIndex + 1] ?? null,
+  };
+}
 
 function formatProvisioningSource(
   source: PlatformOrganizationDetailView['organization']['provisioningSource']
@@ -150,11 +298,19 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   ] as const;
 
   const billingRows = [
-    ['帳務 Email', org.billingEmail ?? '—'],
-    ['統一編號', org.taxId ?? '—'],
-    ['試用 AI', formatSelfServiceTrialAI(org.selfServiceTrialAI)],
-    ['建立日期', formatDate(org.createdAt)],
+    { label: '帳務 Email', value: org.billingEmail ?? '—', email: org.billingEmail },
+    { label: '統一編號', value: org.taxId ?? '—', email: null },
+    { label: '試用 AI', value: formatSelfServiceTrialAI(org.selfServiceTrialAI), email: null },
+    { label: '建立日期', value: formatDate(org.createdAt), email: null },
   ] as const;
+  const sortedMembers = [...data.members].sort((left, right) => (
+    TEAM_ROLE_ORDER[left.role] - TEAM_ROLE_ORDER[right.role]
+    || left.email.localeCompare(right.email, 'zh-TW')
+  ));
+  const featureFlags = Object.entries(org.featureFlags).sort(([leftKey, leftEnabled], [rightKey, rightEnabled]) => (
+    Number(rightEnabled) - Number(leftEnabled)
+    || (FEATURE_FLAG_LABEL[leftKey] ?? leftKey).localeCompare(FEATURE_FLAG_LABEL[rightKey] ?? rightKey, 'zh-TW')
+  ));
 
   const suggestedActions = trialExpired
     ? ['聯絡客戶確認續約或延長試用', ...formatSuggestedActions(org.health.riskReasons)]
@@ -197,7 +353,7 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {summaryCards.map(([label, value]) => (
           <Card key={label} className="rounded-lg">
             <CardHeader className="pb-2">
@@ -216,48 +372,19 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           </CardTitle>
           <CardDescription>由訂閱狀態、席次、退貨量與 AI 額度即時計算，不讀取退貨明細。</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+        <CardContent className="grid gap-4 lg:grid-cols-[0.55fr_1.45fr]">
           <div className="rounded-md border p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">跟進狀態</span>
-              {trialExpired ? (
-                <Badge className="border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100">
-                  需關注
-                </Badge>
-              ) : (
-                <Badge variant={riskVariant(org.health.riskLevel)}>
-                  {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
-                </Badge>
-              )}
+              <span className="text-sm font-medium">整體狀態</span>
+              <Badge variant={riskVariant(org.health.riskLevel)}>
+                {PLATFORM_RISK_LEVEL_LABEL[org.health.riskLevel]}
+              </Badge>
             </div>
-            {trialExpired ? (
-              <div className="space-y-1.5 text-sm">
-                <p className="text-amber-800">試用已到期，建議聯絡客戶確認續約或延長試用。</p>
-                {org.health.riskReasons.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">用量與帳務風險目前正常。</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2 pt-0.5">
-                    {org.health.riskReasons.map((reason) => (
-                      <Badge key={reason} variant="outline">
-                        <AlertTriangle className="size-3" aria-hidden="true" />
-                        {PLATFORM_RISK_REASON_LABEL[reason]}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : org.health.riskReasons.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {org.health.riskReasons.map((reason) => (
-                  <Badge key={reason} variant="outline">
-                    <AlertTriangle className="size-3" aria-hidden="true" />
-                    {PLATFORM_RISK_REASON_LABEL[reason]}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">目前沒有逾期、滿額或 80% 用量警示。</p>
-            )}
+            <p className="text-sm leading-6 text-muted-foreground">
+              {org.health.riskLevel === 'healthy'
+                ? '目前沒有帳務、席次或用量警示。'
+                : '需處理的原因與建議動作已集中顯示於頁面上方。'}
+            </p>
           </div>
           <div className="grid gap-3 text-sm md:grid-cols-3">
             <div className="rounded-md border p-3">
@@ -321,28 +448,79 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
           </CardTitle>
           <CardDescription>帳務與訂閱基本資料。</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          {billingRows.map(([label, value]) => (
-            <div key={label} className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">{label}</div>
-              <div className="mt-1 font-medium">{value}</div>
-            </div>
-          ))}
+        <CardContent>
+          <dl className="overflow-hidden rounded-md border text-sm md:grid md:grid-cols-2">
+            {billingRows.map(({ label, value, email }, index) => (
+              <div
+                key={label}
+                className={`flex min-w-0 items-center justify-between gap-4 px-4 py-3 ${
+                  index > 0 ? 'border-t' : ''
+                } ${index === 1 ? 'md:border-t-0' : ''} ${index % 2 === 1 ? 'md:border-l' : ''}`}
+              >
+                <dt className="shrink-0 text-muted-foreground">{label}</dt>
+                <dd className={`min-w-0 text-right font-medium ${value === '—' ? 'text-muted-foreground' : ''}`}>
+                  {email ? <EmailLink email={email} className="justify-end" /> : value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </CardContent>
       </Card>
 
       <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileClock className="size-5 text-cyan-700" aria-hidden="true" />
-              操作紀錄
-            </CardTitle>
-            <CardDescription>最近的平台操作紀錄。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.recentAuditLogs.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">尚無操作紀錄。</p>
-            ) : (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="size-5 text-emerald-700" aria-hidden="true" />
+            成員與權限（{org.memberCount} / {plan.seatLimit ?? '合約'} 席）
+          </CardTitle>
+          <CardDescription>依角色排序，快速確認尚未加入或已停用的成員。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {sortedMembers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">目前沒有成員資料。</p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>成員</TableHead>
+                    <TableHead>角色</TableHead>
+                    <TableHead>狀態</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="min-w-60">
+                        {member.displayName ? (
+                          <p className="font-medium">{member.displayName}</p>
+                        ) : null}
+                        <EmailLink email={member.email} className={member.displayName ? 'mt-1 text-xs' : ''} />
+                      </TableCell>
+                      <TableCell>{TEAM_ROLE_LABEL[member.role]}</TableCell>
+                      <TableCell>{memberStatusBadge(member.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileClock className="size-5 text-cyan-700" aria-hidden="true" />
+            操作紀錄
+          </CardTitle>
+          <CardDescription>顯示最近 {data.recentAuditLogs.length} 筆平台操作；完整時間可將游標停在相對時間上查看。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.recentAuditLogs.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">尚無操作紀錄。</p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -354,9 +532,22 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                 <TableBody>
                   {data.recentAuditLogs.map((log) => (
                     <TableRow key={log.id}>
-                      <TableCell className="text-muted-foreground">{formatDateTime(log.createdAt)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        <time dateTime={log.createdAt} title={formatDateTime(log.createdAt)}>
+                          {formatRelativeTime(log.createdAt)}
+                        </time>
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{AUDIT_ACTION_LABEL[log.action] ?? log.action}</Badge>
+                        {SENSITIVE_AUDIT_ACTIONS.has(log.action) ? (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-300 bg-amber-50 text-amber-900"
+                          >
+                            {AUDIT_ACTION_LABEL[log.action] ?? log.action}
+                          </Badge>
+                        ) : (
+                          <span className="font-medium">{AUDIT_ACTION_LABEL[log.action] ?? log.action}</span>
+                        )}
                         {log.action === 'platform.org.note_added' ? (
                           <div className="mt-2 max-w-md space-y-1 text-xs leading-5 text-muted-foreground">
                             <p className="font-medium text-neutral-800">
@@ -374,8 +565,43 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Flag className="size-5 text-emerald-700" aria-hidden="true" />
+            功能開關
+          </CardTitle>
+          <CardDescription>啟用項目優先顯示；技術代碼保留供支援人員核對。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {featureFlags.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">尚未設定功能開關。</p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {featureFlags.map(([key, enabled]) => (
+                <li key={key} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-medium">{FEATURE_FLAG_LABEL[key] ?? key}</p>
+                    <p className="truncate font-mono text-[11px] text-muted-foreground" title={key}>{key}</p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={enabled
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-neutral-200 bg-neutral-50 text-neutral-600'}
+                  >
+                    {enabled ? '已啟用' : '未啟用'}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
       </Card>
     </>
   );
@@ -385,6 +611,12 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
   const { id } = await params;
   const result = await loadPlatformOrganizationDetailView(id);
   redirectUnauthenticatedPlatformAdminResult(result, `/internal/orgs/${id}`);
+  const organizationsResult = result.state === 'ready'
+    ? await loadPlatformOrganizationsView({ limit: 100 })
+    : null;
+  const attentionNavigation = result.state === 'ready' && organizationsResult?.state === 'ready'
+    ? buildAttentionNavigation(result.data.organization.id, organizationsResult.data.organizations)
+    : null;
   const readyOrg = result.state === 'ready' ? result.data.organization : null;
   const readyIdentity = readyOrg ? getPlatformOrganizationDisplayIdentity(readyOrg) : null;
   const title = readyIdentity?.primaryLabel ?? '租戶詳情';
@@ -392,8 +624,8 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="min-w-0">
           <Button asChild variant="ghost" size="sm" className="mb-2 px-0">
             <Link href="/internal/orgs">
               <ArrowLeft className="size-4" aria-hidden="true" />
@@ -410,16 +642,43 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             {readyPlan ? <Badge variant="outline">{readyPlan.name}</Badge> : null}
           </div>
           {readyOrg ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {readyIdentity?.secondaryLabel ? `${readyIdentity.secondaryLabel} · ` : ''}
-              {formatProvisioningSource(readyOrg.provisioningSource)}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              {readyOrg.ownerEmail ? <EmailLink email={readyOrg.ownerEmail} /> : null}
+              {readyOrg.ownerEmail ? <span aria-hidden="true">·</span> : null}
+              <span>{formatProvisioningSource(readyOrg.provisioningSource)}</span>
+            </div>
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">
               此租戶的方案、訂閱、用量與健康度概況。
             </p>
           )}
         </div>
+        {attentionNavigation?.previous || attentionNavigation?.next ? (
+          <nav className="flex items-center gap-2 sm:justify-end" aria-label="需關注租戶導覽">
+            {attentionNavigation.previous ? (
+              <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
+                <Link
+                  href={`/internal/orgs/${attentionNavigation.previous.id}`}
+                  title={attentionNavigation.previous.name}
+                >
+                  <ChevronLeft className="size-4" aria-hidden="true" />
+                  上一個需關注
+                </Link>
+              </Button>
+            ) : null}
+            {attentionNavigation.next ? (
+              <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
+                <Link
+                  href={`/internal/orgs/${attentionNavigation.next.id}`}
+                  title={attentionNavigation.next.name}
+                >
+                  下一個需關注
+                  <ChevronRight className="size-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            ) : null}
+          </nav>
+        ) : null}
       </div>
 
       {result.state === 'ready' ? (
@@ -432,23 +691,21 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
             <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-md border bg-neutral-50 p-3">
                 <p className="text-xs font-medium text-muted-foreground">主要操作</p>
-                <div className="mt-2">
+                <div className="mt-2 [&>button]:w-full">
                   <StartTenantPreviewButton
                     orgId={result.data.organization.id}
                     orgName={title}
                   />
                 </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">唯讀預覽有效 1 小時，不會修改客戶資料。</p>
               </div>
               <div className="rounded-md border bg-neutral-50 p-3">
                 <p className="text-xs font-medium text-muted-foreground">營運跟進</p>
-                <div className="mt-2">
+                <div className="mt-2 [&>button]:w-full">
                   <OrgOperationsNoteForm
                     orgId={result.data.organization.id}
                     orgName={title}
                   />
                 </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">聯絡內容與下次跟進時間會寫入操作紀錄。</p>
               </div>
               <OrgBillingOperationControls
                 orgId={result.data.organization.id}

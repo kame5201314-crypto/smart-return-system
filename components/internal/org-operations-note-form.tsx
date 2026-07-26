@@ -69,7 +69,12 @@ export function OrgOperationsNoteForm({ orgId, orgName }: { orgId: string; orgNa
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        title="記錄聯絡內容與下次跟進時間"
+      >
         <ClipboardPenLine className="size-4" aria-hidden="true" />
         新增營運紀錄
       </Button>
