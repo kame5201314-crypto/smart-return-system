@@ -258,9 +258,30 @@ function isMissingShopeeReturnColumnError(error: unknown, column: string): boole
   );
 }
 
-function withoutBuyerNote<T extends Record<string, unknown>>(row: T): Omit<T, 'buyer_note'> {
+const OPTIONAL_SHOPEE_IMPORT_COLUMNS = [
+  'buyer_note',
+  'dispute_deadline',
+  'refund_amount',
+  'return_reason',
+  'shipping_method',
+] as const;
+
+type OptionalShopeeImportColumn = typeof OPTIONAL_SHOPEE_IMPORT_COLUMNS[number];
+
+function getMissingOptionalShopeeImportColumn(
+  error: unknown
+): OptionalShopeeImportColumn | null {
+  return OPTIONAL_SHOPEE_IMPORT_COLUMNS.find((column) =>
+    isMissingShopeeReturnColumnError(error, column)
+  ) || null;
+}
+
+function withoutShopeeImportColumn<T extends Record<string, unknown>>(
+  row: T,
+  column: OptionalShopeeImportColumn
+): T {
   const fallbackRow = { ...row };
-  delete fallbackRow.buyer_note;
+  delete fallbackRow[column];
   return fallbackRow;
 }
 
@@ -670,7 +691,7 @@ export async function importShopeeReturns(
         platform: platform,
       };
 
-      return buyerNoteSupported ? row : withoutBuyerNote(row);
+      return buyerNoteSupported ? row : withoutShopeeImportColumn(row, 'buyer_note');
     });
 
     // Try batch insert first
@@ -678,9 +699,24 @@ export async function importShopeeReturns(
       .from('shopee_returns')
       .insert(insertData as never);
 
-    if (isMissingShopeeReturnColumnError(error, 'buyer_note')) {
-      buyerNoteSupported = false;
-      insertData = insertData.map((row) => withoutBuyerNote(row));
+    const omittedOptionalColumns = new Set<OptionalShopeeImportColumn>(
+      buyerNoteSupported ? [] : ['buyer_note']
+    );
+
+    // Some long-lived projects predate optional Shopee import columns. PostgREST
+    // reports one missing column at a time, so retry until every unsupported
+    // optional field has been omitted. Core tenant/order fields are never removed.
+    while (error) {
+      const missingColumn = getMissingOptionalShopeeImportColumn(error);
+      if (!missingColumn || omittedOptionalColumns.has(missingColumn)) break;
+
+      omittedOptionalColumns.add(missingColumn);
+      if (missingColumn === 'buyer_note') {
+        buyerNoteSupported = false;
+      }
+      insertData = insertData.map((row) =>
+        withoutShopeeImportColumn(row, missingColumn)
+      );
 
       const legacyInsert = await supabase
         .from('shopee_returns')

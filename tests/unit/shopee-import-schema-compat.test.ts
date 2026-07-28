@@ -23,6 +23,16 @@ const BUYER_NOTE_SCHEMA_ERROR = {
   message: "Could not find the 'buyer_note' column of 'shopee_returns' in the schema cache",
 };
 
+const DISPUTE_DEADLINE_SCHEMA_ERROR = {
+  code: 'PGRST204',
+  message: "Could not find the 'dispute_deadline' column of 'shopee_returns' in the schema cache",
+};
+
+const REFUND_AMOUNT_SCHEMA_ERROR = {
+  code: 'PGRST204',
+  message: "Could not find the 'refund_amount' column of 'shopee_returns' in the schema cache",
+};
+
 const INPUT: ShopeeReturnInput = {
   orderNumber: 'ORDER-20260728-001',
   trackingNumber: 'TW1234567890',
@@ -33,6 +43,8 @@ const INPUT: ShopeeReturnInput = {
   activityPrice: 399,
   optionSku: 'SKU-001',
   returnQuantity: 1,
+  disputeDeadline: '2026-08-07',
+  refundAmount: 399,
   buyerNote: '買家希望換貨',
 };
 
@@ -130,6 +142,77 @@ describe('importShopeeReturns schema compatibility', () => {
     expect(insertMock.mock.calls[1]?.[0]).toEqual([
       expect.not.objectContaining({
         buyer_note: expect.anything(),
+      }),
+    ]);
+  });
+
+  it('retries the batch without dispute_deadline when the legacy schema is missing it', async () => {
+    const selectMock = vi.fn().mockReturnValue(createSelectChain({
+      data: [],
+      error: null,
+    }));
+    const insertMock = vi.fn()
+      .mockResolvedValueOnce({ error: DISPUTE_DEADLINE_SCHEMA_ERROR })
+      .mockResolvedValueOnce({ error: null });
+
+    createUntypedAdminClientMock.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: selectMock,
+        insert: insertMock,
+      }),
+    });
+
+    const result = await importShopeeReturns([INPUT]);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.imported).toBe(1);
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(insertMock.mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({
+        dispute_deadline: '2026-08-07',
+        refund_amount: 399,
+      }),
+    ]);
+    expect(insertMock.mock.calls[1]?.[0]).toEqual([
+      expect.objectContaining({
+        refund_amount: 399,
+      }),
+    ]);
+    expect(insertMock.mock.calls[1]?.[0]).toEqual([
+      expect.not.objectContaining({
+        dispute_deadline: expect.anything(),
+      }),
+    ]);
+  });
+
+  it('removes multiple unsupported optional columns reported one at a time', async () => {
+    const selectMock = vi.fn().mockReturnValue(createSelectChain({
+      data: [],
+      error: null,
+    }));
+    const insertMock = vi.fn()
+      .mockResolvedValueOnce({ error: BUYER_NOTE_SCHEMA_ERROR })
+      .mockResolvedValueOnce({ error: DISPUTE_DEADLINE_SCHEMA_ERROR })
+      .mockResolvedValueOnce({ error: REFUND_AMOUNT_SCHEMA_ERROR })
+      .mockResolvedValueOnce({ error: null });
+
+    createUntypedAdminClientMock.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        select: selectMock,
+        insert: insertMock,
+      }),
+    });
+
+    const result = await importShopeeReturns([INPUT]);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.imported).toBe(1);
+    expect(insertMock).toHaveBeenCalledTimes(4);
+    expect(insertMock.mock.calls[3]?.[0]).toEqual([
+      expect.not.objectContaining({
+        buyer_note: expect.anything(),
+        dispute_deadline: expect.anything(),
+        refund_amount: expect.anything(),
       }),
     ]);
   });
