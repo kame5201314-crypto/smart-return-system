@@ -237,6 +237,33 @@ function isRelationMissingError(error: unknown): boolean {
   );
 }
 
+function isMissingShopeeReturnColumnError(error: unknown, column: string): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const message = 'message' in error
+    ? String((error as { message?: string }).message || '').toLowerCase()
+    : '';
+  const code = 'code' in error
+    ? String((error as { code?: string }).code || '').toUpperCase()
+    : '';
+  const normalizedColumn = column.toLowerCase();
+
+  if (!message.includes(normalizedColumn)) return false;
+
+  return (
+    message.includes('schema cache')
+    || message.includes('does not exist')
+    || code === '42703'
+    || code === 'PGRST204'
+  );
+}
+
+function withoutBuyerNote<T extends Record<string, unknown>>(row: T): Omit<T, 'buyer_note'> {
+  const fallbackRow = { ...row };
+  delete fallbackRow.buyer_note;
+  return fallbackRow;
+}
+
 function pickPrimaryNormalizedCode(cleanCode: string, candidates: string[]): string {
   return candidates[0] || normalizeCodeToken(cleanCode);
 }
@@ -539,10 +566,33 @@ export async function importShopeeReturns(
     }
 
     // Get existing order_number + option_sku combos to check for duplicates in database
-    const { data: existing, error: fetchError } = await supabase
+    const existingWithBuyerNote = await supabase
       .from('shopee_returns')
       .select('id, order_number, option_sku, buyer_note')
       .eq('org_id', orgContext.orgId);
+
+    let buyerNoteSupported = true;
+    let existing = existingWithBuyerNote.data;
+    let fetchError = existingWithBuyerNote.error;
+
+    if (isMissingShopeeReturnColumnError(fetchError, 'buyer_note')) {
+      buyerNoteSupported = false;
+
+      const legacyExisting = await supabase
+        .from('shopee_returns')
+        .select('id, order_number, option_sku')
+        .eq('org_id', orgContext.orgId);
+
+      existing = (legacyExisting.data as Array<{
+        id: string;
+        order_number: string;
+        option_sku: string | null;
+      }> | null)?.map((row) => ({
+        ...row,
+        buyer_note: null,
+      })) || null;
+      fetchError = legacyExisting.error;
+    }
 
     if (fetchError) {
       console.error('Failed to fetch existing records:', fetchError);
@@ -567,6 +617,8 @@ export async function importShopeeReturns(
       const key = `${item.orderNumber}__${item.optionSku || ''}`;
       const existingRow = existingByKey.get(key);
       if (!existingRow) continue;
+
+      if (!buyerNoteSupported) continue;
 
       const nextBuyerNote = item.buyerNote?.trim() || '';
       const currentBuyerNote = existingRow.buyer_note?.trim() || '';
@@ -595,32 +647,46 @@ export async function importShopeeReturns(
     }
 
     // Prepare insert data
-    const insertData = newItems.map((item) => ({
-      org_id: orgContext.orgId,
-      order_number: item.orderNumber,
-      tracking_number: item.trackingNumber || null,
-      order_date: item.orderDate || null,
-      total_price: item.totalPrice,
-      product_name: item.productName,
-      option_name: item.optionName,
-      activity_price: item.activityPrice,
-      option_sku: item.optionSku,
-      return_quantity: item.returnQuantity || 1,
-      dispute_deadline: item.disputeDeadline || null,
-      refund_amount: item.refundAmount || null,
-      return_reason: item.returnReason || null,
-      buyer_note: item.buyerNote || null,
-      shipping_method: item.shippingMethod || null,
-      is_processed: false,
-      is_printed: false,
-      note: '',
-      platform: platform,
-    }));
+    let insertData = newItems.map((item) => {
+      const row = {
+        org_id: orgContext.orgId,
+        order_number: item.orderNumber,
+        tracking_number: item.trackingNumber || null,
+        order_date: item.orderDate || null,
+        total_price: item.totalPrice,
+        product_name: item.productName,
+        option_name: item.optionName,
+        activity_price: item.activityPrice,
+        option_sku: item.optionSku,
+        return_quantity: item.returnQuantity || 1,
+        dispute_deadline: item.disputeDeadline || null,
+        refund_amount: item.refundAmount || null,
+        return_reason: item.returnReason || null,
+        buyer_note: item.buyerNote || null,
+        shipping_method: item.shippingMethod || null,
+        is_processed: false,
+        is_printed: false,
+        note: '',
+        platform: platform,
+      };
+
+      return buyerNoteSupported ? row : withoutBuyerNote(row);
+    });
 
     // Try batch insert first
-    const { error } = await supabase
+    let { error } = await supabase
       .from('shopee_returns')
       .insert(insertData as never);
+
+    if (isMissingShopeeReturnColumnError(error, 'buyer_note')) {
+      buyerNoteSupported = false;
+      insertData = insertData.map((row) => withoutBuyerNote(row));
+
+      const legacyInsert = await supabase
+        .from('shopee_returns')
+        .insert(insertData as never);
+      error = legacyInsert.error;
+    }
 
     // If batch insert fails due to duplicates, insert one by one
     if (error && error.message.includes('duplicate key')) {
