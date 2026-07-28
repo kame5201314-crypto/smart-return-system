@@ -50,6 +50,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   'platform.tenant_preview_cleared': '結束租戶預覽',
   'platform.org.note_added': '營運紀錄',
   'platform.billing.manual_payment_marked': '記錄人工付款',
+  'platform.billing.permanent_manual_access_granted': '授予無限使用期',
   'platform.billing.org_suspended': '停權租戶',
   'platform.billing.org_resumed': '恢復租戶',
   'platform.billing.refund_requested': '申請退款',
@@ -60,6 +61,7 @@ import {
 } from '@/lib/saas/platform-admin-live-data';
 import { redirectUnauthenticatedPlatformAdminResult } from '@/lib/auth/internal-login-redirect';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
+import { isPermanentManualAccess } from '@/lib/saas/permanent-manual-access';
 import { getPlatformOrganizationDisplayIdentity } from '@/lib/saas/platform-organization-display';
 import type {
   PlatformOrganizationDetailView,
@@ -280,6 +282,12 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
   const org = data.organization;
   const identity = getPlatformOrganizationDisplayIdentity(org);
   const plan = SAAS_PLAN_DEFINITIONS[org.plan];
+  const hasPermanentAccess = isPermanentManualAccess({
+    orgStatus: org.status,
+    subscriptionProvider: data.subscription?.provider ?? null,
+    currentPeriodEnd: data.subscription?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: data.subscription?.cancelAtPeriodEnd,
+  });
 
   const trialExpired =
     org.status === 'trialing' && org.daysUntilTrialEnd !== null && org.daysUntilTrialEnd <= 0;
@@ -292,12 +300,24 @@ function DetailContent({ data }: { data: PlatformOrganizationDetailView }) {
 
   const summaryCards = [
     ['預估月營收', formatTwd(org.health.estimatedMrrTwd)],
-    ['試用到期', org.trialEnd ? formatDate(org.trialEnd) : '—'],
+    [
+      hasPermanentAccess ? '使用期限' : '試用到期',
+      hasPermanentAccess ? '無限使用期' : org.trialEnd ? formatDate(org.trialEnd) : '—',
+    ],
     ['本月退貨', `${org.usage.returnsThisMonth.toLocaleString('zh-TW')} 筆`],
     ['本月 AI', `${org.usage.aiUsedThisMonth.toLocaleString('zh-TW')} 次`],
   ] as const;
 
   const billingRows = [
+    {
+      label: '授權狀態',
+      value: hasPermanentAccess
+        ? '無限使用期'
+        : data.subscription?.currentPeriodEnd
+          ? `至 ${formatDate(data.subscription.currentPeriodEnd)}`
+          : '—',
+      email: null,
+    },
     { label: '帳務 Email', value: org.billingEmail ?? '—', email: org.billingEmail },
     { label: '統一編號', value: org.taxId ?? '—', email: null },
     { label: '試用 AI', value: formatSelfServiceTrialAI(org.selfServiceTrialAI), email: null },
@@ -621,6 +641,12 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
   const readyIdentity = readyOrg ? getPlatformOrganizationDisplayIdentity(readyOrg) : null;
   const title = readyIdentity?.primaryLabel ?? '租戶詳情';
   const readyPlan = readyOrg ? SAAS_PLAN_DEFINITIONS[readyOrg.plan] : null;
+  const readyHasPermanentAccess = result.state === 'ready' && isPermanentManualAccess({
+    orgStatus: result.data.organization.status,
+    subscriptionProvider: result.data.subscription?.provider ?? null,
+    currentPeriodEnd: result.data.subscription?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: result.data.subscription?.cancelAtPeriodEnd,
+  });
 
   return (
     <div className="space-y-6">
@@ -640,6 +666,11 @@ export default async function InternalOrgDetailPage({ params }: { params: Promis
               </Badge>
             ) : null}
             {readyPlan ? <Badge variant="outline">{readyPlan.name}</Badge> : null}
+            {readyHasPermanentAccess ? (
+              <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50">
+                無限使用期
+              </Badge>
+            ) : null}
           </div>
           {readyOrg ? (
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">

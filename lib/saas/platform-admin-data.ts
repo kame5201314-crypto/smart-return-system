@@ -38,7 +38,9 @@ export interface PlatformOrgUsageSnapshot {
 }
 
 export interface PlatformOrgSubscriptionSnapshot {
+  provider?: string | null;
   status: string;
+  currentPeriodStart?: string | null;
   currentPeriodEnd: string | null;
   trialEnd: string | null;
   cancelAtPeriodEnd: boolean;
@@ -249,7 +251,9 @@ function normalizeSubscriptionRow(
   return {
     orgId,
     subscription: {
+      provider: stringOrNull(row.provider),
       status: stringOrFallback(row.status, 'trialing'),
+      currentPeriodStart: stringOrNull(row.current_period_start),
       currentPeriodEnd: stringOrNull(row.current_period_end),
       trialEnd: stringOrNull(row.trial_end),
       cancelAtPeriodEnd: booleanOrFalse(row.cancel_at_period_end),
@@ -435,7 +439,7 @@ export function createPlatformAdminDataRepository(
 
       const { data, error } = await client
         .from('subscriptions')
-        .select('org_id, status, current_period_end, trial_end, cancel_at_period_end, created_at')
+        .select('org_id, provider, status, current_period_start, current_period_end, trial_end, cancel_at_period_end, created_at')
         .in('org_id', input.orgIds)
         .order('created_at', { ascending: false });
 

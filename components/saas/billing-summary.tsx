@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { SAAS_PLAN_DEFINITIONS } from '@/lib/config/saas-plans';
 import { formatSaaSBillingDate } from '@/lib/saas/billing-date';
+import { isPermanentManualAccess } from '@/lib/saas/permanent-manual-access';
 import type { BillingSettingsView } from '@/lib/saas/ui-backend-contracts';
 
 type BillingStatus = BillingSettingsView['org']['status'];
@@ -61,6 +62,12 @@ function resolveCurrentPaidPeriod(
 export function BillingSummary({ data }: { data: BillingSettingsView }) {
   const isTrial = isTrialSubscription(data);
   const isExpiredTrial = data.org.status === 'suspended' && isTrial;
+  const isPermanent = isPermanentManualAccess({
+    orgStatus: data.org.status,
+    subscriptionProvider: data.subscription?.provider ?? null,
+    currentPeriodEnd: data.subscription?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: data.subscription?.cancelAtPeriodEnd,
+  });
   const currentPaidPeriod = isTrial ? null : resolveCurrentPaidPeriod(data);
   const isTestEntitlement = currentPaidPeriod?.providerMode === 'test';
   const isThreeDayTestPeriod = isTrial || isTestEntitlement;
@@ -75,10 +82,14 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
     : currentPaidPeriod?.periodEnd ?? data.subscription?.currentPeriodEnd ?? null;
   const statusLabel = isExpiredTrial
     ? '測試已到期'
+    : isPermanent
+      ? '無限使用期'
     : isThreeDayTestPeriod
       ? '測試使用中'
       : STATUS_LABEL[data.org.status];
-  const summaryCopy = isExpiredTrial
+  const summaryCopy = isPermanent
+    ? '此帳號已由平台授予無限使用期，不會因日期到期而停用。'
+    : isExpiredTrial
     ? '完成方案付款後，即可恢復新增退貨、資料匯入／匯出與 AI 分析。'
     : isTrial
       ? '三天測試期間可使用完整退貨工作區；到期後仍可查看歷史資料。'
@@ -117,7 +128,9 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
           <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5">
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
-              <dt className="text-sm font-medium text-gray-950">使用開始日</dt>
+              <dt className="text-sm font-medium text-gray-950">
+                使用開始日
+              </dt>
               <dd className="mt-1 text-sm text-muted-foreground">
                 {formatSaaSBillingDate(periodStart)}
               </dd>
@@ -126,9 +139,11 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
           <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5">
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-gray-600" aria-hidden="true" />
             <div>
-              <dt className="text-sm font-medium text-gray-950">使用到期日</dt>
+              <dt className="text-sm font-medium text-gray-950">
+                {isPermanent ? '使用期限' : '使用到期日'}
+              </dt>
               <dd className="mt-1 text-sm text-muted-foreground">
-                {formatSaaSBillingDate(periodEnd)}
+                {isPermanent ? '無限使用期' : formatSaaSBillingDate(periodEnd)}
               </dd>
             </div>
           </div>
@@ -138,7 +153,7 @@ export function BillingSummary({ data }: { data: BillingSettingsView }) {
           <p className="mt-4 text-sm leading-6 text-muted-foreground">{summaryCopy}</p>
         ) : null}
 
-        {data.subscription?.cancelAtPeriodEnd ? (
+        {!isPermanent && data.subscription?.cancelAtPeriodEnd ? (
           <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>目前方案將於 {formatSaaSBillingDate(periodEnd)} 到期，屆時不會自動續扣。</p>

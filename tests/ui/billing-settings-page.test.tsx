@@ -80,6 +80,7 @@ describe('BillingSettingsPage', () => {
     billingMocks.result.data.org.status = 'trialing';
     billingMocks.result.data.org.plan = 'basic';
     billingMocks.result.data.org.suspensionSource = null;
+    billingMocks.result.data.subscription!.provider = 'manual';
     billingMocks.result.data.subscription!.currentPeriodStart = '2026-07-18T00:00:00.000Z';
     billingMocks.result.data.subscription!.currentPeriodEnd = '2026-07-21T00:00:00.000Z';
     billingMocks.result.data.subscription!.trialEnd = '2026-07-21T00:00:00.000Z';
@@ -154,6 +155,26 @@ describe('BillingSettingsPage', () => {
     expect(screen.getByText('2026/07/21')).toBeInTheDocument();
     expect(screen.getByText('2026/07/24')).toBeInTheDocument();
     expect(screen.getByText(/目前沒有付款紀錄/)).toBeInTheDocument();
+  });
+
+  it('shows an active manual subscription without an end date as permanent access', async () => {
+    billingMocks.result.data.org.status = 'active';
+    billingMocks.result.data.org.plan = 'growth';
+    billingMocks.result.data.subscription!.provider = 'manual';
+    billingMocks.result.data.subscription!.currentPeriodStart = '2026-05-26T07:25:26.307Z';
+    billingMocks.result.data.subscription!.currentPeriodEnd = null;
+    billingMocks.result.data.subscription!.trialEnd = null;
+    billingMocks.result.data.subscription!.cancelAtPeriodEnd = false;
+    billingMocks.result.data.history = [];
+
+    await renderPage();
+
+    expect(screen.getByRole('heading', { name: '成長版' })).toBeInTheDocument();
+    expect(screen.getAllByText('無限使用期')).toHaveLength(2);
+    expect(screen.getByText('使用開始日')).toBeInTheDocument();
+    expect(screen.getByText('使用期限')).toBeInTheDocument();
+    expect(screen.getByText(/不會因日期到期而停用/)).toBeInTheDocument();
+    expect(screen.queryByText('使用到期日')).not.toBeInTheDocument();
   });
 
   it('labels ECPay test access and history without pretending it is a fresh trial', async () => {

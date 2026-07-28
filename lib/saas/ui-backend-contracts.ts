@@ -318,6 +318,14 @@ export interface PlatformOrganizationDetailView {
     taxId: string | null;
     featureFlags: Record<string, boolean>;
   };
+  subscription: {
+    provider: BillingProvider | null;
+    status: OrgSubscriptionStatus;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    trialEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
   members: TeamSettingsView['members'];
   recentAuditLogs: Array<{
     id: string;
@@ -941,6 +949,7 @@ export function buildPlatformOrganizationDetailView(
   }
 ): PlatformOrganizationDetailView {
   const now = input.now ?? new Date();
+  const subscription = input.subscriptionsByOrgId?.[organization.id];
   return {
     organization: {
       ...buildPlatformOrganizationListItem(
@@ -954,6 +963,18 @@ export function buildPlatformOrganizationDetailView(
       taxId: organization.taxId,
       featureFlags: booleanFlagsOnly(organization.featureFlags),
     },
+    subscription: subscription
+      ? {
+          provider: subscription.provider
+            ? normalizeBillingProvider(subscription.provider)
+            : null,
+          status: normalizeOrgStatus(subscription.status),
+          currentPeriodStart: subscription.currentPeriodStart ?? null,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          trialEnd: subscription.trialEnd,
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        }
+      : null,
     members: organization.members.map((member) => ({
       id: requireString(member.id, 'member.id'),
       userId: null,
