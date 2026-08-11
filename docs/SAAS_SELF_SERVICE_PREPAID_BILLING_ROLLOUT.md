@@ -1,8 +1,18 @@
 # SaaS Self-Service Prepaid Billing Goal And Rollout
 
-Last updated: 2026-07-20
+Last updated: 2026-08-11
 
 ## Current Verified Status
+
+- The current Production deployment is Ready and the formal ECPay provider,
+  mode, merchant credential variable names, and Billing flag names are present.
+  Production still lacks `ECPAY_PAYMENT_METHODS_CONFIRMED`, so checkout safely
+  returns `payment_methods_unavailable` until the ECPay merchant console shows
+  at least one approved Production collection method for the same MerchantID.
+- Read-only Billing records show successful Stage/test settlement, but no
+  verified paid Production order. A real customer payment must not be accepted
+  as validated until the bounded Production charge/callback/ledger/refund and
+  invoice or receipt checks below pass.
 
 - A private custom-offer extension is prepared in repository migration `049`.
   It lets platform operations quote a tenant-specific amount for one month of
@@ -25,12 +35,12 @@ Last updated: 2026-07-20
   settlement, and creation of the paid subscription period.
 - Preview Vercel Authentication was disabled only for the provider-callback
   acceptance window and was restored after verification.
-- Production deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` is Ready with the
-  latest prepaid Billing code and migration-compatible schema. Production has
-  `BILLING_PROVIDER=ecpay` and `ECPAY_MODE=production`, but no formal ECPay
-  merchant credentials. Keep
-  `ENABLE_BILLING=false` and `ENABLE_SUBSCRIPTION_PLAN=false`; do not accept a
-  real payment until the Production checklist below is completed.
+- Historical deployment `dpl_E1MZVpRMiZhULVnQEuo165AyHVx4` completed the
+  prepaid Billing code and migration-compatible schema rollout. Formal
+  credentials and Billing flags have since been configured, but the separate
+  Production collection-method assertion and real-charge acceptance remain
+  incomplete. Do not accept a real payment until the Production checklist
+  below is completed.
 
 ## Goal
 

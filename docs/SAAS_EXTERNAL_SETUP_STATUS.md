@@ -1,5 +1,31 @@
 # SaaS External Setup Status
 
+## 2026-08-11 Production ECPay Collection Audit
+
+- Production deployment `dpl_8XnuZhhdzJT5MFGesenG3oh4o1Ni` is Ready and
+  serves `https://smart-return-system-saas.vercel.app` with the current
+  repository Billing safeguards.
+- The Production environment now lists the formal ECPay provider, mode, and
+  merchant credential variable names, together with the Billing feature
+  flags. Secret values were not read or copied during this audit.
+- Production does **not** list the non-secret rollout assertion
+  `ECPAY_PAYMENT_METHODS_CONFIRMED`. Checkout therefore correctly fails closed
+  with `payment_methods_unavailable` instead of sending a customer to an ECPay
+  merchant that has not been confirmed to offer a Production collection
+  method.
+- Read-only SaaS Billing records contain two successful ECPay payments, both in
+  Stage/test mode. No verified paid Production transaction exists yet. Older
+  Production attempts are pending or expired and do not grant paid access.
+- Repository regression coverage passed for the Production payment-method
+  gate, signed checkout, and rollout-readiness assertion. The remaining blocker
+  is external: the same formal MerchantID must show at least one approved
+  Production collection method in the ECPay merchant console.
+- Do not add `ECPAY_PAYMENT_METHODS_CONFIRMED=true` merely to bypass error
+  `10300023`. After ECPay approval is visible, add the assertion, redeploy, run
+  one bounded NT$399 real-payment test, and verify the callback, independent
+  trade query, paid ledger, subscription period, invoice/receipt, and refund
+  path before declaring Production collection ready.
+
 ## 2026-07-20 Private Custom Offer Repository Update
 
 - User-provided ECPay email evidence shows that the merchant bank-account

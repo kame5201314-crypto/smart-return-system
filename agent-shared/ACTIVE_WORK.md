@@ -1,5 +1,26 @@
 # Active Work
 
+## 2026-08-11 Production ECPay Collection Audit
+
+Status: repository safeguards verified; Production payment-method approval
+still external-blocked
+
+Scope: Reconcile the deployed Billing code, visible Vercel Production variable
+names, and read-only SaaS payment records before accepting a real customer
+payment.
+
+Notes: Production deployment `dpl_8XnuZhhdzJT5MFGesenG3oh4o1Ni` is Ready. The
+formal ECPay provider/mode/credential variable names and Billing flag names are
+present, but `ECPAY_PAYMENT_METHODS_CONFIRMED` is absent. The checkout route is
+therefore intentionally closed with `payment_methods_unavailable`. The SaaS
+ledger contains successful Stage/test payments but no verified paid Production
+transaction. Do not bypass this gate: first confirm an approved Production
+collection method for the formal MerchantID in the ECPay merchant console,
+then add the non-secret assertion, redeploy, and complete one bounded NT$399
+real-payment/callback/ledger/refund/invoice verification. No secret value was
+read or written, and no Vercel, ECPay, Supabase, migration, DNS, or Billing
+setting was changed by this audit.
+
 ## 2026-07-20 Single Public NT$399 Prepaid Plan
 
 Status: repository-complete; Production collection remains externally blocked
