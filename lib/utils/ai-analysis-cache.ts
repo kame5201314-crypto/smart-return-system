@@ -4,6 +4,21 @@ export interface AIAnalysisCacheDecisionInput {
   payloadFingerprint: string;
 }
 
+// Reconciliation can fix headline totals without regenerating the analysis.
+// Check the original input snapshot too, so incomplete narratives stay stale.
+export function isAIReportDatasetStale(rawPrompt: unknown, expectedReturns: number): boolean {
+  try {
+    const snapshot = typeof rawPrompt === 'string' ? JSON.parse(rawPrompt) : rawPrompt;
+    const counts = snapshot?.dataset_counts;
+    return !counts
+      || typeof counts.official_returns !== 'number'
+      || typeof counts.shopee_returns !== 'number'
+      || counts.official_returns + counts.shopee_returns !== expectedReturns;
+  } catch {
+    return true;
+  }
+}
+
 export interface AIAnalysisCacheDecision {
   reuse: boolean;
   reason:

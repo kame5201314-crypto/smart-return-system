@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/supabase/fetch-all-rows.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import { isAuthenticatedRequest } from '@/lib/auth/request-auth';
@@ -25,6 +26,7 @@ import {
 import {
   decideAIAnalysisCacheReuse,
   isAIAnalysisCacheEnabled,
+  isAIReportDatasetStale,
 } from '@/lib/utils/ai-analysis-cache';
 import {
   buildAIUsageEventRecord,
@@ -416,7 +418,7 @@ export async function POST(request: NextRequest) {
 
     // ============ 1. Fetch return_requests ============
     let returns: ReturnAnalysisData[] = [];
-    const queryWithResolution = await supabase
+    const queryWithResolution = await fetchAllRows((from, to) => supabase
       .from('return_requests')
       .select(`
         *,
@@ -434,7 +436,8 @@ export async function POST(request: NextRequest) {
         )
       `)
       .gte('created_at', startDate)
-      .lt('created_at', endDate);
+      .lt('created_at', endDate)
+      .order('id').range(from, to));
 
     if (!queryWithResolution.error) {
       returns = queryWithResolution.data as ReturnAnalysisData[];
@@ -446,7 +449,7 @@ export async function POST(request: NextRequest) {
         errorMessage: queryWithResolution.error.message,
         context: { period },
       });
-      const queryWithoutResolution = await supabase
+      const queryWithoutResolution = await fetchAllRows((from, to) => supabase
         .from('return_requests')
         .select(`
           *,
@@ -463,7 +466,8 @@ export async function POST(request: NextRequest) {
           )
         `)
         .gte('created_at', startDate)
-        .lt('created_at', endDate);
+        .lt('created_at', endDate)
+        .order('id').range(from, to));
 
       if (!queryWithoutResolution.error) {
         returns = (queryWithoutResolution.data as ReturnAnalysisData[]).map((row) => ({
@@ -475,26 +479,32 @@ export async function POST(request: NextRequest) {
         }));
       } else {
         console.warn('Fallback return query failed, trying basic query:', queryWithoutResolution.error.message);
-        const basicQuery = await supabase
+        const basicQuery = await fetchAllRows((from, to) => supabase
           .from('return_requests')
           .select('*')
           .gte('created_at', startDate)
-          .lt('created_at', endDate);
+          .lt('created_at', endDate)
+        .order('id').range(from, to));
 
         if (!basicQuery.error) {
           returns = basicQuery.data as ReturnAnalysisData[];
+        } else {
+          throw new Error('Failed to load complete return requests');
         }
       }
     } else {
       console.warn('Full query failed, trying basic query:', queryWithResolution.error.message);
-      const basicQuery = await supabase
+      const basicQuery = await fetchAllRows((from, to) => supabase
         .from('return_requests')
         .select('*')
         .gte('created_at', startDate)
-        .lt('created_at', endDate);
+        .lt('created_at', endDate)
+        .order('id').range(from, to));
 
       if (!basicQuery.error) {
         returns = basicQuery.data as ReturnAnalysisData[];
+      } else {
+        throw new Error('Failed to load complete return requests');
       }
     }
 
@@ -502,30 +512,32 @@ export async function POST(request: NextRequest) {
     // Shopee analytics use the customer order date first so Data Center and AI reports
     // count the same month as the order list.
     let shopeeReturns: ShopeeReturnData[] = [];
-    const shopeeQuery = await untypedSupabase
+    const shopeeQuery = await fetchAllRows((from, to) => untypedSupabase
       .from('shopee_returns')
-      .select('*');
+      .select('*')
+      .order('id').range(from, to));
 
     if (!shopeeQuery.error && shopeeQuery.data) {
       shopeeReturns = (shopeeQuery.data as ShopeeReturnData[]).filter((row) =>
         isShopeeReturnInReportPeriod(row, period)
       );
     } else if (shopeeQuery.error) {
-      console.warn('Shopee returns query error:', shopeeQuery.error.message);
+      throw new Error('Failed to load complete Shopee returns');
     }
 
     // ============ 3. Fetch pickup_records ============
     let pickupRecords: PickupRecordData[] = [];
-    const pickupQuery = await untypedSupabase
+    const pickupQuery = await fetchAllRows((from, to) => untypedSupabase
       .from('pickup_records')
       .select('*')
       .gte('created_at', startDate)
-      .lt('created_at', endDate);
+      .lt('created_at', endDate)
+      .order('id').range(from, to));
 
     if (!pickupQuery.error && pickupQuery.data) {
       pickupRecords = pickupQuery.data as PickupRecordData[];
     } else if (pickupQuery.error) {
-      console.warn('Pickup records query error:', pickupQuery.error.message);
+      throw new Error('Failed to load complete pickup records');
     }
 
     // Check if we have any data at all
@@ -862,14 +874,15 @@ export async function GET(request: NextRequest) {
       );
 
       const [returnRequestResult, shopeeReturnResult] = await Promise.all([
-        untypedSupabase
+        fetchAllRows((from, to) => untypedSupabase
           .from('return_requests')
           .select('created_at, refund_amount')
           .gte('created_at', startDate)
-          .lt('created_at', endDate),
-        untypedSupabase
+          .lt('created_at', endDate).order('id').range(from, to)),
+        fetchAllRows((from, to) => untypedSupabase
           .from('shopee_returns')
-          .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price'),
+          .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price')
+          .order('id').range(from, to)),
       ]);
 
       if (!returnRequestResult.error && !shopeeReturnResult.error) {
@@ -888,19 +901,18 @@ export async function GET(request: NextRequest) {
         });
 
         const mismatch = consistencySummary.mismatches.find((item) => item.period === period);
-        if (mismatch) {
+        const expectedReturns = (returnRequestResult.data || []).length
+          + (shopeeReturnResult.data || []).filter((row) => isShopeeReturnInReportPeriod(row, period)).length;
+        if (mismatch || isAIReportDatasetStale(normalizedData[0].raw_prompt, expectedReturns)) {
           normalizedData[0] = {
             ...normalizedData[0],
             is_stale: true,
-            expected_total_returns: mismatch.expectedReturns,
-            actual_total_returns: mismatch.actualReturns,
+            expected_total_returns: expectedReturns,
+            actual_total_returns: Number(normalizedData[0].total_returns || 0),
           };
         }
       } else {
-        console.warn(
-          'AI report freshness check skipped:',
-          returnRequestResult.error?.message || shopeeReturnResult.error?.message
-        );
+        throw new Error('Unable to verify AI report against complete return data');
       }
     }
 

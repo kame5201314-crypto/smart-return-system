@@ -100,6 +100,7 @@ export default function AnalyticsPage() {
   const [allReturns, setAllReturns] = useState<ReturnData[]>([]);
   const [shopeeReturns, setShopeeReturns] = useState<ShopeeReturn[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
@@ -130,7 +131,6 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchData();
-    loadShopeeReturns();
   }, []);
 
   // Reset ranking pagination when filters change
@@ -139,26 +139,20 @@ export default function AnalyticsPage() {
   }, [selectedYear, selectedMonth, selectedChannel]);
 
   async function fetchData() {
+    setLoading(true);
+    setLoadError(null);
     try {
-      const result = await getReturnRequests();
-      if (result.success && result.data) {
-        setAllReturns(result.data as ReturnData[]);
+      const [result, shopeeResult] = await Promise.all([getReturnRequests(), getShopeeReturns()]);
+      if (!result.success || !result.data || !shopeeResult.success || !shopeeResult.data) {
+        throw new Error('Incomplete analytics data');
       }
+      setAllReturns(result.data as ReturnData[]);
+      setShopeeReturns(shopeeResult.data);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      setLoadError('退貨資料載入不完整，請重試。');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadShopeeReturns() {
-    try {
-      const result = await getShopeeReturns();
-      if (result.success && result.data) {
-        setShopeeReturns(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to load shopee returns:', error);
     }
   }
 
@@ -345,6 +339,13 @@ export default function AnalyticsPage() {
       productRankingPageStart + PRODUCT_RANKING_PAGE_SIZE
     )
     : stats.productRanking.slice(0, PRODUCT_RANKING_COMPACT_LIMIT);
+
+  if (loadError) {
+    return <Card><CardContent className="p-6 space-y-4">
+      <p role="alert">{loadError}</p>
+      <Button onClick={() => void fetchData()}>重新載入</Button>
+    </CardContent></Card>;
+  }
 
   return (
     <div className="space-y-6">

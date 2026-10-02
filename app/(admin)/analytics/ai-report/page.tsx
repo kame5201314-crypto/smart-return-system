@@ -119,6 +119,10 @@ export default function AIReportPage() {
       });
       const data = await response.json();
 
+      if (!response.ok || !data.success) {
+        throw new Error('Unable to verify report');
+      }
+
       if (data.success && data.data && data.data.length > 0) {
         // Get the most recent report for this period
         const report = data.data[0];
@@ -153,6 +157,7 @@ export default function AIReportPage() {
       }
     } catch (error) {
       console.error('Load existing report error:', error);
+      toast.error('無法核對完整退貨資料，請稍後重新載入報告。');
       setResult(null);
       setHasExistingReport(false);
     } finally {

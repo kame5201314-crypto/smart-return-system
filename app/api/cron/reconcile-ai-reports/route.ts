@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/supabase/fetch-all-rows.mjs';
 import { NextResponse } from 'next/server';
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { emitSchemaDriftAlert } from '@/lib/observability/schema-drift';
@@ -54,14 +55,16 @@ async function reconcileReports(url: string): Promise<{
 
   const [{ data: returnRequests, error: rrError }, { data: shopeeReturns, error: srError }, { data: reports, error: reportsError }] =
     await Promise.all([
-      supabase.from('return_requests').select('created_at, refund_amount'),
-      supabase
+      fetchAllRows((from, to) => supabase.from('return_requests').select('created_at, refund_amount')
+        .order('id').range(from, to)),
+      fetchAllRows((from, to) => supabase
         .from('shopee_returns')
-        .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price'),
-      supabase
+        .select('order_date, dispute_deadline, processed_at, created_at, refund_amount, total_price')
+        .order('id').range(from, to)),
+      fetchAllRows((from, to) => supabase
         .from('ai_analysis_reports')
         .select('id, report_period, total_returns, total_refund_amount, created_at')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).order('id').range(from, to)),
     ]);
 
   if (rrError || srError || reportsError) {
