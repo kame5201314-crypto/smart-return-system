@@ -1,5 +1,7 @@
 'use server';
 
+import { fetchAllRows } from '@/lib/supabase/fetch-all-rows.mjs';
+
 import { createUntypedAdminClient } from '@/lib/supabase/admin';
 import { recordScanAuditLog } from '@/lib/observability/scan-audit';
 import type { ApiResponse } from '@/types';
@@ -305,10 +307,12 @@ export async function getShopeeReturns(): Promise<ApiResponse<ShopeeReturn[]>> {
   try {
     const supabase = createUntypedAdminClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllRows((from, to) => supabase
       .from('shopee_returns')
       .select('*')
-      .order('imported_at', { ascending: false });
+      .order('imported_at', { ascending: false })
+      .order('id')
+      .range(from, to));
 
     if (error) {
       console.error('Get shopee returns error:', error);

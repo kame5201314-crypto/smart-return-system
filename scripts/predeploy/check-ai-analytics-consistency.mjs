@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { fetchAllRows } from '../../lib/supabase/fetch-all-rows.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -129,17 +130,19 @@ async function main() {
     return 0;
   }
 
-  const { data: returnRequests, error: rrError } = await supabase
+  const { data: returnRequests, error: rrError } = await fetchAllRows((from, to) => supabase
     .from('return_requests')
-    .select('id, created_at');
+    .select('id, created_at')
+    .order('id').range(from, to));
   if (rrError) {
     console.error(`[consistency-check] Failed to load return_requests: ${rrError.message}`);
     return 1;
   }
 
-  const { data: shopeeReturns, error: shopeeError } = await supabase
+  const { data: shopeeReturns, error: shopeeError } = await fetchAllRows((from, to) => supabase
     .from('shopee_returns')
-    .select('id, order_date, dispute_deadline, processed_at, created_at');
+    .select('id, order_date, dispute_deadline, processed_at, created_at')
+    .order('id').range(from, to));
   if (shopeeError) {
     console.error(`[consistency-check] Failed to load shopee_returns: ${shopeeError.message}`);
     return 1;

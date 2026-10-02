@@ -1,5 +1,7 @@
 'use server';
 
+import { fetchAllRows } from '@/lib/supabase/fetch-all-rows.mjs';
+
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createUntypedAdminClient } from '@/lib/supabase/admin';
 import {
@@ -559,7 +561,7 @@ export async function getReturnRequests(filters?: {
             ${returnItemsSelect}
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }).order('id');
 
       if (filters?.status) {
         query = query.eq('status', filters.status);
@@ -577,7 +579,7 @@ export async function getReturnRequests(filters?: {
       return query;
     };
 
-    let { data, error } = await buildQuery(true);
+    let { data, error } = await fetchAllRows((from, to) => buildQuery(true).range(from, to));
     let usedResolutionFallback = false;
 
     if (error && isMissingColumnError(error, 'return_items', 'resolution_type')) {
@@ -588,7 +590,7 @@ export async function getReturnRequests(filters?: {
         errorMessage: error.message,
       });
       usedResolutionFallback = true;
-      const retry = await buildQuery(false);
+      const retry = await fetchAllRows((from, to) => buildQuery(false).range(from, to));
       data = retry.data;
       error = retry.error;
     }

@@ -130,7 +130,7 @@ const DEFAULT_SAMPLE_LIMIT = 8;
 const MAX_TEXT_LENGTH = 80;
 const SKU_GROUP_TEXT_SUMMARY_LIMIT = 4;
 const SKU_VARIANT_TEXT_SUMMARY_LIMIT = 3;
-export const AI_ANALYSIS_PROMPT_TEMPLATE_VERSION = 'text-only-summary-v2';
+export const AI_ANALYSIS_PROMPT_TEMPLATE_VERSION = 'text-only-summary-v3';
 
 function normalizeValue(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
