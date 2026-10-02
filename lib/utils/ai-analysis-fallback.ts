@@ -298,11 +298,14 @@ export function buildLocalAIAnalysisFallback(
       : []),
   ];
 
+  const channelAnalysis = buildChannelAnalysis(payload);
+  const channelSummary = channelAnalysis.map(row => `${row.channel} ${row.return_count} 筆`).join('、');
+
   return {
-    summary: `${payload.period} 共分析 ${totalReturns} 筆退貨資料（官網 ${payload.dataset_counts.official_returns} 筆、蝦皮/商城 ${payload.dataset_counts.shopee_returns} 筆），因 AI 服務暫時無法產生內容，已改用文字統計備援報告。`,
+    summary: `${payload.period} 共分析 ${totalReturns} 筆退貨資料${channelSummary ? `（${channelSummary}）` : ''}，因 AI 服務暫時無法產生內容，已改用文字統計備援報告。`,
     pain_points: painPoints,
     recommendations,
     sku_analysis: buildSkuAnalysis(payload),
-    channel_analysis: buildChannelAnalysis(payload),
+    channel_analysis: channelAnalysis,
   };
 }

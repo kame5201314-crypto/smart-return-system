@@ -5,6 +5,26 @@ import { buildAIAnalysisPromptPayload } from '@/lib/utils/ai-analysis-prompt';
 import { buildAISkuAnalysisGroups } from '@/lib/utils/ai-sku-analysis';
 
 describe('buildLocalAIAnalysisFallback', () => {
+  it('uses channel counts instead of treating every return request as official', () => {
+    const payload = buildAIAnalysisPromptPayload({
+      period: '2026-09',
+      returns: Array.from({ length: 20 }, (_, i) => ({
+        channel_source: i < 14 ? 'official' : 'shopee', reason_category: null, reason_detail: null, refund_type: 'original',
+      })),
+      shopeeReturns: Array.from({ length: 201 }, (_, i) => ({
+        platform: i < 79 ? 'shopee' : 'mall', shipping_method: null, return_reason: null,
+        buyer_note: null, return_reason_note: null, note: null,
+      })),
+      pickupRecords: [], skuGroups: [],
+    });
+    const report = buildLocalAIAnalysisFallback(payload);
+    expect(report.summary).toContain('共分析 221 筆');
+    for (const text of ['官網 14 筆', '蝦皮 85 筆', '商城 122 筆']) {
+      expect(report.summary).toContain(text);
+    }
+    expect(report.summary).not.toContain('官網 20 筆');
+  });
+
   it('builds a usable text-only report when the AI provider is unavailable', () => {
     const skuGroups = buildAISkuAnalysisGroups([
       {
